@@ -137,7 +137,7 @@ const CustomersPage = () => {
 
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-primary text-brand-bg font-semibold text-xs shadow-md hover:bg-brand-dark hover:shadow-lg transition-all self-start sm:self-auto"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-button text-brand-on-button font-semibold text-xs shadow-md hover:bg-brand-surface hover:shadow-lg transition-all self-start sm:self-auto"
         >
           <Plus size={16} />
           <span>Registrar Cliente / Empresa</span>
@@ -218,7 +218,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all',
               activeTab === 'all'
-                ? 'bg-brand-primary text-brand-bg shadow-sm'
+                ? 'bg-brand-button text-brand-on-button shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -229,7 +229,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1',
               activeTab === 'frequent'
-                ? 'bg-brand-primary text-brand-bg shadow-sm'
+                ? 'bg-brand-button text-brand-on-button shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -241,7 +241,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1',
               activeTab === 'companies'
-                ? 'bg-brand-primary text-brand-bg shadow-sm'
+                ? 'bg-brand-button text-brand-on-button shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -253,7 +253,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all',
               activeTab === 'new'
-                ? 'bg-brand-primary text-brand-bg shadow-sm'
+                ? 'bg-brand-button text-brand-on-button shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -286,7 +286,7 @@ const CustomersPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-brand-dark text-brand-bg font-semibold">
+                <tr className="bg-brand-surface text-brand-on-dark font-semibold">
                   <th className="py-3 px-4">Cliente / Razón Social</th>
                   <th className="py-3 px-4">Identificación (NIT / CC)</th>
                   <th className="py-3 px-4">Contacto Directo</th>
@@ -715,7 +715,7 @@ const CustomersPage = () => {
                     type="button"
                     onClick={handleSave}
                     disabled={!formName.trim() || !formPhone.trim()}
-                    className="px-5 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold hover:bg-brand-dark shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-5 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold hover:bg-brand-surface shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {editingCustomer ? 'Guardar Cambios' : 'Registrar Cliente'}
                   </button>

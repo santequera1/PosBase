@@ -85,7 +85,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
         {/* Live Visual Preview (Compact Ticket) */}
         <div className="flex-1 overflow-y-auto p-4 bg-gray-100 flex justify-center items-start">
           <div
-            className="bg-white p-3.5 rounded-xl shadow-md border border-gray-300 text-left font-mono text-[10.5px] text-[#111] space-y-2 transition-all"
+            className="paper bg-white p-3.5 rounded-xl shadow-md border border-gray-300 text-left font-mono text-[10.5px] text-[#111] space-y-2 transition-all"
             style={{ width: paperSize === '58mm' ? '220px' : '260px' }}
           >
             {/* Header */}
@@ -204,7 +204,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
           <button
             onClick={handlePrint}
             disabled={isPrinting}
-            className="flex-1 py-3 rounded-xl bg-brand-primary hover:bg-brand-dark text-brand-bg font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99] disabled:opacity-50"
+            className="flex-1 py-3 rounded-xl bg-brand-button hover:bg-brand-surface text-brand-on-button font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99] disabled:opacity-50"
           >
             <Printer size={16} />
             <span>{isPrinting ? 'Imprimiendo...' : '🖨️ Imprimir Factura'}</span>

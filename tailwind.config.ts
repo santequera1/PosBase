@@ -80,6 +80,9 @@ export default {
           "on-primary": "hsl(var(--brand-on-primary) / <alpha-value>)",
           "on-dark": "hsl(var(--brand-on-dark) / <alpha-value>)",
           "on-accent": "hsl(var(--brand-on-accent) / <alpha-value>)",
+          surface: "hsl(var(--brand-surface) / <alpha-value>)",
+          button: "hsl(var(--brand-button) / <alpha-value>)",
+          "on-button": "hsl(var(--brand-on-button) / <alpha-value>)",
         },
         success: {
           DEFAULT: "hsl(var(--success))",

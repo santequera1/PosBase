@@ -105,7 +105,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
         {error && <p className="text-xs text-red-200 mb-2">{error}</p>}
 
         {/* Documento */}
-        <div className="print-area bg-white rounded-2xl shadow-2xl p-6 sm:p-8 text-[12px] text-gray-800 font-sans relative overflow-hidden">
+        <div className="print-area paper bg-white rounded-2xl shadow-2xl p-6 sm:p-8 text-[12px] text-gray-800 font-sans relative overflow-hidden">
           {/* Marca de agua / aviso de pruebas */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <span className="text-5xl sm:text-7xl font-black tracking-widest -rotate-[24deg] text-red-500/10 select-none">PRUEBA</span>

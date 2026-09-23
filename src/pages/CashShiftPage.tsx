@@ -212,7 +212,7 @@ export const CashShiftPage: React.FC = () => {
 
           <button
             onClick={() => setShowOpenModal(true)}
-            className="px-4 py-2 rounded-xl bg-brand-primary text-brand-bg hover:bg-brand-dark text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+            className="px-4 py-2 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
           >
             <Unlock size={14} /> Abrir Nuevo Turno
           </button>
@@ -416,7 +416,7 @@ export const CashShiftPage: React.FC = () => {
             <button
               onClick={handleCloseShift}
               disabled={isClosing || !currentShift}
-              className="w-full py-3.5 rounded-2xl bg-brand-primary text-brand-bg hover:bg-brand-dark font-serif font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-all"
+              className="w-full py-3.5 rounded-2xl bg-brand-button text-brand-on-button hover:bg-brand-surface font-serif font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-all"
             >
               <Lock size={18} />
               <span>Realizar Cierre de Turno (Z)</span>
@@ -566,7 +566,7 @@ export const CashShiftPage: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <button onClick={() => setViewShift(s)} className="px-2.5 py-1 mr-1.5 rounded-xl bg-brand-primary text-brand-on-primary text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all" title="Ver el cierre en pantalla"><EyeIcon size={13} /><span>Ver</span></button>
+                      <button onClick={() => setViewShift(s)} className="px-2.5 py-1 mr-1.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all" title="Ver el cierre en pantalla"><EyeIcon size={13} /><span>Ver</span></button>
                       <button
                         onClick={() => handlePrintZReport(s)}
                         className="px-2.5 py-1 rounded-xl bg-white border border-brand-primary/20 hover:bg-brand-card text-brand-primary text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
@@ -622,7 +622,7 @@ export const CashShiftPage: React.FC = () => {
                           className={cn(
                             "px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all",
                             withdrawalAmount === amt
-                              ? "bg-brand-dark text-brand-bg border-brand-dark"
+                              ? "bg-brand-surface text-brand-on-dark border-brand-dark"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           )}
                         >
@@ -718,7 +718,7 @@ export const CashShiftPage: React.FC = () => {
                           className={cn(
                             "px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all",
                             initialBaseInput === amt
-                              ? "bg-brand-dark text-brand-bg border-brand-dark"
+                              ? "bg-brand-surface text-brand-on-dark border-brand-dark"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           )}
                         >
@@ -751,7 +751,7 @@ export const CashShiftPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleOpenNewShift}
-                  className="flex-1 py-2.5 rounded-xl bg-brand-primary text-brand-bg text-xs font-semibold hover:bg-brand-dark"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-semibold hover:bg-brand-surface"
                 >
                   Confirmar Apertura
                 </button>
@@ -848,7 +848,7 @@ export const CashShiftPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setClosedTicket(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-brand-primary text-brand-bg font-semibold text-xs hover:bg-brand-dark"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-button text-brand-on-button font-semibold text-xs hover:bg-brand-surface"
                 >
                   Cerrar
                 </button>

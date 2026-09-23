@@ -110,7 +110,7 @@ const ProductsPage = () => {
         </button>
         <button
           onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '' }); setShowForm(true); }}
-          className="h-10 px-4 rounded-xl bg-brand-primary text-brand-bg hover:bg-brand-dark text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
+          className="h-10 px-4 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
         >
           <Plus size={16} /> Agregar Producto
         </button>
@@ -122,7 +122,7 @@ const ProductsPage = () => {
           onClick={() => setSelectedCategory(null)}
           className={cn(
             'px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm',
-            !selectedCategory ? 'bg-brand-primary text-brand-bg' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card'
+            !selectedCategory ? 'bg-brand-button text-brand-on-button' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card'
           )}
         >
           Todas las categorías
@@ -133,7 +133,7 @@ const ProductsPage = () => {
             onClick={() => setSelectedCategory(c.id)}
             className={cn(
               'px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm flex items-center gap-1',
-              selectedCategory === c.id ? 'bg-brand-primary text-brand-bg' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card'
+              selectedCategory === c.id ? 'bg-brand-button text-brand-on-button' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card'
             )}
           >
             <span>{c.emoji}</span>
@@ -171,7 +171,7 @@ const ProductsPage = () => {
               setNewCatName(''); setNewCatEmoji(''); setNewCatColor(BRAND.primary); setShowCatForm(false);
             }
           }} disabled={!newCatName || !newCatEmoji}
-            className="px-4 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold disabled:opacity-40 shadow-sm">
+            className="px-4 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold disabled:opacity-40 shadow-sm">
             Crear
           </button>
           <button onClick={() => setShowCatForm(false)} className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs hover:bg-gray-50">
@@ -339,11 +339,11 @@ const ProductsPage = () => {
                 <div className="rounded-xl border border-gray-200 p-3 space-y-2">
                   <label className="font-bold text-brand-primary block">Inventario</label>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => setFormData({ ...formData, trackStock: false })} className={cn('p-2 rounded-lg border text-left', !formData.trackStock ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200')}>
+                    <button type="button" onClick={() => setFormData({ ...formData, trackStock: false })} className={cn('p-2 rounded-lg border text-left', !formData.trackStock ? 'border-brand-primary bg-brand-button/5' : 'border-gray-200')}>
                       <span className="block font-semibold text-brand-dark">Siempre disponible</span>
                       <span className="block text-[10px] text-brand-muted">Sin control de cantidades (ej. sabores de vitrina)</span>
                     </button>
-                    <button type="button" onClick={() => setFormData({ ...formData, trackStock: true })} className={cn('p-2 rounded-lg border text-left', formData.trackStock ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200')}>
+                    <button type="button" onClick={() => setFormData({ ...formData, trackStock: true })} className={cn('p-2 rounded-lg border text-left', formData.trackStock ? 'border-brand-primary bg-brand-button/5' : 'border-gray-200')}>
                       <span className="block font-semibold text-brand-dark">Controlar stock</span>
                       <span className="block text-[10px] text-brand-muted">Se descuenta con cada venta y se agota en 0</span>
                     </button>
@@ -401,7 +401,7 @@ const ProductsPage = () => {
                         setMediaTarget({ mode: 'form', name: formData.name, currentImage: formData.image });
                         setMediaModalOpen(true);
                       }}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-brand-primary text-brand-bg hover:bg-brand-dark font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                      className="text-xs px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button hover:bg-brand-surface font-bold flex items-center gap-1.5 shadow-sm transition-all"
                     >
                       <ImageIcon size={13} /> 🖼️ Explorador / Subir Foto
                     </button>
@@ -440,7 +440,7 @@ const ProductsPage = () => {
                   </div>
                 </div>
                 <button onClick={handleSave} disabled={!formData.name || (!formData.price && formData.sizes.length === 0)}
-                  className="w-full mt-2 py-3 rounded-xl bg-brand-primary text-brand-bg hover:bg-brand-dark font-bold text-sm disabled:opacity-40 shadow-md">
+                  className="w-full mt-2 py-3 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface font-bold text-sm disabled:opacity-40 shadow-md">
                   {editingId ? 'Guardar Cambios' : 'Crear Producto'}
                 </button>
               </div>

@@ -71,7 +71,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
           <label className={LABEL}>Modalidad de pago</label>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
             {PAY_MODES.map(m => (
-              <button key={m.id} type="button" onClick={() => set({ payMode: m.id })} className={cn('p-2 rounded-lg border text-left', form.payMode === m.id ? 'border-brand-primary bg-brand-primary/5' : 'border-border')}>
+              <button key={m.id} type="button" onClick={() => set({ payMode: m.id })} className={cn('p-2 rounded-lg border text-left', form.payMode === m.id ? 'border-brand-primary bg-brand-button/5' : 'border-border')}>
                 <span className="block text-xs font-semibold text-brand-dark">{m.label}</span>
                 <span className="block text-[10px] text-muted-foreground leading-tight">{m.hint}</span>
               </button>
@@ -336,7 +336,7 @@ const AdvancesTab = ({ employees, isAdmin }: { employees: Employee[]; isAdmin: b
           <ul className="divide-y divide-border">
             {data.advances.map((a: any) => (
               <li key={a.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0"><PiggyBank size={16} /></div>
+                <div className="w-9 h-9 rounded-lg bg-brand-button/10 text-brand-primary flex items-center justify-center shrink-0"><PiggyBank size={16} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-brand-dark">{a.employeeName}</p>
                   <p className="text-[11px] text-muted-foreground">{fmtDate(a.date)}{a.fromCashRegister ? ' · salió de caja' : ''}{a.notes ? ` · ${a.notes}` : ''}</p>
@@ -433,7 +433,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
             <div className="sm:col-span-3 flex flex-wrap gap-1.5">{presets.map(p => <Chip key={p.label} active={from === p.from && to === p.to} onClick={() => { setFrom(p.from); setTo(p.to); setPreview(null); }}>{p.label}</Chip>)}</div>
             <div><label className={LABEL}>Desde</label><input type="date" value={from} onChange={e => { setFrom(e.target.value); setPreview(null); }} className={INPUT} /></div>
             <div><label className={LABEL}>Hasta</label><input type="date" value={to} onChange={e => { setTo(e.target.value); setPreview(null); }} className={INPUT} /></div>
-            <div className="flex items-end"><button onClick={calculate} disabled={!employeeId || calculating} className="w-full py-2 rounded-lg bg-brand-primary text-brand-on-primary text-xs font-semibold disabled:opacity-40">{calculating ? 'Calculando...' : 'Calcular'}</button></div>
+            <div className="flex items-end"><button onClick={calculate} disabled={!employeeId || calculating} className="w-full py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold disabled:opacity-40">{calculating ? 'Calculando...' : 'Calcular'}</button></div>
           </div>
           {error && <p className="text-xs text-red-600">{error}</p>}
 
@@ -483,7 +483,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-brand-primary">{formatPrice(s.total)}</p>
                     <div className="flex gap-1">
-                      {s.status === 'pending' && <button onClick={() => { setPaying(s); setPayMethod('cash'); setPayFromCash(true); }} className="px-3 py-1 rounded-lg bg-brand-primary text-brand-on-primary text-[11px] font-semibold">Pagar</button>}
+                      {s.status === 'pending' && <button onClick={() => { setPaying(s); setPayMethod('cash'); setPayFromCash(true); }} className="px-3 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold">Pagar</button>}
                       <button onClick={() => remove(s)} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>
                     </div>
                   </div>
@@ -551,7 +551,7 @@ const StaffPage = () => {
           {tabs.filter(t => !t.admin || isAdmin).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={cn('px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap border transition-all',
-                tab === t.id ? 'bg-brand-primary text-brand-on-primary border-brand-primary shadow-card' : 'bg-card text-brand-dark border-border hover:bg-muted/40')}>
+                tab === t.id ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-card' : 'bg-card text-brand-dark border-border hover:bg-muted/40')}>
               <t.icon size={14} /> {t.label}
             </button>
           ))}

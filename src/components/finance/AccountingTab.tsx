@@ -48,7 +48,7 @@ const Table = ({ headers, rows, footer, align }: { headers: string[]; rows: Arra
 );
 
 const ExportBtn = ({ onClick, children }: { onClick: () => void; children: any }) => (
-  <button onClick={onClick} className="px-2.5 py-1.5 rounded-lg border border-border bg-white text-[11px] font-semibold text-brand-primary hover:bg-brand-primary/5 flex items-center gap-1 print:hidden"><Download size={12} /> {children}</button>
+  <button onClick={onClick} className="px-2.5 py-1.5 rounded-lg border border-border bg-white text-[11px] font-semibold text-brand-primary hover:bg-brand-button/5 flex items-center gap-1 print:hidden"><Download size={12} /> {children}</button>
 );
 
 const AccountingTab = () => {
@@ -115,7 +115,7 @@ const AccountingTab = () => {
           </div>
         )}
         <div className="ml-auto flex gap-2">
-          <button onClick={exportAll} disabled={!data} className="px-3 py-1.5 rounded-lg bg-brand-primary text-brand-on-primary text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Download size={13} /> Exportar todo (Excel)</button>
+          <button onClick={exportAll} disabled={!data} className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Download size={13} /> Exportar todo (Excel)</button>
           <button onClick={printReport} disabled={!data} className="px-3 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold text-brand-dark flex items-center gap-1.5 disabled:opacity-40"><Printer size={13} /> Imprimir / PDF</button>
         </div>
       </div>

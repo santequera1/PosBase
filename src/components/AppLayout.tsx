@@ -17,6 +17,8 @@ import {
   Wallet,
   Store,
   Landmark,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice, formatTime } from '@/lib/format';
@@ -41,7 +43,8 @@ const visibleFor = (items: NavItem[], role?: string) => items.filter(i => !i.rol
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding } = useStore();
+  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride } = useStore();
+  const isDark = (modeOverride ?? branding.theme?.mode ?? 'light') === 'dark';
   const visibleNav = visibleFor(navItems, user?.role);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
   const [showNotifs, setShowNotifs] = useState(false);
@@ -71,7 +74,7 @@ export const AppLayout = () => {
   return (
     <div className="min-h-screen bg-brand-bg text-brand-dark font-sans">
       {/* Desktop Sidebar */}
-      <aside className={cn('hidden lg:flex flex-col fixed left-0 top-0 bottom-0 bg-brand-dark text-brand-bg z-40 transition-all duration-300 shadow-2xl', sideW)}>
+      <aside className={cn('hidden lg:flex flex-col fixed left-0 top-0 bottom-0 bg-brand-surface text-brand-on-dark z-40 transition-all duration-300 shadow-2xl', sideW)}>
         {/* Sidebar Header with Logo (No background, logo only) */}
         <div className={cn('p-3.5 border-b border-white/10 flex items-center justify-between gap-2', sidebarCollapsed && 'flex-col justify-center')}>
           <button
@@ -84,7 +87,7 @@ export const AppLayout = () => {
 
           <button
             onClick={toggleSidebar}
-            className={cn('w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center text-brand-bg/70 hover:text-white shrink-0 transition-colors', sidebarCollapsed && 'mt-1')}
+            className={cn('w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center text-brand-on-dark/70 hover:text-white shrink-0 transition-colors', sidebarCollapsed && 'mt-1')}
             title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
           >
             {sidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
@@ -103,7 +106,7 @@ export const AppLayout = () => {
                   'w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-sm font-semibold transition-all select-none',
                   active
                     ? 'bg-brand-card text-brand-dark shadow-md font-bold scale-[1.01]'
-                    : 'text-brand-bg/80 hover:text-white hover:bg-white/10',
+                    : 'text-brand-on-dark/80 hover:text-white hover:bg-white/10',
                   sidebarCollapsed && 'justify-center px-0'
                 )}
                 title={sidebarCollapsed ? item.label : undefined}
@@ -111,10 +114,10 @@ export const AppLayout = () => {
                 <item.icon size={20} className={active ? 'text-brand-primary-strong' : 'text-brand-accent'} />
                 {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                 {!sidebarCollapsed && item.path === '/orders' && pendingCount > 0 && (
-                  <span className="ml-auto bg-brand-accent text-brand-dark text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{pendingCount}</span>
+                  <span className="ml-auto bg-brand-accent text-brand-on-accent text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{pendingCount}</span>
                 )}
                 {sidebarCollapsed && item.path === '/orders' && pendingCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-brand-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
+                  <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-brand-on-accent text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
                 )}
               </button>
             );
@@ -122,9 +125,9 @@ export const AppLayout = () => {
         </nav>
 
         {/* Sidebar Footer User Info */}
-        <div className="p-3 border-t border-white/10 bg-[#1D243B]">
+        <div className="p-3 border-t border-white/10 bg-brand-surface">
           <div className={cn('flex items-center gap-3 px-2 py-1', sidebarCollapsed && 'justify-center px-0')}>
-            <div className="w-9 h-9 rounded-2xl bg-brand-accent text-brand-dark flex items-center justify-center text-sm font-bold shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-2xl bg-brand-accent text-brand-on-accent flex items-center justify-center text-sm font-bold shrink-0 shadow-sm">
               {user?.name?.[0] || 'G'}
             </div>
             {!sidebarCollapsed && (
@@ -145,7 +148,7 @@ export const AppLayout = () => {
       </aside>
 
       {/* Tablet Sidebar (icons only) */}
-      <aside className="hidden md:flex lg:hidden flex-col fixed left-0 top-0 bottom-0 w-16 bg-brand-dark text-brand-bg z-40 items-center border-r border-white/10 shadow-2xl">
+      <aside className="hidden md:flex lg:hidden flex-col fixed left-0 top-0 bottom-0 w-16 bg-brand-surface text-brand-on-dark z-40 items-center border-r border-white/10 shadow-2xl">
         <div className="p-3 mt-2 flex items-center justify-center">
           <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" />
         </div>
@@ -158,13 +161,13 @@ export const AppLayout = () => {
                 onClick={() => navigate(item.path)}
                 className={cn(
                   'w-11 h-11 flex items-center justify-center rounded-2xl transition-all relative',
-                  active ? 'bg-brand-card text-brand-dark shadow-md' : 'text-brand-bg/80 hover:bg-white/10 hover:text-white'
+                  active ? 'bg-brand-card text-brand-dark shadow-md' : 'text-brand-on-dark/80 hover:bg-white/10 hover:text-white'
                 )}
                 title={item.label}
               >
                 <item.icon size={20} className={active ? 'text-brand-dark' : 'text-brand-accent'} />
                 {item.path === '/orders' && pendingCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-brand-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
+                  <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-brand-on-accent text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
                 )}
               </button>
             );
@@ -180,6 +183,11 @@ export const AppLayout = () => {
           </button>
           {/* El título de cada sección lo pone la propia página; aquí solo queda espacio para las acciones */}
           <div className="flex-1 hidden md:block" />
+        {/* Modo claro / oscuro (preferencia de este dispositivo) */}
+        <button onClick={() => setModeOverride(isDark ? 'light' : 'dark')}
+          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+          {isDark ? <Sun size={19} className="text-brand-primary" /> : <Moon size={19} className="text-brand-primary" />}
+        </button>
         {/* Notifications bell */}
         <div className="relative" ref={notifRef}>
           <button onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
@@ -217,7 +225,7 @@ export const AppLayout = () => {
         {/* User avatar menu */}
         <div className="relative" ref={userMenuRef}>
           <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}
-            className="w-8 h-8 rounded-full bg-brand-primary text-brand-bg flex items-center justify-center text-sm font-bold cursor-pointer" title={user?.name}>
+            className="w-8 h-8 rounded-full bg-brand-button text-brand-on-button flex items-center justify-center text-sm font-bold cursor-pointer" title={user?.name}>
             {user?.name?.[0]}
           </button>
           {showUserMenu && (
@@ -316,7 +324,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
                 return (
                   <button key={item.path} onClick={() => { navigate(item.path); setShowMore(false); }}
                     className={cn('flex items-center gap-2.5 p-3 rounded-2xl transition-all',
-                      active ? 'bg-brand-primary text-brand-bg' : 'bg-brand-card hover:bg-brand-card-2 text-brand-primary')}>
+                      active ? 'bg-brand-button text-brand-on-button' : 'bg-brand-card hover:bg-brand-card-2 text-brand-primary')}>
                     <item.icon size={20} />
                     <span className="text-xs font-semibold">{item.label}</span>
                   </button>

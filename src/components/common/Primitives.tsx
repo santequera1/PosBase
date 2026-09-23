@@ -35,7 +35,7 @@ export const Modal = ({ title, onClose, children, wide }: { title: string; onClo
 export const Chip = ({ active, onClick, children, className, disabled }: { active?: boolean; onClick?: () => void; children: any; className?: string; disabled?: boolean }) => (
   <button type="button" onClick={onClick} disabled={disabled}
     className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap disabled:opacity-40',
-      active ? 'bg-brand-primary text-brand-on-primary border-brand-primary' : 'bg-white text-brand-dark border-border hover:bg-muted/40', className)}>
+      active ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-dark border-border hover:bg-muted/40', className)}>
     {children}
   </button>
 );

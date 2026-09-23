@@ -74,11 +74,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-brand-dark text-brand-bg flex items-center justify-between shrink-0 shadow-md">
+        <div className="px-6 py-4 bg-brand-surface text-brand-on-dark flex items-center justify-between shrink-0 shadow-md">
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-brand-bg transition-colors"
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-brand-on-dark transition-colors"
               title="Volver al pedido"
             >
               <ArrowLeft size={18} />
@@ -90,7 +90,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   {tabName}
                 </span>
               </h2>
-              <p className="text-xs text-brand-bg/70">
+              <p className="text-xs text-brand-on-dark/70">
                 Cliente: <strong className="text-white">{customer.name}</strong> • Doc: {customer.doc}
               </p>
             </div>
@@ -98,7 +98,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-bg transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-on-dark transition-colors"
           >
             <X size={18} />
           </button>
@@ -109,12 +109,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {/* LEFT: Payment Methods & Options */}
           <div className="flex-1 p-5 sm:p-6 space-y-5 border-b lg:border-b-0 lg:border-r border-brand-primary/10 overflow-y-auto">
             {/* Big Total Banner */}
-            <div className="p-4 rounded-2xl bg-brand-primary text-brand-bg flex items-center justify-between shadow-md">
+            <div className="p-4 rounded-2xl bg-brand-button text-brand-on-button flex items-center justify-between shadow-md">
               <div>
-                <p className="text-xs text-brand-bg/70 uppercase tracking-wider font-semibold">Total a Cobrar</p>
+                <p className="text-xs text-brand-on-dark/70 uppercase tracking-wider font-semibold">Total a Cobrar</p>
                 <p className="text-2xl sm:text-3xl font-extrabold text-brand-card">{formatPrice(total)}</p>
               </div>
-              <div className="text-right text-xs text-brand-bg/80">
+              <div className="text-right text-xs text-brand-on-dark/80">
                 <p>{cart.reduce((a, b) => a + b.quantity, 0)} productos</p>
                 {discountAmount > 0 && (
                   <p className="text-emerald-300 font-bold">Ahorro: {formatPrice(discountAmount)}</p>
@@ -133,7 +133,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'cash'
-                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      ? 'bg-brand-button text-brand-on-button ring-2 ring-brand-primary shadow-md scale-[1.02]'
                       : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
@@ -146,7 +146,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'card_debit'
-                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      ? 'bg-brand-button text-brand-on-button ring-2 ring-brand-primary shadow-md scale-[1.02]'
                       : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
@@ -159,7 +159,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'card_credit'
-                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      ? 'bg-brand-button text-brand-on-button ring-2 ring-brand-primary shadow-md scale-[1.02]'
                       : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
@@ -172,7 +172,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'transfer'
-                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      ? 'bg-brand-button text-brand-on-button ring-2 ring-brand-primary shadow-md scale-[1.02]'
                       : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
@@ -195,7 +195,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'mixed'
-                      ? 'bg-brand-dark text-brand-accent ring-2 ring-brand-accent shadow-md scale-[1.02]'
+                      ? 'bg-brand-surface text-brand-accent ring-2 ring-brand-accent shadow-md scale-[1.02]'
                       : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
@@ -217,7 +217,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       className={cn(
                         'px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs flex items-center gap-1',
                         numericCash === total && cashReceived === String(total)
-                          ? 'bg-brand-dark text-brand-bg border-brand-dark ring-2 ring-brand-accent font-extrabold shadow-md scale-105'
+                          ? 'bg-brand-surface text-brand-on-dark border-brand-dark ring-2 ring-brand-accent font-extrabold shadow-md scale-105'
                           : 'bg-white text-brand-primary border-gray-200 hover:bg-brand-card'
                       )}
                     >
@@ -234,7 +234,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           className={cn(
                             'px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs flex items-center gap-1',
                             isSelected
-                              ? 'bg-brand-dark text-brand-bg border-brand-dark ring-2 ring-brand-accent font-extrabold shadow-md scale-105'
+                              ? 'bg-brand-surface text-brand-on-dark border-brand-dark ring-2 ring-brand-accent font-extrabold shadow-md scale-105'
                               : 'bg-white text-brand-primary border-gray-200 hover:bg-brand-card'
                           )}
                         >
@@ -461,7 +461,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         className={cn(
                           'flex-1 py-1.5 text-xs font-bold rounded-xl border transition-all',
                           discountType === 'percent' && discountValue === pct
-                            ? 'bg-brand-primary text-brand-bg border-brand-primary'
+                            ? 'bg-brand-button text-brand-on-button border-brand-primary'
                             : 'bg-gray-50 hover:bg-brand-card text-brand-primary border-gray-200'
                         )}
                       >
@@ -489,7 +489,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowDiscountInput(false)}
-                      className="px-3 py-1.5 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold"
+                      className="px-3 py-1.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold"
                     >
                       OK
                     </button>
@@ -561,9 +561,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 onClick={onConfirmCheckout}
                 disabled={isSubmitting || isCashInvalid}
                 className={cn(
-                  'w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-brand-bg flex items-center justify-center gap-2 shadow-lg transition-all',
+                  'w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-brand-on-dark flex items-center justify-center gap-2 shadow-lg transition-all',
                   !isSubmitting && !isCashInvalid
-                    ? 'bg-gradient-to-r from-brand-primary to-brand-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
+                    ? 'bg-gradient-to-r from-brand-button to-brand-surface hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
                     : 'bg-gray-400 cursor-not-allowed'
                 )}
               >

@@ -161,7 +161,7 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
               className={cn(
                 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
                 rangeDays === r.days
-                  ? 'bg-brand-dark text-brand-bg shadow-xs'
+                  ? 'bg-brand-surface text-brand-on-dark shadow-xs'
                   : 'text-brand-muted hover:text-brand-dark hover:bg-white/60'
               )}
             >
@@ -311,10 +311,10 @@ const CustomBarTooltip: React.FC<any> = ({ active, payload }) => {
   const data: DayData = payload[0].payload;
 
   return (
-    <div className="bg-brand-dark text-brand-bg p-3.5 rounded-2xl shadow-2xl border border-brand-accent/50 text-xs min-w-[220px] font-sans animate-in fade-in zoom-in-95 duration-100">
+    <div className="bg-brand-surface text-brand-on-dark p-3.5 rounded-2xl shadow-2xl border border-brand-accent/50 text-xs min-w-[220px] font-sans animate-in fade-in zoom-in-95 duration-100">
       {/* Date Header */}
       <div className="pb-2 border-b border-white/10 mb-2">
-        <p className="font-semibold text-[11px] text-brand-bg/70 uppercase tracking-wider">
+        <p className="font-semibold text-[11px] text-brand-on-dark/70 uppercase tracking-wider">
           {data.dayLabel}
         </p>
         <p className="font-bold text-xs text-white leading-tight">
@@ -345,7 +345,7 @@ const CustomBarTooltip: React.FC<any> = ({ active, payload }) => {
       {/* Payment Breakdown (if sales exist) */}
       {data.totalSales > 0 ? (
         <div className="pt-2 border-t border-white/10 space-y-1 text-[10.5px]">
-          <span className="text-[9px] uppercase font-bold text-brand-bg/60 block mb-1">
+          <span className="text-[9px] uppercase font-bold text-brand-on-dark/60 block mb-1">
             Desglose por Medio de Pago:
           </span>
           <div className="flex justify-between items-center text-emerald-300">

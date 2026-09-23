@@ -31,7 +31,7 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-brand-bg">
       {/* Decorative Brand Accent Circles */}
       <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-brand-accent/20 blur-3xl" />
-      <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-brand-primary/10 blur-3xl" />
+      <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-brand-button/10 blur-3xl" />
 
       <div className="w-full max-w-sm relative z-10">
         <div className="rounded-3xl p-8 bg-white/90 backdrop-blur-xl border border-brand-primary/15 shadow-2xl text-center">
@@ -78,10 +78,10 @@ const LoginPage = () => {
             {error && <p className="text-xs text-center text-red-600 font-medium">{error}</p>}
 
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl font-sans font-bold text-base bg-brand-primary hover:bg-brand-dark text-brand-bg shadow-lg transition-all disabled:opacity-60">
+              className="w-full py-3.5 rounded-xl font-sans font-bold text-base bg-brand-button hover:bg-brand-surface text-brand-on-button shadow-lg transition-all disabled:opacity-60">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-brand-bg/30 border-t-brand-bg rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-brand-on-dark/30 border-t-brand-on-dark rounded-full animate-spin" />
                   INGRESANDO...
                 </span>
               ) : 'INGRESAR AL SISTEMA'}

@@ -134,7 +134,7 @@ const SettingsPage = () => {
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={cn('px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all border',
-                tab === t.id ? 'bg-brand-primary text-brand-on-primary border-brand-primary shadow-card' : 'bg-card text-brand-dark border-border hover:bg-muted/40')}>
+                tab === t.id ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-card' : 'bg-card text-brand-dark border-border hover:bg-muted/40')}>
               <Icon size={14} /> {t.label}
             </button>
           );

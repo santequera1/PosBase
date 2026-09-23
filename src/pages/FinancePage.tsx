@@ -76,7 +76,7 @@ const Modal = ({ title, onClose, children, wide }: { title: string; onClose: () 
 
 const Chip = ({ active, onClick, children, className }: { active?: boolean; onClick?: () => void; children: any; className?: string }) => (
   <button type="button" onClick={onClick}
-    className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap', active ? 'bg-brand-primary text-brand-on-primary border-brand-primary' : 'bg-white text-brand-dark border-border hover:bg-muted/40', className)}>
+    className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap', active ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-dark border-border hover:bg-muted/40', className)}>
     {children}
   </button>
 );
@@ -191,7 +191,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
           {isAdmin && (
             <div className="flex gap-1.5 mt-1.5">
               <input value={newSupplier} onChange={e => setNewSupplier(e.target.value)} placeholder="Nuevo proveedor rápido" className={cn(INPUT, 'text-xs py-1.5')} />
-              <button type="button" onClick={quickAddSupplier} disabled={newSupplier.trim().length < 2} className="px-3 rounded-lg bg-brand-primary/10 text-brand-primary text-xs font-semibold disabled:opacity-40"><Plus size={14} /></button>
+              <button type="button" onClick={quickAddSupplier} disabled={newSupplier.trim().length < 2} className="px-3 rounded-lg bg-brand-button/10 text-brand-primary text-xs font-semibold disabled:opacity-40"><Plus size={14} /></button>
             </div>
           )}
         </div>
@@ -410,7 +410,7 @@ const SummaryTab = ({ goTo }: { goTo: (t: Tab) => void }) => {
                         <span className="font-semibold">{formatPrice(c.total)}</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted mt-1 overflow-hidden">
-                        <div className="h-full rounded-full bg-brand-primary" style={{ width: `${pct(c.total, summary.totalExpenses)}%` }} />
+                        <div className="h-full rounded-full bg-brand-button" style={{ width: `${pct(c.total, summary.totalExpenses)}%` }} />
                       </div>
                     </li>
                   ))}
@@ -507,7 +507,7 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
                   <p className="text-sm font-bold text-brand-primary w-24 text-right">{formatPrice(e.amount)}</p>
                   {isAdmin && e.source === 'manual' && (
                     <div className="flex items-center">
-                      <button onClick={() => setModal({ open: true, expense: e })} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5"><Edit2 size={14} /></button>
+                      <button onClick={() => setModal({ open: true, expense: e })} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Edit2 size={14} /></button>
                       <button onClick={() => remove(e)} className={cn('p-1.5 rounded-lg', confirmDelete === e.id ? 'bg-red-600 text-white' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50')}><Trash2 size={14} /></button>
                     </div>
                   )}
@@ -556,7 +556,7 @@ const PayablesTab = () => {
                   <StatusPill e={e} />
                 </div>
                 <p className="text-sm font-bold text-brand-primary w-24 text-right">{formatPrice(e.amount)}</p>
-                <button onClick={() => setPaying(e)} className="px-3 py-1.5 rounded-lg bg-brand-primary text-brand-on-primary text-xs font-semibold whitespace-nowrap">Pagar</button>
+                <button onClick={() => setPaying(e)} className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold whitespace-nowrap">Pagar</button>
               </li>
             ))}
           </ul>
@@ -609,7 +609,7 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
         {list.map(s => (
           <div key={s.id} className={cn('bg-card rounded-xl border border-border p-4 shadow-card', !s.active && 'opacity-50')}>
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0"><Truck size={18} /></div>
+              <div className="w-10 h-10 rounded-xl bg-brand-button/10 text-brand-primary flex items-center justify-center shrink-0"><Truck size={18} /></div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-brand-dark truncate">{s.name}</p>
                 <p className="text-[11px] text-muted-foreground truncate">{s.category || 'Sin categoría'}{s.nit ? ` · NIT ${s.nit}` : ''}</p>
@@ -740,7 +740,7 @@ const FinancePage = () => {
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={cn('px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap border transition-all',
-                tab === t.id ? 'bg-brand-primary text-brand-on-primary border-brand-primary shadow-card' : 'bg-card text-brand-dark border-border hover:bg-muted/40')}>
+                tab === t.id ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-card' : 'bg-card text-brand-dark border-border hover:bg-muted/40')}>
               <t.icon size={14} /> {t.label}
             </button>
           ))}

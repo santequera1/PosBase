@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api, setToken } from '@/lib/api';
-import { type ThemeInput, type CustomFont, resolveTheme, applyTheme, setFavicon } from '@/lib/theme';
+import { type ThemeInput, type ThemeMode, type CustomFont, BASE_THEME, resolveTheme, applyTheme, setFavicon } from '@/lib/theme';
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
 export type OrderType = 'dine-in' | 'pickup' | 'delivery';
@@ -170,8 +170,15 @@ export function brandingFromSettings(s: any): Branding {
 }
 
 /** Aplica tema, fuentes, favicon y título del documento. */
+/** Preferencia de modo claro/oscuro de este dispositivo (interruptor del encabezado). */
+export function readModeOverride(): ThemeMode | null {
+  try { const v = localStorage.getItem('pos_mode'); return v === 'dark' || v === 'light' ? v : null; } catch { return null; }
+}
+
 export function applyBranding(b: Branding, businessName?: string) {
-  applyTheme(resolveTheme(b.theme), b.customFonts);
+  const override = readModeOverride();
+  const theme: ThemeInput = { ...BASE_THEME, ...(b.theme || {}), mode: override ?? b.theme?.mode ?? 'light' };
+  applyTheme(resolveTheme(theme), b.customFonts);
   setFavicon(b.faviconUrl || '/logo.svg', b.appleIconUrl || undefined);
   if (typeof document !== 'undefined' && businessName) document.title = `${businessName} — Punto de Venta`;
 }
@@ -197,6 +204,7 @@ interface AppState {
   taxRate: number;
   dianResolution: string;
   branding: Branding;
+  modeOverride: ThemeMode | null;
   initialized: boolean;
   sidebarCollapsed: boolean;
 
@@ -258,6 +266,7 @@ interface AppState {
 
   // Marca
   setBranding: (b: Partial<Branding>) => void;
+  setModeOverride: (mode: ThemeMode | null) => void;
   loadPublicBranding: () => Promise<void>;
 
   // Socket handler
@@ -286,6 +295,7 @@ export const useStore = create<AppState>((set, get) => ({
   taxRate: 0,
   dianResolution: '',
   branding: DEFAULT_BRANDING,
+  modeOverride: readModeOverride(),
   initialized: false,
   sidebarCollapsed: false,
 
@@ -607,6 +617,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   setBranding: (b) => {
     set(s => ({ branding: { ...s.branding, ...b } }));
+    applyBranding(get().branding, get().businessName);
+  },
+
+  setModeOverride: (mode) => {
+    try { if (mode) localStorage.setItem('pos_mode', mode); else localStorage.removeItem('pos_mode'); } catch { /* sin almacenamiento */ }
+    set({ modeOverride: mode });
     applyBranding(get().branding, get().businessName);
   },
 

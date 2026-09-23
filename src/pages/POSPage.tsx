@@ -701,12 +701,12 @@ export const POSPage: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-full w-full bg-brand-bg text-brand-primary overflow-hidden">
       {/* Mobile Top View Switcher */}
-      <div className="lg:hidden flex bg-brand-dark p-1.5 gap-1.5 shrink-0 shadow-md">
+      <div className="lg:hidden flex bg-brand-surface p-1.5 gap-1.5 shrink-0 shadow-md">
         <button
           onClick={() => setMobileView('catalog')}
           className={cn(
             'flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 font-sans',
-            mobileView === 'catalog' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-bg/80 hover:text-white'
+            mobileView === 'catalog' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-on-dark/80 hover:text-white'
           )}
         >
           <span>🍨 Sabores & Productos</span>
@@ -715,7 +715,7 @@ export const POSPage: React.FC = () => {
           onClick={() => setMobileView('cart')}
           className={cn(
             'flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 font-sans',
-            mobileView === 'cart' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-bg/80 hover:text-white'
+            mobileView === 'cart' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-on-dark/80 hover:text-white'
           )}
         >
           <ShoppingCart size={14} />
@@ -760,7 +760,7 @@ export const POSPage: React.FC = () => {
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm font-sans',
                 catalogTab === 'gelato'
-                  ? 'bg-brand-primary text-brand-bg shadow-md scale-[1.01]'
+                  ? 'bg-brand-button text-brand-on-button shadow-md scale-[1.01]'
                   : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
               )}
             >
@@ -776,7 +776,7 @@ export const POSPage: React.FC = () => {
                 className={cn(
                   'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                   catalogTab === cat.id
-                    ? 'bg-brand-primary text-brand-bg shadow-md scale-[1.01]'
+                    ? 'bg-brand-button text-brand-on-button shadow-md scale-[1.01]'
                     : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
                 )}
               >
@@ -790,7 +790,7 @@ export const POSPage: React.FC = () => {
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                 catalogTab === 'custom'
-                  ? 'bg-brand-primary text-brand-bg shadow-md'
+                  ? 'bg-brand-button text-brand-on-button shadow-md'
                   : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
               )}
             >
@@ -851,7 +851,7 @@ export const POSPage: React.FC = () => {
                       </span>
                       <button
                         onClick={handleAddFirstFlavorSolo}
-                        className="ml-1 px-2 py-0.5 rounded-lg bg-brand-primary text-brand-bg text-[10px] font-bold shrink-0 font-sans hover:bg-brand-dark"
+                        className="ml-1 px-2 py-0.5 rounded-lg bg-brand-button text-brand-on-button text-[10px] font-bold shrink-0 font-sans hover:bg-brand-surface"
                         title="Agregar con 1 solo sabor"
                       >
                         ✓ Dejar 1 Sabor
@@ -915,7 +915,7 @@ export const POSPage: React.FC = () => {
                   const isLitro = selectedFormat.id === 'litro' || selectedFormat.container === 'Familiar';
                   const isWhiteCard = isCono || isVaso4oz || isLitro;
                   const isFirstSelected = firstFlavor?.id === flavor.id;
-                  const bgColor = isWhiteCard ? '#FFFFFF' : (flavor.color_bg || BRAND.card);
+                  const bgColor = BRAND.isDark ? BRAND.card : (isWhiteCard ? '#FFFFFF' : (flavor.color_bg || BRAND.card));
                   const isSinAzucar = flavor.name.toLowerCase().includes('sin azúcar');
                   const isQuesoBocadillo = flavor.name.toLowerCase().includes('queso') && flavor.name.toLowerCase().includes('bocadillo');
                   const isAmarenas = flavor.name.toLowerCase().includes('amarena');
@@ -934,7 +934,7 @@ export const POSPage: React.FC = () => {
                         !isWhiteCard && isAmarenas && 'border-2 border-[#8B1E3F]/40 bg-[#FDF2F4]',
                         isFirstSelected && 'ring-4 ring-brand-primary shadow-lg scale-[1.03]'
                       )}
-                      style={{ backgroundColor: isWhiteCard ? '#FFFFFF' : (isQuesoBocadillo ? '#FFF5F2' : isAmarenas ? '#FDF2F4' : bgColor) }}
+                      style={{ backgroundColor: BRAND.isDark ? BRAND.card : (isWhiteCard ? '#FFFFFF' : (isQuesoBocadillo ? '#FFF5F2' : isAmarenas ? '#FDF2F4' : bgColor)) }}
                     >
                       {/* Availability Quick Toggle */}
                       <button
@@ -1026,8 +1026,8 @@ export const POSPage: React.FC = () => {
                       </div>
 
                       {isFirstSelected && (
-                        <div className="absolute inset-0 bg-brand-primary/20 rounded-2xl flex items-center justify-center">
-                          <span className="bg-brand-primary text-brand-bg px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                        <div className="absolute inset-0 bg-brand-button/20 rounded-2xl flex items-center justify-center">
+                          <span className="bg-brand-button text-brand-on-button px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                             ✓ 1er Sabor
                           </span>
                         </div>
@@ -1087,7 +1087,7 @@ export const POSPage: React.FC = () => {
 
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                       <span className="font-sans font-bold text-sm lg:text-base text-brand-primary-strong">{formatPrice(prod.price)}</span>
-                      <span className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-brand-primary text-brand-bg flex items-center justify-center text-sm font-bold shadow-sm group-hover:scale-105 transition-transform">
+                      <span className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-brand-button text-brand-on-button flex items-center justify-center text-sm font-bold shadow-sm group-hover:scale-105 transition-transform">
                         +
                       </span>
                     </div>
@@ -1124,7 +1124,7 @@ export const POSPage: React.FC = () => {
                 </div>
                 <button
                   onClick={handleAddCustomItem}
-                  className="w-full py-3 rounded-xl bg-brand-primary text-brand-bg font-sans font-semibold text-sm hover:bg-brand-dark transition-all"
+                  className="w-full py-3 rounded-xl bg-brand-button text-brand-on-button font-sans font-semibold text-sm hover:bg-brand-surface transition-all"
                 >
                   Agregar al Carrito
                 </button>
@@ -1138,7 +1138,7 @@ export const POSPage: React.FC = () => {
           <div className="lg:hidden p-2.5 bg-white border-t border-brand-primary/15 shadow-xl shrink-0">
             <button
               onClick={() => setMobileView('cart')}
-              className="w-full py-2.5 px-4 rounded-xl bg-brand-primary text-brand-bg font-bold text-xs flex items-center justify-between shadow-md active:scale-[0.99] font-sans"
+              className="w-full py-2.5 px-4 rounded-xl bg-brand-button text-brand-on-button font-bold text-xs flex items-center justify-between shadow-md active:scale-[0.99] font-sans"
             >
               <span className="flex items-center gap-2">
                 <ShoppingCart size={15} />
@@ -1155,7 +1155,7 @@ export const POSPage: React.FC = () => {
       {/* RIGHT COLUMN: Live Cart & Fast Checkout Panel */}
       <div className={cn('w-full lg:w-80 xl:w-96 bg-white flex-col h-full border-l border-brand-primary/10 shadow-xl shrink-0 font-sans', mobileView === 'cart' ? 'flex' : 'hidden lg:flex')}>
         {/* Precuentas / Multi-tabs Bar */}
-        <div className="p-2 bg-brand-dark text-white flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        <div className="p-2 bg-brand-surface text-white flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           <div className="flex items-center gap-1 shrink-0 text-xs font-bold text-brand-accent pl-1 pr-2">
             <Layers size={14} />
             <span className="hidden sm:inline">Cuentas:</span>
@@ -1176,7 +1176,7 @@ export const POSPage: React.FC = () => {
                   'px-2.5 py-1 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all select-none whitespace-nowrap group',
                   isActive
                     ? 'bg-brand-bg text-brand-dark font-bold shadow-md'
-                    : 'bg-white/10 text-brand-bg/80 hover:bg-white/20'
+                    : 'bg-white/10 text-brand-on-dark/80 hover:bg-white/20'
                 )}
               >
                 {isEditing ? (
@@ -1215,7 +1215,7 @@ export const POSPage: React.FC = () => {
                 {itemCount > 0 && (
                   <span className={cn(
                     'px-1.5 py-0.2 text-[10px] rounded-full font-bold',
-                    isActive ? 'bg-brand-primary text-brand-bg' : 'bg-white/20 text-white'
+                    isActive ? 'bg-brand-button text-brand-on-button' : 'bg-white/20 text-white'
                   )}>
                     {itemCount}
                   </span>
@@ -1438,9 +1438,9 @@ export const POSPage: React.FC = () => {
             onClick={() => setShowCheckoutModal(true)}
             disabled={cart.length === 0}
             className={cn(
-              'w-full py-3 sm:py-3.5 px-4 rounded-2xl font-sans font-bold text-sm sm:text-base text-brand-bg flex items-center justify-center gap-2 shadow-lg transition-all',
+              'w-full py-3 sm:py-3.5 px-4 rounded-2xl font-sans font-bold text-sm sm:text-base text-brand-on-dark flex items-center justify-center gap-2 shadow-lg transition-all',
               cart.length > 0
-                ? 'bg-gradient-to-r from-brand-primary to-brand-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
+                ? 'bg-gradient-to-r from-brand-button to-brand-surface hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
                 : 'bg-gray-400 cursor-not-allowed'
             )}
           >
@@ -1599,7 +1599,7 @@ export const POSPage: React.FC = () => {
               <div className="mt-5 flex gap-2">
                 <button
                   onClick={() => setShowCustomerModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-brand-primary text-brand-bg font-semibold text-sm hover:bg-brand-dark"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-button text-brand-on-button font-semibold text-sm hover:bg-brand-surface"
                 >
                   Guardar Datos
                 </button>
@@ -1664,7 +1664,7 @@ export const POSPage: React.FC = () => {
                         key={preset}
                         type="button"
                         onClick={() => handleApplyTabName(preset)}
-                        className="p-2 rounded-xl bg-brand-card hover:bg-brand-primary hover:text-brand-bg text-brand-primary text-xs font-bold border border-brand-accent/40 transition-all text-center truncate shadow-sm"
+                        className="p-2 rounded-xl bg-brand-card hover:bg-brand-button hover:text-brand-on-button text-brand-primary text-xs font-bold border border-brand-accent/40 transition-all text-center truncate shadow-sm"
                       >
                         {preset}
                       </button>
@@ -1682,7 +1682,7 @@ export const POSPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handleApplyTabName(customRenameValue)}
-                  className="flex-1 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold hover:bg-brand-dark shadow-sm"
+                  className="flex-1 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold hover:bg-brand-surface shadow-sm"
                 >
                   Guardar Nombre
                 </button>

@@ -94,7 +94,7 @@ const CustomerDetailPage = () => {
         <p className="text-xs text-gray-500 mt-1">El cliente solicitado no existe o fue eliminado.</p>
         <button
           onClick={() => navigate('/customers')}
-          className="mt-4 px-4 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-semibold shadow-sm hover:bg-brand-dark transition-all"
+          className="mt-4 px-4 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-semibold shadow-sm hover:bg-brand-surface transition-all"
         >
           ← Volver al Directorio
         </button>
@@ -187,7 +187,7 @@ const CustomerDetailPage = () => {
           {/* Identity Card */}
           <div className="bg-white rounded-2xl p-5 border border-brand-primary/10 shadow-sm relative overflow-hidden">
             {/* Top decorative stripe */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-brand-primary" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-brand-button" />
 
             <div className="flex items-start gap-3.5 mb-4 mt-1">
               <div className={cn(
@@ -371,7 +371,7 @@ const CustomerDetailPage = () => {
                   >
                     <span className="text-amber-600 font-bold">#{idx + 1}</span>
                     <span>{flavor}</span>
-                    <span className="px-1.5 py-0.2 rounded-md bg-brand-primary text-brand-bg text-[10px] font-bold">
+                    <span className="px-1.5 py-0.2 rounded-md bg-brand-button text-brand-on-button text-[10px] font-bold">
                       {count}x
                     </span>
                   </span>
@@ -604,7 +604,7 @@ const CustomerDetailPage = () => {
                     type="button"
                     onClick={handleSaveEdit}
                     disabled={!formName.trim() || !formPhone.trim()}
-                    className="px-5 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold hover:bg-brand-dark shadow-md transition-all disabled:opacity-40"
+                    className="px-5 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold hover:bg-brand-surface shadow-md transition-all disabled:opacity-40"
                   >
                     Guardar Cambios
                   </button>

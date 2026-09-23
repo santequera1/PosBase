@@ -10,7 +10,7 @@ export const ZReportModal = ({ shift, onClose, isReportX = false }: { shift: any
   return (
     <Modal title={title} onClose={onClose}>
       <div className="flex justify-center bg-gray-100 rounded-xl p-4 max-h-[65vh] overflow-y-auto">
-        <div className="ticket-preview bg-white shadow-md rounded-lg p-3" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="ticket-preview paper bg-white shadow-md rounded-lg p-3" dangerouslySetInnerHTML={{ __html: html }} />
       </div>
       <div className="flex gap-2">
         <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-brand-dark">Cerrar</button>

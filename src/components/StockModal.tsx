@@ -61,7 +61,7 @@ export const StockModal = ({ productId, onClose }: { productId: number; onClose:
 
       <div className="grid grid-cols-3 gap-1.5">
         {([['add', 'Agregar', PackagePlus], ['remove', 'Restar', PackageMinus], ['set', 'Fijar cantidad', ClipboardCheck]] as Array<[Mode, string, any]>).map(([m, label, Icon]) => (
-          <button key={m} type="button" onClick={() => setMode(m)} className={cn('py-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1', mode === m ? 'border-brand-primary bg-brand-primary/5 text-brand-primary' : 'border-border text-brand-dark')}>
+          <button key={m} type="button" onClick={() => setMode(m)} className={cn('py-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1', mode === m ? 'border-brand-primary bg-brand-button/5 text-brand-primary' : 'border-border text-brand-dark')}>
             <Icon size={13} /> {label}
           </button>
         ))}

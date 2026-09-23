@@ -92,7 +92,7 @@ export const OrdersPage: React.FC = () => {
 
         <button
           onClick={() => navigate('/pos')}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-brand-primary text-brand-bg font-semibold text-xs hover:bg-brand-dark shadow-md transition-all self-start sm:self-auto font-sans"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-brand-button text-brand-on-button font-semibold text-xs hover:bg-brand-surface shadow-md transition-all self-start sm:self-auto font-sans"
         >
           <Plus size={15} />
           <span>Nueva Venta POS</span>
@@ -127,7 +127,7 @@ export const OrdersPage: React.FC = () => {
               className={cn(
                 'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                 dateFilter === df.id
-                  ? 'bg-brand-primary text-brand-bg shadow-sm'
+                  ? 'bg-brand-button text-brand-on-button shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
@@ -250,7 +250,7 @@ export const OrdersPage: React.FC = () => {
                         setSelectedInvoice(order);
                         
                       }}
-                      className="p-2 rounded-xl bg-brand-primary text-brand-bg hover:bg-brand-dark transition-colors shadow-sm"
+                      className="p-2 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface transition-colors shadow-sm"
                       title="Imprimir"
                     >
                       <Printer size={15} />

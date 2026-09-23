@@ -165,7 +165,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-5 sm:px-6 py-4 bg-brand-dark text-brand-bg flex items-center justify-between shrink-0 shadow-md">
+          <div className="px-5 sm:px-6 py-4 bg-brand-surface text-brand-on-dark flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-brand-accent">
                 <ImageIcon size={22} />
@@ -179,7 +179,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                     </span>
                   )}
                 </h2>
-                <p className="text-xs text-brand-bg/70">
+                <p className="text-xs text-brand-on-dark/70">
                   Selecciona una foto del catálogo o sube una imagen propia desde tu equipo
                 </p>
               </div>
@@ -187,7 +187,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-bg transition-colors"
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-on-dark transition-colors"
             >
               <X size={18} />
             </button>
@@ -228,7 +228,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-3.5 py-2 rounded-xl bg-brand-primary hover:bg-brand-dark text-brand-bg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl bg-brand-button hover:bg-brand-surface text-brand-on-button text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
               >
                 <Upload size={14} />
                 <span>{uploading ? 'Subiendo...' : 'Subir Foto Propia'}</span>
@@ -253,7 +253,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all',
                 selectedGroup === 'all'
-                  ? 'bg-brand-dark text-brand-bg shadow-xs'
+                  ? 'bg-brand-surface text-brand-on-dark shadow-xs'
                   : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-white/80'
               )}
             >
@@ -269,7 +269,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                   className={cn(
                     'px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all',
                     selectedGroup === grp
-                      ? 'bg-brand-dark text-brand-bg shadow-xs'
+                      ? 'bg-brand-surface text-brand-on-dark shadow-xs'
                       : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-white/80'
                   )}
                 >
@@ -311,7 +311,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                     >
                       {/* Checkmark when selected */}
                       {isSelected && (
-                        <div className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full bg-brand-primary text-white flex items-center justify-center shadow-md">
+                        <div className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full bg-brand-button text-white flex items-center justify-center shadow-md">
                           <Check size={12} strokeWidth={3} />
                         </div>
                       )}
@@ -373,7 +373,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                 type="button"
                 onClick={handleApply}
                 disabled={!selectedUrl}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-primary to-brand-dark text-brand-bg font-bold text-xs shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-button to-brand-surface text-brand-on-button font-bold text-xs shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 <Sparkles size={14} />
                 <span>Aplicar a este Producto</span>

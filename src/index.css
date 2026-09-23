@@ -25,6 +25,9 @@
     --brand-on-primary: 40 93% 94%;
     --brand-on-dark: 40 93% 94%;
     --brand-on-accent: 225 34% 21%;
+    --brand-surface: 225 34% 21%;
+    --brand-button: 224 33% 31%;
+    --brand-on-button: 40 93% 94%;
     --font-heading: "Playfair Display", Georgia, serif;
     --font-body: "Lapture", "Plus Jakarta Sans", system-ui, sans-serif;
     --font-script: "Great Vibes", cursive;
@@ -38,8 +41,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: var(--brand-dark);
 
-    --primary: var(--brand-primary-strong);
-    --primary-foreground: var(--brand-on-primary);
+    --primary: var(--brand-button);
+    --primary-foreground: var(--brand-on-button);
 
     --secondary: var(--brand-pill);
     --secondary-foreground: var(--brand-primary);
@@ -87,11 +90,11 @@
     --shadow-fab: 0 10px 30px rgba(52,66,104,0.35);
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(var(--brand-dark)));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--brand-button)), hsl(var(--brand-surface)));
     --gradient-gold: linear-gradient(135deg, hsl(var(--brand-accent)), color-mix(in srgb, hsl(var(--brand-accent)) 78%, black));
     --gradient-card: linear-gradient(180deg, hsl(var(--brand-card)), hsl(var(--brand-card-2)));
 
-    --sidebar-background: var(--brand-dark);
+    --sidebar-background: var(--brand-surface);
     --sidebar-foreground: var(--brand-on-dark);
     --sidebar-primary: var(--brand-accent);
     --sidebar-primary-foreground: var(--brand-on-accent);
@@ -294,3 +297,44 @@
 .ticket-preview .item-desc { font-weight: 700; word-break: break-word; }
 .ticket-preview .item-flavors { font-size: 10px; color: #333; padding-left: 8px; font-style: italic; }
 .ticket-preview p { margin: 0; }
+
+/* Modo oscuro: se activa con la clase .dark en <html> (Ajustes → Marca o el interruptor del encabezado) */
+.dark {
+  --card: var(--brand-card);
+  --card-foreground: var(--brand-dark);
+  --popover: var(--brand-card);
+  --popover-foreground: var(--brand-dark);
+  --border: var(--brand-card-2);
+  --input: var(--brand-card-2);
+  --muted: var(--brand-card-2);
+  --secondary: var(--brand-pill);
+  --gradient-primary: linear-gradient(135deg, hsl(var(--brand-button)), hsl(var(--brand-button) / 0.7));
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-fab: 0 10px 30px rgba(0,0,0,0.45);
+  color-scheme: dark;
+}
+/* Utilidades pensadas solo para modo claro, remapeadas a la paleta oscura (.paper = vistas previas de papel, se mantienen blancas) */
+.dark .bg-white:not(.paper):not(.paper *) { background-color: hsl(var(--brand-card)); }
+.dark .bg-white\/90:not(.paper *), .dark .bg-white\/80:not(.paper *), .dark .bg-white\/60:not(.paper *) { background-color: hsl(var(--brand-card) / 0.92); }
+.dark .bg-gray-50:not(.paper *), .dark .bg-gray-100:not(.paper *), .dark .bg-muted\/30:not(.paper *), .dark .hover\:bg-gray-100:hover:not(.paper *), .dark .hover\:bg-gray-200:hover:not(.paper *) { background-color: hsl(var(--brand-card-2)); }
+.dark .text-gray-400:not(.paper *), .dark .text-gray-500:not(.paper *), .dark .text-gray-600:not(.paper *), .dark .text-gray-700:not(.paper *), .dark .text-gray-800:not(.paper *) { color: hsl(var(--brand-muted)); }
+.dark .border-gray-100:not(.paper *), .dark .border-gray-200:not(.paper *), .dark .border-gray-300:not(.paper *) { border-color: hsl(var(--brand-card-2)); }
+.dark .divide-gray-100:not(.paper *) > * + * { border-color: hsl(var(--brand-card-2)); }
+.dark .bg-emerald-50:not(.paper *) { background-color: rgba(16, 185, 129, 0.14); }
+.dark .bg-amber-50:not(.paper *) { background-color: rgba(245, 158, 11, 0.14); }
+.dark .bg-red-50:not(.paper *), .dark .bg-red-50\/60:not(.paper *) { background-color: rgba(239, 68, 68, 0.14); }
+.dark .bg-emerald-100:not(.paper *) { background-color: rgba(16, 185, 129, 0.22); }
+.dark .bg-amber-100:not(.paper *) { background-color: rgba(245, 158, 11, 0.22); }
+.dark .bg-red-100:not(.paper *) { background-color: rgba(239, 68, 68, 0.22); }
+.dark .bg-sky-100:not(.paper *) { background-color: rgba(14, 165, 233, 0.22); }
+.dark .bg-violet-100:not(.paper *) { background-color: rgba(139, 92, 246, 0.22); }
+.dark .text-emerald-800:not(.paper *), .dark .text-emerald-700:not(.paper *) { color: #6ee7b7; }
+.dark .text-amber-800:not(.paper *), .dark .text-amber-700:not(.paper *), .dark .text-amber-900:not(.paper *) { color: #fcd34d; }
+.dark .text-red-700:not(.paper *), .dark .text-red-600:not(.paper *), .dark .text-red-800:not(.paper *), .dark .text-red-900:not(.paper *) { color: #fca5a5; }
+.dark .text-sky-800:not(.paper *) { color: #7dd3fc; }
+.dark .text-violet-800:not(.paper *) { color: #c4b5fd; }
+.dark .border-emerald-200:not(.paper *) { border-color: rgba(16, 185, 129, 0.35); }
+.dark .border-amber-200:not(.paper *), .dark .border-amber-300:not(.paper *) { border-color: rgba(245, 158, 11, 0.4); }
+.dark .border-red-200:not(.paper *) { border-color: rgba(239, 68, 68, 0.4); }
+.dark .paper { background-color: #ffffff !important; color: #111111 !important; }

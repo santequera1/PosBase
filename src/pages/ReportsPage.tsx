@@ -261,7 +261,7 @@ export const ReportsPage: React.FC = () => {
               onClick={() => setActiveTab('ventas')}
               className={cn(
                 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all',
-                activeTab === 'ventas' ? 'bg-brand-primary text-brand-bg shadow-sm' : 'text-brand-primary hover:bg-white/60'
+                activeTab === 'ventas' ? 'bg-brand-button text-brand-on-button shadow-sm' : 'text-brand-primary hover:bg-white/60'
               )}
             >
               <FileText size={14} />
@@ -271,7 +271,7 @@ export const ReportsPage: React.FC = () => {
               onClick={() => setActiveTab('graficas')}
               className={cn(
                 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all',
-                activeTab === 'graficas' ? 'bg-brand-primary text-brand-bg shadow-sm' : 'text-brand-primary hover:bg-white/60'
+                activeTab === 'graficas' ? 'bg-brand-button text-brand-on-button shadow-sm' : 'text-brand-primary hover:bg-white/60'
               )}
             >
               <BarChart3 size={14} />
@@ -326,7 +326,7 @@ export const ReportsPage: React.FC = () => {
                 className={cn(
                   'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                   isSelected
-                    ? 'bg-brand-primary text-brand-bg shadow-sm'
+                    ? 'bg-brand-button text-brand-on-button shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 )}
               >
@@ -340,7 +340,7 @@ export const ReportsPage: React.FC = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 font-sans',
               period === 'custom'
-                ? 'bg-brand-primary text-brand-bg shadow-sm'
+                ? 'bg-brand-button text-brand-on-button shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -441,7 +441,7 @@ export const ReportsPage: React.FC = () => {
             <span className="text-base lg:text-lg font-extrabold font-sans text-brand-dark block mt-0.5">
               {formatPrice(metrics.totalSales)}
             </span>
-            <div className="w-full h-1 bg-brand-primary rounded-full mt-1.5" />
+            <div className="w-full h-1 bg-brand-button rounded-full mt-1.5" />
           </div>
         </div>
       </div>
@@ -452,7 +452,7 @@ export const ReportsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-brand-dark text-brand-bg font-semibold">
+                <tr className="bg-brand-surface text-brand-on-dark font-semibold">
                   <th className="py-3 px-4">Fecha</th>
                   <th className="py-3 px-4">Nro. Comprobante</th>
                   <th className="py-3 px-4">Tipo Comprobante</th>
@@ -622,7 +622,7 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === 'cups'
-                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md ring-2 ring-brand-primary/30'
                       : 'bg-brand-card/80 hover:bg-brand-card border-brand-accent/40 text-brand-dark'
                   )}
                 >
@@ -630,7 +630,7 @@ export const ReportsPage: React.FC = () => {
                     <span className="text-xl">📦</span>
                     <span className={cn(
                       'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                      formatFilter === 'cups' ? 'bg-white/20 text-white' : 'bg-brand-primary/10 text-brand-primary'
+                      formatFilter === 'cups' ? 'bg-white/20 text-white' : 'bg-brand-button/10 text-brand-primary'
                     )}>
                       Total Vasos
                     </span>
@@ -657,7 +657,7 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === '4oz'
-                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md ring-2 ring-brand-primary/30'
                       : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
@@ -692,7 +692,7 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === '6oz'
-                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md ring-2 ring-brand-primary/30'
                       : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
@@ -727,7 +727,7 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === 'cono'
-                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md ring-2 ring-brand-primary/30'
                       : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
@@ -762,7 +762,7 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === 'litro'
-                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md ring-2 ring-brand-primary/30'
                       : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
@@ -854,7 +854,7 @@ export const ReportsPage: React.FC = () => {
                     className={cn(
                       'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
                       formatFilter === tab.id
-                        ? 'bg-brand-primary text-brand-bg shadow-xs'
+                        ? 'bg-brand-button text-brand-on-button shadow-xs'
                         : 'text-gray-600 hover:text-gray-900'
                     )}
                   >
@@ -880,8 +880,8 @@ export const ReportsPage: React.FC = () => {
                         if (!active || !payload || !payload.length) return null;
                         const item = payload[0].payload;
                         return (
-                          <div className="bg-brand-dark text-white p-3.5 rounded-xl shadow-xl border border-gray-700 text-xs font-sans min-w-[210px]">
-                            <div className="font-bold text-sm text-brand-bg border-b border-gray-600/60 pb-1.5 mb-1.5 flex items-center justify-between">
+                          <div className="bg-brand-surface text-white p-3.5 rounded-xl shadow-xl border border-gray-700 text-xs font-sans min-w-[210px]">
+                            <div className="font-bold text-sm text-brand-on-dark border-b border-gray-600/60 pb-1.5 mb-1.5 flex items-center justify-between">
                               <span>{item.name}</span>
                               <span className="text-emerald-400 font-extrabold">{formatPrice(item.revenue || 0)}</span>
                             </div>

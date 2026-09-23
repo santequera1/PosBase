@@ -13,7 +13,7 @@ interface AppUser {
 }
 
 const ROLE_META: Record<AppUser['role'], { label: string; description: string; icon: any; className: string }> = {
-  admin: { label: 'Administrador', description: 'Acceso total: ajustes, finanzas, personal y reportes', icon: ShieldCheck, className: 'bg-brand-primary/10 text-brand-primary' },
+  admin: { label: 'Administrador', description: 'Acceso total: ajustes, finanzas, personal y reportes', icon: ShieldCheck, className: 'bg-brand-button/10 text-brand-primary' },
   cashier: { label: 'Cajero', description: 'Punto de venta, caja, pedidos y clientes', icon: Store, className: 'bg-brand-accent/25 text-brand-dark' },
   kitchen: { label: 'Cocina / Despacho', description: 'Solo pantalla de pedidos en preparación', icon: ChefHat, className: 'bg-emerald-100 text-emerald-800' },
 };
@@ -130,12 +130,12 @@ const UsersPanel = () => {
                       <span className="font-mono">@{u.username}</span> · {meta.label}{!u.active && ' · Desactivado'}
                     </p>
                   </div>
-                  <button onClick={() => openEdit(u)} title="Editar / cambiar contraseña" className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5">
+                  <button onClick={() => openEdit(u)} title="Editar / cambiar contraseña" className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5">
                     <Edit2 size={15} />
                   </button>
                   {!isMe && (
                     <>
-                      <button onClick={() => toggleActive(u)} title={u.active ? 'Desactivar acceso' : 'Reactivar acceso'} className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5">
+                      <button onClick={() => toggleActive(u)} title={u.active ? 'Desactivar acceso' : 'Reactivar acceso'} className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5">
                         {u.active ? <UserX size={15} /> : <UserCheck size={15} />}
                       </button>
                       <button onClick={() => remove(u)} title="Eliminar" className={cn('p-2 rounded-lg', confirmDelete === u.id ? 'bg-red-600 text-white' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50')}>
@@ -177,7 +177,7 @@ const UsersPanel = () => {
                   const Icon = meta.icon;
                   return (
                     <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
-                      className={cn('flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all', form.role === r ? 'border-brand-primary bg-brand-primary/5' : 'border-border hover:bg-muted/30')}>
+                      className={cn('flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all', form.role === r ? 'border-brand-primary bg-brand-button/5' : 'border-border hover:bg-muted/30')}>
                       <span className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', meta.className)}><Icon size={16} /></span>
                       <span>
                         <span className="block text-sm font-semibold text-brand-dark">{meta.label}</span>
