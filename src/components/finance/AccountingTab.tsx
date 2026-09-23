@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Chip, KpiCard, INPUT, fmtDate } from '@/components/common/Primitives';
-import { downloadCsv, csvDate } from '@/lib/csv';
+import { downloadXlsx, xlsxDate as csvDate } from '@/lib/xlsx';
 
 type Period = 'today' | 'week' | 'month' | 'last_month' | 'year' | 'custom';
 const monthStart = () => `${getColombiaTodayStr().slice(0, 7)}-01`;
@@ -70,19 +70,26 @@ const AccountingTab = () => {
   const fileSuffix = data ? `${data.period.from}_a_${data.period.to}` : '';
   const taxName = data?.tax?.type === 'none' ? 'Impuesto' : (data?.tax?.type || '').toUpperCase();
 
-  const exportSalesByDay = () => downloadCsv(`libro_ventas_diario_${fileSuffix}.csv`,
-    ['Fecha', 'Comprobantes', 'Base', taxName, 'Total', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia'],
-    data.sales.byDay.map((d: any) => [csvDate(d.date), d.count, d.base, d.tax, d.total, d.cash, d.debit, d.credit, d.transfer]));
-  const exportOrders = () => downloadCsv(`comprobantes_${fileSuffix}.csv`,
-    ['Fecha', 'Hora', 'Comprobante', 'Cliente', 'Documento', 'Medio de pago', 'Estado', 'Subtotal', 'Descuento', 'Base', taxName, 'Total', 'Factura electrónica'],
-    data.sales.orders.map((o: any) => [csvDate(o.date), o.time, o.number, o.customer, o.doc, o.method, o.status, o.subtotal, o.discount, o.base, o.tax, o.total, o.electronic ? 'Sí' : 'No']));
-  const exportPurchases = () => downloadCsv(`compras_gastos_${fileSuffix}.csv`,
-    ['Fecha', 'Categoría', 'Tipo', 'Proveedor', 'NIT', 'Factura', 'Descripción', 'Medio de pago', 'Estado', 'Vence', 'Base', 'IVA', 'Total'],
-    data.purchases.rows.map((e: any) => [csvDate(e.date), e.category, e.kind, e.supplier || '', e.supplierNit || '', e.invoice || '', e.description, e.methodLabel, e.statusLabel, csvDate(e.dueDate), e.base, e.taxAmount, e.amount]));
-  const exportPayroll = () => downloadCsv(`nomina_${fileSuffix}.csv`,
-    ['Pagado el', 'Colaborador', 'Documento', 'Período desde', 'Período hasta', 'Base', 'Propinas', 'Anticipos', 'Bonificaciones', 'Descuentos', 'Total', 'Medio'],
-    data.payroll.rows.map((r: any) => [csvDate(r.paidAt), r.employee, r.document || '', csvDate(r.periodStart), csvDate(r.periodEnd), r.baseTotal, r.tipsTotal, r.advancesTotal, r.bonuses, r.deductions, r.total, r.method]));
-  const exportAll = () => { exportSalesByDay(); setTimeout(exportOrders, 300); setTimeout(exportPurchases, 600); setTimeout(exportPayroll, 900); };
+  const kindName: Record<string, string> = { cogs: 'Insumos', opex: 'Operativo', payroll: 'Nómina', other: 'Otro' };
+  const sheetSalesByDay = () => ({ name: 'Ventas diario', headers: ['Fecha', 'Comprobantes', 'Base', taxName, 'Total', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia'],
+    rows: data.sales.byDay.map((d: any) => [csvDate(d.date), d.count, d.base, d.tax, d.total, d.cash, d.debit, d.credit, d.transfer]) });
+  const sheetOrders = () => ({ name: 'Comprobantes', headers: ['Fecha', 'Hora', 'Comprobante', 'Cliente', 'Documento', 'Medio de pago', 'Estado', 'Subtotal', 'Descuento', 'Base', taxName, 'Total', 'Factura electrónica'],
+    rows: data.sales.orders.map((o: any) => [csvDate(o.date), o.time, o.number, o.customer, o.doc, o.method, o.status, o.subtotal, o.discount, o.base, o.tax, o.total, o.electronic ? 'Sí' : 'No']) });
+  const sheetPurchases = () => ({ name: 'Compras y gastos', headers: ['Fecha', 'Categoría', 'Tipo', 'Proveedor', 'NIT', 'Factura', 'Descripción', 'Medio de pago', 'Estado', 'Vence', 'Base', 'IVA', 'Total'],
+    rows: data.purchases.rows.map((e: any) => [csvDate(e.date), e.category, kindName[e.kind] || e.kind, e.supplier || '', e.supplierNit || '', e.invoice || '', e.description, e.methodLabel, e.statusLabel, csvDate(e.dueDate), e.base, e.taxAmount, e.amount]) });
+  const sheetPayroll = () => ({ name: 'Nómina', headers: ['Pagado el', 'Colaborador', 'Documento', 'Período desde', 'Período hasta', 'Base', 'Propinas', 'Anticipos', 'Bonificaciones', 'Descuentos', 'Total', 'Medio'],
+    rows: data.payroll.rows.map((r: any) => [csvDate(r.paidAt), r.employee, r.document || '', csvDate(r.periodStart), csvDate(r.periodEnd), r.baseTotal, r.tipsTotal, r.advancesTotal, r.bonuses, r.deductions, r.total, r.method]) });
+  const sheetSummary = () => ({ name: 'Resumen', headers: ['Concepto', 'Valor'], rows: [
+    ['Negocio', data.business.name], ['NIT', data.business.nit], ['Período', `${csvDate(data.period.from)} a ${csvDate(data.period.to)}`], ['Régimen', `${data.tax.label}${data.tax.rate ? ' ' + data.tax.rate + '%' : ''}`],
+    ['Ventas', data.sales.totals.gross], ['Base gravable', data.sales.totals.base], [`${taxName} generado`, data.sales.totals.tax], ['Comprobantes válidos', data.sales.totals.count], ['Comprobantes anulados', data.sales.totals.cancelledCount],
+    ['Compras y gastos', data.purchases.totals.total], ['IVA en compras', data.purchases.totals.tax], ['Costo de insumos', data.pnl.cogs], ['Gastos operativos', data.pnl.opex + data.pnl.other], ['Nómina', data.pnl.payroll],
+    ['Utilidad neta', data.pnl.net], ['Margen neto %', data.pnl.netMargin], ['Cuentas por pagar (saldo)', data.payables.total], ['Retiros de caja', data.cash.withdrawals], ['Depósitos en caja', data.cash.deposits],
+  ] });
+  const exportSalesByDay = () => downloadXlsx(`libro_ventas_diario_${fileSuffix}`, [sheetSalesByDay()]);
+  const exportOrders = () => downloadXlsx(`comprobantes_${fileSuffix}`, [sheetOrders()]);
+  const exportPurchases = () => downloadXlsx(`compras_gastos_${fileSuffix}`, [sheetPurchases()]);
+  const exportPayroll = () => downloadXlsx(`nomina_${fileSuffix}`, [sheetPayroll()]);
+  const exportAll = () => downloadXlsx(`informe_contable_${fileSuffix}`, [sheetSummary(), sheetSalesByDay(), sheetOrders(), sheetPurchases(), sheetPayroll()]);
 
   // Activa las reglas de impresión del informe solo durante este diálogo de impresión
   const printReport = () => {
@@ -108,7 +115,7 @@ const AccountingTab = () => {
           </div>
         )}
         <div className="ml-auto flex gap-2">
-          <button onClick={exportAll} disabled={!data} className="px-3 py-1.5 rounded-lg bg-brand-primary text-brand-on-primary text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Download size={13} /> Exportar todo (CSV)</button>
+          <button onClick={exportAll} disabled={!data} className="px-3 py-1.5 rounded-lg bg-brand-primary text-brand-on-primary text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Download size={13} /> Exportar todo (Excel)</button>
           <button onClick={printReport} disabled={!data} className="px-3 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold text-brand-dark flex items-center gap-1.5 disabled:opacity-40"><Printer size={13} /> Imprimir / PDF</button>
         </div>
       </div>
@@ -142,7 +149,7 @@ const AccountingTab = () => {
           </div>
 
           {/* Libro de ventas diario */}
-          <Section title="Libro de ventas (resumen diario)" icon={BookOpen} right={<ExportBtn onClick={exportSalesByDay}>CSV</ExportBtn>}>
+          <Section title="Libro de ventas (resumen diario)" icon={BookOpen} right={<ExportBtn onClick={exportSalesByDay}>Excel</ExportBtn>}>
             <Table
               headers={['Fecha', 'Compr.', 'Base', taxName, 'Total', 'Efectivo', 'T. débito', 'T. crédito', 'Transf.']}
               rows={data.sales.byDay.map((d: any) => [fmtDate(d.date), d.count, formatPrice(d.base), formatPrice(d.tax), <b key="t">{formatPrice(d.total)}</b>, formatPrice(d.cash), formatPrice(d.debit), formatPrice(d.credit), formatPrice(d.transfer)])}
@@ -173,7 +180,7 @@ const AccountingTab = () => {
           </div>
 
           {/* Comprobantes */}
-          <Section title={`Comprobantes del período (${data.sales.orders.length})`} icon={Receipt} right={<ExportBtn onClick={exportOrders}>CSV</ExportBtn>}>
+          <Section title={`Comprobantes del período (${data.sales.orders.length})`} icon={Receipt} right={<ExportBtn onClick={exportOrders}>Excel</ExportBtn>}>
             <Table
               headers={['Fecha', 'Hora', 'Comprobante', 'Cliente', 'Documento', 'Medio', 'Estado', 'Base', taxName, 'Total']}
               align={['l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']}
@@ -189,7 +196,7 @@ const AccountingTab = () => {
           </Section>
 
           {/* Compras y gastos */}
-          <Section title="Libro de compras y gastos" icon={ShoppingCart} right={<ExportBtn onClick={exportPurchases}>CSV</ExportBtn>}>
+          <Section title="Libro de compras y gastos" icon={ShoppingCart} right={<ExportBtn onClick={exportPurchases}>Excel</ExportBtn>}>
             <Table
               headers={['Fecha', 'Categoría', 'Proveedor / NIT', 'Factura', 'Descripción', 'Medio', 'Estado', 'Base', 'IVA', 'Total']}
               align={['l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']}
@@ -204,7 +211,7 @@ const AccountingTab = () => {
 
           {/* Nómina y caja */}
           <div className="grid lg:grid-cols-2 gap-4">
-            <Section title="Nómina pagada en el período" icon={Users} right={<ExportBtn onClick={exportPayroll}>CSV</ExportBtn>}>
+            <Section title="Nómina pagada en el período" icon={Users} right={<ExportBtn onClick={exportPayroll}>Excel</ExportBtn>}>
               <Table headers={['Pagado', 'Colaborador', 'Período', 'Base', 'Propinas', 'Anticipos', 'Total']} align={['l', 'l', 'l', 'r', 'r', 'r', 'r']}
                 rows={data.payroll.rows.map((r: any) => [fmtDate(r.paidAt), r.employee, `${fmtDate(r.periodStart)}–${fmtDate(r.periodEnd)}`, formatPrice(r.baseTotal), formatPrice(r.tipsTotal), `−${formatPrice(r.advancesTotal)}`, <b key="t">{formatPrice(r.total)}</b>])}
                 footer={['Total', `${data.payroll.rows.length} pagos`, '', '', '', '', formatPrice(data.payroll.total)]} />

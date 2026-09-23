@@ -1,3 +1,5 @@
+import { PackagePlus, AlertTriangle } from 'lucide-react';
+import { StockModal } from '@/components/StockModal';
 import { BRAND } from '@/lib/theme';
 import { useState } from 'react';
 import { Search, Plus, Grid3X3, List, X, Trash2, Edit3, Image as ImageIcon } from 'lucide-react';
@@ -6,6 +8,18 @@ import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MediaManagerModal } from '@/components/MediaManagerModal';
+
+const StockBadge = ({ p, onAdjust }: { p: any; onAdjust?: () => void }) => {
+  if (!p.trackStock) return <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">∞ Siempre disponible</span>;
+  const s = Number(p.stock) || 0;
+  const low = s > 0 && s <= (Number(p.minStock) || 0);
+  return (
+    <button type="button" onClick={e => { e.stopPropagation(); onAdjust?.(); }} title="Ajustar stock"
+      className={cn('inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold', s <= 0 ? 'bg-red-100 text-red-700' : low ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')}>
+      <PackagePlus size={10} /> {s <= 0 ? 'Agotado' : `${s} und${low ? ' · bajo' : ''}`}
+    </button>
+  );
+};
 
 const ProductsPage = () => {
   const { categories, products, toggleProductAvailability, addProduct, updateProduct, deleteProduct, addCategory } = useStore();
@@ -18,7 +32,9 @@ const ProductsPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] as { name: string; price: number }[] });
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] as { name: string; price: number }[], trackStock: false, stock: '', minStock: '' });
+  const [stockTarget, setStockTarget] = useState<number | null>(null);
+  const lowStock = products.filter(p => p.trackStock && (Number(p.stock) || 0) <= (Number(p.minStock) || 0));
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [mediaTarget, setMediaTarget] = useState<{ mode: 'form' | 'product'; id?: number; name?: string; currentImage?: string } | null>(null);
 
@@ -30,13 +46,13 @@ const ProductsPage = () => {
 
   const openEdit = (id: number) => {
     const p = products.find(pr => pr.id === id)!;
-    setFormData({ name: p.name, description: p.description || '', price: String(p.price), categoryId: p.categoryId, image: p.image || '', available: p.available, sizes: p.sizes ? [...p.sizes] : [] });
+    setFormData({ name: p.name, description: p.description || '', price: String(p.price), categoryId: p.categoryId, image: p.image || '', available: p.available, sizes: p.sizes ? [...p.sizes] : [], trackStock: !!p.trackStock, stock: String(p.stock ?? 0), minStock: String(p.minStock ?? 0) });
     setEditingId(id);
     setShowForm(true);
   };
 
   const handleSave = () => {
-    const data: any = { name: formData.name, description: formData.description, price: Number(formData.price), categoryId: formData.categoryId, image: formData.image, available: formData.available };
+    const data: any = { name: formData.name, description: formData.description, price: Number(formData.price), categoryId: formData.categoryId, image: formData.image, available: formData.available, trackStock: formData.trackStock, stock: formData.trackStock ? Number(formData.stock) || 0 : 0, minStock: formData.trackStock ? Number(formData.minStock) || 0 : 0 };
     data.sizes = formData.sizes.length > 0 ? formData.sizes : null;
     if (editingId) {
       updateProduct(editingId, data);
@@ -45,7 +61,7 @@ const ProductsPage = () => {
     }
     setShowForm(false);
     setEditingId(null);
-    setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] });
+    setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '' });
   };
 
   const addSize = () => {
@@ -93,7 +109,7 @@ const ProductsPage = () => {
           <span className="hidden sm:inline">Galería de Fotos</span>
         </button>
         <button
-          onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] }); setShowForm(true); }}
+          onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '' }); setShowForm(true); }}
           className="h-10 px-4 rounded-xl bg-brand-primary text-brand-bg hover:bg-brand-dark text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
         >
           <Plus size={16} /> Agregar Producto
@@ -164,6 +180,14 @@ const ProductsPage = () => {
         </div>
       )}
 
+      {lowStock.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          <AlertTriangle size={14} className="shrink-0" />
+          <span className="font-semibold">{lowStock.length} producto(s) con stock bajo o agotado:</span>
+          {lowStock.map(p => <button key={p.id} onClick={() => setStockTarget(p.id)} className="px-2 py-0.5 rounded-full bg-white border border-amber-300 hover:bg-amber-100 font-medium">{p.name} ({Number(p.stock) || 0})</button>)}
+        </div>
+      )}
+
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {filtered.map(p => {
@@ -193,6 +217,7 @@ const ProductsPage = () => {
                   <p className="text-xs font-bold text-brand-dark truncate">{p.name}</p>
                   <p className="text-[11px] text-brand-muted truncate">{cat?.name}</p>
                   <p className="text-sm font-bold text-brand-primary-strong mt-1">{p.sizes ? `Desde ${formatPrice(p.price)}` : formatPrice(p.price)}</p>
+                  <div className="mt-1"><StockBadge p={p} onAdjust={() => setStockTarget(p.id)} /></div>
                 </div>
                 <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
                   <div className="flex items-center gap-2">
@@ -254,6 +279,7 @@ const ProductsPage = () => {
                   <p className="text-xs text-brand-muted">{cat?.name}</p>
                 </div>
                 <span className="font-bold text-sm text-brand-primary-strong">{p.sizes ? `Desde ${formatPrice(p.price)}` : formatPrice(p.price)}</span>
+                <StockBadge p={p} onAdjust={() => setStockTarget(p.id)} />
                 <button
                   onClick={() => {
                     setMediaTarget({ mode: 'product', id: p.id, name: p.name, currentImage: p.image });
@@ -309,6 +335,32 @@ const ProductsPage = () => {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-base font-bold text-brand-primary-strong outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>
                 )}
+                {/* Inventario */}
+                <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+                  <label className="font-bold text-brand-primary block">Inventario</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button type="button" onClick={() => setFormData({ ...formData, trackStock: false })} className={cn('p-2 rounded-lg border text-left', !formData.trackStock ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200')}>
+                      <span className="block font-semibold text-brand-dark">Siempre disponible</span>
+                      <span className="block text-[10px] text-brand-muted">Sin control de cantidades (ej. sabores de vitrina)</span>
+                    </button>
+                    <button type="button" onClick={() => setFormData({ ...formData, trackStock: true })} className={cn('p-2 rounded-lg border text-left', formData.trackStock ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-200')}>
+                      <span className="block font-semibold text-brand-dark">Controlar stock</span>
+                      <span className="block text-[10px] text-brand-muted">Se descuenta con cada venta y se agota en 0</span>
+                    </button>
+                  </div>
+                  {formData.trackStock && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-brand-muted mb-0.5 block">Stock actual (unidades)</label>
+                        <input type="number" min={0} value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-brand-muted mb-0.5 block">Alerta de stock bajo</label>
+                        <input type="number" min={0} value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {/* Sizes editor */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -398,6 +450,7 @@ const ProductsPage = () => {
       </AnimatePresence>
 
       {/* Media Manager / File Explorer Modal */}
+      {stockTarget !== null && <StockModal productId={stockTarget} onClose={() => setStockTarget(null)} />}
       <MediaManagerModal
         isOpen={mediaModalOpen}
         onClose={() => {

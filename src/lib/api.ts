@@ -52,6 +52,9 @@ export const api = {
   updateProduct: (id: number, data: any) => request<any>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   toggleAvailability: (id: number) => request<any>(`/products/${id}/availability`, { method: 'PATCH' }),
   deleteProduct: (id: number) => request<any>(`/products/${id}`, { method: 'DELETE' }),
+  adjustStock: (id: number, data: { delta?: number; set?: number; reason?: string }) => request<{ product: any; change: number }>(`/products/${id}/stock`, { method: 'POST', body: JSON.stringify(data) }),
+  getStockMovements: (id: number) => request<any[]>(`/products/${id}/movements`),
+  getLowStock: () => request<any[]>('/products/low-stock'),
 
   // Media Gallery & File Manager
   getMedia: () => request<{ success: boolean; count: number; media: any[] }>('/media'),

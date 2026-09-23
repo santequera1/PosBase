@@ -125,6 +125,18 @@ function initModulesSchema(db) {
       notes TEXT DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
     );
+
+    CREATE TABLE IF NOT EXISTS stock_movements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      delta INTEGER NOT NULL,
+      stock_after INTEGER NOT NULL,
+      reason TEXT DEFAULT 'ajuste',
+      order_id INTEGER,
+      user_name TEXT DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements(product_id);
   `);
 
   // Migración para bases creadas antes del campo de IVA en gastos

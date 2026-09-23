@@ -48,6 +48,9 @@ export interface Product {
   color_bg?: string;
   color_accent?: string;
   featured?: boolean;
+  trackStock?: boolean;
+  stock?: number;
+  minStock?: number;
 }
 
 export interface Customer {
@@ -229,6 +232,7 @@ interface AppState {
   updateProduct: (id: number, data: Partial<Product>) => void;
   deleteProduct: (id: number) => void;
   toggleProductAvailability: (id: number) => void;
+  adjustStock: (id: number, data: { delta?: number; set?: number; reason?: string }) => Promise<void>;
 
   // Categories
   addCategory: (category: Omit<Category, 'id'>) => void;
@@ -256,6 +260,7 @@ interface AppState {
 
   // Socket handler
   handleOrderEvent: (order: Order) => void;
+  handleProductEvent: (product: Product) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -522,6 +527,11 @@ export const useStore = create<AppState>((set, get) => ({
     api.toggleAvailability(id).catch(console.error);
   },
 
+  adjustStock: async (id, data) => {
+    const r = await api.adjustStock(id, data);
+    set(s => ({ products: s.products.map(p => p.id === id ? { ...p, ...r.product } : p) }));
+  },
+
   deleteProduct: (id) => {
     set(s => ({ products: s.products.filter(p => p.id !== id) }));
     api.deleteProduct(id).catch(console.error);
@@ -616,5 +626,9 @@ export const useStore = create<AppState>((set, get) => ({
       return { orders: [order, ...s.orders] };
     });
     get().refreshCurrentShift();
+  },
+
+  handleProductEvent: (product) => {
+    set(s => ({ products: s.products.some(p => p.id === product.id) ? s.products.map(p => p.id === product.id ? { ...p, ...product } : p) : [...s.products, product] }));
   },
 }));

@@ -265,6 +265,9 @@ function migrateSchema() {
   addCol('customers', 'email', "TEXT DEFAULT ''");
   addCol('customers', 'is_company', "INTEGER DEFAULT 0");
   addCol('users', 'active', "INTEGER DEFAULT 1");
+  addCol('products', 'track_stock', "INTEGER DEFAULT 0");
+  addCol('products', 'stock', "INTEGER DEFAULT 0");
+  addCol('products', 'min_stock', "INTEGER DEFAULT 0");
 
 }
 

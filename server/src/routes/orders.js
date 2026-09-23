@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
+const { applySaleStock, restoreOrderStock } = require('../stock');
 const { requireRole } = require('../auth');
 const path = require('path');
 const fs = require('fs');
@@ -170,6 +171,7 @@ router.post('/', (req, res) => {
     );
   }
 
+  applySaleStock(db, req.app.io, orderId, items, req.user?.name);
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   const formatted = formatOrder(db, order);
 
@@ -191,6 +193,8 @@ router.patch('/:id/status', (req, res) => {
   const db = getDb();
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+
+  if (status === 'cancelled' && order.status !== 'cancelled') restoreOrderStock(db, req.app.io, Number(req.params.id), req.user?.name);
 
   db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
   const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
@@ -283,6 +287,8 @@ router.delete('/:id', requireRole('admin'), (req, res) => {
   const db = getDb();
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+
+  if (order.status !== 'cancelled') restoreOrderStock(db, req.app.io, Number(req.params.id), req.user?.name);
 
   db.prepare('DELETE FROM order_items WHERE order_id = ?').run(req.params.id);
   db.prepare('DELETE FROM orders WHERE id = ?').run(req.params.id);

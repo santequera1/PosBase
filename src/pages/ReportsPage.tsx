@@ -1,3 +1,4 @@
+import { downloadXlsx, xlsxDate, xlsxTime } from '@/lib/xlsx';
 import { BRAND } from '@/lib/theme';
 import { orderNumber } from '@/lib/orderNumber';
 import React, { useState, useMemo } from 'react';
@@ -219,29 +220,24 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
+  // Excel real (.xlsx): fecha y hora en columnas separadas, totales numéricos para que Excel los sume
   const handleExportCSV = () => {
-    const headers = ['Fecha', 'Comprobante', 'Tipo', 'Vendedor', 'Turno', 'Cliente', 'Doc Cliente', 'Total', 'Metodo Pago', 'Estado'];
+    const pm: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', mixed: 'Mixto' };
+    const headers = ['Fecha', 'Hora', 'Comprobante', 'Tipo', 'Turno', 'Vendedor', 'Cliente', 'Doc Cliente', 'Método de pago', 'Estado', 'Total'];
     const rows = filtered.map(o => [
-      o.createdAt,
+      xlsxDate(o.createdAt),
+      xlsxTime(o.createdAt),
       orderNumber(o.id),
       'Doc. de ingreso',
-      currentShift?.cashierName || 'Caja Principal',
-      currentShift?.id ? `#${currentShift.id}` : '#1',
-      `"${o.customer?.name || 'Consumidor Final'}"`,
+      o.shiftId ? `#${o.shiftId}` : '',
+      o.shiftId && currentShift?.id === o.shiftId ? (currentShift?.cashierName || '') : '',
+      o.customer?.name || 'Consumidor Final',
       o.customer?.doc || '222222222222',
+      pm[o.paymentMethod] || o.paymentMethod,
+      o.status === 'cancelled' ? 'Anulado' : 'Guardado',
       o.total,
-      o.paymentMethod,
-      o.status === 'delivered' ? 'Guardado' : o.status,
     ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `ventas_gia_${period}_${getColombiaTodayStr()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadXlsx(`ventas_${period}_${getColombiaTodayStr()}`, [{ name: 'Ventas', headers, rows }]);
   };
 
   return (

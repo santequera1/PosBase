@@ -62,6 +62,7 @@ const SessionRestorer = () => {
 
 const SocketProvider = () => {
   const handleOrderEvent = useStore(s => s.handleOrderEvent);
+  const handleProductEvent = useStore(s => s.handleProductEvent);
   const user = useStore(s => s.user);
 
   useEffect(() => {
@@ -69,8 +70,9 @@ const SocketProvider = () => {
     const socket = io(SOCKET_URL);
     socket.on('order:new', handleOrderEvent);
     socket.on('order:updated', handleOrderEvent);
+    socket.on('product:updated', handleProductEvent);
     return () => { socket.disconnect(); };
-  }, [user, handleOrderEvent]);
+  }, [user, handleOrderEvent, handleProductEvent]);
 
   return null;
 };

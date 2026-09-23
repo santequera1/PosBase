@@ -1,3 +1,6 @@
+import { Receipt as ReceiptIcon, Printer as PrinterIcon } from 'lucide-react';
+import { formatTime } from '@/lib/format';
+import { orderNumber } from '@/lib/orderNumber';
 import { BRAND } from '@/lib/theme';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
@@ -280,6 +283,8 @@ export const POSPage: React.FC = () => {
   const [customItem, setCustomItem] = useState({ name: '', price: '' });
   const [affogatoModalProd, setAffogatoModalProd] = useState<Product | null>(null);
   const [lastOrder, setLastOrder] = useState<any | null>(null);
+  const recentOrders = useStore(s => s.orders);
+  const lastSale = useMemo(() => recentOrders.reduce((a: any, o: any) => (!a || o.id > a.id ? o : a), null), [recentOrders]);
   const [countdown, setCountdown] = useState<number>(3);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -540,6 +545,13 @@ export const POSPage: React.FC = () => {
     if (!prod.available) {
       toast.error(`${prod.name} no está disponible`);
       return;
+    }
+    if (prod.trackStock) {
+      const inCart = cart.filter(i => i.productId === prod.id).reduce((a, i) => a + (i.quantity || 1), 0);
+      if ((prod.stock || 0) - inCart <= 0) {
+        toast.error(`${prod.name}: sin stock suficiente (quedan ${prod.stock || 0} und)`);
+        return;
+      }
     }
 
     if (prod.name.toLowerCase().includes('affogato clásico') || prod.name === 'Affogato Clásico' || (prod.category_id === 6 && !prod.name.toLowerCase().includes('sin azúcar'))) {
@@ -940,6 +952,11 @@ export const POSPage: React.FC = () => {
                         )}
                       </button>
 
+                      {flavor.trackStock && (
+                        <span className={cn('absolute top-2 left-2 z-10 text-[10px] px-1.5 py-0.5 rounded-full font-semibold shadow-sm', (flavor.stock || 0) <= 0 ? 'bg-red-100 text-red-700' : (flavor.stock || 0) <= (flavor.minStock || 0) ? 'bg-amber-100 text-amber-800' : 'bg-white/90 text-emerald-800')}>
+                          {(flavor.stock || 0) <= 0 ? 'Agotado' : `${flavor.stock} und`}
+                        </span>
+                      )}
                       {/* Flavor Image (Dynamic Vaso 4oz, Vaso 6oz, Cono vs Litro) */}
                       {(() => {
                         const displayImg = getFlavorDisplayImage(flavor, selectedFormat);
@@ -1049,6 +1066,11 @@ export const POSPage: React.FC = () => {
                         </button>
                       </div>
 
+                      {prod.trackStock && (
+                        <span className={cn('inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold', (prod.stock || 0) <= 0 ? 'bg-red-100 text-red-700' : (prod.stock || 0) <= (prod.minStock || 0) ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')}>
+                          {(prod.stock || 0) <= 0 ? 'Agotado' : `${prod.stock} und`}
+                        </span>
+                      )}
                       {/* Product Image */}
                       {prod.image && (
                         <div className="w-full h-20 lg:h-24 flex items-center justify-center my-1.5">
@@ -1397,6 +1419,19 @@ export const POSPage: React.FC = () => {
               <span className="text-base sm:text-xl font-sans font-extrabold text-brand-dark">{formatPrice(total)}</span>
             </div>
           </div>
+
+          {/* Última venta registrada: verla o reimprimirla sin ir al historial */}
+          {lastSale && (
+            <button type="button" onClick={() => setLastOrder(lastSale)} title="Ver y reimprimir la última factura"
+              className="w-full mb-2 px-3 py-2 rounded-xl bg-brand-card border border-brand-accent/40 flex items-center gap-2 text-left hover:border-brand-accent transition-colors">
+              <ReceiptIcon size={15} className="text-brand-primary shrink-0" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-[11px] font-bold text-brand-dark truncate">Última venta: {orderNumber(lastSale.id)} · {formatPrice(lastSale.total)}</span>
+                <span className="block text-[10px] text-brand-muted truncate">{formatTime(lastSale.createdAt)} · {lastSale.customer?.name || 'Consumidor Final'} · {({ cash: 'Efectivo', card_debit: 'T. Débito', card_credit: 'T. Crédito', card: 'Tarjeta', transfer: 'Transferencia', mixed: 'Mixto' } as Record<string, string>)[lastSale.paymentMethod] || lastSale.paymentMethod}</span>
+              </span>
+              <span className="text-[10px] font-semibold text-brand-primary flex items-center gap-1 shrink-0"><PrinterIcon size={12} /> Ver / imprimir</span>
+            </button>
+          )}
 
           {/* Primary Action Button -> Opens Dedicated Checkout Modal */}
           <button
