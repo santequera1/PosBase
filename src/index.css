@@ -279,4 +279,18 @@
   body.print-report .print-area button { display: none !important; }
   body.print-report #pos-thermal-print-area { display: none !important; }
   body.print-report .break-inside-avoid { break-inside: avoid; }
+  body.print-report .print-overlay { position: static !important; overflow: visible !important; height: auto !important; padding: 0 !important; background: #fff !important; backdrop-filter: none !important; }
 }
+
+/* Vista previa en pantalla de tickets térmicos (cierre de caja) */
+.ticket-preview { width: 300px; font-family: "Segoe UI", Roboto, Arial, monospace, sans-serif; font-size: 11px; line-height: 1.3; color: #111; }
+.ticket-preview .ticket { width: 100% !important; max-width: 100% !important; }
+.ticket-preview .text-center { text-align: center; }
+.ticket-preview .text-right { text-align: right; }
+.ticket-preview .font-bold { font-weight: 700; }
+.ticket-preview .divider { border-top: 1.5px solid #000; margin: 5px 0; }
+.ticket-preview .dashed { border-top: 1px dashed #444; margin: 5px 0; }
+.ticket-preview .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin: 2px 0; }
+.ticket-preview .item-desc { font-weight: 700; word-break: break-word; }
+.ticket-preview .item-flavors { font-size: 10px; color: #333; padding-left: 8px; font-style: italic; }
+.ticket-preview p { margin: 0; }

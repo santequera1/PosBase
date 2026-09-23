@@ -105,6 +105,7 @@ export const api = {
     request<any>(`/orders/${orderId}/driver`, { method: 'PATCH', body: JSON.stringify({ driverId }) }),
   deleteOrder: (id: number) =>
     request<any>(`/orders/${id}`, { method: 'DELETE' }),
+  issueTestInvoice: (id: number) => request<any>(`/orders/${id}/electronic-invoice`, { method: 'POST' }),
 
   // Shifts / Cierre de Caja
   getCurrentShift: () => request<any>('/shifts/current'),

@@ -1,3 +1,5 @@
+import { ZReportModal } from '@/components/ZReportModal';
+import { Eye as EyeIcon } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Wallet,
@@ -49,6 +51,7 @@ export const CashShiftPage: React.FC = () => {
 
   // Shift History
   const [history, setHistory] = useState<any[]>([]);
+  const [viewShift, setViewShift] = useState<any | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Closed Ticket Modal for printing
@@ -563,6 +566,7 @@ export const CashShiftPage: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-3 text-center">
+                      <button onClick={() => setViewShift(s)} className="px-2.5 py-1 mr-1.5 rounded-xl bg-brand-primary text-brand-on-primary text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all" title="Ver el cierre en pantalla"><EyeIcon size={13} /><span>Ver</span></button>
                       <button
                         onClick={() => handlePrintZReport(s)}
                         className="px-2.5 py-1 rounded-xl bg-white border border-brand-primary/20 hover:bg-brand-card text-brand-primary text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
@@ -571,6 +575,7 @@ export const CashShiftPage: React.FC = () => {
                         <Printer size={13} />
                         <span>Reimprimir Cierre</span>
                       </button>
+                      {viewShift?.id === s.id && <ZReportModal shift={s} onClose={() => setViewShift(null)} />}
                     </td>
                   </tr>
                 ))}

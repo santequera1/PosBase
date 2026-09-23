@@ -1,3 +1,4 @@
+import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { downloadXlsx, xlsxDate, xlsxTime } from '@/lib/xlsx';
 import { BRAND } from '@/lib/theme';
 import { orderNumber } from '@/lib/orderNumber';
@@ -29,6 +30,7 @@ export const ReportsPage: React.FC = () => {
   const { orders, currentShift, user, deleteOrder } = useStore();
 
   const [activeTab, setActiveTab] = useState<'ventas' | 'graficas'>('ventas');
+  const [feOrderId, setFeOrderId] = useState<number | null>(null);
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [search, setSearch] = useState('');
   const [customFrom, setCustomFrom] = useState('');
@@ -494,6 +496,10 @@ export const ReportsPage: React.FC = () => {
                           <span className="text-brand-primary font-bold font-sans hover:underline">
                             {orderNumber(order.id)}
                           </span>
+                          {(order.customer?.isElectronicInvoice || order.electronicInvoice) && (
+                            <button onClick={() => setFeOrderId(order.id)} className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold" title="Factura electrónica (modo pruebas)">F.E.</button>
+                          )}
+                          {feOrderId === order.id && <ElectronicInvoiceModal order={order} onClose={() => setFeOrderId(null)} />}
                         </td>
 
                         {/* Tipo */}

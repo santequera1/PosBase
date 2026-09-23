@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { applySaleStock, restoreOrderStock } = require('../stock');
+const { issueTestInvoice, electronicInvoiceOf } = require('../einvoice');
 const { requireRole } = require('../auth');
 const path = require('path');
 const fs = require('fs');
@@ -44,6 +45,7 @@ function formatOrder(db, order) {
     receiptImage: order.receipt_image || undefined,
     notes: order.notes || '',
     shiftId: order.shift_id || undefined,
+    electronicInvoice: electronicInvoiceOf(order),
   };
 }
 
@@ -109,19 +111,22 @@ router.post('/', (req, res) => {
 
   const db = getDb();
 
-  // If customer has a specific phone or doc and is not in customers table, auto-save or update
-  if (custPhone && custPhone.length >= 7 && custDoc !== '222222222222') {
+  // Guardar o actualizar el cliente en el directorio cuando trae documento (F.E.) o teléfono
+  let customerId = null;
+  if (custDoc !== '222222222222' || (custPhone && custPhone.length >= 7)) {
     try {
-      const existing = db.prepare('SELECT id FROM customers WHERE phone = ? OR document_id = ?').get(custPhone, custDoc);
+      const existing = db.prepare("SELECT id FROM customers WHERE (document_id = ? AND ? != '222222222222') OR (phone = ? AND ? != '') LIMIT 1").get(custDoc, custDoc, custPhone, custPhone);
       if (!existing) {
-        db.prepare('INSERT INTO customers (name, document_id, email, phone, address, notes) VALUES (?, ?, ?, ?, ?, ?)')
-          .run(custName, custDoc, custEmail, custPhone, custAddress, 'Creado desde POS');
+        const r = db.prepare('INSERT INTO customers (name, document_id, email, phone, address, notes, is_company) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          .run(custName, custDoc, custEmail, custPhone, custAddress, isElectronicInvoice ? 'Creado desde POS (factura electrónica)' : 'Creado desde POS', customer.isCompany ? 1 : 0);
+        customerId = Number(r.lastInsertRowid);
       } else {
-        db.prepare('UPDATE customers SET name = ?, email = ?, document_id = ? WHERE id = ?')
-          .run(custName, custEmail, custDoc, existing.id);
+        db.prepare("UPDATE customers SET name = ?, email = CASE WHEN ? != '' THEN ? ELSE email END, document_id = ?, phone = CASE WHEN ? != '' THEN ? ELSE phone END WHERE id = ?")
+          .run(custName, custEmail, custEmail, custDoc, custPhone, custPhone, existing.id);
+        customerId = existing.id;
       }
     } catch (e) {
-      // ignore duplicate constraint
+      console.error('No se pudo guardar el cliente desde el POS:', e.message);
     }
   }
 
@@ -136,8 +141,8 @@ router.post('/', (req, res) => {
     INSERT INTO orders (
       type, status, customer_name, customer_doc, customer_email, customer_phone, customer_address,
       is_electronic_invoice, table_number, subtotal, delivery_fee, discount, total,
-      payment_method, payment_status, cash_received, cash_change, receipt_image, notes, shift_id, payment_split
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      payment_method, payment_status, cash_received, cash_change, receipt_image, notes, shift_id, payment_split, customer_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     type, status,
     custName, custDoc, custEmail, custPhone, custAddress,
@@ -149,7 +154,8 @@ router.post('/', (req, res) => {
     receiptImage || null,
     notes,
     effectiveShiftId,
-    splitJson
+    splitJson,
+    customerId
   );
 
   const orderId = result.lastInsertRowid;
@@ -172,6 +178,7 @@ router.post('/', (req, res) => {
   }
 
   applySaleStock(db, req.app.io, orderId, items, req.user?.name);
+  if (isElectronicInvoice) issueTestInvoice(db, orderId);
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   const formatted = formatOrder(db, order);
 
@@ -181,6 +188,18 @@ router.post('/', (req, res) => {
   }
 
   res.status(201).json(formatted);
+});
+
+// Factura electrónica (modo pruebas): genera el documento simulado para un pedido existente
+router.post('/:id/electronic-invoice', (req, res) => {
+  const db = getDb();
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+  if (order.status === 'cancelled') return res.status(400).json({ error: 'El pedido está anulado' });
+  const updated = issueTestInvoice(db, Number(req.params.id));
+  const formatted = formatOrder(db, updated);
+  if (req.app.io) req.app.io.emit('order:updated', formatted);
+  res.json(formatted);
 });
 
 router.patch('/:id/status', (req, res) => {

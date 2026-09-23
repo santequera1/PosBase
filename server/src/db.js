@@ -268,6 +268,40 @@ function migrateSchema() {
   addCol('products', 'track_stock', "INTEGER DEFAULT 0");
   addCol('products', 'stock', "INTEGER DEFAULT 0");
   addCol('products', 'min_stock', "INTEGER DEFAULT 0");
+  addCol('orders', 'fe_number', 'TEXT');
+  addCol('orders', 'fe_cufe', 'TEXT');
+  addCol('orders', 'fe_status', 'TEXT');
+  addCol('orders', 'fe_issued_at', 'TEXT');
+
+  // Clientes: el teléfono deja de ser obligatorio y único (basta con cédula/NIT para el directorio y la F.E.)
+  try {
+    const customersSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='customers'").get();
+    if (customersSql && /phone\s+TEXT\s+UNIQUE/i.test(customersSql.sql || '')) {
+      console.log('🔄 Migrando clientes: teléfono opcional...');
+      db.exec(`
+        PRAGMA foreign_keys=off;
+        BEGIN TRANSACTION;
+        CREATE TABLE customers_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          document_id TEXT DEFAULT '222222222222',
+          email TEXT DEFAULT '',
+          phone TEXT NOT NULL DEFAULT '',
+          address TEXT NOT NULL DEFAULT '',
+          notes TEXT NOT NULL DEFAULT '',
+          is_company INTEGER DEFAULT 0
+        );
+        INSERT INTO customers_new (id, name, document_id, email, phone, address, notes, is_company)
+          SELECT id, name, COALESCE(document_id, '222222222222'), COALESCE(email, ''), COALESCE(phone, ''), COALESCE(address, ''), COALESCE(notes, ''), COALESCE(is_company, 0) FROM customers;
+        DROP TABLE customers;
+        ALTER TABLE customers_new RENAME TO customers;
+        COMMIT;
+        PRAGMA foreign_keys=on;
+      `);
+    }
+  } catch (e) {
+    console.error('Migración de clientes:', e.message);
+  }
 
 }
 

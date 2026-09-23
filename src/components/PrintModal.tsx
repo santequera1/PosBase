@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, FileCheck2 } from 'lucide-react';
+import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { formatPrice } from '@/lib/format';
 import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
 import { useStore } from '@/store/useStore';
@@ -14,6 +15,7 @@ interface PrintModalProps {
 export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }) => {
   const [paperSize, setPaperSize] = useState<'80mm' | '58mm'>('80mm');
   const [isPrinting, setIsPrinting] = useState(false);
+  const [showFe, setShowFe] = useState(false);
   const { businessName, businessSlogan, businessAddress, businessPhone, businessNit, taxType, taxRate } = useStore();
 
   if (!isOpen || !order) return null;
@@ -104,6 +106,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
             <div className="text-[9.5px] space-y-0.5 border-b border-dashed border-gray-300 pb-1.5">
               <p><span className="font-bold">Cliente:</span> {order.customerName || order.customer?.name || 'Consumidor Final'}</p>
               <p><span className="font-bold">C.C / NIT:</span> {order.customerDoc || order.customer?.documentId || order.customer?.doc || '222222222222'}</p>
+              {order.electronicInvoice && <p className="text-amber-700 font-bold">F.E. PRUEBA {order.electronicInvoice.number} · sin validez fiscal</p>}
             </div>
 
             {/* Items Table */}
@@ -193,6 +196,11 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
           >
             <span>✓ Siguiente Venta</span>
           </button>
+          {(order.customer?.isElectronicInvoice || order.electronicInvoice) && (
+            <button onClick={() => setShowFe(true)} className="flex-1 py-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all" title="Factura electrónica en modo pruebas">
+              <FileCheck2 size={15} /> <span>F.E. (prueba)</span>
+            </button>
+          )}
           <button
             onClick={handlePrint}
             disabled={isPrinting}
@@ -202,6 +210,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
             <span>{isPrinting ? 'Imprimiendo...' : '🖨️ Imprimir Factura'}</span>
           </button>
         </div>
+        {showFe && <ElectronicInvoiceModal order={order} onClose={() => setShowFe(false)} />}
       </div>
     </div>
   );

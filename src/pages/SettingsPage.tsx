@@ -203,6 +203,7 @@ const SettingsPage = () => {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">Los precios del POS ya incluyen el impuesto. El sistema desglosa base e impuesto en los recibos térmicos y en Finanzas → Contabilidad.</p>
+            <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">Facturación electrónica: <b>modo de pruebas</b>. Las ventas marcadas como F.E. generan un documento simulado (prefijo FEP, sin validez fiscal) para demostración. La conexión con el proveedor tecnológico (Factus) se activa después.</p>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Resolución DIAN / leyenda del comprobante (opcional)</label>
               <textarea value={dianResolution} onChange={e => setDianResolution(e.target.value)} rows={2} placeholder="Ej: Resolución DIAN No. 18764... del 01/01/2026, numeración POS-1 a POS-50000" className={INPUT} />

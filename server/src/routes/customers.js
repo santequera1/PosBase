@@ -7,8 +7,8 @@ const router = Router();
 function enrichCustomer(db, customer) {
   const stats = db.prepare(`
     SELECT COUNT(*) as totalOrders, COALESCE(SUM(total), 0) as totalSpent, MAX(created_at) as lastOrder
-    FROM orders WHERE customer_phone = ? OR customer_doc = ?
-  `).get(customer.phone, customer.document_id || '');
+    FROM orders WHERE (customer_phone = ? AND ? != '') OR (customer_doc = ? AND ? != '222222222222')
+  `).get(customer.phone || '', customer.phone || '', customer.document_id || '', customer.document_id || '');
 
   const totalOrders = stats?.totalOrders || 0;
   let tag = 'new';
@@ -73,10 +73,10 @@ router.post('/', (req, res) => {
   if (!name) return res.status(400).json({ error: 'El nombre es requerido' });
 
   const db = getDb();
-  const cleanPhone = phone?.trim() || `300${Math.floor(1000000 + Math.random() * 9000000)}`;
+  const cleanPhone = phone?.trim() || '';
 
-  const existing = db.prepare('SELECT * FROM customers WHERE (phone = ? AND phone != "") OR (document_id = ? AND document_id != "222222222222")')
-    .get(cleanPhone, documentId);
+  const existing = db.prepare(`SELECT * FROM customers WHERE (phone = ? AND ? != '') OR (document_id = ? AND ? != '222222222222')`)
+    .get(cleanPhone, cleanPhone, documentId, documentId);
 
   if (existing) {
     // Update existing customer seamlessly

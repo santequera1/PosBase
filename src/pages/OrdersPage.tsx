@@ -1,3 +1,4 @@
+import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { orderNumber } from '@/lib/orderNumber';
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +21,7 @@ export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const { orders, deleteOrder, currentShift, user } = useStore();
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
+  const [feOrderId, setFeOrderId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom'>('today');
@@ -192,6 +194,10 @@ export const OrdersPage: React.FC = () => {
                   <div className="flex items-start justify-between gap-2 pb-2 border-b border-gray-100">
                     <div>
                       <span className="font-bold text-sm text-brand-primary font-sans">{orderNumber(order.id)}</span>
+                      {(order.customer?.isElectronicInvoice || order.electronicInvoice) && (
+                        <button onClick={() => setFeOrderId(order.id)} className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold" title="Factura electrónica (modo pruebas)">F.E.</button>
+                      )}
+                      {feOrderId === order.id && <ElectronicInvoiceModal order={order} onClose={() => setFeOrderId(null)} />}
                       <p className="text-[11px] text-gray-500 font-sans">{order.createdAt}</p>
                     </div>
                     <span className={cn(
@@ -284,7 +290,7 @@ export const OrdersPage: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {filtered.map(order => (
                   <tr key={order.id} className="hover:bg-brand-card/50 transition-colors">
-                    <td className="py-3 px-4 font-bold text-brand-primary font-sans">{orderNumber(order.id)}</td>
+                    <td className="py-3 px-4 font-bold text-brand-primary font-sans">{orderNumber(order.id)}{(order.customer?.isElectronicInvoice || order.electronicInvoice) && <button onClick={() => setFeOrderId(order.id)} className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold">F.E.</button>}{feOrderId === order.id && <ElectronicInvoiceModal order={order} onClose={() => setFeOrderId(null)} />}</td>
                     <td className="py-3 px-4 text-gray-500 font-sans">{order.createdAt}</td>
                     <td className="py-3 px-4 font-semibold text-brand-dark font-sans">{order.customer.name}</td>
                     <td className="py-3 px-4 text-gray-600 truncate max-w-xs font-sans">

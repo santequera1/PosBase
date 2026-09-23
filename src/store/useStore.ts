@@ -106,6 +106,7 @@ export interface Order {
   receiptImage?: string;
   notes?: string;
   shiftId?: number;
+  electronicInvoice?: { number: string; cufe: string; status: string; issuedAt: string; test?: boolean };
 }
 
 export interface CashShift {
@@ -221,6 +222,7 @@ interface AppState {
   deleteOrder: (id: number) => void;
   deleteOrders: (ids: number[]) => void;
   updateOrdersStatus: (ids: number[], status: OrderStatus) => void;
+  issueTestInvoice: (id: number) => Promise<void>;
 
   // Shifts
   openShift: (initialCash: number, cashierName?: string, notes?: string) => Promise<void>;
@@ -489,6 +491,11 @@ export const useStore = create<AppState>((set, get) => ({
       console.error('Error updating orders status:', err);
       get().refreshOrders();
     });
+  },
+
+  issueTestInvoice: async (id) => {
+    const updated = await api.issueTestInvoice(id);
+    set(s => ({ orders: s.orders.map(o => o.id === id ? { ...o, ...updated } : o) }));
   },
 
   openShift: async (initialCash, cashierName, notes) => {

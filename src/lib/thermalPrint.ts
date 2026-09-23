@@ -98,6 +98,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div style="font-size: 8px; margin-bottom: 2px;">
         <div class="row"><span><strong>Cliente:</strong> ${customerName}</span></div>
         <div class="row"><span><strong>C.C / NIT:</strong> ${customerDoc}</span></div>
+        ${order.electronicInvoice ? `<div class="row"><span><strong>F.E. PRUEBA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE (simulado): ${String(order.electronicInvoice.cufe).slice(0, 48)}…</div><div style="font-size: 6.5px; font-weight: bold;">DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL</div>` : ''}
       </div>
 
       <div class="divider"></div>
