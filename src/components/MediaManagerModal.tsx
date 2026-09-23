@@ -48,6 +48,14 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
     }
   }, [isOpen, currentImageUrl]);
 
+  // Escape cierra la ventana
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   const loadMedia = async () => {
     setLoading(true);
     try {

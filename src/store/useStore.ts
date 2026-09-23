@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, setToken } from '@/lib/api';
+import { toast } from 'sonner';
 import { type ThemeInput, type ThemeMode, type CustomFont, BASE_THEME, resolveTheme, applyTheme, setFavicon } from '@/lib/theme';
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
@@ -247,7 +248,7 @@ interface AppState {
   // Categories
   addCategory: (category: Omit<Category, 'id'>) => void;
   updateCategory: (id: number, data: Partial<Category>) => void;
-  deleteCategory: (id: number) => void;
+  deleteCategory: (id: number) => Promise<void>;
 
   // Customers
   addCustomer: (customer: Omit<Customer, 'id' | 'totalOrders' | 'totalSpent' | 'lastOrder' | 'tag'>) => void;
@@ -568,9 +569,14 @@ export const useStore = create<AppState>((set, get) => ({
     api.updateCategory(id, data).catch(console.error);
   },
 
-  deleteCategory: (id) => {
-    set(s => ({ categories: s.categories.filter(c => c.id !== id) }));
-    api.deleteCategory(id).catch(console.error);
+  deleteCategory: async (id) => {
+    try {
+      await api.deleteCategory(id);
+      set(s => ({ categories: s.categories.filter(c => c.id !== id) }));
+      toast.success('Categoría eliminada');
+    } catch (e: any) {
+      toast.error(e?.message || 'No se pudo eliminar la categoría');
+    }
   },
 
   addCustomer: (customer) => {

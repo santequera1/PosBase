@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
   { path: '/shift', label: 'Cierre de Caja', icon: Wallet },
   { path: '/reports', label: 'Ventas e Ingresos', icon: BarChart3 },
   { path: '/orders', label: 'Historial Pedidos', icon: ClipboardList },
-  { path: '/products', label: 'Sabores & Menú', icon: Package },
+  { path: '/products', label: 'Menú', icon: Package },
   { path: '/customers', label: 'Clientes & F.E.', icon: Users },
   { path: '/finance', label: 'Finanzas', icon: Landmark, roles: ['admin', 'cashier'] },
   { path: '/staff', label: 'Personal & Nómina', icon: UsersRound, roles: ['admin'] },
@@ -181,8 +181,10 @@ export const AppLayout = () => {
           <button onClick={() => navigate('/pos')} className="font-serif font-bold text-base tracking-wide flex-1 md:hidden flex items-center gap-2 text-brand-primary">
             <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
           </button>
-          {/* El título de cada sección lo pone la propia página; aquí solo queda espacio para las acciones */}
-          <div className="flex-1 hidden md:block" />
+          {/* En escritorio el encabezado muestra el nombre del negocio; el título de cada sección lo pone la propia página */}
+          <div className="flex-1 hidden md:flex items-center min-w-0">
+            <span className="font-serif font-bold text-lg text-brand-primary truncate" data-testid="header-business-name">{businessName}</span>
+          </div>
         {/* Modo claro / oscuro (preferencia de este dispositivo) */}
         <button onClick={() => setModeOverride(isDark ? 'light' : 'dark')}
           className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>

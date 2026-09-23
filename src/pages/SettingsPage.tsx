@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
-import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen } from 'lucide-react';
+import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import BrandingPanel from '@/components/settings/BrandingPanel';
 import UsersPanel from '@/components/settings/UsersPanel';
@@ -9,6 +9,25 @@ import UsersPanel from '@/components/settings/UsersPanel';
 type Tab = 'negocio' | 'marca' | 'usuarios' | 'categorias' | 'integracion';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
+
+// Capacidades del asistente de IA por WhatsApp. La conexión del número la hace el equipo técnico en la instalación;
+// aquí solo se elige qué debe hacer el asistente para este negocio.
+const AI_CAPABILITIES: Array<{ id: string; label: string; desc: string; group: string }> = [
+  { id: 'dailyReport', group: 'Reportes automáticos', label: 'Reporte diario de ventas', desc: 'Al cerrar caja: total del día, métodos de pago y ticket promedio.' },
+  { id: 'weeklyReport', group: 'Reportes automáticos', label: 'Reporte semanal', desc: 'Cada lunes: ventas de la semana, sabores más vendidos y comparación con la anterior.' },
+  { id: 'monthlyReport', group: 'Reportes automáticos', label: 'Reporte mensual', desc: 'Primer día del mes: ventas, gastos, nómina y utilidad del mes.' },
+  { id: 'shiftCloseNotify', group: 'Notificaciones', label: 'Aviso de cierre de caja', desc: 'Envía el cierre Z con arqueo y diferencias cuando el cajero cierra el turno.' },
+  { id: 'lowStockAlert', group: 'Notificaciones', label: 'Alerta de stock bajo o agotado', desc: 'Aviso cuando un producto con inventario llega al mínimo o se agota.' },
+  { id: 'payablesReminder', group: 'Notificaciones', label: 'Recordatorio de cuentas por pagar', desc: 'Aviso dos días antes del vencimiento de facturas de proveedores.' },
+  { id: 'bigSaleNotify', group: 'Notificaciones', label: 'Aviso de ventas grandes o anuladas', desc: 'Notifica pedidos por encima de un monto y cualquier anulación.' },
+  { id: 'salesQuery', group: 'Consultas por chat', label: 'Consultar ventas', desc: 'Responde preguntas como "¿cuánto vendimos hoy?" o "¿cómo va la semana?".' },
+  { id: 'catalogControl', group: 'Consultas por chat', label: 'Controlar el catálogo', desc: 'Cambiar precios y pausar o reanudar sabores agotados desde el chat.' },
+  { id: 'ordersQuery', group: 'Consultas por chat', label: 'Consultar pedidos y clientes', desc: 'Buscar comprobantes recientes y datos de clientes registrados.' },
+];
+const AI_DEFAULTS: Record<string, boolean> = { dailyReport: true, weeklyReport: true, monthlyReport: false, shiftCloseNotify: true, lowStockAlert: true, payablesReminder: false, bigSaleNotify: false, salesQuery: true, catalogControl: true, ordersQuery: true };
+const parseCaps = (raw: any): Record<string, boolean> => {
+  try { const o = typeof raw === 'string' ? JSON.parse(raw) : raw; return o && typeof o === 'object' ? { ...AI_DEFAULTS, ...o } : { ...AI_DEFAULTS }; } catch { return { ...AI_DEFAULTS }; }
+};
 
 const SettingsPage = () => {
   const { deliveryFee, tableCount, categories, user, addCategory, updateCategory, deleteCategory } = useStore();
@@ -31,7 +50,17 @@ const SettingsPage = () => {
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [whatsappKey, setWhatsappKey] = useState('');
+  const [aiCaps, setAiCaps] = useState<Record<string, boolean>>({ ...AI_DEFAULTS });
+  const [aiSaved, setAiSaved] = useState(false);
   const webhookUrl = `${window.location.origin}/api/whatsapp-ai/webhook`;
+
+  const toggleCap = (id: string) => {
+    const next = { ...aiCaps, [id]: !aiCaps[id] };
+    setAiCaps(next);
+    api.updateSettings({ aiCapabilities: JSON.stringify(next) })
+      .then(() => { setAiSaved(true); setTimeout(() => setAiSaved(false), 1500); })
+      .catch(() => setAiCaps(aiCaps));
+  };
 
   // Category form
   const [showCatForm, setShowCatForm] = useState(false);
@@ -54,6 +83,7 @@ const SettingsPage = () => {
       setTaxType(s.taxType ? String(s.taxType) : 'none');
       setTaxRate(s.taxRate !== undefined && s.taxRate !== '' && s.taxRate !== null ? String(s.taxRate) : '');
       setDianResolution(s.dianResolution ? String(s.dianResolution) : '');
+      setAiCaps(parseCaps(s.aiCapabilities));
     }).catch(() => {
       setEditDeliveryFee(String(deliveryFee));
       setEditTableCount(String(tableCount));
@@ -112,7 +142,7 @@ const SettingsPage = () => {
   };
 
   const handleDeleteCat = (id: number, name: string) => {
-    if (window.confirm(`¿Eliminar categoría "${name}"? Los productos de esta categoría podrían quedar sin categoría.`)) {
+    if (window.confirm(`¿Eliminar la categoría "${name}"? Solo se puede eliminar si no tiene productos.`)) {
       deleteCategory(id);
     }
   };
@@ -344,6 +374,31 @@ const SettingsPage = () => {
               <li><strong>Disponibilidad:</strong> pausar o reanudar sabores agotados al instante.</li>
               <li><strong>Consultar comprobantes y clientes:</strong> buscar órdenes recientes o datos fiscales.</li>
             </ul>
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><ListChecks size={15} className="text-emerald-600" /> Qué debe hacer el asistente</h4>
+                <p className="text-[11px] text-gray-400">Marca lo que quieres recibir por WhatsApp. La conexión del número la configura el equipo técnico en la instalación.</p>
+              </div>
+              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full transition-opacity', aiSaved ? 'opacity-100 bg-emerald-100 text-emerald-800' : 'opacity-0')}>Guardado ✓</span>
+            </div>
+            {['Reportes automáticos', 'Notificaciones', 'Consultas por chat'].map(group => (
+              <div key={group} className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{group}</p>
+                {AI_CAPABILITIES.filter(c => c.group === group).map(c => (
+                  <label key={c.id} className={cn('flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-colors', aiCaps[c.id] ? 'border-emerald-200 bg-emerald-50/60' : 'border-gray-200 bg-gray-50/50 hover:bg-gray-50')}>
+                    <input type="checkbox" checked={!!aiCaps[c.id]} onChange={() => toggleCap(c.id)} data-cap={c.id}
+                      className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-emerald-600 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold text-brand-dark">{c.label}</span>
+                      <span className="block text-[11px] text-gray-500 leading-snug">{c.desc}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ))}
           </div>
         </section>
       )}

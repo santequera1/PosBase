@@ -19,6 +19,7 @@ router.post('/', requireRole('admin'), (req, res) => {
 router.put('/:id', requireRole('admin'), (req, res) => {
   const { name, emoji, color } = req.body;
   const { id } = req.params;
+  if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: 'El nombre no puede estar vacío' });
   getDb().prepare('UPDATE categories SET name = COALESCE(?, name), emoji = COALESCE(?, emoji), color = COALESCE(?, color) WHERE id = ?')
     .run(name, emoji, color, id);
   const cat = getDb().prepare('SELECT * FROM categories WHERE id = ?').get(id);
@@ -26,7 +27,10 @@ router.put('/:id', requireRole('admin'), (req, res) => {
 });
 
 router.delete('/:id', requireRole('admin'), (req, res) => {
-  getDb().prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+  const db = getDb();
+  const { n } = db.prepare('SELECT COUNT(*) AS n FROM products WHERE category_id = ?').get(req.params.id);
+  if (n > 0) return res.status(409).json({ error: `La categoría tiene ${n} producto(s). Muévelos a otra categoría antes de eliminarla.` });
+  db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 

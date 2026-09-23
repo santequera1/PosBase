@@ -1,8 +1,8 @@
 import { PackagePlus, AlertTriangle } from 'lucide-react';
 import { StockModal } from '@/components/StockModal';
 import { BRAND } from '@/lib/theme';
-import { useState } from 'react';
-import { Search, Plus, Grid3X3, List, X, Trash2, Edit3, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, Plus, Grid3X3, List, X, Trash2, Edit3, Image as ImageIcon, Pencil } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -22,8 +22,10 @@ const StockBadge = ({ p, onAdjust }: { p: any; onAdjust?: () => void }) => {
 };
 
 const ProductsPage = () => {
-  const { categories, products, toggleProductAvailability, addProduct, updateProduct, deleteProduct, addCategory } = useStore();
+  const { categories, products, toggleProductAvailability, addProduct, updateProduct, deleteProduct, addCategory, updateCategory, deleteCategory, user } = useStore();
+  const isAdmin = user?.role === 'admin';
   const [showCatForm, setShowCatForm] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<number | null>(null);
   const [newCatName, setNewCatName] = useState('');
   const [newCatEmoji, setNewCatEmoji] = useState('');
   const [newCatColor, setNewCatColor] = useState(BRAND.primary);
@@ -32,6 +34,29 @@ const ProductsPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showForm]);
+
+  const productCountByCat = (id: number) => products.filter(p => p.categoryId === id).length;
+  const openCatForm = (c?: { id: number; name: string; emoji: string; color: string }) => {
+    setEditingCatId(c ? c.id : null);
+    setNewCatName(c ? c.name : '');
+    setNewCatEmoji(c ? c.emoji : '');
+    setNewCatColor(c ? c.color : BRAND.primary);
+    setShowCatForm(true);
+  };
+  const handleDeleteCat = async (c: { id: number; name: string }) => {
+    const n = productCountByCat(c.id);
+    if (n > 0) { window.alert(`La categoría "${c.name}" tiene ${n} producto(s). Muévelos a otra categoría (editar producto) antes de eliminarla.`); return; }
+    if (!window.confirm(`¿Eliminar la categoría "${c.name}"?`)) return;
+    await deleteCategory(c.id);
+    if (selectedCategory === c.id) setSelectedCategory(null);
+  };
   const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] as { name: string; price: number }[], trackStock: false, stock: '', minStock: '' });
   const [stockTarget, setStockTarget] = useState<number | null>(null);
   const lowStock = products.filter(p => p.trackStock && (Number(p.stock) || 0) <= (Number(p.minStock) || 0));
@@ -127,29 +152,37 @@ const ProductsPage = () => {
         >
           Todas las categorías
         </button>
-        {categories.map(c => (
+        {categories.map(c => {
+          const active = selectedCategory === c.id;
+          return (
+            <div key={c.id} className={cn('flex items-stretch rounded-xl shadow-sm shrink-0 overflow-hidden', active ? 'bg-brand-button text-brand-on-button' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card')}>
+              <button onClick={() => setSelectedCategory(c.id)} className="px-3.5 py-1.5 text-xs font-bold whitespace-nowrap flex items-center gap-1">
+                <span>{c.emoji}</span>
+                <span>{c.name}</span>
+              </button>
+              {active && isAdmin && (
+                <>
+                  <button onClick={() => openCatForm(c)} title={`Editar categoría ${c.name}`} className="px-1.5 border-l border-brand-on-button/20 hover:bg-brand-on-button/10 flex items-center"><Pencil size={12} /></button>
+                  <button onClick={() => handleDeleteCat(c)} title={`Eliminar categoría ${c.name}`} className="px-1.5 border-l border-brand-on-button/20 hover:bg-brand-on-button/10 flex items-center"><Trash2 size={12} /></button>
+                </>
+              )}
+            </div>
+          );
+        })}
+        {isAdmin && (
           <button
-            key={c.id}
-            onClick={() => setSelectedCategory(c.id)}
-            className={cn(
-              'px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm flex items-center gap-1',
-              selectedCategory === c.id ? 'bg-brand-button text-brand-on-button' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card'
-            )}
+            onClick={() => showCatForm ? setShowCatForm(false) : openCatForm()}
+            title="Nueva categoría"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card shrink-0"
           >
-            <span>{c.emoji}</span>
-            <span>{c.name}</span>
+            <Plus size={14} />
           </button>
-        ))}
-        <button
-          onClick={() => setShowCatForm(!showCatForm)}
-          className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card shrink-0"
-        >
-          <Plus size={14} />
-        </button>
+        )}
       </div>
 
       {showCatForm && (
         <div className="flex gap-2 items-end flex-wrap bg-brand-card rounded-2xl border border-brand-accent/50 p-3 shadow-sm">
+          <p className="w-full text-[11px] font-bold text-brand-primary -mb-1">{editingCatId ? 'Editar categoría' : 'Nueva categoría'}</p>
           <div>
             <label className="text-[10px] text-brand-muted font-bold block mb-0.5">Emoji</label>
             <input value={newCatEmoji} onChange={e => setNewCatEmoji(e.target.value)} placeholder="🍦"
@@ -167,12 +200,13 @@ const ProductsPage = () => {
           </div>
           <button onClick={() => {
             if (newCatName && newCatEmoji) {
-              addCategory({ name: newCatName, emoji: newCatEmoji, color: newCatColor });
-              setNewCatName(''); setNewCatEmoji(''); setNewCatColor(BRAND.primary); setShowCatForm(false);
+              if (editingCatId) updateCategory(editingCatId, { name: newCatName.trim(), emoji: newCatEmoji.trim(), color: newCatColor });
+              else addCategory({ name: newCatName.trim(), emoji: newCatEmoji.trim(), color: newCatColor });
+              setNewCatName(''); setNewCatEmoji(''); setNewCatColor(BRAND.primary); setShowCatForm(false); setEditingCatId(null);
             }
           }} disabled={!newCatName || !newCatEmoji}
             className="px-4 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold disabled:opacity-40 shadow-sm">
-            Crear
+            {editingCatId ? 'Guardar' : 'Crear'}
           </button>
           <button onClick={() => setShowCatForm(false)} className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs hover:bg-gray-50">
             <X size={14} />
