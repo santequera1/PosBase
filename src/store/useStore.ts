@@ -409,6 +409,9 @@ export const useStore = create<AppState>((set, get) => ({
       });
       // Refresh shift stats in background
       get().refreshCurrentShift();
+      // Si la venta trae cliente identificado (F.E.), el directorio en memoria se actualiza para reconocerlo en la próxima venta
+      const doc = (order as any).customer?.doc;
+      if (doc && doc !== '222222222222') api.getCustomers().then(customers => set({ customers })).catch(() => {});
       return created.id;
     } catch (err) {
       console.error('Error creating order:', err);
