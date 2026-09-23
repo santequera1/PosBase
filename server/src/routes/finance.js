@@ -18,7 +18,7 @@ const EXP_SELECT = `
          e.supplier_id AS supplierId, s.name AS supplierName, e.description, e.amount, e.payment_method AS paymentMethod,
          e.status, e.due_date AS dueDate, e.paid_at AS paidAt, e.invoice_number AS invoiceNumber, e.notes,
          e.from_cash_register AS fromCashRegister, e.cash_movement_id AS cashMovementId, e.source, e.reference_id AS referenceId,
-         e.created_by AS createdBy, e.created_at AS createdAt
+         e.created_by AS createdBy, e.created_at AS createdAt, COALESCE(e.tax_amount, 0) AS taxAmount
   FROM expenses e
   JOIN expense_categories c ON c.id = e.category_id
   LEFT JOIN suppliers s ON s.id = e.supplier_id`;
@@ -225,7 +225,9 @@ function validateExpense(db, body, cur = null) {
   if (dueDate && !isDate(dueDate)) return { error: 'Fecha de vencimiento inválida' };
   const invoiceNumber = body.invoiceNumber !== undefined ? String(body.invoiceNumber).trim() : (cur ? cur.invoiceNumber : '');
   const notes = body.notes !== undefined ? String(body.notes).trim() : (cur ? cur.notes : '');
-  return { date, categoryId, supplierId, description, amount, paymentMethod, status, dueDate, invoiceNumber, notes };
+  const taxAmount = body.taxAmount !== undefined && body.taxAmount !== null && body.taxAmount !== '' ? Math.round(Number(body.taxAmount) || 0) : (cur ? (cur.taxAmount || 0) : 0);
+  if (taxAmount < 0 || taxAmount > amount) return { error: 'El IVA no puede ser negativo ni superar el monto total' };
+  return { date, categoryId, supplierId, description, amount, paymentMethod, status, dueDate, invoiceNumber, notes, taxAmount };
 }
 
 router.post('/expenses', STAFF, (req, res) => {
@@ -240,9 +242,9 @@ router.post('/expenses', STAFF, (req, res) => {
     cashMovementId = r.id;
   }
   const info = db.prepare(`
-    INSERT INTO expenses (date, category_id, supplier_id, description, amount, payment_method, status, due_date, paid_at, invoice_number, notes, from_cash_register, cash_movement_id, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(v.date, v.categoryId, v.supplierId, v.description, v.amount, v.paymentMethod, v.status, v.dueDate,
+    INSERT INTO expenses (date, category_id, supplier_id, description, amount, tax_amount, payment_method, status, due_date, paid_at, invoice_number, notes, from_cash_register, cash_movement_id, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(v.date, v.categoryId, v.supplierId, v.description, v.amount, v.taxAmount, v.paymentMethod, v.status, v.dueDate,
     v.status === 'paid' ? now(db) : null, v.invoiceNumber, v.notes, fromCash ? 1 : 0, cashMovementId, req.user?.name || '');
   const row = db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(info.lastInsertRowid);
   res.status(201).json(mapExpense(row));
@@ -258,9 +260,9 @@ router.put('/expenses/:id', ADMIN, (req, res) => {
   if (v.error) return res.status(400).json({ error: v.error });
   const paidAt = v.status === 'paid' ? (cur.paidAt || now(db)) : null;
   db.prepare(`
-    UPDATE expenses SET date = ?, category_id = ?, supplier_id = ?, description = ?, amount = ?, payment_method = ?, status = ?, due_date = ?, paid_at = ?, invoice_number = ?, notes = ?
+    UPDATE expenses SET date = ?, category_id = ?, supplier_id = ?, description = ?, amount = ?, tax_amount = ?, payment_method = ?, status = ?, due_date = ?, paid_at = ?, invoice_number = ?, notes = ?
     WHERE id = ?
-  `).run(v.date, v.categoryId, v.supplierId, v.description, v.amount, v.paymentMethod, v.status, v.dueDate, paidAt, v.invoiceNumber, v.notes, id);
+  `).run(v.date, v.categoryId, v.supplierId, v.description, v.amount, v.taxAmount, v.paymentMethod, v.status, v.dueDate, paidAt, v.invoiceNumber, v.notes, id);
   if (cur.cashMovementId && v.amount !== cur.amount) {
     db.prepare('UPDATE cash_movements SET amount = ?, reason = ? WHERE id = ?').run(v.amount, `Gasto: ${v.description}`, cur.cashMovementId);
   }
@@ -390,6 +392,16 @@ router.get('/pnl', ADMIN, (req, res) => {
     };
   });
   res.json(out);
+});
+
+/* ------------------------------------------------------------------ */
+/* Informe contable para el contador                                    */
+/* ------------------------------------------------------------------ */
+const { buildAccounting } = require('../accounting');
+router.get('/accounting', ADMIN, (req, res) => {
+  const db = getDb();
+  const range = periodRange(db, req.query);
+  res.json(buildAccounting(db, range));
 });
 
 module.exports = router;

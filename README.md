@@ -12,6 +12,7 @@ Diseñado especialmente para el flujo de trabajo de heladerías artesanales, gel
 - **Marca (Ajustes → Marca):** paleta a partir de 3 colores con verificación automática de contraste (WCAG) y ajuste con un clic, 8 presets, tipografías incluidas, de Google Fonts o propias (TTF/OTF/WOFF), logo principal, logo para fondos claros y favicon generado automáticamente desde el logo.
 - **Usuarios (Ajustes → Usuarios):** crear cajeros, cocina y administradores, cambiar contraseñas y desactivar accesos sin perder el historial de caja.
 - **Finanzas:** gastos por categoría (insumos, operativos, nómina), compras a proveedores de contado o a crédito, cuentas por pagar con vencimientos, descuento directo de la caja abierta y estado de resultados mes a mes (ventas − insumos − gastos − nómina = utilidad neta).
+- **Contabilidad (Finanzas → Contabilidad):** impuestos configurables (INC o IVA incluidos en el precio) con base e impuesto desglosados en los recibos; informe del período con libro de ventas diario y por comprobante, libro de compras y gastos con NIT y número de factura, resumen de impuestos, nómina pagada, cierres de caja y cuentas por pagar; exportación CSV para Excel e impresión a PDF.
 - **Personal y Nómina:** colaboradores con modalidad de pago (por turno, día, hora, quincena o mes), asistencia automática al abrir/cerrar caja, propinas comunes o directas, anticipos vinculados a la caja y liquidación por período que se registra como gasto de nómina.
 
 ### 1. 🍨 Venta Rápida y Personalizada de Helados

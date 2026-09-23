@@ -2,19 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import {
   Plus, Edit2, Trash2, X, Search, Landmark, Receipt, CalendarClock, Truck, FolderOpen, TrendingUp, TrendingDown,
-  Wallet, AlertTriangle, CheckCircle2, Banknote, CreditCard, ArrowLeftRight, Clock, Filter,
+  Wallet, AlertTriangle, CheckCircle2, Banknote, CreditCard, ArrowLeftRight, Clock, Filter, BookOpen,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/theme';
+import AccountingTab from '@/components/finance/AccountingTab';
 
 /* ------------------------------------------------------------------ */
 /* Tipos y constantes                                                   */
 /* ------------------------------------------------------------------ */
 type Kind = 'cogs' | 'opex' | 'payroll' | 'other';
-type Tab = 'resumen' | 'gastos' | 'porpagar' | 'proveedores' | 'categorias';
+type Tab = 'resumen' | 'contabilidad' | 'gastos' | 'porpagar' | 'proveedores' | 'categorias';
 type Period = 'today' | 'week' | 'month' | 'last_month' | 'year' | 'custom';
 
 interface ExpenseCategory { id: number; name: string; emoji: string; kind: Kind; isSystem: boolean }
@@ -23,7 +24,7 @@ interface Expense {
   id: number; date: string; categoryId: number; categoryName: string; categoryEmoji: string; categoryKind: Kind;
   supplierId: number | null; supplierName: string | null; description: string; amount: number; paymentMethod: string;
   status: 'paid' | 'pending'; dueDate: string | null; paidAt: string | null; invoiceNumber: string; notes: string;
-  fromCashRegister: boolean; source: string; overdue?: boolean; dueSoon?: boolean;
+  fromCashRegister: boolean; source: string; overdue?: boolean; dueSoon?: boolean; taxAmount?: number;
 }
 
 const KIND_META: Record<Kind, { label: string; short: string; className: string }> = {
@@ -54,17 +55,24 @@ const pct = (part: number, total: number) => (total > 0 ? Math.round((part / tot
 /* ------------------------------------------------------------------ */
 /* Componentes auxiliares                                               */
 /* ------------------------------------------------------------------ */
-const Modal = ({ title, onClose, children, wide }: { title: string; onClose: () => void; children: any; wide?: boolean }) => (
-  <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-    <div className={cn('bg-white rounded-t-3xl sm:rounded-2xl w-full p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto', wide ? 'max-w-2xl' : 'max-w-md')} onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-between">
-        <h4 className="font-bold text-sm text-brand-dark">{title}</h4>
-        <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>
+const Modal = ({ title, onClose, children, wide }: { title: string; onClose: () => void; children: any; wide?: boolean }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className={cn('bg-white rounded-t-3xl sm:rounded-2xl w-full p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto', wide ? 'max-w-2xl' : 'max-w-md')} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-sm text-brand-dark">{title}</h4>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>
+        </div>
+        {children}
       </div>
-      {children}
     </div>
-  </div>
-);
+  );
+};
 
 const Chip = ({ active, onClick, children, className }: { active?: boolean; onClick?: () => void; children: any; className?: string }) => (
   <button type="button" onClick={onClick}
@@ -108,6 +116,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
     supplierId: expense?.supplierId || 0,
     description: expense?.description || '',
     amount: expense ? String(expense.amount) : '',
+    taxAmount: expense && expense.taxAmount ? String(expense.taxAmount) : '',
     paymentMethod: expense?.paymentMethod || 'cash',
     status: expense?.status || 'paid',
     dueDate: expense?.dueDate || '',
@@ -141,7 +150,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
     try {
       const payload = {
         date: form.date, categoryId: Number(form.categoryId), supplierId: form.supplierId ? Number(form.supplierId) : null,
-        description: form.description.trim(), amount: Number(form.amount), paymentMethod: form.paymentMethod, status,
+        description: form.description.trim(), amount: Number(form.amount), taxAmount: Number(form.taxAmount) || 0, paymentMethod: form.paymentMethod, status,
         dueDate: status === 'pending' ? form.dueDate || null : null, invoiceNumber: form.invoiceNumber, notes: form.notes,
         fromCashRegister: canCash && form.fromCashRegister,
       };
@@ -213,6 +222,10 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
         <div>
           <label className={LABEL}>N° factura / soporte</label>
           <input value={form.invoiceNumber} onChange={e => set({ invoiceNumber: e.target.value })} className={INPUT} />
+        </div>
+        <div>
+          <label className={LABEL}>IVA incluido en el monto (opcional)</label>
+          <input type="number" min={0} value={form.taxAmount} onChange={e => set({ taxAmount: e.target.value })} placeholder="0" className={cn(INPUT, 'font-mono')} />
         </div>
         <div className="sm:col-span-2">
           <label className={LABEL}>Notas</label>
@@ -709,6 +722,7 @@ const FinancePage = () => {
 
   const tabs = useMemo(() => [
     { id: 'resumen' as Tab, label: 'Resumen', icon: Landmark, admin: true },
+    { id: 'contabilidad' as Tab, label: 'Contabilidad', icon: BookOpen, admin: true },
     { id: 'gastos' as Tab, label: 'Gastos', icon: Receipt },
     { id: 'porpagar' as Tab, label: 'Por pagar', icon: CalendarClock },
     { id: 'proveedores' as Tab, label: 'Proveedores', icon: Truck },
@@ -734,6 +748,7 @@ const FinancePage = () => {
       </div>
 
       {tab === 'resumen' && isAdmin && <SummaryTab goTo={setTab} />}
+      {tab === 'contabilidad' && isAdmin && <AccountingTab />}
       {tab === 'gastos' && <ExpensesTab categories={categories} suppliers={suppliers.filter(s => s.active)} isAdmin={isAdmin} />}
       {tab === 'porpagar' && <PayablesTab />}
       {tab === 'proveedores' && <SuppliersTab suppliers={suppliers} isAdmin={isAdmin} reload={loadSuppliers} />}

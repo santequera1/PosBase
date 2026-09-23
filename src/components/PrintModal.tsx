@@ -14,7 +14,7 @@ interface PrintModalProps {
 export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }) => {
   const [paperSize, setPaperSize] = useState<'80mm' | '58mm'>('80mm');
   const [isPrinting, setIsPrinting] = useState(false);
-  const { businessName, businessSlogan, businessAddress, businessPhone, businessNit } = useStore();
+  const { businessName, businessSlogan, businessAddress, businessPhone, businessNit, taxType, taxRate } = useStore();
 
   if (!isOpen || !order) return null;
 
@@ -142,6 +142,12 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
                   <span>Descuento:</span>
                   <span>-{formatPrice(discount)}</span>
                 </div>
+              )}
+              {taxType !== 'none' && taxRate > 0 && (
+                <>
+                  <div className="flex justify-between text-[9px] text-gray-600"><span>Base gravable:</span><span>{formatPrice(Math.round(total / (1 + taxRate / 100)))}</span></div>
+                  <div className="flex justify-between text-[9px] text-gray-600"><span>{taxType.toUpperCase()} {taxRate}% (incluido):</span><span>{formatPrice(total - Math.round(total / (1 + taxRate / 100)))}</span></div>
+                </>
               )}
               <div className="flex justify-between font-bold text-xs pt-1 border-t border-gray-300 text-brand-dark">
                 <span>TOTAL:</span>

@@ -34,6 +34,7 @@ function initModulesSchema(db) {
       supplier_id INTEGER REFERENCES suppliers(id),
       description TEXT NOT NULL,
       amount INTEGER NOT NULL,
+      tax_amount INTEGER DEFAULT 0,
       payment_method TEXT NOT NULL DEFAULT 'cash',
       status TEXT NOT NULL DEFAULT 'paid' CHECK(status IN ('paid', 'pending')),
       due_date TEXT,
@@ -125,6 +126,10 @@ function initModulesSchema(db) {
       created_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
     );
   `);
+
+  // Migración para bases creadas antes del campo de IVA en gastos
+  const expenseCols = db.prepare('PRAGMA table_info(expenses)').all().map(c => c.name);
+  if (!expenseCols.includes('tax_amount')) db.exec('ALTER TABLE expenses ADD COLUMN tax_amount INTEGER DEFAULT 0');
 
   const count = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get().c;
   if (count === 0) {

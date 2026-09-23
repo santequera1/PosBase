@@ -189,6 +189,9 @@ interface AppState {
   businessPhone: string;
   businessNit: string;
   invoicePrefix: string;
+  taxType: string;
+  taxRate: number;
+  dianResolution: string;
   branding: Branding;
   initialized: boolean;
   sidebarCollapsed: boolean;
@@ -272,6 +275,9 @@ export const useStore = create<AppState>((set, get) => ({
   businessPhone: '',
   businessNit: '',
   invoicePrefix: 'POS',
+  taxType: 'none',
+  taxRate: 0,
+  dianResolution: '',
   branding: DEFAULT_BRANDING,
   initialized: false,
   sidebarCollapsed: false,
@@ -357,6 +363,9 @@ export const useStore = create<AppState>((set, get) => ({
         businessPhone: settings.businessPhone ? String(settings.businessPhone) : '',
         businessNit: settings.businessNit ? String(settings.businessNit) : '',
         invoicePrefix: settings.invoicePrefix ? String(settings.invoicePrefix) : 'POS',
+        taxType: settings.taxType ? String(settings.taxType) : 'none',
+        taxRate: Number(settings.taxRate) || 0,
+        dianResolution: settings.dianResolution ? String(settings.dianResolution) : '',
         branding: brandingFromSettings(settings),
         initialized: true,
       });

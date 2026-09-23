@@ -269,3 +269,11 @@
   #pos-thermal-print-area .item-desc { font-weight: bold; word-break: break-word; }
   #pos-thermal-print-area .item-flavors { font-size: 8.5px; color: #222; padding-left: 6px; font-style: italic; }
 }
+/* Impresión del informe contable (Finanzas → Contabilidad → Imprimir) */
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 12px; }
+  aside, nav, header { display: none !important; }
+  .break-inside-avoid { break-inside: avoid; }
+}

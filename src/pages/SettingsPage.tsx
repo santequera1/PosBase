@@ -23,6 +23,9 @@ const SettingsPage = () => {
   const [invoicePrefix, setInvoicePrefix] = useState('');
   const [editDeliveryFee, setEditDeliveryFee] = useState('');
   const [editTableCount, setEditTableCount] = useState('');
+  const [taxType, setTaxType] = useState('none');
+  const [taxRate, setTaxRate] = useState('');
+  const [dianResolution, setDianResolution] = useState('');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
@@ -48,6 +51,9 @@ const SettingsPage = () => {
       setInvoicePrefix(s.invoicePrefix ? String(s.invoicePrefix) : 'POS');
       setEditDeliveryFee(String(s.deliveryFee || deliveryFee));
       setEditTableCount(String(s.tableCount || tableCount));
+      setTaxType(s.taxType ? String(s.taxType) : 'none');
+      setTaxRate(s.taxRate !== undefined && s.taxRate !== '' && s.taxRate !== null ? String(s.taxRate) : '');
+      setDianResolution(s.dianResolution ? String(s.dianResolution) : '');
     }).catch(() => {
       setEditDeliveryFee(String(deliveryFee));
       setEditTableCount(String(tableCount));
@@ -66,6 +72,9 @@ const SettingsPage = () => {
         invoicePrefix: invoicePrefix.trim().toUpperCase() || 'POS',
         deliveryFee: Number(editDeliveryFee),
         tableCount: Number(editTableCount),
+        taxType,
+        taxRate: taxType === 'none' ? 0 : Number(taxRate) || 0,
+        dianResolution: dianResolution.trim(),
       };
       await api.updateSettings(payload);
       useStore.setState(payload);
@@ -174,6 +183,29 @@ const SettingsPage = () => {
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Número de mesas</label>
                 <input type="number" value={editTableCount} onChange={e => setEditTableCount(e.target.value)} className={INPUT} />
               </div>
+            </div>
+          </section>
+
+          <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3">
+            <h3 className="font-sans font-bold text-sm">🧾 Impuestos y facturación</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Impuesto en ventas</label>
+                <select value={taxType} onChange={e => { const v = e.target.value; setTaxType(v); if (v === 'inc' && !taxRate) setTaxRate('8'); if (v === 'iva' && !taxRate) setTaxRate('19'); }} className={INPUT}>
+                  <option value="none">Sin impuesto (no responsable)</option>
+                  <option value="inc">INC · Impuesto al consumo</option>
+                  <option value="iva">IVA</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Tarifa (%)</label>
+                <input type="number" min={0} max={100} step="0.1" disabled={taxType === 'none'} value={taxRate} onChange={e => setTaxRate(e.target.value)} className={INPUT} />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Los precios del POS ya incluyen el impuesto. El sistema desglosa base e impuesto en los recibos térmicos y en Finanzas → Contabilidad.</p>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Resolución DIAN / leyenda del comprobante (opcional)</label>
+              <textarea value={dianResolution} onChange={e => setDianResolution(e.target.value)} rows={2} placeholder="Ej: Resolución DIAN No. 18764... del 01/01/2026, numeración POS-1 a POS-50000" className={INPUT} />
             </div>
           </section>
 

@@ -261,7 +261,7 @@ export function contrastChecks(t: ResolvedTheme): ContrastCheck[] {
 
 /** Ajusta automáticamente los colores hasta que todas las verificaciones pasen. */
 export function autoFixTheme(raw: ThemeInput): ThemeInput {
-  let input = constrainInput({ ...raw });
+  const input = constrainInput({ ...raw });
   for (let i = 0; i < 30; i++) {
     const t = resolveTheme(input);
     const checks = contrastChecks(t);

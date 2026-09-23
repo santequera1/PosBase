@@ -16,5 +16,9 @@ export function getBusinessInfo() {
     phone: s.businessPhone || '',
     nit: s.businessNit || '',
     prefix: s.invoicePrefix || 'POS',
+    taxType: s.taxType || 'none',
+    taxRate: s.taxType && s.taxType !== 'none' ? Number(s.taxRate) || 0 : 0,
+    taxLabel: s.taxType === 'iva' ? 'IVA' : s.taxType === 'inc' ? 'INC' : '',
+    dianResolution: s.dianResolution || '',
   };
 }

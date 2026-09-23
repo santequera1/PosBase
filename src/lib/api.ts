@@ -188,6 +188,12 @@ export const api = {
     return request<any>(`/finance/summary${q ? '?' + q : ''}`);
   },
   getPnl: (months = 6) => request<any[]>(`/finance/pnl?months=${months}`),
+  getAccounting: (params: { period?: string; from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, String(v)); });
+    const q = qs.toString();
+    return request<any>(`/finance/accounting${q ? '?' + q : ''}`);
+  },
 
   // Personal y nómina
   getStaffSummary: () => request<any>('/staff/summary'),

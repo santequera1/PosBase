@@ -51,6 +51,8 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
   const discount = order.discount || 0;
   const total = order.total !== undefined ? order.total : Math.max(0, subtotal - discount);
   const docNumber = orderNumber(order.id || 1001);
+  const taxBase = biz.taxRate > 0 ? Math.round(total / (1 + biz.taxRate / 100)) : total;
+  const taxAmount = total - taxBase;
 
   const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
   const formattedDate = orderDate.toLocaleDateString('es-CO', {
@@ -123,6 +125,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div style="font-size: 8.5px;">
         <div class="row"><span>Subtotal:</span><span style="white-space: nowrap;">${formatPrice(subtotal)}</span></div>
         ${discount > 0 ? `<div class="row font-bold" style="color: #000;"><span>Descuento:</span><span style="white-space: nowrap;">-${formatPrice(discount)}</span></div>` : ''}
+        ${biz.taxRate > 0 ? `<div class="row" style="font-size: 7.5px;"><span>Base gravable:</span><span style="white-space: nowrap;">${formatPrice(taxBase)}</span></div><div class="row" style="font-size: 7.5px;"><span>${biz.taxLabel} ${biz.taxRate}% (incluido):</span><span style="white-space: nowrap;">${formatPrice(taxAmount)}</span></div>` : ''}
         <div class="row font-bold" style="font-size: 10px; margin-top: 3px; border-top: 1px solid #000; padding-top: 2px;">
           <span>TOTAL A PAGAR:</span>
           <span style="white-space: nowrap;">${formatPrice(total)}</span>
@@ -148,6 +151,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div class="text-center" style="font-size: 7.5px; margin-top: 3px; line-height: 1.3;">
         <p class="font-bold">¡Gracias por su visita a ${biz.name}!</p>
         <p>${biz.slogan}</p>
+        ${biz.dianResolution ? `<p style="font-size: 6.5px; margin-top: 2px;">${biz.dianResolution}</p>` : ''}
       </div>
     </div>
   `;
