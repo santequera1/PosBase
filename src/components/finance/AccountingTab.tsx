@@ -84,6 +84,15 @@ const AccountingTab = () => {
     data.payroll.rows.map((r: any) => [csvDate(r.paidAt), r.employee, r.document || '', csvDate(r.periodStart), csvDate(r.periodEnd), r.baseTotal, r.tipsTotal, r.advancesTotal, r.bonuses, r.deductions, r.total, r.method]));
   const exportAll = () => { exportSalesByDay(); setTimeout(exportOrders, 300); setTimeout(exportPurchases, 600); setTimeout(exportPayroll, 900); };
 
+  // Activa las reglas de impresión del informe solo durante este diálogo de impresión
+  const printReport = () => {
+    document.body.classList.add('print-report');
+    const cleanup = () => { document.body.classList.remove('print-report'); window.removeEventListener('afterprint', cleanup); };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(() => window.print(), 50);
+    setTimeout(cleanup, 60000);
+  };
+
   const kindLabel: Record<string, string> = { cogs: 'Insumos', opex: 'Operativo', payroll: 'Nómina', other: 'Otro' };
   const ordersToShow = data ? (showAllOrders ? data.sales.orders : data.sales.orders.slice(0, 50)) : [];
 
@@ -100,7 +109,7 @@ const AccountingTab = () => {
         )}
         <div className="ml-auto flex gap-2">
           <button onClick={exportAll} disabled={!data} className="px-3 py-1.5 rounded-lg bg-brand-primary text-brand-on-primary text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Download size={13} /> Exportar todo (CSV)</button>
-          <button onClick={() => window.print()} disabled={!data} className="px-3 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold text-brand-dark flex items-center gap-1.5 disabled:opacity-40"><Printer size={13} /> Imprimir / PDF</button>
+          <button onClick={printReport} disabled={!data} className="px-3 py-1.5 rounded-lg border border-border bg-white text-xs font-semibold text-brand-dark flex items-center gap-1.5 disabled:opacity-40"><Printer size={13} /> Imprimir / PDF</button>
         </div>
       </div>
 

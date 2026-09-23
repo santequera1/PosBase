@@ -269,11 +269,14 @@
   #pos-thermal-print-area .item-desc { font-weight: bold; word-break: break-word; }
   #pos-thermal-print-area .item-flavors { font-size: 8.5px; color: #222; padding-left: 6px; font-style: italic; }
 }
-/* Impresión del informe contable (Finanzas → Contabilidad → Imprimir) */
+/* Impresión del informe contable (Finanzas → Contabilidad → Imprimir).
+   Solo aplica mientras body tiene la clase print-report; así no interfiere con el ticket térmico. */
 @media print {
-  body * { visibility: hidden; }
-  .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 12px; }
-  aside, nav, header { display: none !important; }
-  .break-inside-avoid { break-inside: avoid; }
+  body.print-report #root { display: block !important; visibility: visible !important; height: auto !important; overflow: visible !important; }
+  body.print-report #root * { visibility: hidden; }
+  body.print-report #root .print-area, body.print-report #root .print-area * { visibility: visible; }
+  body.print-report #root .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 10mm; }
+  body.print-report .print-area button { display: none !important; }
+  body.print-report #pos-thermal-print-area { display: none !important; }
+  body.print-report .break-inside-avoid { break-inside: avoid; }
 }
