@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: ["./index.html", "./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
     container: {
@@ -14,11 +14,12 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
-        serif: ['"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['"Lapture"', '"Plus Jakarta Sans"', 'sans-serif'],
-        body: ['"Lapture"', '"Plus Jakarta Sans"', 'sans-serif'],
-        script: ['"Great Vibes"', 'cursive'],
+        // Las fuentes se definen en tiempo de ejecución desde Ajustes → Marca (variables CSS)
+        display: ['var(--font-heading)', 'Georgia', 'serif'],
+        serif: ['var(--font-heading)', 'Georgia', 'serif'],
+        sans: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        script: ['var(--font-script)', 'cursive'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -64,18 +65,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        gia: {
-          crema: "#FEF3DE",
-          azul: "#364266",
-          "azul-boton": "#344268",
-          "azul-oscuro": "#242D49",
-          oliva: "#C6BF81",
-          "oliva-patron": "#C9C58B",
-          cafe: "#897863",
-          tarjeta: "#FAF8EA",
-          "tarjeta-crema": "#EFEDD8",
-          pildora: "#F5E6C0",
-          vino: "#CC3366",
+        // Paleta de marca configurable (Ajustes → Marca). Valores en src/index.css y src/lib/theme.ts
+        brand: {
+          bg: "hsl(var(--brand-bg) / <alpha-value>)",
+          card: "hsl(var(--brand-card) / <alpha-value>)",
+          "card-2": "hsl(var(--brand-card-2) / <alpha-value>)",
+          pill: "hsl(var(--brand-pill) / <alpha-value>)",
+          primary: "hsl(var(--brand-primary) / <alpha-value>)",
+          "primary-strong": "hsl(var(--brand-primary-strong) / <alpha-value>)",
+          dark: "hsl(var(--brand-dark) / <alpha-value>)",
+          accent: "hsl(var(--brand-accent) / <alpha-value>)",
+          muted: "hsl(var(--brand-muted) / <alpha-value>)",
+          wine: "hsl(var(--brand-wine) / <alpha-value>)",
+          "on-primary": "hsl(var(--brand-on-primary) / <alpha-value>)",
+          "on-dark": "hsl(var(--brand-on-dark) / <alpha-value>)",
+          "on-accent": "hsl(var(--brand-on-accent) / <alpha-value>)",
         },
         success: {
           DEFAULT: "hsl(var(--success))",

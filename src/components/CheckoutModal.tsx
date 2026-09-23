@@ -70,15 +70,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="bg-[#FAF8EA] rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-[#364266]/15 overflow-hidden"
+        className="bg-brand-card rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-brand-primary/15 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 bg-[#242D49] text-[#FEF3DE] flex items-center justify-between shrink-0 shadow-md">
+        <div className="px-6 py-4 bg-brand-dark text-brand-bg flex items-center justify-between shrink-0 shadow-md">
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#FEF3DE] transition-colors"
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-brand-bg transition-colors"
               title="Volver al pedido"
             >
               <ArrowLeft size={18} />
@@ -86,11 +86,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div>
               <h2 className="font-bold text-lg leading-tight flex items-center gap-2">
                 <span>Cobro de Pedido</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-[#C6BF81]/30 text-[#FAF8EA] font-medium">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-brand-accent/30 text-brand-card font-medium">
                   {tabName}
                 </span>
               </h2>
-              <p className="text-xs text-[#FEF3DE]/70">
+              <p className="text-xs text-brand-bg/70">
                 Cliente: <strong className="text-white">{customer.name}</strong> • Doc: {customer.doc}
               </p>
             </div>
@@ -98,7 +98,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[#FEF3DE] transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-bg transition-colors"
           >
             <X size={18} />
           </button>
@@ -107,14 +107,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         {/* Modal Body: Split View (Payment on Left, Order Summary on Right) */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto">
           {/* LEFT: Payment Methods & Options */}
-          <div className="flex-1 p-5 sm:p-6 space-y-5 border-b lg:border-b-0 lg:border-r border-[#364266]/10 overflow-y-auto">
+          <div className="flex-1 p-5 sm:p-6 space-y-5 border-b lg:border-b-0 lg:border-r border-brand-primary/10 overflow-y-auto">
             {/* Big Total Banner */}
-            <div className="p-4 rounded-2xl bg-[#364266] text-[#FEF3DE] flex items-center justify-between shadow-md">
+            <div className="p-4 rounded-2xl bg-brand-primary text-brand-bg flex items-center justify-between shadow-md">
               <div>
-                <p className="text-xs text-[#FEF3DE]/70 uppercase tracking-wider font-semibold">Total a Cobrar</p>
-                <p className="text-2xl sm:text-3xl font-extrabold text-[#FAF8EA]">{formatPrice(total)}</p>
+                <p className="text-xs text-brand-bg/70 uppercase tracking-wider font-semibold">Total a Cobrar</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-brand-card">{formatPrice(total)}</p>
               </div>
-              <div className="text-right text-xs text-[#FEF3DE]/80">
+              <div className="text-right text-xs text-brand-bg/80">
                 <p>{cart.reduce((a, b) => a + b.quantity, 0)} productos</p>
                 {discountAmount > 0 && (
                   <p className="text-emerald-300 font-bold">Ahorro: {formatPrice(discountAmount)}</p>
@@ -124,7 +124,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* Payment Method Selector */}
             <div>
-              <label className="text-xs font-bold text-[#364266] uppercase tracking-wider block mb-2">
+              <label className="text-xs font-bold text-brand-primary uppercase tracking-wider block mb-2">
                 Selecciona Método de Pago
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -133,8 +133,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'cash'
-                      ? 'bg-[#364266] text-[#FEF3DE] ring-2 ring-[#364266] shadow-md scale-[1.02]'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-[#FAF8EA]'
+                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
                   <Banknote size={20} />
@@ -146,8 +146,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'card_debit'
-                      ? 'bg-[#364266] text-[#FEF3DE] ring-2 ring-[#364266] shadow-md scale-[1.02]'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-[#FAF8EA]'
+                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
                   <CreditCard size={20} />
@@ -159,8 +159,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'card_credit'
-                      ? 'bg-[#364266] text-[#FEF3DE] ring-2 ring-[#364266] shadow-md scale-[1.02]'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-[#FAF8EA]'
+                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
                   <CreditCard size={20} />
@@ -172,8 +172,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'transfer'
-                      ? 'bg-[#364266] text-[#FEF3DE] ring-2 ring-[#364266] shadow-md scale-[1.02]'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-[#FAF8EA]'
+                      ? 'bg-brand-primary text-brand-bg ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
                   <QrCode size={20} />
@@ -195,8 +195,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className={cn(
                     'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
                     paymentMethod === 'mixed'
-                      ? 'bg-[#242D49] text-[#C6BF81] ring-2 ring-[#C6BF81] shadow-md scale-[1.02]'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-[#FAF8EA]'
+                      ? 'bg-brand-dark text-brand-accent ring-2 ring-brand-accent shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
                   <Shuffle size={20} />
@@ -207,9 +207,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* CASH CALCULATOR */}
             {paymentMethod === 'cash' && (
-              <div className="p-4 rounded-2xl bg-white border border-[#364266]/15 space-y-3 shadow-sm">
+              <div className="p-4 rounded-2xl bg-white border border-brand-primary/15 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#364266]">Billetes Rápidos:</span>
+                  <span className="text-xs font-bold text-brand-primary">Billetes Rápidos:</span>
                   <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                     <button
                       type="button"
@@ -217,8 +217,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       className={cn(
                         'px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs flex items-center gap-1',
                         numericCash === total && cashReceived === String(total)
-                          ? 'bg-[#242D49] text-[#FEF3DE] border-[#242D49] ring-2 ring-[#C6BF81] font-extrabold shadow-md scale-105'
-                          : 'bg-white text-[#364266] border-gray-200 hover:bg-[#FAF8EA]'
+                          ? 'bg-brand-dark text-brand-bg border-brand-dark ring-2 ring-brand-accent font-extrabold shadow-md scale-105'
+                          : 'bg-white text-brand-primary border-gray-200 hover:bg-brand-card'
                       )}
                     >
                       {numericCash === total && cashReceived === String(total) && <span>✓</span>}
@@ -234,8 +234,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           className={cn(
                             'px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs flex items-center gap-1',
                             isSelected
-                              ? 'bg-[#242D49] text-[#FEF3DE] border-[#242D49] ring-2 ring-[#C6BF81] font-extrabold shadow-md scale-105'
-                              : 'bg-white text-[#364266] border-gray-200 hover:bg-[#FAF8EA]'
+                              ? 'bg-brand-dark text-brand-bg border-brand-dark ring-2 ring-brand-accent font-extrabold shadow-md scale-105'
+                              : 'bg-white text-brand-primary border-gray-200 hover:bg-brand-card'
                           )}
                         >
                           {isSelected && <span>✓</span>}
@@ -248,13 +248,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="text-xs font-bold text-[#897863] block mb-1">Efectivo Recibido</label>
+                    <label className="text-xs font-bold text-brand-muted block mb-1">Efectivo Recibido</label>
                     <input
                       type="number"
                       value={cashReceived}
                       onChange={(e) => onUpdateTab({ cashReceived: e.target.value })}
                       placeholder={String(total)}
-                      className="w-full p-2.5 text-base font-bold bg-[#FAF8EA] rounded-xl border border-[#364266]/20 focus:ring-2 focus:ring-[#364266] outline-none"
+                      className="w-full p-2.5 text-base font-bold bg-brand-card rounded-xl border border-brand-primary/20 focus:ring-2 focus:ring-brand-primary outline-none"
                     />
                     {numericCash > 0 && (
                       <p className="text-xs font-bold text-emerald-700 mt-1 font-mono">
@@ -264,7 +264,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-[#897863] block mb-1">Cambio / Vueltos</label>
+                    <label className="text-xs font-bold text-brand-muted block mb-1">Cambio / Vueltos</label>
                     <div
                       className={cn(
                         'p-2.5 text-base font-extrabold rounded-xl border text-right truncate flex items-center justify-end h-[46px]',
@@ -282,10 +282,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* SPLIT / MIXED PAYMENT */}
             {paymentMethod === 'mixed' && (
-              <div className="p-4 rounded-2xl bg-white border border-[#C6BF81]/60 space-y-3 shadow-sm text-xs">
-                <div className="flex items-center justify-between font-bold text-[#364266] pb-1.5 border-b border-gray-100">
+              <div className="p-4 rounded-2xl bg-white border border-brand-accent/60 space-y-3 shadow-sm text-xs">
+                <div className="flex items-center justify-between font-bold text-brand-primary pb-1.5 border-b border-gray-100">
                   <span className="flex items-center gap-1.5">
-                    <Shuffle size={15} className="text-[#C6BF81]" /> Desglose de Pago Combinado
+                    <Shuffle size={15} className="text-brand-accent" /> Desglose de Pago Combinado
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -301,18 +301,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           },
                         });
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-[#FAF8EA] hover:bg-[#EFEDD8] border border-[#C6BF81]/50 text-[11px] font-bold text-[#364266]"
+                      className="px-2 py-0.5 rounded-lg bg-brand-card hover:bg-brand-card-2 border border-brand-accent/50 text-[11px] font-bold text-brand-primary"
                     >
                       Dividir 50% / 50%
                     </button>
-                    <span className="text-[#242D49] font-extrabold text-sm">{formatPrice(total)}</span>
+                    <span className="text-brand-dark font-extrabold text-sm">{formatPrice(total)}</span>
                   </div>
                 </div>
 
                 {/* Method 1 */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-[#897863] font-bold block mb-1">1er Método</label>
+                    <label className="text-[10px] text-brand-muted font-bold block mb-1">1er Método</label>
                     <select
                       value={paymentSplit?.method1 || 'cash'}
                       onChange={(e) =>
@@ -325,7 +325,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           },
                         })
                       }
-                      className="w-full p-2 rounded-xl border border-gray-200 bg-[#FAF8EA] text-xs font-semibold"
+                      className="w-full p-2 rounded-xl border border-gray-200 bg-brand-card text-xs font-semibold"
                     >
                       <option value="cash">💵 Efectivo</option>
                       <option value="card_debit">💳 T. Débito</option>
@@ -334,7 +334,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#897863] font-bold block mb-1">Monto 1 (COP)</label>
+                    <label className="text-[10px] text-brand-muted font-bold block mb-1">Monto 1 (COP)</label>
                     <input
                       type="number"
                       value={paymentSplit?.amount1 !== undefined ? paymentSplit.amount1 : ''}
@@ -351,7 +351,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         });
                       }}
                       placeholder="0"
-                      className="w-full p-2 text-xs font-bold rounded-xl border border-gray-200 bg-[#FAF8EA]"
+                      className="w-full p-2 text-xs font-bold rounded-xl border border-gray-200 bg-brand-card"
                     />
                     {Number(paymentSplit?.amount1) > 0 && (
                       <p className="text-[10px] font-bold text-emerald-700 mt-0.5 font-mono">
@@ -364,7 +364,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {/* Method 2 */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-[#897863] font-bold block mb-1">2do Método</label>
+                    <label className="text-[10px] text-brand-muted font-bold block mb-1">2do Método</label>
                     <select
                       value={paymentSplit?.method2 || 'card_debit'}
                       onChange={(e) =>
@@ -377,7 +377,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           },
                         })
                       }
-                      className="w-full p-2 rounded-xl border border-gray-200 bg-[#FAF8EA] text-xs font-semibold"
+                      className="w-full p-2 rounded-xl border border-gray-200 bg-brand-card text-xs font-semibold"
                     >
                       <option value="card_debit">💳 T. Débito</option>
                       <option value="card_credit">💳 T. Crédito</option>
@@ -386,7 +386,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#897863] font-bold block mb-1">Monto 2 (Restante)</label>
+                    <label className="text-[10px] text-brand-muted font-bold block mb-1">Monto 2 (Restante)</label>
                     <input
                       type="number"
                       value={paymentSplit?.amount2 !== undefined ? paymentSplit.amount2 : ''}
@@ -403,7 +403,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         });
                       }}
                       placeholder="0"
-                      className="w-full p-2 text-xs font-bold rounded-xl border border-gray-200 bg-[#FAF8EA]"
+                      className="w-full p-2 text-xs font-bold rounded-xl border border-gray-200 bg-brand-card"
                     />
                     {Number(paymentSplit?.amount2) > 0 && (
                       <p className="text-[10px] font-bold text-emerald-700 mt-0.5 font-mono">
@@ -425,7 +425,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     'text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs',
                     discountValue > 0
                       ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-[#FAF8EA]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
                   )}
                 >
                   <Tag size={13} />
@@ -448,7 +448,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
 
               {showDiscountInput && (
-                <div className="mt-2 p-3 rounded-2xl bg-white border border-[#C6BF81]/50 space-y-2">
+                <div className="mt-2 p-3 rounded-2xl bg-white border border-brand-accent/50 space-y-2">
                   <div className="flex gap-1.5">
                     {[5, 10, 15, 20, 50].map((pct) => (
                       <button
@@ -461,8 +461,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         className={cn(
                           'flex-1 py-1.5 text-xs font-bold rounded-xl border transition-all',
                           discountType === 'percent' && discountValue === pct
-                            ? 'bg-[#364266] text-[#FEF3DE] border-[#364266]'
-                            : 'bg-gray-50 hover:bg-[#FAF8EA] text-[#364266] border-gray-200'
+                            ? 'bg-brand-primary text-brand-bg border-brand-primary'
+                            : 'bg-gray-50 hover:bg-brand-card text-brand-primary border-gray-200'
                         )}
                       >
                         {pct}%
@@ -489,7 +489,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowDiscountInput(false)}
-                      className="px-3 py-1.5 rounded-xl bg-[#364266] text-[#FEF3DE] text-xs font-bold"
+                      className="px-3 py-1.5 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold"
                     >
                       OK
                     </button>
@@ -500,12 +500,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* Notes */}
             <div>
-              <label className="text-[10px] font-bold text-[#897863] block mb-1">Notas del Pedido (Opcional)</label>
+              <label className="text-[10px] font-bold text-brand-muted block mb-1">Notas del Pedido (Opcional)</label>
               <input
                 value={orderNotes}
                 onChange={(e) => onUpdateTab({ notes: e.target.value })}
                 placeholder="Ej. Sin pitillo, servilletas extra, mesa 3..."
-                className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-gray-200 outline-none focus:ring-1 focus:ring-[#364266]"
+                className="w-full px-3 py-2 text-xs bg-white rounded-xl border border-gray-200 outline-none focus:ring-1 focus:ring-brand-primary"
               />
             </div>
           </div>
@@ -513,19 +513,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {/* RIGHT: Compact Order Summary */}
           <div className="w-full lg:w-80 bg-white p-5 sm:p-6 flex flex-col justify-between shrink-0">
             <div>
-              <h3 className="font-bold text-xs text-[#897863] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <h3 className="font-bold text-xs text-brand-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
                 <ShoppingBag size={14} /> Resumen de la Venta
               </h3>
 
               {/* Items List */}
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {cart.map((item, idx) => (
-                  <div key={idx} className="p-2.5 rounded-xl bg-[#FAF8EA] border border-[#364266]/10 text-xs space-y-1">
+                  <div key={idx} className="p-2.5 rounded-xl bg-brand-card border border-brand-primary/10 text-xs space-y-1">
                     <div className="flex justify-between items-start gap-2">
-                      <span className="font-bold text-[#242D49]">
+                      <span className="font-bold text-brand-dark">
                         {item.quantity}x {item.size || item.name.replace(/—.*$/, '').trim()}
                       </span>
-                      <span className="font-bold text-[#344268] shrink-0">{formatPrice(item.price * item.quantity)}</span>
+                      <span className="font-bold text-brand-primary-strong shrink-0">{formatPrice(item.price * item.quantity)}</span>
                     </div>
                     {item.flavors && (
                       <p className="text-[11px] text-[#6B5E4F] font-medium font-sans pl-1">
@@ -548,7 +548,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span>-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-base font-extrabold text-[#242D49] pt-2 border-t border-gray-200">
+                <div className="flex justify-between text-base font-extrabold text-brand-dark pt-2 border-t border-gray-200">
                   <span>TOTAL:</span>
                   <span>{formatPrice(total)}</span>
                 </div>
@@ -561,9 +561,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 onClick={onConfirmCheckout}
                 disabled={isSubmitting || isCashInvalid}
                 className={cn(
-                  'w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-[#FEF3DE] flex items-center justify-center gap-2 shadow-lg transition-all',
+                  'w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-brand-bg flex items-center justify-center gap-2 shadow-lg transition-all',
                   !isSubmitting && !isCashInvalid
-                    ? 'bg-gradient-to-r from-[#364266] to-[#242D49] hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
+                    ? 'bg-gradient-to-r from-brand-primary to-brand-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
                     : 'bg-gray-400 cursor-not-allowed'
                 )}
               >
@@ -579,7 +579,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <button
                 onClick={onClose}
-                className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#364266] text-xs font-bold transition-all"
+                className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-brand-primary text-xs font-bold transition-all"
               >
                 Volver / Modificar Sabores
               </button>

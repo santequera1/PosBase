@@ -10,42 +10,52 @@
 
 @layer base {
   :root {
-    /* Paleta de marca (ver también tailwind.config.ts)
-       Crema:        #FEF3DE → 40 93% 93%
-       Azul Marino:  #364266 → 224 31% 31%
-       Azul Botón:   #344268 → 224 33% 31%
-       Azul Oscuro:  #242D49 → 225 34% 21%
-       Oliva Dorado: #C6BF81 → 54 38% 64%
-       Café Suave:   #897863 → 34 16% 46%
-       Tarjeta Luz:  #FAF8EA → 53 62% 95%
-    */
-    --background: 40 93% 94%;
-    --foreground: 224 31% 22%;
+    /* Marca: valores por defecto (tema "Clásico"). Se sobreescriben en tiempo de
+       ejecución desde Ajustes → Marca (ver src/lib/theme.ts). Tripletas HSL. */
+    --brand-bg: 40 93% 94%;
+    --brand-card: 53 62% 95%;
+    --brand-card-2: 51 42% 89%;
+    --brand-pill: 43 73% 86%;
+    --brand-primary: 224 31% 31%;
+    --brand-primary-strong: 224 33% 31%;
+    --brand-dark: 225 34% 21%;
+    --brand-accent: 54 38% 64%;
+    --brand-muted: 34 16% 46%;
+    --brand-wine: 340 60% 50%;
+    --brand-on-primary: 40 93% 94%;
+    --brand-on-dark: 40 93% 94%;
+    --brand-on-accent: 225 34% 21%;
+    --font-heading: "Playfair Display", Georgia, serif;
+    --font-body: "Lapture", "Plus Jakarta Sans", system-ui, sans-serif;
+    --font-script: "Great Vibes", cursive;
+
+    --background: var(--brand-bg);
+    --foreground: var(--brand-dark);
 
     --card: 0 0% 100%;
-    --card-foreground: 224 31% 22%;
+    --card-foreground: var(--brand-dark);
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 31% 22%;
+    --popover-foreground: var(--brand-dark);
 
-    --primary: 224 33% 31%; /* #344268 */
-    --primary-foreground: 40 93% 95%;
+    --primary: var(--brand-primary-strong);
+    --primary-foreground: var(--brand-on-primary);
 
-    --secondary: 54 38% 90%;
-    --secondary-foreground: 224 31% 25%;
+    --secondary: var(--brand-pill);
+    --secondary-foreground: var(--brand-primary);
 
-    --muted: 40 40% 90%;
-    --muted-foreground: 34 16% 46%;
+    --muted: var(--brand-card-2);
+    --muted-foreground: var(--brand-muted);
 
-    --accent: 54 38% 64%; /* Oliva #C6BF81 */
-    --accent-foreground: 225 34% 21%;
+    --accent: var(--brand-accent);
+    --accent-foreground: var(--brand-on-accent);
 
-    --destructive: 340 60% 50%; /* #CC3366 */
+    --destructive: var(--brand-wine);
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 25% 84%;
-    --input: 40 25% 84%;
-    --ring: 224 33% 31%;
+    --border: var(--brand-card-2);
+    --input: var(--brand-card-2);
+    --ring: var(--brand-primary);
 
     --radius: 1rem;
 
@@ -64,10 +74,10 @@
     --status-delivered: 224 20% 50%;
 
     /* Order types */
-    --delivery: 224 33% 31%;
-    --delivery-foreground: 40 93% 95%;
-    --pickup: 54 38% 64%;
-    --pickup-foreground: 225 34% 21%;
+    --delivery: var(--brand-primary);
+    --delivery-foreground: var(--brand-on-primary);
+    --pickup: var(--brand-accent);
+    --pickup-foreground: var(--brand-on-accent);
     --dine-in: 142 65% 36%;
     --dine-in-foreground: 0 0% 100%;
 
@@ -77,18 +87,18 @@
     --shadow-fab: 0 10px 30px rgba(52,66,104,0.35);
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, #364266, #242D49);
-    --gradient-gold: linear-gradient(135deg, #D4CE96, #B5AD6E);
-    --gradient-card: linear-gradient(180deg, #FAF8EA, #F4EED5);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(var(--brand-dark)));
+    --gradient-gold: linear-gradient(135deg, hsl(var(--brand-accent)), color-mix(in srgb, hsl(var(--brand-accent)) 78%, black));
+    --gradient-card: linear-gradient(180deg, hsl(var(--brand-card)), hsl(var(--brand-card-2)));
 
-    --sidebar-background: 225 34% 18%;
-    --sidebar-foreground: 40 93% 95%;
-    --sidebar-primary: 54 38% 64%;
-    --sidebar-primary-foreground: 225 34% 18%;
-    --sidebar-accent: 224 30% 25%;
-    --sidebar-accent-foreground: 40 93% 95%;
-    --sidebar-border: 225 25% 26%;
-    --sidebar-ring: 54 38% 64%;
+    --sidebar-background: var(--brand-dark);
+    --sidebar-foreground: var(--brand-on-dark);
+    --sidebar-primary: var(--brand-accent);
+    --sidebar-primary-foreground: var(--brand-on-accent);
+    --sidebar-accent: var(--brand-primary);
+    --sidebar-accent-foreground: var(--brand-on-dark);
+    --sidebar-border: var(--brand-primary);
+    --sidebar-ring: var(--brand-accent);
   }
 }
 
@@ -98,23 +108,23 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Lapture', 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: var(--font-body);
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: var(--font-heading);
     letter-spacing: -0.01em;
   }
 }
 
 @layer utilities {
   .font-display {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: var(--font-heading);
   }
   .font-body {
-    font-family: 'Lapture', 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: var(--font-body);
   }
   .font-script {
-    font-family: 'Great Vibes', cursive;
+    font-family: var(--font-script);
   }
   .shadow-card {
     box-shadow: var(--shadow-card);
@@ -143,7 +153,7 @@
 /* Kitchen dark theme */
 .kitchen-dark {
   background-color: #1a2035;
-  color: #fef3de;
+  color: hsl(var(--brand-on-dark));
 }
 
 /* Scrollbar styling */

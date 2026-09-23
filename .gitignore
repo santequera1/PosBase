@@ -41,3 +41,9 @@ ACCESO_SERVIDOR_Y_DESPLIEGUE_PRIVADO.md
 # Documento privado con accesos al VPS y claves (solo local, nunca al repo)
 documentacionyclaves.md
 CREDENCIALES*.md
+
+# Archivos de marca subidos desde Ajustes → Marca (propios de cada instalación)
+public/branding/*
+!public/branding/.gitkeep
+public/fonts/uploads/*
+!public/fonts/uploads/.gitkeep

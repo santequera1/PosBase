@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
+const { registerAttendanceForShift, closeAttendanceForShift } = require('../cashHelpers');
 
 const router = Router();
 
@@ -161,6 +162,7 @@ router.post('/open', (req, res) => {
   `).run(req.user?.id || 1, name, Number(initialCash) || 0, notes);
 
   const shift = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(result.lastInsertRowid);
+  registerAttendanceForShift(db, shift, req.user);
   res.json(getShiftLiveStats(db, shift));
 });
 
@@ -210,6 +212,7 @@ router.post('/close', (req, res) => {
     shift.id
   );
 
+  closeAttendanceForShift(db, shift.id);
   const closed = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(shift.id);
   res.json({
     ...getShiftLiveStats(db, closed),

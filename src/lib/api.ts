@@ -133,4 +133,103 @@ export const api = {
   getSettings: () => request<any>('/settings'),
   getIntegration: () => request<any>('/settings/integration'),
   updateSettings: (data: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Marca (público, sin sesión: pantalla de acceso, favicon y tema)
+  getPublicBranding: () => request<any>('/public/branding'),
+
+  // Marca (solo admin)
+  saveTheme: (theme: any) => request<{ success: boolean; theme: any }>('/branding/theme', { method: 'PUT', body: JSON.stringify({ theme }) }),
+  uploadBrandingImage: (kind: 'logo' | 'logoLogin' | 'favicon' | 'appleIcon', filename: string, data: string) =>
+    request<{ success: boolean; url: string; key: string }>('/branding/image', { method: 'POST', body: JSON.stringify({ kind, filename, data }) }),
+  removeBrandingImage: (kind: string) => request<any>(`/branding/image/${kind}`, { method: 'DELETE' }),
+  uploadFont: (family: string, filename: string, data: string) =>
+    request<{ success: boolean; font: { family: string; url: string }; customFonts: any[] }>('/branding/font', { method: 'POST', body: JSON.stringify({ family, filename, data }) }),
+  deleteFont: (family: string) => request<{ success: boolean; customFonts: any[] }>(`/branding/font/${encodeURIComponent(family)}`, { method: 'DELETE' }),
+
+  // Usuarios (solo admin)
+  getUsers: () => request<any[]>('/users'),
+  createUser: (data: any) => request<any>('/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id: number, data: any) => request<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUser: (id: number) => request<any>(`/users/${id}`, { method: 'DELETE' }),
+
+  // Finanzas: categorías de gasto
+  getExpenseCategories: () => request<any[]>('/finance/categories'),
+  addExpenseCategory: (data: any) => request<any>('/finance/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateExpenseCategory: (id: number, data: any) => request<any>(`/finance/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteExpenseCategory: (id: number) => request<any>(`/finance/categories/${id}`, { method: 'DELETE' }),
+  // Finanzas: proveedores
+  getSuppliers: (search?: string, all?: boolean) => {
+    const qs = new URLSearchParams();
+    if (search) qs.set('search', search);
+    if (all) qs.set('all', '1');
+    const q = qs.toString();
+    return request<any[]>(`/finance/suppliers${q ? '?' + q : ''}`);
+  },
+  addSupplier: (data: any) => request<any>('/finance/suppliers', { method: 'POST', body: JSON.stringify(data) }),
+  updateSupplier: (id: number, data: any) => request<any>(`/finance/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteSupplier: (id: number) => request<any>(`/finance/suppliers/${id}`, { method: 'DELETE' }),
+  // Finanzas: gastos y cuentas por pagar
+  getExpenses: (params: { from?: string; to?: string; categoryId?: number; supplierId?: number; status?: string; search?: string; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.set(k, String(v)); });
+    const q = qs.toString();
+    return request<{ expenses: any[]; total: number; count: number }>(`/finance/expenses${q ? '?' + q : ''}`);
+  },
+  addExpense: (data: any) => request<any>('/finance/expenses', { method: 'POST', body: JSON.stringify(data) }),
+  updateExpense: (id: number, data: any) => request<any>(`/finance/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  payExpense: (id: number, data: { paymentMethod: string; fromCashRegister?: boolean; paidAt?: string }) => request<any>(`/finance/expenses/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteExpense: (id: number) => request<any>(`/finance/expenses/${id}`, { method: 'DELETE' }),
+  getPayables: () => request<any>('/finance/payables'),
+  // Finanzas: estado de resultados
+  getFinanceSummary: (params: { period?: string; from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, String(v)); });
+    const q = qs.toString();
+    return request<any>(`/finance/summary${q ? '?' + q : ''}`);
+  },
+  getPnl: (months = 6) => request<any[]>(`/finance/pnl?months=${months}`),
+
+  // Personal y nómina
+  getStaffSummary: () => request<any>('/staff/summary'),
+  getEmployees: (all?: boolean) => request<any[]>(`/staff/employees${all ? '?all=1' : ''}`),
+  addEmployee: (data: any) => request<any>('/staff/employees', { method: 'POST', body: JSON.stringify(data) }),
+  updateEmployee: (id: number, data: any) => request<any>(`/staff/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEmployee: (id: number) => request<any>(`/staff/employees/${id}`, { method: 'DELETE' }),
+  getAttendance: (params: { from?: string; to?: string; employeeId?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, String(v)); });
+    const q = qs.toString();
+    return request<any[]>(`/staff/attendance${q ? '?' + q : ''}`);
+  },
+  addAttendance: (data: any) => request<any>('/staff/attendance', { method: 'POST', body: JSON.stringify(data) }),
+  deleteAttendance: (id: number) => request<any>(`/staff/attendance/${id}`, { method: 'DELETE' }),
+  getTips: (params: { from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, String(v)); });
+    const q = qs.toString();
+    return request<any>(`/staff/tips${q ? '?' + q : ''}`);
+  },
+  addTip: (data: any) => request<any>('/staff/tips', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTip: (id: number) => request<any>(`/staff/tips/${id}`, { method: 'DELETE' }),
+  getAdvances: (params: { employeeId?: number; unsettled?: boolean; from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.employeeId) qs.set('employeeId', String(params.employeeId));
+    if (params.unsettled) qs.set('unsettled', '1');
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    const q = qs.toString();
+    return request<any>(`/staff/advances${q ? '?' + q : ''}`);
+  },
+  addAdvance: (data: any) => request<any>('/staff/advances', { method: 'POST', body: JSON.stringify(data) }),
+  deleteAdvance: (id: number) => request<any>(`/staff/advances/${id}`, { method: 'DELETE' }),
+  previewSettlement: (employeeId: number, from: string, to: string) => request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}`),
+  getSettlements: (params: { employeeId?: number; status?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, String(v)); });
+    const q = qs.toString();
+    return request<any[]>(`/staff/settlements${q ? '?' + q : ''}`);
+  },
+  createSettlement: (data: any) => request<any>('/staff/settlements', { method: 'POST', body: JSON.stringify(data) }),
+  paySettlement: (id: number, data: { paymentMethod: string; fromCashRegister?: boolean }) => request<any>(`/staff/settlements/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteSettlement: (id: number) => request<any>(`/staff/settlements/${id}`, { method: 'DELETE' }),
 };

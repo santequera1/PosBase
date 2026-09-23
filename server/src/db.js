@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const { initModulesSchema } = require('./modules');
 
 const DB_PATH = path.join(__dirname, '..', 'data.db');
 
@@ -13,6 +14,7 @@ function getDb() {
     db.pragma('foreign_keys = ON');
     initSchema();
     migrateSchema();
+    initModulesSchema(db);
     seedIfEmpty();
     syncSpecialProducts();
   }
@@ -262,6 +264,7 @@ function migrateSchema() {
   addCol('customers', 'document_id', "TEXT DEFAULT '222222222222'");
   addCol('customers', 'email', "TEXT DEFAULT ''");
   addCol('customers', 'is_company', "INTEGER DEFAULT 0");
+  addCol('users', 'active', "INTEGER DEFAULT 1");
 
 }
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, setToken } from '@/lib/api';
+import { type ThemeInput, type CustomFont, resolveTheme, applyTheme, setFavicon } from '@/lib/theme';
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
 export type OrderType = 'dine-in' | 'pickup' | 'delivery';
@@ -135,6 +136,42 @@ export interface Driver {
   available: boolean;
 }
 
+export interface Branding {
+  logoUrl: string;
+  logoLoginUrl: string;
+  faviconUrl: string;
+  appleIconUrl: string;
+  theme: ThemeInput | null;
+  customFonts: CustomFont[];
+}
+
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [] };
+
+function parseJson<T>(value: unknown, fallback: T): T {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'object') return value as T;
+  try { return JSON.parse(String(value)) as T; } catch { return fallback; }
+}
+
+/** Construye el estado de marca a partir de la respuesta de /settings o /public/branding. */
+export function brandingFromSettings(s: any): Branding {
+  return {
+    logoUrl: s?.logoUrl ? String(s.logoUrl) : '',
+    logoLoginUrl: s?.logoLoginUrl ? String(s.logoLoginUrl) : '',
+    faviconUrl: s?.faviconUrl ? String(s.faviconUrl) : '',
+    appleIconUrl: s?.appleIconUrl ? String(s.appleIconUrl) : '',
+    theme: parseJson<ThemeInput | null>(s?.theme, null),
+    customFonts: parseJson<CustomFont[]>(s?.customFonts, []),
+  };
+}
+
+/** Aplica tema, fuentes, favicon y título del documento. */
+export function applyBranding(b: Branding, businessName?: string) {
+  applyTheme(resolveTheme(b.theme), b.customFonts);
+  setFavicon(b.faviconUrl || '/logo.svg', b.appleIconUrl || undefined);
+  if (typeof document !== 'undefined' && businessName) document.title = `${businessName} — Punto de Venta`;
+}
+
 interface AppState {
   user: { name: string; role: UserRole } | null;
   restoring: boolean;
@@ -152,6 +189,7 @@ interface AppState {
   businessPhone: string;
   businessNit: string;
   invoicePrefix: string;
+  branding: Branding;
   initialized: boolean;
   sidebarCollapsed: boolean;
 
@@ -209,6 +247,10 @@ interface AppState {
   // UI
   toggleSidebar: () => void;
 
+  // Marca
+  setBranding: (b: Partial<Branding>) => void;
+  loadPublicBranding: () => Promise<void>;
+
   // Socket handler
   handleOrderEvent: (order: Order) => void;
 }
@@ -230,6 +272,7 @@ export const useStore = create<AppState>((set, get) => ({
   businessPhone: '',
   businessNit: '',
   invoicePrefix: 'POS',
+  branding: DEFAULT_BRANDING,
   initialized: false,
   sidebarCollapsed: false,
 
@@ -314,8 +357,10 @@ export const useStore = create<AppState>((set, get) => ({
         businessPhone: settings.businessPhone ? String(settings.businessPhone) : '',
         businessNit: settings.businessNit ? String(settings.businessNit) : '',
         invoicePrefix: settings.invoicePrefix ? String(settings.invoicePrefix) : 'POS',
+        branding: brandingFromSettings(settings),
         initialized: true,
       });
+      applyBranding(get().branding, get().businessName);
     } catch (err) {
       console.error('Error initializing data:', err);
     }
@@ -530,6 +575,26 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+  setBranding: (b) => {
+    set(s => ({ branding: { ...s.branding, ...b } }));
+    applyBranding(get().branding, get().businessName);
+  },
+
+  loadPublicBranding: async () => {
+    try {
+      const pb = await api.getPublicBranding();
+      const branding = brandingFromSettings(pb);
+      set(s => ({
+        branding,
+        businessName: pb.businessName || s.businessName,
+        businessSlogan: pb.businessSlogan || s.businessSlogan,
+      }));
+      applyBranding(branding, get().businessName);
+    } catch {
+      applyBranding(get().branding, get().businessName);
+    }
+  },
 
   handleOrderEvent: (order) => {
     set(s => {

@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/theme';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ShoppingCart,
@@ -686,14 +687,14 @@ export const POSPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full bg-[#FEF3DE] text-[#364266] overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full w-full bg-brand-bg text-brand-primary overflow-hidden">
       {/* Mobile Top View Switcher */}
-      <div className="lg:hidden flex bg-[#242D49] p-1.5 gap-1.5 shrink-0 shadow-md">
+      <div className="lg:hidden flex bg-brand-dark p-1.5 gap-1.5 shrink-0 shadow-md">
         <button
           onClick={() => setMobileView('catalog')}
           className={cn(
             'flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 font-sans',
-            mobileView === 'catalog' ? 'bg-[#FAF8EA] text-[#242D49] shadow-sm' : 'text-[#FEF3DE]/80 hover:text-white'
+            mobileView === 'catalog' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-bg/80 hover:text-white'
           )}
         >
           <span>🍨 Sabores & Productos</span>
@@ -702,7 +703,7 @@ export const POSPage: React.FC = () => {
           onClick={() => setMobileView('cart')}
           className={cn(
             'flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 font-sans',
-            mobileView === 'cart' ? 'bg-[#FAF8EA] text-[#242D49] shadow-sm' : 'text-[#FEF3DE]/80 hover:text-white'
+            mobileView === 'cart' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-bg/80 hover:text-white'
           )}
         >
           <ShoppingCart size={14} />
@@ -711,12 +712,12 @@ export const POSPage: React.FC = () => {
       </div>
 
       {/* LEFT COLUMN: Catalog & Fast Gelato Builder */}
-      <div className={cn('flex-1 flex-col h-full overflow-hidden border-r border-[#364266]/10', mobileView === 'catalog' ? 'flex' : 'hidden lg:flex')}>
+      <div className={cn('flex-1 flex-col h-full overflow-hidden border-r border-brand-primary/10', mobileView === 'catalog' ? 'flex' : 'hidden lg:flex')}>
         {/* Top Navigation & Size Switcher Bar */}
-        <div className="p-2.5 lg:p-3 bg-white/80 backdrop-blur border-b border-[#364266]/10 shrink-0 shadow-sm">
+        <div className="p-2.5 lg:p-3 bg-white/80 backdrop-blur border-b border-brand-primary/10 shrink-0 shadow-sm">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/50 font-sans">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-brand-card text-brand-primary border border-brand-accent/50 font-sans">
                 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                 {currentShift ? `Turno #${currentShift.id} • ${currentShift.cashierName}` : 'Caja Activa'}
               </span>
@@ -730,7 +731,7 @@ export const POSPage: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar sabor o producto..."
-                className="w-full pl-7 pr-3 py-1 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#364266] font-sans"
+                className="w-full pl-7 pr-3 py-1 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
@@ -747,8 +748,8 @@ export const POSPage: React.FC = () => {
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm font-sans',
                 catalogTab === 'gelato'
-                  ? 'bg-[#364266] text-[#FEF3DE] shadow-md scale-[1.01]'
-                  : 'bg-white hover:bg-[#FAF8EA] text-[#364266] border border-[#364266]/10'
+                  ? 'bg-brand-primary text-brand-bg shadow-md scale-[1.01]'
+                  : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
               )}
             >
               <span>🍨</span>
@@ -763,8 +764,8 @@ export const POSPage: React.FC = () => {
                 className={cn(
                   'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                   catalogTab === cat.id
-                    ? 'bg-[#364266] text-[#FEF3DE] shadow-md scale-[1.01]'
-                    : 'bg-white hover:bg-[#FAF8EA] text-[#364266] border border-[#364266]/10'
+                    ? 'bg-brand-primary text-brand-bg shadow-md scale-[1.01]'
+                    : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
                 )}
               >
                 <span>{cat.emoji}</span>
@@ -777,8 +778,8 @@ export const POSPage: React.FC = () => {
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                 catalogTab === 'custom'
-                  ? 'bg-[#364266] text-[#FEF3DE] shadow-md'
-                  : 'bg-white hover:bg-[#FAF8EA] text-[#364266] border border-[#364266]/10'
+                  ? 'bg-brand-primary text-brand-bg shadow-md'
+                  : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
               )}
             >
               <Plus size={14} />
@@ -788,7 +789,7 @@ export const POSPage: React.FC = () => {
 
           {/* Size & Container Formats Selector (5 presentations) */}
           {catalogTab === 'gelato' && (
-            <div className="mt-2 pt-2 border-t border-[#364266]/10">
+            <div className="mt-2 pt-2 border-t border-brand-primary/10">
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                 {GELATO_FORMATS.map((fmt) => {
                   const isSelected = selectedFormat.id === fmt.id;
@@ -802,19 +803,19 @@ export const POSPage: React.FC = () => {
                       className={cn(
                         'flex items-center justify-between p-1.5 sm:p-2 rounded-xl border transition-all text-left shadow-sm',
                         isSelected
-                          ? 'bg-[#FAF8EA] border-[#364266] ring-2 ring-[#364266] font-bold scale-[1.01]'
-                          : 'bg-white/90 border-gray-200 hover:border-[#C6BF81] hover:bg-white text-[#364266]'
+                          ? 'bg-brand-card border-brand-primary ring-2 ring-brand-primary font-bold scale-[1.01]'
+                          : 'bg-white/90 border-gray-200 hover:border-brand-accent hover:bg-white text-brand-primary'
                       )}
                     >
                       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-white/90 border border-[#364266]/10 flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-xs">
+                        <div className="w-7 h-7 rounded-lg bg-white/90 border border-brand-primary/10 flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-xs">
                           <img src={fmt.image} alt={fmt.name} className="max-h-full max-w-full object-contain" />
                         </div>
                         <div className="leading-tight truncate">
-                          <p className="font-sans font-bold text-[11px] text-[#242D49] truncate">
+                          <p className="font-sans font-bold text-[11px] text-brand-dark truncate">
                             {fmt.name}
                           </p>
-                          <p className="font-sans font-bold text-[10.5px] text-[#344268]">
+                          <p className="font-sans font-bold text-[10.5px] text-brand-primary-strong">
                             {formatPrice(fmt.price)}
                           </p>
                         </div>
@@ -826,19 +827,19 @@ export const POSPage: React.FC = () => {
 
               {/* Dynamic Helper Banner */}
               {selectedFormat.scoops === 2 && (
-                <div className="mt-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF8EA] border border-[#C6BF81]/40 flex items-center justify-between text-xs font-medium text-[#364266]">
+                <div className="mt-1.5 px-2.5 py-1.5 rounded-xl bg-brand-card border border-brand-accent/40 flex items-center justify-between text-xs font-medium text-brand-primary">
                   {firstFlavor ? (
                     <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
                       <span className="font-bold text-emerald-700 flex items-center gap-1 shrink-0 font-sans">
                         <Check size={13} /> {firstFlavor.name}
                       </span>
-                      <ArrowRight size={11} className="text-[#897863] shrink-0" />
-                      <span className="text-[#344268] font-semibold truncate text-[11px] font-sans">
+                      <ArrowRight size={11} className="text-brand-muted shrink-0" />
+                      <span className="text-brand-primary-strong font-semibold truncate text-[11px] font-sans">
                         Toca el 2do sabor (o toca {firstFlavor.name} para 1 solo sabor)
                       </span>
                       <button
                         onClick={handleAddFirstFlavorSolo}
-                        className="ml-1 px-2 py-0.5 rounded-lg bg-[#364266] text-[#FEF3DE] text-[10px] font-bold shrink-0 font-sans hover:bg-[#242D49]"
+                        className="ml-1 px-2 py-0.5 rounded-lg bg-brand-primary text-brand-bg text-[10px] font-bold shrink-0 font-sans hover:bg-brand-dark"
                         title="Agregar con 1 solo sabor"
                       >
                         ✓ Dejar 1 Sabor
@@ -846,7 +847,7 @@ export const POSPage: React.FC = () => {
                     </div>
                   ) : (
                     <span className="text-[11px] font-sans">
-                      Paso 1: <strong className="text-[#364266]">Toca el 1er sabor</strong> <span className="text-gray-500 font-normal">({selectedFormat.desc})</span>
+                      Paso 1: <strong className="text-brand-primary">Toca el 1er sabor</strong> <span className="text-gray-500 font-normal">({selectedFormat.desc})</span>
                     </span>
                   )}
 
@@ -870,13 +871,13 @@ export const POSPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold tracking-wider uppercase text-[#897863]">
+                  <span className="text-xs font-bold tracking-wider uppercase text-brand-muted">
                     Sabores disponibles ({gelatoFlavors.length} disponibles)
                   </span>
                   <button
                     onClick={handleRefreshCatalog}
                     disabled={isRefreshingCatalog}
-                    className="p-1 px-2 text-[11px] rounded-lg bg-white border border-[#364266]/15 hover:bg-[#FAF8EA] text-[#364266] font-semibold flex items-center gap-1 shadow-sm transition-all"
+                    className="p-1 px-2 text-[11px] rounded-lg bg-white border border-brand-primary/15 hover:bg-brand-card text-brand-primary font-semibold flex items-center gap-1 shadow-sm transition-all"
                     title="Recargar catálogo de sabores"
                   >
                     <RotateCcw size={12} className={cn(isRefreshingCatalog && "animate-spin")} />
@@ -884,13 +885,13 @@ export const POSPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="relative w-48 lg:w-64">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#897863]" />
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-brand-muted" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar sabor..."
-                    className="w-full pl-8 pr-3 py-1 text-xs rounded-xl bg-white border border-[#364266]/15 focus:outline-none focus:ring-1 focus:ring-[#364266]"
+                    className="w-full pl-8 pr-3 py-1 text-xs rounded-xl bg-white border border-brand-primary/15 focus:outline-none focus:ring-1 focus:ring-brand-primary"
                   />
                 </div>
               </div>
@@ -902,7 +903,7 @@ export const POSPage: React.FC = () => {
                   const isLitro = selectedFormat.id === 'litro' || selectedFormat.container === 'Familiar';
                   const isWhiteCard = isCono || isVaso4oz || isLitro;
                   const isFirstSelected = firstFlavor?.id === flavor.id;
-                  const bgColor = isWhiteCard ? '#FFFFFF' : (flavor.color_bg || '#FAF8EA');
+                  const bgColor = isWhiteCard ? '#FFFFFF' : (flavor.color_bg || BRAND.card);
                   const isSinAzucar = flavor.name.toLowerCase().includes('sin azúcar');
                   const isQuesoBocadillo = flavor.name.toLowerCase().includes('queso') && flavor.name.toLowerCase().includes('bocadillo');
                   const isAmarenas = flavor.name.toLowerCase().includes('amarena');
@@ -916,10 +917,10 @@ export const POSPage: React.FC = () => {
                         flavor.available
                           ? 'hover:shadow-md hover:scale-[1.02] active:scale-[0.98]'
                           : 'opacity-50 grayscale cursor-not-allowed',
-                        isWhiteCard && 'bg-white border border-[#364266]/15 hover:border-[#C6BF81]',
+                        isWhiteCard && 'bg-white border border-brand-primary/15 hover:border-brand-accent',
                         !isWhiteCard && isQuesoBocadillo && 'border-2 border-[#B9382F]/40 bg-[#FFF5F2]',
                         !isWhiteCard && isAmarenas && 'border-2 border-[#8B1E3F]/40 bg-[#FDF2F4]',
-                        isFirstSelected && 'ring-4 ring-[#364266] shadow-lg scale-[1.03]'
+                        isFirstSelected && 'ring-4 ring-brand-primary shadow-lg scale-[1.03]'
                       )}
                       style={{ backgroundColor: isWhiteCard ? '#FFFFFF' : (isQuesoBocadillo ? '#FFF5F2' : isAmarenas ? '#FDF2F4' : bgColor) }}
                     >
@@ -973,7 +974,7 @@ export const POSPage: React.FC = () => {
                             ? "bg-amber-100 text-amber-900 border border-amber-300"
                             : selectedFormat.id === 'litro'
                             ? "bg-blue-100 text-blue-900 border border-blue-300"
-                            : "bg-[#FEF3DE] text-[#364266] border border-[#C6BF81]/40"
+                            : "bg-brand-bg text-brand-primary border border-brand-accent/40"
                         )}>
                           <span>{selectedFormat.emoji}</span>
                           <span>{selectedFormat.name}</span>
@@ -983,7 +984,7 @@ export const POSPage: React.FC = () => {
                       {/* Details */}
                       <div>
                         <div className="flex items-center justify-between gap-1">
-                          <h3 className="font-sans font-bold text-sm lg:text-base text-[#242D49] leading-tight truncate">
+                          <h3 className="font-sans font-bold text-sm lg:text-base text-brand-dark leading-tight truncate">
                             {flavor.name}
                           </h3>
                         </div>
@@ -1008,8 +1009,8 @@ export const POSPage: React.FC = () => {
                       </div>
 
                       {isFirstSelected && (
-                        <div className="absolute inset-0 bg-[#364266]/20 rounded-2xl flex items-center justify-center">
-                          <span className="bg-[#364266] text-[#FEF3DE] px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                        <div className="absolute inset-0 bg-brand-primary/20 rounded-2xl flex items-center justify-center">
+                          <span className="bg-brand-primary text-brand-bg px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                             ✓ 1er Sabor
                           </span>
                         </div>
@@ -1030,13 +1031,13 @@ export const POSPage: React.FC = () => {
                     key={prod.id}
                     onClick={() => handleAddOtherProduct(prod)}
                     className={cn(
-                      'p-3.5 rounded-2xl bg-white border border-[#364266]/10 hover:border-[#C6BF81] hover:shadow-md cursor-pointer transition-all flex flex-col justify-between shadow-sm group',
+                      'p-3.5 rounded-2xl bg-white border border-brand-primary/10 hover:border-brand-accent hover:shadow-md cursor-pointer transition-all flex flex-col justify-between shadow-sm group',
                       !prod.available && 'opacity-50 grayscale'
                     )}
                   >
                     <div>
                       <div className="flex justify-between items-start">
-                        <h3 className="font-sans font-bold text-[#364266] text-sm lg:text-base leading-tight">{prod.name}</h3>
+                        <h3 className="font-sans font-bold text-brand-primary text-sm lg:text-base leading-tight">{prod.name}</h3>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1059,12 +1060,12 @@ export const POSPage: React.FC = () => {
                         </div>
                       )}
 
-                      <p className="font-sans text-xs text-[#897863] not-italic my-1 line-clamp-2">{prod.description || 'Producto Gia'}</p>
+                      <p className="font-sans text-xs text-brand-muted not-italic my-1 line-clamp-2">{prod.description || 'Producto Gia'}</p>
                     </div>
 
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                      <span className="font-sans font-bold text-sm lg:text-base text-[#344268]">{formatPrice(prod.price)}</span>
-                      <span className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-[#364266] text-[#FEF3DE] flex items-center justify-center text-sm font-bold shadow-sm group-hover:scale-105 transition-transform">
+                      <span className="font-sans font-bold text-sm lg:text-base text-brand-primary-strong">{formatPrice(prod.price)}</span>
+                      <span className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-brand-primary text-brand-bg flex items-center justify-center text-sm font-bold shadow-sm group-hover:scale-105 transition-transform">
                         +
                       </span>
                     </div>
@@ -1076,32 +1077,32 @@ export const POSPage: React.FC = () => {
 
           {/* Custom Item Form */}
           {catalogTab === 'custom' && (
-            <div className="max-w-md mx-auto p-6 bg-white rounded-3xl border border-[#364266]/10 shadow-sm mt-4">
-              <h3 className="font-sans font-bold text-lg text-[#364266] mb-4">Agregar Ítem Especial</h3>
+            <div className="max-w-md mx-auto p-6 bg-white rounded-3xl border border-brand-primary/10 shadow-sm mt-4">
+              <h3 className="font-sans font-bold text-lg text-brand-primary mb-4">Agregar Ítem Especial</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="font-sans text-xs font-semibold text-[#897863]">Descripción / Nombre</label>
+                  <label className="font-sans text-xs font-semibold text-brand-muted">Descripción / Nombre</label>
                   <input
                     type="text"
                     value={customItem.name}
                     onChange={(e) => setCustomItem(ci => ({ ...ci, name: e.target.value }))}
                     placeholder="Ej. Topping extra, Combo especial..."
-                    className="w-full mt-1 p-2.5 rounded-xl border border-[#364266]/20 text-sm font-sans focus:ring-2 focus:ring-[#364266]"
+                    className="w-full mt-1 p-2.5 rounded-xl border border-brand-primary/20 text-sm font-sans focus:ring-2 focus:ring-brand-primary"
                   />
                 </div>
                 <div>
-                  <label className="font-sans text-xs font-semibold text-[#897863]">Precio (COP)</label>
+                  <label className="font-sans text-xs font-semibold text-brand-muted">Precio (COP)</label>
                   <input
                     type="number"
                     value={customItem.price}
                     onChange={(e) => setCustomItem(ci => ({ ...ci, price: e.target.value }))}
                     placeholder="Ej. 10000"
-                    className="w-full mt-1 p-2.5 rounded-xl border border-[#364266]/20 text-sm font-sans font-bold focus:ring-2 focus:ring-[#364266]"
+                    className="w-full mt-1 p-2.5 rounded-xl border border-brand-primary/20 text-sm font-sans font-bold focus:ring-2 focus:ring-brand-primary"
                   />
                 </div>
                 <button
                   onClick={handleAddCustomItem}
-                  className="w-full py-3 rounded-xl bg-[#364266] text-[#FEF3DE] font-sans font-semibold text-sm hover:bg-[#242D49] transition-all"
+                  className="w-full py-3 rounded-xl bg-brand-primary text-brand-bg font-sans font-semibold text-sm hover:bg-brand-dark transition-all"
                 >
                   Agregar al Carrito
                 </button>
@@ -1112,10 +1113,10 @@ export const POSPage: React.FC = () => {
 
         {/* Floating Mobile Cart Bar */}
         {cart.length > 0 && (
-          <div className="lg:hidden p-2.5 bg-white border-t border-[#364266]/15 shadow-xl shrink-0">
+          <div className="lg:hidden p-2.5 bg-white border-t border-brand-primary/15 shadow-xl shrink-0">
             <button
               onClick={() => setMobileView('cart')}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#364266] text-[#FEF3DE] font-bold text-xs flex items-center justify-between shadow-md active:scale-[0.99] font-sans"
+              className="w-full py-2.5 px-4 rounded-xl bg-brand-primary text-brand-bg font-bold text-xs flex items-center justify-between shadow-md active:scale-[0.99] font-sans"
             >
               <span className="flex items-center gap-2">
                 <ShoppingCart size={15} />
@@ -1130,10 +1131,10 @@ export const POSPage: React.FC = () => {
       </div>
 
       {/* RIGHT COLUMN: Live Cart & Fast Checkout Panel */}
-      <div className={cn('w-full lg:w-80 xl:w-96 bg-white flex-col h-full border-l border-[#364266]/10 shadow-xl shrink-0 font-sans', mobileView === 'cart' ? 'flex' : 'hidden lg:flex')}>
+      <div className={cn('w-full lg:w-80 xl:w-96 bg-white flex-col h-full border-l border-brand-primary/10 shadow-xl shrink-0 font-sans', mobileView === 'cart' ? 'flex' : 'hidden lg:flex')}>
         {/* Precuentas / Multi-tabs Bar */}
-        <div className="p-2 bg-[#242D49] text-white flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-          <div className="flex items-center gap-1 shrink-0 text-xs font-bold text-[#C6BF81] pl-1 pr-2">
+        <div className="p-2 bg-brand-dark text-white flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+          <div className="flex items-center gap-1 shrink-0 text-xs font-bold text-brand-accent pl-1 pr-2">
             <Layers size={14} />
             <span className="hidden sm:inline">Cuentas:</span>
           </div>
@@ -1152,8 +1153,8 @@ export const POSPage: React.FC = () => {
                 className={cn(
                   'px-2.5 py-1 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all select-none whitespace-nowrap group',
                   isActive
-                    ? 'bg-[#FEF3DE] text-[#242D49] font-bold shadow-md'
-                    : 'bg-white/10 text-[#FEF3DE]/80 hover:bg-white/20'
+                    ? 'bg-brand-bg text-brand-dark font-bold shadow-md'
+                    : 'bg-white/10 text-brand-bg/80 hover:bg-white/20'
                 )}
               >
                 {isEditing ? (
@@ -1168,7 +1169,7 @@ export const POSPage: React.FC = () => {
                       if (e.key === 'Escape') setEditingTabId(null);
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-24 px-1.5 py-0.5 text-xs text-[#242D49] bg-white rounded-md border border-[#C6BF81] outline-none font-bold"
+                    className="w-24 px-1.5 py-0.5 text-xs text-brand-dark bg-white rounded-md border border-brand-accent outline-none font-bold"
                   />
                 ) : (
                   <span className="flex items-center gap-1">
@@ -1192,7 +1193,7 @@ export const POSPage: React.FC = () => {
                 {itemCount > 0 && (
                   <span className={cn(
                     'px-1.5 py-0.2 text-[10px] rounded-full font-bold',
-                    isActive ? 'bg-[#364266] text-[#FEF3DE]' : 'bg-white/20 text-white'
+                    isActive ? 'bg-brand-primary text-brand-bg' : 'bg-white/20 text-white'
                   )}>
                     {itemCount}
                   </span>
@@ -1212,7 +1213,7 @@ export const POSPage: React.FC = () => {
 
           <button
             onClick={handleAddNewTab}
-            className="p-1 px-2 rounded-xl bg-[#C6BF81] hover:bg-[#b8b070] text-[#242D49] text-xs font-bold flex items-center gap-0.5 shrink-0 shadow-sm"
+            className="p-1 px-2 rounded-xl bg-brand-accent hover:bg-[#b8b070] text-brand-dark text-xs font-bold flex items-center gap-0.5 shrink-0 shadow-sm"
             title="Abrir otra cuenta en espera"
           >
             <Plus size={13} />
@@ -1221,17 +1222,17 @@ export const POSPage: React.FC = () => {
         </div>
 
         {/* Cart Header */}
-        <div className="p-2.5 bg-[#FAF8EA] border-b border-[#364266]/10 flex items-center justify-between shrink-0">
+        <div className="p-2.5 bg-brand-card border-b border-brand-primary/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMobileView('catalog')}
-              className="lg:hidden p-1 rounded-lg bg-white border border-[#364266]/20 text-[#364266] hover:bg-gray-50 flex items-center gap-1 text-xs font-bold font-sans"
+              className="lg:hidden p-1 rounded-lg bg-white border border-brand-primary/20 text-brand-primary hover:bg-gray-50 flex items-center gap-1 text-xs font-bold font-sans"
               title="Volver al catálogo"
             >
               <ArrowLeft size={13} />
               <span>Sabores</span>
             </button>
-            <ShoppingCart size={16} className="text-[#364266]" />
+            <ShoppingCart size={16} className="text-brand-primary" />
 
             {editingTabId === currentTab.id ? (
               <input
@@ -1244,18 +1245,18 @@ export const POSPage: React.FC = () => {
                   if (e.key === 'Enter') saveEditingTab();
                   if (e.key === 'Escape') setEditingTabId(null);
                 }}
-                className="px-2 py-0.5 text-sm font-bold text-[#242D49] bg-white rounded-lg border border-[#C6BF81] outline-none"
+                className="px-2 py-0.5 text-sm font-bold text-brand-dark bg-white rounded-lg border border-brand-accent outline-none"
               />
             ) : (
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => openRenameModal(currentTab)}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-gray-100 border border-[#364266]/20 text-[#364266] text-xs font-bold font-sans shadow-sm transition-all"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-gray-100 border border-brand-primary/20 text-brand-primary text-xs font-bold font-sans shadow-sm transition-all"
                   title="Cambiar nombre a esta cuenta (ej. Mesa 2, Carlos...)"
                 >
                   <span>{currentTab.name}</span>
-                  <span className="text-[#897863] font-normal">({cart.reduce((a, b) => a + b.quantity, 0)})</span>
-                  <Pencil size={11} className="text-[#C6BF81] ml-0.5" />
+                  <span className="text-brand-muted font-normal">({cart.reduce((a, b) => a + b.quantity, 0)})</span>
+                  <Pencil size={11} className="text-brand-accent ml-0.5" />
                 </button>
               </div>
             )}
@@ -1272,18 +1273,18 @@ export const POSPage: React.FC = () => {
         </div>
 
         {/* Customer Fast Selector Bar */}
-        <div className="p-2.5 bg-white border-b border-[#364266]/10 flex items-center justify-between text-xs shrink-0">
+        <div className="p-2.5 bg-white border-b border-brand-primary/10 flex items-center justify-between text-xs shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <User size={15} className="text-[#C6BF81] shrink-0" />
+            <User size={15} className="text-brand-accent shrink-0" />
             <div className="truncate">
-              <span className="font-bold text-[#364266] font-sans">{customer.name}</span>
-              <span className="text-[#897863] ml-1.5 font-mono">({customer.doc})</span>
+              <span className="font-bold text-brand-primary font-sans">{customer.name}</span>
+              <span className="text-brand-muted ml-1.5 font-mono">({customer.doc})</span>
             </div>
           </div>
 
           <button
             onClick={() => setShowCustomerModal(true)}
-            className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FAF8EA] hover:bg-[#EFEDD8] text-[#364266] font-semibold text-[11px] border border-[#C6BF81]/50 font-sans"
+            className="shrink-0 px-2.5 py-1 rounded-lg bg-brand-card hover:bg-brand-card-2 text-brand-primary font-semibold text-[11px] border border-brand-accent/50 font-sans"
           >
             {customer.isElectronicInvoice ? '⚡ F. Electrónica' : 'Cambiar / F.E.'}
           </button>
@@ -1292,12 +1293,12 @@ export const POSPage: React.FC = () => {
         {/* Cart Items List */}
         <div className="flex-1 overflow-y-auto min-h-0 p-2.5 space-y-2">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-[#897863]/70 p-4">
-              <div className="w-12 h-12 rounded-full bg-[#FAF8EA] flex items-center justify-center text-2xl mb-2">
+            <div className="h-full flex flex-col items-center justify-center text-center text-brand-muted/70 p-4">
+              <div className="w-12 h-12 rounded-full bg-brand-card flex items-center justify-center text-2xl mb-2">
                 🍨
               </div>
-              <p className="font-sans font-bold text-sm text-[#364266]">Cuenta sin ítems</p>
-              <p className="text-xs text-[#897863] max-w-xs mt-1 font-sans">
+              <p className="font-sans font-bold text-sm text-brand-primary">Cuenta sin ítems</p>
+              <p className="text-xs text-brand-muted max-w-xs mt-1 font-sans">
                 Selecciona sabores o productos en el catálogo para agregarlos a {currentTab.name}.
               </p>
             </div>
@@ -1305,12 +1306,12 @@ export const POSPage: React.FC = () => {
             cart.map((item, idx) => (
               <div
                 key={idx}
-                className="p-2.5 rounded-2xl bg-[#FAF8EA] border border-[#364266]/15 hover:border-[#364266]/30 transition-all shadow-xs space-y-1.5"
+                className="p-2.5 rounded-2xl bg-brand-card border border-brand-primary/15 hover:border-brand-primary/30 transition-all shadow-xs space-y-1.5"
               >
                 {/* Row 1: Presentation / Product Name + Subtotal + Remove */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <span className="font-sans font-bold text-xs sm:text-sm text-[#242D49] leading-tight block">
+                    <span className="font-sans font-bold text-xs sm:text-sm text-brand-dark leading-tight block">
                       {item.size || item.name.replace(/—.*$/, '').trim()}
                     </span>
                     {item.size && item.name.includes('—') && (
@@ -1321,7 +1322,7 @@ export const POSPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-sans font-bold text-xs sm:text-sm text-[#344268]">
+                    <span className="font-sans font-bold text-xs sm:text-sm text-brand-primary-strong">
                       {formatPrice(item.price * item.quantity)}
                     </span>
                     <button
@@ -1336,7 +1337,7 @@ export const POSPage: React.FC = () => {
 
                 {/* Row 2: Flavors (FULL DISPLAY, NO TRUNCATION) */}
                 {item.flavors && (
-                  <div className="p-1.5 rounded-xl bg-white border border-[#C6BF81]/40 text-xs font-semibold text-[#364266] flex items-center gap-1.5">
+                  <div className="p-1.5 rounded-xl bg-white border border-brand-accent/40 text-xs font-semibold text-brand-primary flex items-center gap-1.5">
                     <span className="text-xs shrink-0">🍨</span>
                     <span className="leading-snug break-words flex-1 font-sans">
                       {item.flavors.split(',').map(f => f.trim()).join('  +  ')}
@@ -1346,24 +1347,24 @@ export const POSPage: React.FC = () => {
 
                 {/* Row 3: Unit Price & Quantity Stepper */}
                 <div className="flex items-center justify-between pt-1 border-t border-gray-200/60">
-                  <span className="text-[11px] text-[#897863] font-medium font-sans">
+                  <span className="text-[11px] text-brand-muted font-medium font-sans">
                     {formatPrice(item.price)} c/u
                   </span>
 
-                  <div className="flex items-center gap-1 bg-white rounded-lg p-0.5 border border-[#364266]/20 shadow-xs">
+                  <div className="flex items-center gap-1 bg-white rounded-lg p-0.5 border border-brand-primary/20 shadow-xs">
                     <button
                       onClick={() => updateQuantity(idx, -1)}
-                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 text-[#364266] active:scale-95 transition-transform"
+                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 text-brand-primary active:scale-95 transition-transform"
                       title="Restar 1"
                     >
                       <Minus size={11} />
                     </button>
-                    <span className="w-5 text-center font-bold text-xs text-[#364266] font-sans">
+                    <span className="w-5 text-center font-bold text-xs text-brand-primary font-sans">
                       {item.quantity}
                     </span>
                     <button
                       onClick={() => updateQuantity(idx, 1)}
-                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 text-[#364266] active:scale-95 transition-transform"
+                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100 text-brand-primary active:scale-95 transition-transform"
                       title="Sumar 1"
                     >
                       <Plus size={11} />
@@ -1376,12 +1377,12 @@ export const POSPage: React.FC = () => {
         </div>
 
         {/* Cart Totals & Go to Checkout Button */}
-        <div className="p-3 bg-[#FAF8EA] border-t border-[#364266]/15 shrink-0 space-y-2.5">
+        <div className="p-3 bg-brand-card border-t border-brand-primary/15 shrink-0 space-y-2.5">
           {/* Totals Summary */}
           <div className="space-y-1 text-xs">
             {discountAmount > 0 && (
               <>
-                <div className="flex justify-between text-[#897863]">
+                <div className="flex justify-between text-brand-muted">
                   <span>Subtotal:</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
@@ -1391,9 +1392,9 @@ export const POSPage: React.FC = () => {
                 </div>
               </>
             )}
-            <div className="flex items-baseline justify-between pt-0.5 text-sm sm:text-base font-sans font-bold text-[#364266]">
+            <div className="flex items-baseline justify-between pt-0.5 text-sm sm:text-base font-sans font-bold text-brand-primary">
               <span>Total a Cobrar:</span>
-              <span className="text-base sm:text-xl font-sans font-extrabold text-[#242D49]">{formatPrice(total)}</span>
+              <span className="text-base sm:text-xl font-sans font-extrabold text-brand-dark">{formatPrice(total)}</span>
             </div>
           </div>
 
@@ -1402,9 +1403,9 @@ export const POSPage: React.FC = () => {
             onClick={() => setShowCheckoutModal(true)}
             disabled={cart.length === 0}
             className={cn(
-              'w-full py-3 sm:py-3.5 px-4 rounded-2xl font-sans font-bold text-sm sm:text-base text-[#FEF3DE] flex items-center justify-center gap-2 shadow-lg transition-all',
+              'w-full py-3 sm:py-3.5 px-4 rounded-2xl font-sans font-bold text-sm sm:text-base text-brand-bg flex items-center justify-center gap-2 shadow-lg transition-all',
               cart.length > 0
-                ? 'bg-gradient-to-r from-[#364266] to-[#242D49] hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
+                ? 'bg-gradient-to-r from-brand-primary to-brand-dark hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
                 : 'bg-gray-400 cursor-not-allowed'
             )}
           >
@@ -1443,10 +1444,10 @@ export const POSPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-[#364266]/10"
+              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-brand-primary/10"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-sans font-bold text-lg text-[#364266]">Datos del Cliente / Facturación</h3>
+                <h3 className="font-sans font-bold text-lg text-brand-primary">Datos del Cliente / Facturación</h3>
                 <button onClick={() => setShowCustomerModal(false)} className="text-gray-400 hover:text-gray-600">
                   <X size={20} />
                 </button>
@@ -1457,14 +1458,14 @@ export const POSPage: React.FC = () => {
                   updateActiveTab({ customer: { ...DEFAULT_CUSTOMER } });
                   setShowCustomerModal(false);
                 }}
-                className="w-full mb-4 py-2.5 px-3 rounded-xl bg-[#FAF8EA] border border-[#C6BF81]/50 text-xs font-bold text-[#364266] hover:bg-[#EFEDD8] flex items-center justify-center gap-2"
+                className="w-full mb-4 py-2.5 px-3 rounded-xl bg-brand-card border border-brand-accent/50 text-xs font-bold text-brand-primary hover:bg-brand-card-2 flex items-center justify-center gap-2"
               >
                 <span>👤 Restablecer a Consumidor Final (222222222222)</span>
               </button>
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="font-semibold text-[#897863]">Buscar Cliente Registrado</label>
+                  <label className="font-semibold text-brand-muted">Buscar Cliente Registrado</label>
                   <input
                     type="text"
                     value={custSearchQuery}
@@ -1494,10 +1495,10 @@ export const POSPage: React.FC = () => {
                               setCustSearchQuery('');
                               setShowCustomerModal(false);
                             }}
-                            className="p-2 hover:bg-[#FAF8EA] cursor-pointer"
+                            className="p-2 hover:bg-brand-card cursor-pointer"
                           >
-                            <p className="font-bold text-[#364266]">{c.name}</p>
-                            <p className="text-[10px] text-[#897863]">{c.documentId} — {c.email || c.phone}</p>
+                            <p className="font-bold text-brand-primary">{c.name}</p>
+                            <p className="text-[10px] text-brand-muted">{c.documentId} — {c.email || c.phone}</p>
                           </div>
                         ))}
                     </div>
@@ -1505,7 +1506,7 @@ export const POSPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-[#897863]">Nombre o Razón Social</label>
+                  <label className="font-semibold text-brand-muted">Nombre o Razón Social</label>
                   <input
                     type="text"
                     value={customer.name}
@@ -1516,7 +1517,7 @@ export const POSPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="font-semibold text-[#897863]">Cédula / NIT</label>
+                    <label className="font-semibold text-brand-muted">Cédula / NIT</label>
                     <input
                       type="text"
                       value={customer.doc}
@@ -1525,7 +1526,7 @@ export const POSPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="font-semibold text-[#897863]">Celular</label>
+                    <label className="font-semibold text-brand-muted">Celular</label>
                     <input
                       type="text"
                       value={customer.phone}
@@ -1536,7 +1537,7 @@ export const POSPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-[#897863]">Correo Electrónico (para Factura Electrónica)</label>
+                  <label className="font-semibold text-brand-muted">Correo Electrónico (para Factura Electrónica)</label>
                   <input
                     type="email"
                     value={customer.email}
@@ -1552,9 +1553,9 @@ export const POSPage: React.FC = () => {
                     id="fe-check"
                     checked={customer.isElectronicInvoice}
                     onChange={(e) => updateActiveTab({ customer: { ...customer, isElectronicInvoice: e.target.checked } })}
-                    className="rounded border-gray-300 text-[#364266] focus:ring-[#364266]"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
                   />
-                  <label htmlFor="fe-check" className="font-semibold text-[#364266]">
+                  <label htmlFor="fe-check" className="font-semibold text-brand-primary">
                     Requiere Factura Electrónica formal
                   </label>
                 </div>
@@ -1563,7 +1564,7 @@ export const POSPage: React.FC = () => {
               <div className="mt-5 flex gap-2">
                 <button
                   onClick={() => setShowCustomerModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-[#364266] text-[#FEF3DE] font-semibold text-sm hover:bg-[#242D49]"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-primary text-brand-bg font-semibold text-sm hover:bg-brand-dark"
                 >
                   Guardar Datos
                 </button>
@@ -1582,12 +1583,12 @@ export const POSPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-[#364266]/10 space-y-4 font-sans"
+              className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-brand-primary/10 space-y-4 font-sans"
             >
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <div className="flex items-center gap-2">
-                  <Pencil size={16} className="text-[#364266]" />
-                  <h3 className="font-bold text-base text-[#364266]">
+                  <Pencil size={16} className="text-brand-primary" />
+                  <h3 className="font-bold text-base text-brand-primary">
                     Nombre de la Cuenta
                   </h3>
                 </div>
@@ -1601,7 +1602,7 @@ export const POSPage: React.FC = () => {
 
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#897863] block mb-1">
+                  <label className="text-xs font-semibold text-brand-muted block mb-1">
                     Escribe un nombre personalizado:
                   </label>
                   <input
@@ -1614,12 +1615,12 @@ export const POSPage: React.FC = () => {
                       if (e.key === "Escape") setRenameModalTab(null);
                     }}
                     placeholder="Ej. Mesa 3, Stiven, Llevar..."
-                    className="w-full p-2.5 rounded-xl border border-[#364266]/20 text-sm font-bold text-[#242D49] focus:outline-none focus:ring-2 focus:ring-[#364266]"
+                    className="w-full p-2.5 rounded-xl border border-brand-primary/20 text-sm font-bold text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-[#897863] block mb-1.5">
+                  <label className="text-[11px] font-semibold text-brand-muted block mb-1.5">
                     O selecciona un acceso rápido:
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -1628,7 +1629,7 @@ export const POSPage: React.FC = () => {
                         key={preset}
                         type="button"
                         onClick={() => handleApplyTabName(preset)}
-                        className="p-2 rounded-xl bg-[#FAF8EA] hover:bg-[#364266] hover:text-[#FEF3DE] text-[#364266] text-xs font-bold border border-[#C6BF81]/40 transition-all text-center truncate shadow-sm"
+                        className="p-2 rounded-xl bg-brand-card hover:bg-brand-primary hover:text-brand-bg text-brand-primary text-xs font-bold border border-brand-accent/40 transition-all text-center truncate shadow-sm"
                       >
                         {preset}
                       </button>
@@ -1646,7 +1647,7 @@ export const POSPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handleApplyTabName(customRenameValue)}
-                  className="flex-1 py-2 rounded-xl bg-[#364266] text-[#FEF3DE] text-xs font-bold hover:bg-[#242D49] shadow-sm"
+                  className="flex-1 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold hover:bg-brand-dark shadow-sm"
                 >
                   Guardar Nombre
                 </button>
@@ -1664,18 +1665,18 @@ export const POSPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-[#364266]/10 space-y-4"
+              className="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-brand-primary/10 space-y-4"
             >
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-[#FAF8EA] border border-[#C6BF81]/50 flex items-center justify-center text-xl">
+                  <div className="w-10 h-10 rounded-2xl bg-brand-card border border-brand-accent/50 flex items-center justify-center text-xl">
                     ☕
                   </div>
                   <div>
-                    <h3 className="font-sans font-bold text-lg text-[#364266]">
+                    <h3 className="font-sans font-bold text-lg text-brand-primary">
                       {affogatoModalProd.name} ({formatPrice(affogatoModalProd.price)})
                     </h3>
-                    <p className="text-xs text-[#897863]">
+                    <p className="text-xs text-brand-muted">
                       Selecciona el sabor de gelato para preparar el Affogato con espresso caliente:
                     </p>
                   </div>
@@ -1705,8 +1706,8 @@ export const POSPage: React.FC = () => {
                       toast.success(`Agregado: ${affogatoModalProd.name} (${flavor.name})`);
                       setAffogatoModalProd(null);
                     }}
-                    className="p-3 rounded-2xl border border-gray-200 hover:border-[#364266] hover:shadow-md transition-all flex flex-col items-center justify-between text-center gap-1.5 active:scale-95 shadow-xs cursor-pointer"
-                    style={{ backgroundColor: flavor.color_bg || '#FAF8EA' }}
+                    className="p-3 rounded-2xl border border-gray-200 hover:border-brand-primary hover:shadow-md transition-all flex flex-col items-center justify-between text-center gap-1.5 active:scale-95 shadow-xs cursor-pointer"
+                    style={{ backgroundColor: flavor.color_bg || BRAND.card }}
                   >
                     <div className="w-12 h-12 flex items-center justify-center">
                       {flavor.image ? (
@@ -1715,7 +1716,7 @@ export const POSPage: React.FC = () => {
                         <span className="text-2xl">🍨</span>
                       )}
                     </div>
-                    <span className="font-sans font-bold text-xs text-[#242D49] leading-tight">
+                    <span className="font-sans font-bold text-xs text-brand-dark leading-tight">
                       {flavor.name}
                     </span>
                   </button>

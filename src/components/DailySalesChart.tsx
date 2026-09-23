@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/theme';
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 import { formatPrice, getColombiaNow, getOrderDateStr } from '@/lib/format';
@@ -130,25 +131,25 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
   }, [chartData, rangeDays]);
 
   return (
-    <div className={cn("bg-white rounded-3xl p-4 sm:p-6 border border-[#364266]/10 shadow-sm font-sans space-y-4", className)}>
+    <div className={cn("bg-white rounded-3xl p-4 sm:p-6 border border-brand-primary/10 shadow-sm font-sans space-y-4", className)}>
       {/* Header with Title and Range Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-[#FAF8EA] border border-[#C6BF81]/40 flex items-center justify-center text-[#364266] shadow-xs">
-            <TrendingUp size={20} className="text-[#364266]" />
+          <div className="w-10 h-10 rounded-2xl bg-brand-card border border-brand-accent/40 flex items-center justify-center text-brand-primary shadow-xs">
+            <TrendingUp size={20} className="text-brand-primary" />
           </div>
           <div>
-            <h2 className="font-bold text-base sm:text-lg text-[#242D49] leading-tight">
+            <h2 className="font-bold text-base sm:text-lg text-brand-dark leading-tight">
               Ventas por Día (Histórico Interactivo)
             </h2>
-            <p className="text-xs text-[#897863]">
+            <p className="text-xs text-brand-muted">
               Pasa el cursor sobre cualquier barra para ver el total y detalle de ese día
             </p>
           </div>
         </div>
 
         {/* Range Buttons */}
-        <div className="flex items-center gap-1 bg-[#FAF8EA] p-1 rounded-2xl border border-[#C6BF81]/30 self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-brand-card p-1 rounded-2xl border border-brand-accent/30 self-start sm:self-auto">
           {([
             { days: 7 as const, label: '7 días' },
             { days: 14 as const, label: '14 días' },
@@ -160,8 +161,8 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
               className={cn(
                 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
                 rangeDays === r.days
-                  ? 'bg-[#242D49] text-[#FEF3DE] shadow-xs'
-                  : 'text-[#897863] hover:text-[#242D49] hover:bg-white/60'
+                  ? 'bg-brand-dark text-brand-bg shadow-xs'
+                  : 'text-brand-muted hover:text-brand-dark hover:bg-white/60'
               )}
             >
               {r.label}
@@ -172,14 +173,14 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
 
       {/* Quick Summary Cards (Period Stats) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="p-3 rounded-2xl bg-[#FAF8EA]/70 border border-[#C6BF81]/30">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#897863] block">
+        <div className="p-3 rounded-2xl bg-brand-card/70 border border-brand-accent/30">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted block">
             Ventas en {rangeDays} días
           </span>
-          <p className="text-base sm:text-lg font-bold font-serif text-[#242D49] mt-0.5">
+          <p className="text-base sm:text-lg font-bold font-serif text-brand-dark mt-0.5">
             {formatPrice(summary.totalRevenue)}
           </p>
-          <span className="text-[10.5px] text-[#897863]">{summary.totalOrders} pedidos</span>
+          <span className="text-[10.5px] text-brand-muted">{summary.totalOrders} pedidos</span>
         </div>
 
         <div className="p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200/50">
@@ -236,7 +237,7 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
               interval={rangeDays === 30 ? 2 : 0}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#897863' }}
+              tick={{ fontSize: 10, fill: BRAND.muted }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(val) => {
@@ -259,8 +260,8 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
                 const isPeak = summary.peakDay?.dateStr === entry.dateStr && entry.totalSales > 0;
 
                 // Gold for hovered, navy or accent for standard
-                let fillColor = '#242D49';
-                if (isHovered) fillColor = '#C6BF81';
+                let fillColor = BRAND.dark;
+                if (isHovered) fillColor = BRAND.accent;
                 else if (isPeak) fillColor = '#4B587E';
 
                 return (
@@ -277,24 +278,24 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
       </div>
 
       {/* Hover Info Banner (Extra clear feedback for mobile or desktop) */}
-      <div className="p-3 rounded-2xl bg-[#FAF8EA]/80 border border-[#C6BF81]/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div className="p-3 rounded-2xl bg-brand-card/80 border border-brand-accent/30 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-[#C6BF81]" />
-          <span className="text-[#897863] font-medium">
+          <Calendar size={14} className="text-brand-accent" />
+          <span className="text-brand-muted font-medium">
             {hoveredDay ? hoveredDay.fullDateLabel : 'Pasa sobre una barra para ver detalles:'}
           </span>
         </div>
         {hoveredDay ? (
           <div className="flex items-center gap-3 font-bold">
-            <span className="text-[#242D49] font-serif text-sm">
+            <span className="text-brand-dark font-serif text-sm">
               Total: {formatPrice(hoveredDay.totalSales)}
             </span>
-            <span className="text-[#897863] font-normal">
+            <span className="text-brand-muted font-normal">
               ({hoveredDay.ordersCount} pedidos)
             </span>
           </div>
         ) : (
-          <span className="text-[11px] text-[#897863] italic">
+          <span className="text-[11px] text-brand-muted italic">
             Ej: Ventas de hace 3 días, ayer o fines de semana
           </span>
         )}
@@ -310,10 +311,10 @@ const CustomBarTooltip: React.FC<any> = ({ active, payload }) => {
   const data: DayData = payload[0].payload;
 
   return (
-    <div className="bg-[#242D49] text-[#FEF3DE] p-3.5 rounded-2xl shadow-2xl border border-[#C6BF81]/50 text-xs min-w-[220px] font-sans animate-in fade-in zoom-in-95 duration-100">
+    <div className="bg-brand-dark text-brand-bg p-3.5 rounded-2xl shadow-2xl border border-brand-accent/50 text-xs min-w-[220px] font-sans animate-in fade-in zoom-in-95 duration-100">
       {/* Date Header */}
       <div className="pb-2 border-b border-white/10 mb-2">
-        <p className="font-semibold text-[11px] text-[#FEF3DE]/70 uppercase tracking-wider">
+        <p className="font-semibold text-[11px] text-brand-bg/70 uppercase tracking-wider">
           {data.dayLabel}
         </p>
         <p className="font-bold text-xs text-white leading-tight">
@@ -323,10 +324,10 @@ const CustomBarTooltip: React.FC<any> = ({ active, payload }) => {
 
       {/* Main Revenue */}
       <div className="mb-2.5">
-        <span className="text-[10px] uppercase text-[#C6BF81] font-bold tracking-wider">
+        <span className="text-[10px] uppercase text-brand-accent font-bold tracking-wider">
           Ventas Totales
         </span>
-        <p className="text-xl font-serif font-extrabold text-[#FAF8EA] leading-none mt-0.5">
+        <p className="text-xl font-serif font-extrabold text-brand-card leading-none mt-0.5">
           {formatPrice(data.totalSales)}
         </p>
         <p className="text-[11px] text-white/80 mt-1 flex items-center justify-between">
@@ -336,7 +337,7 @@ const CustomBarTooltip: React.FC<any> = ({ active, payload }) => {
         {data.ordersCount > 0 && (
           <p className="text-[11px] text-white/80 flex items-center justify-between">
             <span>Ticket promedio:</span>
-            <strong className="text-[#C6BF81]">{formatPrice(data.avgTicket)}</strong>
+            <strong className="text-brand-accent">{formatPrice(data.avgTicket)}</strong>
           </p>
         )}
       </div>
@@ -344,7 +345,7 @@ const CustomBarTooltip: React.FC<any> = ({ active, payload }) => {
       {/* Payment Breakdown (if sales exist) */}
       {data.totalSales > 0 ? (
         <div className="pt-2 border-t border-white/10 space-y-1 text-[10.5px]">
-          <span className="text-[9px] uppercase font-bold text-[#FEF3DE]/60 block mb-1">
+          <span className="text-[9px] uppercase font-bold text-brand-bg/60 block mb-1">
             Desglose por Medio de Pago:
           </span>
           <div className="flex justify-between items-center text-emerald-300">

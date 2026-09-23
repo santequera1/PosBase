@@ -87,14 +87,14 @@ const CustomerDetailPage = () => {
   if (!customer) {
     return (
       <div className="text-center py-20 font-sans">
-        <div className="w-16 h-16 rounded-2xl bg-[#FAF8EA] border border-[#C6BF81]/30 flex items-center justify-center text-[#364266] mx-auto mb-3">
+        <div className="w-16 h-16 rounded-2xl bg-brand-card border border-brand-accent/30 flex items-center justify-center text-brand-primary mx-auto mb-3">
           <User size={30} />
         </div>
-        <h2 className="text-lg font-bold text-[#242D49]">Cliente no encontrado</h2>
+        <h2 className="text-lg font-bold text-brand-dark">Cliente no encontrado</h2>
         <p className="text-xs text-gray-500 mt-1">El cliente solicitado no existe o fue eliminado.</p>
         <button
           onClick={() => navigate('/customers')}
-          className="mt-4 px-4 py-2 rounded-xl bg-[#364266] text-[#FEF3DE] text-xs font-semibold shadow-sm hover:bg-[#242D49] transition-all"
+          className="mt-4 px-4 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-semibold shadow-sm hover:bg-brand-dark transition-all"
         >
           ← Volver al Directorio
         </button>
@@ -141,7 +141,7 @@ const CustomerDetailPage = () => {
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => navigate('/customers')}
-            className="w-9 h-9 rounded-xl bg-white border border-[#364266]/15 hover:bg-[#FAF8EA] flex items-center justify-center text-[#364266] shadow-xs transition-all"
+            className="w-9 h-9 rounded-xl bg-white border border-brand-primary/15 hover:bg-brand-card flex items-center justify-center text-brand-primary shadow-xs transition-all"
             title="Volver"
           >
             <ArrowLeft size={16} />
@@ -150,9 +150,9 @@ const CustomerDetailPage = () => {
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <span className="hover:underline cursor-pointer" onClick={() => navigate('/customers')}>Directorio</span>
               <span>/</span>
-              <span className="text-[#364266] font-semibold">Perfil del Cliente</span>
+              <span className="text-brand-primary font-semibold">Perfil del Cliente</span>
             </div>
-            <h1 className="text-xl font-bold text-[#242D49] tracking-tight mt-0.5">
+            <h1 className="text-xl font-bold text-brand-dark tracking-tight mt-0.5">
               Ficha 360° del Cliente
             </h1>
           </div>
@@ -172,7 +172,7 @@ const CustomerDetailPage = () => {
           )}
           <button
             onClick={openEdit}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#364266]/20 text-[#364266] hover:bg-[#FAF8EA] text-xs font-semibold shadow-xs transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-brand-primary/20 text-brand-primary hover:bg-brand-card text-xs font-semibold shadow-xs transition-all"
           >
             <Edit2 size={13} />
             <span>Editar Ficha</span>
@@ -185,23 +185,23 @@ const CustomerDetailPage = () => {
         {/* Left Column (Identity & F.E. details) - 4 cols on lg */}
         <div className="lg:col-span-4 space-y-4">
           {/* Identity Card */}
-          <div className="bg-white rounded-2xl p-5 border border-[#364266]/10 shadow-sm relative overflow-hidden">
+          <div className="bg-white rounded-2xl p-5 border border-brand-primary/10 shadow-sm relative overflow-hidden">
             {/* Top decorative stripe */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#364266]" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-brand-primary" />
 
             <div className="flex items-start gap-3.5 mb-4 mt-1">
               <div className={cn(
                 'w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shrink-0 shadow-xs',
                 isCompany
-                  ? 'bg-blue-50 text-[#364266] border border-blue-200'
+                  ? 'bg-blue-50 text-brand-primary border border-blue-200'
                   : isVIP
                   ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                  : 'bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/40'
+                  : 'bg-brand-card text-brand-primary border border-brand-accent/40'
               )}>
                 {isCompany ? <Building2 size={24} /> : (customer.name ? customer.name[0].toUpperCase() : 'C')}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="font-extrabold text-base text-[#242D49] leading-snug">
+                <h2 className="font-extrabold text-base text-brand-dark leading-snug">
                   {customer.name}
                 </h2>
                 <div className="flex items-center gap-1.5 flex-wrap mt-1">
@@ -211,7 +211,7 @@ const CustomerDetailPage = () => {
                     </span>
                   )}
                   {isCompany ? (
-                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#364266] text-[10px] font-bold border border-blue-200">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-brand-primary text-[10px] font-bold border border-blue-200">
                       Empresa
                     </span>
                   ) : (
@@ -255,10 +255,10 @@ const CustomerDetailPage = () => {
           </div>
 
           {/* Facturación Electrónica (DIAN) Card */}
-          <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm space-y-3">
+          <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-xs text-[#242D49] flex items-center gap-1.5">
-                <Building2 size={14} className="text-[#364266]" />
+              <h3 className="font-bold text-xs text-brand-dark flex items-center gap-1.5">
+                <Building2 size={14} className="text-brand-primary" />
                 Datos de Facturación Electrónica
               </h3>
               <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center gap-0.5">
@@ -297,13 +297,13 @@ const CustomerDetailPage = () => {
           </div>
 
           {/* Preferences & Notes Card */}
-          <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm space-y-2.5">
-            <h3 className="font-bold text-xs text-[#242D49] flex items-center gap-1.5">
-              <Heart size={14} className="text-[#364266]" />
+          <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm space-y-2.5">
+            <h3 className="font-bold text-xs text-brand-dark flex items-center gap-1.5">
+              <Heart size={14} className="text-brand-primary" />
               Notas de Servicio & Preferencias
             </h3>
             {customer.notes ? (
-              <div className="p-3 bg-[#FAF8EA]/70 rounded-xl border border-[#C6BF81]/30 text-xs text-gray-700 leading-relaxed">
+              <div className="p-3 bg-brand-card/70 rounded-xl border border-brand-accent/30 text-xs text-gray-700 leading-relaxed">
                 {customer.notes}
               </div>
             ) : (
@@ -318,33 +318,33 @@ const CustomerDetailPage = () => {
         <div className="lg:col-span-8 space-y-4">
           {/* KPI Summary Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-2xl p-3.5 border border-[#364266]/10 shadow-sm">
+            <div className="bg-white rounded-2xl p-3.5 border border-brand-primary/10 shadow-sm">
               <span className="text-[11px] font-medium text-gray-500 block">Total Comprado</span>
-              <span className="text-lg lg:text-xl font-black text-[#242D49] block mt-0.5">
+              <span className="text-lg lg:text-xl font-black text-brand-dark block mt-0.5">
                 {formatPrice(stats.totalSpent)}
               </span>
               <span className="text-[10px] text-gray-400 mt-0.5 block">Histórico acumulado</span>
             </div>
 
-            <div className="bg-white rounded-2xl p-3.5 border border-[#364266]/10 shadow-sm">
+            <div className="bg-white rounded-2xl p-3.5 border border-brand-primary/10 shadow-sm">
               <span className="text-[11px] font-medium text-gray-500 block">Pedidos Realizados</span>
-              <span className="text-lg lg:text-xl font-black text-[#364266] block mt-0.5">
+              <span className="text-lg lg:text-xl font-black text-brand-primary block mt-0.5">
                 {stats.totalOrders}
               </span>
               <span className="text-[10px] text-gray-400 mt-0.5 block">{stats.totalOrders === 1 ? 'comprobante' : 'comprobantes'}</span>
             </div>
 
-            <div className="bg-white rounded-2xl p-3.5 border border-[#364266]/10 shadow-sm">
+            <div className="bg-white rounded-2xl p-3.5 border border-brand-primary/10 shadow-sm">
               <span className="text-[11px] font-medium text-gray-500 block">Ticket Promedio</span>
-              <span className="text-lg lg:text-xl font-black text-[#242D49] block mt-0.5">
+              <span className="text-lg lg:text-xl font-black text-brand-dark block mt-0.5">
                 {formatPrice(stats.avgTicket)}
               </span>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">por compra</span>
             </div>
 
-            <div className="bg-white rounded-2xl p-3.5 border border-[#364266]/10 shadow-sm">
+            <div className="bg-white rounded-2xl p-3.5 border border-brand-primary/10 shadow-sm">
               <span className="text-[11px] font-medium text-gray-500 block">Última Visita</span>
-              <span className="text-sm lg:text-base font-bold text-[#242D49] block mt-1 truncate">
+              <span className="text-sm lg:text-base font-bold text-brand-dark block mt-1 truncate">
                 {stats.lastOrder ? formatDate(stats.lastOrder) : '—'}
               </span>
               <span className="text-[10px] text-gray-400 mt-0.5 block">
@@ -355,9 +355,9 @@ const CustomerDetailPage = () => {
 
           {/* Favorite Flavors Section */}
           {stats.topFlavors.length > 0 && (
-            <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm">
+            <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-xs text-[#242D49] flex items-center gap-1.5">
+                <h3 className="font-bold text-xs text-brand-dark flex items-center gap-1.5">
                   <Sparkles size={14} className="text-amber-500" />
                   Sabores & Productos Favoritos del Cliente
                 </h3>
@@ -367,11 +367,11 @@ const CustomerDetailPage = () => {
                 {stats.topFlavors.map(([flavor, count], idx) => (
                   <span
                     key={flavor}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/40"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-card text-brand-primary border border-brand-accent/40"
                   >
                     <span className="text-amber-600 font-bold">#{idx + 1}</span>
                     <span>{flavor}</span>
-                    <span className="px-1.5 py-0.2 rounded-md bg-[#364266] text-[#FEF3DE] text-[10px] font-bold">
+                    <span className="px-1.5 py-0.2 rounded-md bg-brand-primary text-brand-bg text-[10px] font-bold">
                       {count}x
                     </span>
                   </span>
@@ -381,10 +381,10 @@ const CustomerDetailPage = () => {
           )}
 
           {/* Order History */}
-          <div className="bg-white rounded-2xl border border-[#364266]/10 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-brand-primary/10 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
               <div>
-                <h3 className="font-bold text-sm text-[#242D49]">Historial de Comprobantes</h3>
+                <h3 className="font-bold text-sm text-brand-dark">Historial de Comprobantes</h3>
                 <p className="text-xs text-gray-400">Todos los comprobantes y facturas emitidos a este cliente</p>
               </div>
               <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">
@@ -394,7 +394,7 @@ const CustomerDetailPage = () => {
 
             {customerOrders.length === 0 ? (
               <div className="py-14 text-center text-gray-400">
-                <ShoppingBag size={36} className="mx-auto mb-2 opacity-30 text-[#364266]" />
+                <ShoppingBag size={36} className="mx-auto mb-2 opacity-30 text-brand-primary" />
                 <p className="text-xs">No hay pedidos registrados para este cliente.</p>
               </div>
             ) : (
@@ -413,15 +413,15 @@ const CustomerDetailPage = () => {
                   return (
                     <div
                       key={order.id}
-                      className="p-4 hover:bg-[#FAF8EA]/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                      className="p-4 hover:bg-brand-card/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
                     >
                       {/* Left: Invoice info */}
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-xs text-[#364266] font-mono">
+                          <span className="font-bold text-xs text-brand-primary font-mono">
                             {orderNumber(order.id)}
                           </span>
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/40">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-brand-card text-brand-primary border border-brand-accent/40">
                             {order.paymentMethod === 'cash' ? 'Efectivo' :
                              order.paymentMethod === 'card_debit' ? 'T. Débito' :
                              order.paymentMethod === 'card_credit' ? 'T. Crédito' : 'Transferencia QR'}
@@ -441,14 +441,14 @@ const CustomerDetailPage = () => {
                       <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                         <div className="text-left sm:text-right">
                           <span className="text-[10px] text-gray-400 block">Total Comprobante</span>
-                          <span className="font-black text-sm text-[#242D49] block">
+                          <span className="font-black text-sm text-brand-dark block">
                             {formatPrice(order.total)}
                           </span>
                         </div>
 
                         <button
                           onClick={() => setSelectedOrderForPrint(order)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#364266]/20 text-[#364266] hover:bg-[#FAF8EA] text-xs font-semibold shadow-xs transition-all"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-brand-primary/20 text-brand-primary hover:bg-brand-card text-xs font-semibold shadow-xs transition-all"
                           title="Imprimir Factura Térmica"
                         >
                           <Printer size={13} />
@@ -483,7 +483,7 @@ const CustomerDetailPage = () => {
             >
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
                 <div>
-                  <h2 className="font-bold text-lg text-[#242D49]">Editar Ficha del Cliente</h2>
+                  <h2 className="font-bold text-lg text-brand-dark">Editar Ficha del Cliente</h2>
                   <p className="text-xs text-gray-400">Actualiza los datos personales y de facturación</p>
                 </div>
                 <button
@@ -501,7 +501,7 @@ const CustomerDetailPage = () => {
                   onClick={() => setFormIsCompany(false)}
                   className={cn(
                     'py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all',
-                    !formIsCompany ? 'bg-white text-[#242D49] shadow-xs' : 'text-gray-500 hover:text-gray-800'
+                    !formIsCompany ? 'bg-white text-brand-dark shadow-xs' : 'text-gray-500 hover:text-gray-800'
                   )}
                 >
                   <User size={14} /> Persona Natural
@@ -511,7 +511,7 @@ const CustomerDetailPage = () => {
                   onClick={() => setFormIsCompany(true)}
                   className={cn(
                     'py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all',
-                    formIsCompany ? 'bg-white text-[#242D49] shadow-xs' : 'text-gray-500 hover:text-gray-800'
+                    formIsCompany ? 'bg-white text-brand-dark shadow-xs' : 'text-gray-500 hover:text-gray-800'
                   )}
                 >
                   <Building2 size={14} /> Empresa (NIT)
@@ -526,7 +526,7 @@ const CustomerDetailPage = () => {
                   <input
                     value={formName}
                     onChange={e => setFormName(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-medium"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-medium"
                   />
                 </div>
 
@@ -536,7 +536,7 @@ const CustomerDetailPage = () => {
                     <select
                       value={formDocType}
                       onChange={e => setFormDocType(e.target.value)}
-                      className="w-full px-2.5 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-medium"
+                      className="w-full px-2.5 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-medium"
                     >
                       <option value="CC">Cédula (CC)</option>
                       <option value="NIT">NIT</option>
@@ -549,7 +549,7 @@ const CustomerDetailPage = () => {
                     <input
                       value={formDocumentId}
                       onChange={e => setFormDocumentId(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-mono"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -560,7 +560,7 @@ const CustomerDetailPage = () => {
                     <input
                       value={formPhone}
                       onChange={e => setFormPhone(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-mono"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-mono"
                     />
                   </div>
                   <div>
@@ -569,7 +569,7 @@ const CustomerDetailPage = () => {
                       type="email"
                       value={formEmail}
                       onChange={e => setFormEmail(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                     />
                   </div>
                 </div>
@@ -579,7 +579,7 @@ const CustomerDetailPage = () => {
                   <input
                     value={formAddress}
                     onChange={e => setFormAddress(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                   />
                 </div>
 
@@ -588,7 +588,7 @@ const CustomerDetailPage = () => {
                   <input
                     value={formNotes}
                     onChange={e => setFormNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                   />
                 </div>
 
@@ -604,7 +604,7 @@ const CustomerDetailPage = () => {
                     type="button"
                     onClick={handleSaveEdit}
                     disabled={!formName.trim() || !formPhone.trim()}
-                    className="px-5 py-2 rounded-xl bg-[#364266] text-[#FEF3DE] text-xs font-bold hover:bg-[#242D49] shadow-md transition-all disabled:opacity-40"
+                    className="px-5 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold hover:bg-brand-dark shadow-md transition-all disabled:opacity-40"
                   >
                     Guardar Cambios
                   </button>

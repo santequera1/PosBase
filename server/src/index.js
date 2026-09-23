@@ -40,6 +40,7 @@ getDb();
 
 // Public routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/public', require('./routes/public'));
 
 // Protected routes
 app.use('/api/categories', authMiddleware, require('./routes/categories'));
@@ -51,6 +52,10 @@ app.use('/api/reports', authMiddleware, require('./routes/reports'));
 app.use('/api/shifts', authMiddleware, require('./routes/shifts'));
 app.use('/api/settings', authMiddleware, require('./routes/settings'));
 app.use('/api/drivers', authMiddleware, require('./routes/drivers'));
+app.use('/api/branding', authMiddleware, require('./routes/branding'));
+app.use('/api/users', authMiddleware, require('./routes/users'));
+app.use('/api/finance', authMiddleware, require('./routes/finance'));
+app.use('/api/staff', authMiddleware, require('./routes/staff'));
 
 // WhatsApp AI Integration (API Key authenticated)
 app.use('/api/whatsapp-ai', require('./routes/whatsappAi'));

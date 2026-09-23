@@ -158,16 +158,16 @@ export const CashShiftPage: React.FC = () => {
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 lg:p-6 rounded-3xl border border-[#364266]/10 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 lg:p-6 rounded-3xl border border-brand-primary/10 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#FAF8EA] border border-[#C6BF81]/50 flex items-center justify-center text-[#364266]">
+          <div className="w-12 h-12 rounded-2xl bg-brand-card border border-brand-accent/50 flex items-center justify-center text-brand-primary">
             <Wallet size={24} />
           </div>
           <div>
-            <h1 className="font-serif font-bold text-xl lg:text-2xl text-[#364266]">
+            <h1 className="font-serif font-bold text-xl lg:text-2xl text-brand-primary">
               Cierre de Caja & Arqueo
             </h1>
-            <p className="text-xs text-[#897863]">
+            <p className="text-xs text-brand-muted">
               Control de efectivo, datáfonos y ventas del turno
             </p>
           </div>
@@ -190,7 +190,7 @@ export const CashShiftPage: React.FC = () => {
             <>
               <button
                 onClick={() => handlePrintZReport(currentShift, true)}
-                className="px-3.5 py-2 rounded-xl bg-gray-100 text-[#364266] hover:bg-gray-200 border border-gray-300 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                className="px-3.5 py-2 rounded-xl bg-gray-100 text-brand-primary hover:bg-gray-200 border border-gray-300 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
                 title="Imprimir reporte parcial de turno (Reporte X)"
               >
                 <Printer size={14} />
@@ -209,7 +209,7 @@ export const CashShiftPage: React.FC = () => {
 
           <button
             onClick={() => setShowOpenModal(true)}
-            className="px-4 py-2 rounded-xl bg-[#364266] text-[#FEF3DE] hover:bg-[#242D49] text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+            className="px-4 py-2 rounded-xl bg-brand-primary text-brand-bg hover:bg-brand-dark text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
           >
             <Unlock size={14} /> Abrir Nuevo Turno
           </button>
@@ -220,22 +220,22 @@ export const CashShiftPage: React.FC = () => {
       {currentShift && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {/* Base Inicial */}
-          <div className="p-4 rounded-2xl bg-white border border-[#364266]/10 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[#897863]">
+          <div className="p-4 rounded-2xl bg-white border border-brand-primary/10 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-brand-muted">
               <span className="text-[11px] font-bold uppercase tracking-wider">Base Inicial</span>
-              <Coins size={16} className="text-[#C6BF81]" />
+              <Coins size={16} className="text-brand-accent" />
             </div>
             <div className="mt-2">
-              <p className="text-base lg:text-lg font-bold font-serif text-[#364266]">
+              <p className="text-base lg:text-lg font-bold font-serif text-brand-primary">
                 {formatPrice(currentShift.initialCash)}
               </p>
-              <p className="text-[10px] text-[#897863] mt-0.5">Efectivo en base</p>
+              <p className="text-[10px] text-brand-muted mt-0.5">Efectivo en base</p>
             </div>
           </div>
 
           {/* Ventas Efectivo */}
-          <div className="p-4 rounded-2xl bg-white border border-[#364266]/10 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[#897863]">
+          <div className="p-4 rounded-2xl bg-white border border-brand-primary/10 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-brand-muted">
               <span className="text-[11px] font-bold uppercase tracking-wider">Ventas Efectivo</span>
               <Wallet size={16} className="text-emerald-600" />
             </div>
@@ -243,7 +243,7 @@ export const CashShiftPage: React.FC = () => {
               <p className="text-base lg:text-lg font-bold font-serif text-emerald-700">
                 +{formatPrice(currentShift.cashSales)}
               </p>
-              <p className="text-[10px] text-[#897863] mt-0.5">Ingreso efectivo</p>
+              <p className="text-[10px] text-brand-muted mt-0.5">Ingreso efectivo</p>
             </div>
           </div>
 
@@ -262,18 +262,18 @@ export const CashShiftPage: React.FC = () => {
           </div>
 
           {/* Datáfono / Tarjetas (Débito + Crédito Unificado) */}
-          <div className="p-4 rounded-2xl bg-white border border-[#364266]/10 shadow-sm flex flex-col justify-between sm:col-span-2 lg:col-span-2">
-            <div className="flex items-center justify-between text-[#897863]">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#364266] flex items-center gap-1">
+          <div className="p-4 rounded-2xl bg-white border border-brand-primary/10 shadow-sm flex flex-col justify-between sm:col-span-2 lg:col-span-2">
+            <div className="flex items-center justify-between text-brand-muted">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand-primary flex items-center gap-1">
                 💳 Datáfono / Tarjetas
               </span>
               <CreditCard size={16} className="text-blue-600" />
             </div>
             <div className="mt-2">
-              <p className="text-base lg:text-lg font-bold font-serif text-[#242D49]">
+              <p className="text-base lg:text-lg font-bold font-serif text-brand-dark">
                 {formatPrice((currentShift.debitSales || 0) + (currentShift.creditSales || 0))}
               </p>
-              <div className="flex items-center gap-2 text-[10px] text-[#897863] mt-0.5 font-medium">
+              <div className="flex items-center gap-2 text-[10px] text-brand-muted mt-0.5 font-medium">
                 <span>Débito: {formatPrice(currentShift.debitSales || 0)}</span>
                 <span>•</span>
                 <span>Crédito: {formatPrice(currentShift.creditSales || 0)}</span>
@@ -282,30 +282,30 @@ export const CashShiftPage: React.FC = () => {
           </div>
 
           {/* Transferencias */}
-          <div className="p-4 rounded-2xl bg-white border border-[#364266]/10 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[#897863]">
+          <div className="p-4 rounded-2xl bg-white border border-brand-primary/10 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-brand-muted">
               <span className="text-[11px] font-bold uppercase tracking-wider">QR / Nequi</span>
               <QrCode size={16} className="text-purple-600" />
             </div>
             <div className="mt-2">
-              <p className="text-base lg:text-lg font-bold font-serif text-[#364266]">
+              <p className="text-base lg:text-lg font-bold font-serif text-brand-primary">
                 {formatPrice(currentShift.transferSales)}
               </p>
-              <p className="text-[10px] text-[#897863] mt-0.5">Transferencias</p>
+              <p className="text-[10px] text-brand-muted mt-0.5">Transferencias</p>
             </div>
           </div>
 
           {/* Total Ventas */}
-          <div className="p-4 rounded-2xl bg-[#FAF8EA] border-2 border-[#C6BF81] shadow-md flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[#897863]">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#364266]">Total Ventas</span>
-              <TrendingUp size={16} className="text-[#364266]" />
+          <div className="p-4 rounded-2xl bg-brand-card border-2 border-brand-accent shadow-md flex flex-col justify-between">
+            <div className="flex items-center justify-between text-brand-muted">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand-primary">Total Ventas</span>
+              <TrendingUp size={16} className="text-brand-primary" />
             </div>
             <div className="mt-2">
-              <p className="text-base lg:text-lg font-extrabold font-serif text-[#242D49]">
+              <p className="text-base lg:text-lg font-extrabold font-serif text-brand-dark">
                 {formatPrice(currentShift.totalSales)}
               </p>
-              <p className="text-[10px] text-[#897863] mt-0.5">{currentShift.totalOrders} pedidos</p>
+              <p className="text-[10px] text-brand-muted mt-0.5">{currentShift.totalOrders} pedidos</p>
             </div>
           </div>
         </div>
@@ -314,20 +314,20 @@ export const CashShiftPage: React.FC = () => {
       {/* Arqueo de Caja & Conteo Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Cash Reconciliation Form (Left 1 col) */}
-        <div className="bg-white p-6 rounded-3xl border border-[#364266]/10 shadow-sm space-y-4">
+        <div className="bg-white p-6 rounded-3xl border border-brand-primary/10 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-            <Coins size={20} className="text-[#C6BF81]" />
-            <h2 className="font-serif font-bold text-lg text-[#364266]">
+            <Coins size={20} className="text-brand-accent" />
+            <h2 className="font-serif font-bold text-lg text-brand-primary">
               Cuadre & Arqueo Físico
             </h2>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#FAF8EA] border border-[#C6BF81]/30 space-y-2">
-            <div className="flex justify-between text-xs text-[#897863]">
+          <div className="p-4 rounded-2xl bg-brand-card border border-brand-accent/30 space-y-2">
+            <div className="flex justify-between text-xs text-brand-muted">
               <span>Base inicial:</span>
               <span className="font-semibold">{formatPrice(currentShift?.initialCash || 0)}</span>
             </div>
-            <div className="flex justify-between text-xs text-[#897863]">
+            <div className="flex justify-between text-xs text-brand-muted">
               <span>+ Ventas en efectivo:</span>
               <span className="font-semibold text-emerald-700">+{formatPrice(currentShift?.cashSales || 0)}</span>
             </div>
@@ -337,7 +337,7 @@ export const CashShiftPage: React.FC = () => {
                 <span className="font-semibold">-{formatPrice(currentShift?.totalWithdrawals || 0)}</span>
               </div>
             )}
-            <div className="pt-2 border-t border-[#364266]/10 flex justify-between font-bold text-sm text-[#364266]">
+            <div className="pt-2 border-t border-brand-primary/10 flex justify-between font-bold text-sm text-brand-primary">
               <span>Efectivo Esperado en Gaveta:</span>
               <span className="text-base font-serif">{formatPrice(expectedCash)}</span>
             </div>
@@ -345,7 +345,7 @@ export const CashShiftPage: React.FC = () => {
 
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-bold text-[#364266] block mb-1">
+              <label className="text-xs font-bold text-brand-primary block mb-1">
                 Efectivo Físico Contado ($)
               </label>
               <div className="relative">
@@ -354,12 +354,12 @@ export const CashShiftPage: React.FC = () => {
                   value={actualCashInput}
                   onChange={(e) => setActualCashInput(e.target.value)}
                   placeholder={String(expectedCash)}
-                  className="w-full p-3 text-lg font-bold bg-[#FAF8EA]/50 rounded-2xl border-2 border-[#364266]/20 focus:border-[#364266] focus:outline-none focus:ring-0"
+                  className="w-full p-3 text-lg font-bold bg-brand-card/50 rounded-2xl border-2 border-brand-primary/20 focus:border-brand-primary focus:outline-none focus:ring-0"
                 />
                 <button
                   type="button"
                   onClick={() => setActualCashInput(String(expectedCash))}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-xl bg-white border border-[#364266]/20 hover:bg-gray-50 text-[11px] font-bold text-[#364266]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-xl bg-white border border-brand-primary/20 hover:bg-gray-50 text-[11px] font-bold text-brand-primary"
                 >
                   Cuadrar Exacto
                 </button>
@@ -398,7 +398,7 @@ export const CashShiftPage: React.FC = () => {
             )}
 
             <div>
-              <label className="text-xs font-semibold text-[#897863] block mb-1">
+              <label className="text-xs font-semibold text-brand-muted block mb-1">
                 Notas del Cierre (Opcional)
               </label>
               <textarea
@@ -406,14 +406,14 @@ export const CashShiftPage: React.FC = () => {
                 onChange={(e) => setClosureNotes(e.target.value)}
                 placeholder="Observaciones sobre el turno, novedades de datáfono, etc."
                 rows={2}
-                className="w-full p-2.5 rounded-xl border border-[#364266]/20 text-xs focus:ring-1 focus:ring-[#364266]"
+                className="w-full p-2.5 rounded-xl border border-brand-primary/20 text-xs focus:ring-1 focus:ring-brand-primary"
               />
             </div>
 
             <button
               onClick={handleCloseShift}
               disabled={isClosing || !currentShift}
-              className="w-full py-3.5 rounded-2xl bg-[#364266] text-[#FEF3DE] hover:bg-[#242D49] font-serif font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-all"
+              className="w-full py-3.5 rounded-2xl bg-brand-primary text-brand-bg hover:bg-brand-dark font-serif font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-all"
             >
               <Lock size={18} />
               <span>Realizar Cierre de Turno (Z)</span>
@@ -422,41 +422,41 @@ export const CashShiftPage: React.FC = () => {
         </div>
 
         {/* Flavors Sold Breakdown in this Shift (Right 2 cols) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-[#364266]/10 shadow-sm flex flex-col">
+        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-brand-primary/10 shadow-sm flex flex-col">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
             <div className="flex items-center gap-2">
-              <ShoppingBag size={20} className="text-[#C6BF81]" />
-              <h2 className="font-serif font-bold text-lg text-[#364266]">
+              <ShoppingBag size={20} className="text-brand-accent" />
+              <h2 className="font-serif font-bold text-lg text-brand-primary">
                 Sabores y Productos Despachados en este Turno
               </h2>
             </div>
-            <span className="text-xs font-semibold text-[#897863]">
+            <span className="text-xs font-semibold text-brand-muted">
               {currentShift?.flavorStats?.length || 0} ítems
             </span>
           </div>
 
           <div className="flex-1 overflow-y-auto max-h-[350px]">
             {(!currentShift?.flavorStats || currentShift.flavorStats.length === 0) ? (
-              <div className="h-48 flex flex-col items-center justify-center text-center text-[#897863]">
-                <p className="font-serif font-bold text-sm text-[#364266]">Sin ventas registradas en este turno aún</p>
+              <div className="h-48 flex flex-col items-center justify-center text-center text-brand-muted">
+                <p className="font-serif font-bold text-sm text-brand-primary">Sin ventas registradas en este turno aún</p>
                 <p className="text-xs mt-1">Las ventas procesadas en el POS se reflejarán aquí en tiempo real.</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {currentShift.flavorStats.map((item, idx) => (
-                  <div key={idx} className="py-2.5 flex items-center justify-between hover:bg-[#FAF8EA]/50 px-2 rounded-xl transition-colors">
+                  <div key={idx} className="py-2.5 flex items-center justify-between hover:bg-brand-card/50 px-2 rounded-xl transition-colors">
                     <div>
-                      <p className="font-serif font-bold text-sm text-[#364266]">{item.name}</p>
+                      <p className="font-serif font-bold text-sm text-brand-primary">{item.name}</p>
                       {item.flavors && (
-                        <p className="text-xs text-[#897863]">{item.flavors}</p>
+                        <p className="text-xs text-brand-muted">{item.flavors}</p>
                       )}
                     </div>
 
                     <div className="text-right">
-                      <p className="font-bold text-sm text-[#364266]">
+                      <p className="font-bold text-sm text-brand-primary">
                         {item.qty} {item.qty === 1 ? 'unidad' : 'unidades'}
                       </p>
-                      <p className="text-xs font-semibold text-[#344268]">
+                      <p className="text-xs font-semibold text-brand-primary-strong">
                         {formatPrice(item.revenue)}
                       </p>
                     </div>
@@ -470,11 +470,11 @@ export const CashShiftPage: React.FC = () => {
 
       {/* Cash Movements / Withdrawals Table */}
       {currentShift && currentShift.movements && currentShift.movements.length > 0 && (
-        <div className="bg-white p-6 rounded-3xl border border-[#364266]/10 shadow-sm space-y-4">
+        <div className="bg-white p-6 rounded-3xl border border-brand-primary/10 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <MinusCircle size={20} className="text-red-600" />
-              <h2 className="font-serif font-bold text-lg text-[#364266]">
+              <h2 className="font-serif font-bold text-lg text-brand-primary">
                 Retiros y Gastos de Caja Menor (del Turno Actual)
               </h2>
             </div>
@@ -486,14 +486,14 @@ export const CashShiftPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b text-[#897863] uppercase tracking-wider font-semibold">
+                <tr className="border-b text-brand-muted uppercase tracking-wider font-semibold">
                   <th className="py-2 px-3">Hora</th>
                   <th className="py-2 px-3">Responsable</th>
                   <th className="py-2 px-3">Concepto / Motivo</th>
                   <th className="py-2 px-3 text-right">Monto Retirado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-[#364266]">
+              <tbody className="divide-y divide-gray-100 text-brand-primary">
                 {currentShift.movements.map(m => (
                   <tr key={m.id} className="hover:bg-red-50/30">
                     <td className="py-2.5 px-3 font-mono">{formatTime(m.created_at)}</td>
@@ -511,29 +511,29 @@ export const CashShiftPage: React.FC = () => {
       )}
 
       {/* Shift History Table with REPRINT Buttons */}
-      <div className="bg-white p-6 rounded-3xl border border-[#364266]/10 shadow-sm space-y-4">
+      <div className="bg-white p-6 rounded-3xl border border-brand-primary/10 shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <History size={20} className="text-[#364266]" />
-            <h2 className="font-serif font-bold text-lg text-[#364266]">
+            <History size={20} className="text-brand-primary" />
+            <h2 className="font-serif font-bold text-lg text-brand-primary">
               Historial de Cierres de Caja (Reportes Z Anteriores)
             </h2>
           </div>
           <button
             onClick={loadHistory}
-            className="text-xs text-[#364266] font-bold hover:underline flex items-center gap-1"
+            className="text-xs text-brand-primary font-bold hover:underline flex items-center gap-1"
           >
             <RotateCcw size={13} /> Actualizar
           </button>
         </div>
 
         {history.length === 0 ? (
-          <p className="text-xs text-[#897863] py-4">No hay turnos cerrados registrados previamente.</p>
+          <p className="text-xs text-brand-muted py-4">No hay turnos cerrados registrados previamente.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b text-[#897863] uppercase tracking-wider font-semibold">
+                <tr className="border-b text-brand-muted uppercase tracking-wider font-semibold">
                   <th className="py-2.5 px-3"># Turno</th>
                   <th className="py-2.5 px-3">Cajero</th>
                   <th className="py-2.5 px-3">Apertura</th>
@@ -544,9 +544,9 @@ export const CashShiftPage: React.FC = () => {
                   <th className="py-2.5 px-3 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-[#364266]">
+              <tbody className="divide-y divide-gray-100 text-brand-primary">
                 {history.map(s => (
-                  <tr key={s.id} className="hover:bg-[#FAF8EA]/50">
+                  <tr key={s.id} className="hover:bg-brand-card/50">
                     <td className="py-3 px-3 font-bold">#{s.id}</td>
                     <td className="py-3 px-3 font-medium">{s.cashier_name}</td>
                     <td className="py-3 px-3">{s.opened_at ? formatTime(s.opened_at) : '-'}</td>
@@ -565,7 +565,7 @@ export const CashShiftPage: React.FC = () => {
                     <td className="py-3 px-3 text-center">
                       <button
                         onClick={() => handlePrintZReport(s)}
-                        className="px-2.5 py-1 rounded-xl bg-white border border-[#364266]/20 hover:bg-[#FAF8EA] text-[#364266] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
+                        className="px-2.5 py-1 rounded-xl bg-white border border-brand-primary/20 hover:bg-brand-card text-brand-primary text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
                         title="Reimprimir Reporte Z en impresora térmica"
                       >
                         <Printer size={13} />
@@ -595,10 +595,10 @@ export const CashShiftPage: React.FC = () => {
                   <MinusCircle size={22} />
                 </div>
                 <div>
-                  <h3 className="font-serif font-bold text-lg text-[#364266]">
+                  <h3 className="font-serif font-bold text-lg text-brand-primary">
                     Registrar Retiro / Gasto de Caja
                   </h3>
-                  <p className="text-xs text-[#897863]">
+                  <p className="text-xs text-brand-muted">
                     Salida de dinero menor (agua, frutas, aseo, compras de emergencia)
                   </p>
                 </div>
@@ -607,7 +607,7 @@ export const CashShiftPage: React.FC = () => {
               <div className="space-y-3 text-xs">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="font-bold text-[#364266]">Monto a Retirar (COP) *</label>
+                    <label className="font-bold text-brand-primary">Monto a Retirar (COP) *</label>
                     <div className="flex gap-1">
                       {['10000', '20000', '50000', '100000'].map((amt) => (
                         <button
@@ -617,7 +617,7 @@ export const CashShiftPage: React.FC = () => {
                           className={cn(
                             "px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all",
                             withdrawalAmount === amt
-                              ? "bg-[#242D49] text-[#FEF3DE] border-[#242D49]"
+                              ? "bg-brand-dark text-brand-bg border-brand-dark"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           )}
                         >
@@ -641,7 +641,7 @@ export const CashShiftPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#364266]">Motivo / Concepto del Gasto *</label>
+                  <label className="font-bold text-brand-primary">Motivo / Concepto del Gasto *</label>
                   <input
                     type="text"
                     value={withdrawalReason}
@@ -680,18 +680,18 @@ export const CashShiftPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-[#364266]/10 space-y-4"
+              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-brand-primary/10 space-y-4"
             >
-              <h3 className="font-serif font-bold text-xl text-[#364266]">
+              <h3 className="font-serif font-bold text-xl text-brand-primary">
                 Abrir Nuevo Turno de Caja
               </h3>
-              <p className="text-xs text-[#897863]">
+              <p className="text-xs text-brand-muted">
                 Define la base inicial en efectivo para cambio en la gaveta.
               </p>
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="font-bold text-[#364266]">Nombre del Cajero / Responsable</label>
+                  <label className="font-bold text-brand-primary">Nombre del Cajero / Responsable</label>
                   <input
                     type="text"
                     value={cashierNameInput}
@@ -703,7 +703,7 @@ export const CashShiftPage: React.FC = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="font-bold text-[#364266]">Base Inicial en Efectivo (COP)</label>
+                    <label className="font-bold text-brand-primary">Base Inicial en Efectivo (COP)</label>
                     <div className="flex gap-1 overflow-x-auto">
                       {['100000', '200000', '300000', '400000', '500000'].map((amt) => (
                         <button
@@ -713,7 +713,7 @@ export const CashShiftPage: React.FC = () => {
                           className={cn(
                             "px-2 py-0.5 rounded-lg border text-[10px] font-bold transition-all",
                             initialBaseInput === amt
-                              ? "bg-[#242D49] text-[#FEF3DE] border-[#242D49]"
+                              ? "bg-brand-dark text-brand-bg border-brand-dark"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           )}
                         >
@@ -727,7 +727,7 @@ export const CashShiftPage: React.FC = () => {
                     value={initialBaseInput}
                     onChange={(e) => setInitialBaseInput(e.target.value)}
                     placeholder="100000"
-                    className="w-full mt-1 p-2.5 rounded-xl border border-gray-200 text-base font-bold text-[#364266]"
+                    className="w-full mt-1 p-2.5 rounded-xl border border-gray-200 text-base font-bold text-brand-primary"
                   />
                   {Number(initialBaseInput) > 0 && (
                     <p className="text-xs font-bold text-emerald-700 mt-1 font-mono">
@@ -746,7 +746,7 @@ export const CashShiftPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleOpenNewShift}
-                  className="flex-1 py-2.5 rounded-xl bg-[#364266] text-[#FEF3DE] text-xs font-semibold hover:bg-[#242D49]"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-primary text-brand-bg text-xs font-semibold hover:bg-brand-dark"
                 >
                   Confirmar Apertura
                 </button>
@@ -769,13 +769,13 @@ export const CashShiftPage: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto text-2xl font-bold">
                 ✓
               </div>
-              <h3 className="font-serif font-bold text-xl text-[#364266]">Tirilla de Cierre (Reporte Z)</h3>
+              <h3 className="font-serif font-bold text-xl text-brand-primary">Tirilla de Cierre (Reporte Z)</h3>
 
-              <div className="p-4 rounded-2xl bg-[#FAF8EA] border border-dashed border-[#364266]/25 text-left font-mono text-xs text-[#364266] space-y-2">
-                <div className="text-center pb-2 border-b border-dashed border-[#364266]/20">
+              <div className="p-4 rounded-2xl bg-brand-card border border-dashed border-brand-primary/25 text-left font-mono text-xs text-brand-primary space-y-2">
+                <div className="text-center pb-2 border-b border-dashed border-brand-primary/20">
                   <p className="font-bold text-sm font-serif">{businessName}</p>
-                  <p className="text-[10px] text-[#897863]">CIERRE DE CAJA — REPORTE Z</p>
-                  <p className="text-[10px] text-[#897863]">{formatFullDate(new Date().toISOString())}</p>
+                  <p className="text-[10px] text-brand-muted">CIERRE DE CAJA — REPORTE Z</p>
+                  <p className="text-[10px] text-brand-muted">{formatFullDate(new Date().toISOString())}</p>
                 </div>
 
                 <div className="text-[11px] space-y-0.5">
@@ -783,7 +783,7 @@ export const CashShiftPage: React.FC = () => {
                   <p><strong>Total Pedidos:</strong> {closedTicket.totalOrders || closedTicket.total_orders}</p>
                 </div>
 
-                <div className="py-2 border-t border-b border-dashed border-[#364266]/20 space-y-1">
+                <div className="py-2 border-t border-b border-dashed border-brand-primary/20 space-y-1">
                   <div className="flex justify-between">
                     <span>Base Inicial:</span>
                     <span>{formatPrice(closedTicket.initialCash || closedTicket.initial_cash || 0)}</span>
@@ -817,7 +817,7 @@ export const CashShiftPage: React.FC = () => {
                     <span>GRAN TOTAL:</span>
                     <span>{formatPrice(closedTicket.totalSales || closedTicket.total_sales || 0)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-[#897863]">
+                  <div className="flex justify-between text-xs text-brand-muted">
                     <span>Esperado Gaveta:</span>
                     <span>{formatPrice(closedTicket.expectedCash || closedTicket.expected_cash || 0)}</span>
                   </div>
@@ -843,7 +843,7 @@ export const CashShiftPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setClosedTicket(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-[#364266] text-[#FEF3DE] font-semibold text-xs hover:bg-[#242D49]"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-primary text-brand-bg font-semibold text-xs hover:bg-brand-dark"
                 >
                   Cerrar
                 </button>

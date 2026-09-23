@@ -54,7 +54,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
       <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[92vh] font-sans animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between shrink-0 bg-white">
-          <h2 className="font-bold text-base sm:text-lg text-[#242D49]">Configuración de impresión</h2>
+          <h2 className="font-bold text-base sm:text-lg text-brand-dark">Configuración de impresión</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors"
@@ -72,7 +72,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
             <select
               value={paperSize}
               onChange={(e) => setPaperSize(e.target.value as any)}
-              className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-300 text-xs sm:text-sm font-semibold text-[#242D49] focus:outline-none focus:ring-2 focus:ring-[#0091FF]"
+              className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-300 text-xs sm:text-sm font-semibold text-brand-dark focus:outline-none focus:ring-2 focus:ring-[#0091FF]"
             >
               <option value="80mm">80 mm (Estándar Térmica - Corto Ahorro Papel)</option>
               <option value="58mm">58 mm (Mini Térmica 58mm)</option>
@@ -88,15 +88,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
           >
             {/* Header */}
             <div className="text-center pb-1.5 border-b border-gray-300">
-              <p className="font-bold text-[10.5px] tracking-tight text-[#242D49]">{businessName}</p>
-              <p className="font-bold text-[10px] text-[#242D49]">{businessSlogan.toUpperCase()}</p>
+              <p className="font-bold text-[10.5px] tracking-tight text-brand-dark">{businessName}</p>
+              <p className="font-bold text-[10px] text-brand-dark">{businessSlogan.toUpperCase()}</p>
               <p className="text-[9px] text-gray-600">NIT: {businessNit} • {businessAddress}</p>
               <p className="text-[9px] text-gray-600">Tel: {businessPhone}</p>
             </div>
 
             {/* Document Info */}
             <div className="text-center py-0.5 border-b border-gray-300">
-              <p className="font-bold text-[11px] text-[#242D49]">Doc. Ingreso No. {docNumber}</p>
+              <p className="font-bold text-[11px] text-brand-dark">Doc. Ingreso No. {docNumber}</p>
               <p className="text-[9px] text-gray-500">{formattedDate} {formattedTime}</p>
             </div>
 
@@ -143,7 +143,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
                   <span>-{formatPrice(discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-xs pt-1 border-t border-gray-300 text-[#242D49]">
+              <div className="flex justify-between font-bold text-xs pt-1 border-t border-gray-300 text-brand-dark">
                 <span>TOTAL:</span>
                 <span>{formatPrice(total)}</span>
               </div>
@@ -183,14 +183,14 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
         <div className="p-3.5 bg-white border-t border-gray-200 shrink-0 flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#364266] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-brand-primary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
           >
             <span>✓ Siguiente Venta</span>
           </button>
           <button
             onClick={handlePrint}
             disabled={isPrinting}
-            className="flex-1 py-3 rounded-xl bg-[#364266] hover:bg-[#242D49] text-[#FEF3DE] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99] disabled:opacity-50"
+            className="flex-1 py-3 rounded-xl bg-brand-primary hover:bg-brand-dark text-brand-bg font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99] disabled:opacity-50"
           >
             <Printer size={16} />
             <span>{isPrinting ? 'Imprimiendo...' : '🖨️ Imprimir Factura'}</span>

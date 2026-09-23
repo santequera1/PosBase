@@ -20,6 +20,7 @@ import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import ReportsPage from "@/pages/ReportsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import StaffPage from "@/pages/StaffPage";
+import FinancePage from "@/pages/FinancePage";
 import TablesPage from "@/pages/TablesPage";
 import NotFound from "@/pages/NotFound";
 import { io } from "socket.io-client";
@@ -44,6 +45,13 @@ const ProtectedRoutes = () => {
 
   if (!user) return <Navigate to="/login" replace />;
   return <AppLayout />;
+};
+
+// Carga tema, logos y nombre del negocio antes de iniciar sesión (pantalla de acceso)
+const BrandingLoader = () => {
+  const loadPublicBranding = useStore(s => s.loadPublicBranding);
+  useEffect(() => { loadPublicBranding(); }, [loadPublicBranding]);
+  return null;
 };
 
 const SessionRestorer = () => {
@@ -72,6 +80,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <BrandingLoader />
       <SessionRestorer />
       <SocketProvider />
       <BrowserRouter>
@@ -91,6 +100,7 @@ const App = () => (
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customers/:id" element={<CustomerDetailPage />} />
             <Route path="/staff" element={<StaffPage />} />
+            <Route path="/finance" element={<FinancePage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

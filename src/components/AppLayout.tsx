@@ -16,25 +16,33 @@ import {
   X,
   Wallet,
   Store,
+  Landmark,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice, formatTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-const navItems = [
+type NavItem = { path: string; label: string; icon: any; roles?: string[] };
+
+const navItems: NavItem[] = [
   { path: '/pos', label: 'Punto de Venta', icon: Store },
   { path: '/shift', label: 'Cierre de Caja', icon: Wallet },
   { path: '/reports', label: 'Ventas e Ingresos', icon: BarChart3 },
   { path: '/orders', label: 'Historial Pedidos', icon: ClipboardList },
   { path: '/products', label: 'Sabores & Menú', icon: Package },
   { path: '/customers', label: 'Clientes & F.E.', icon: Users },
+  { path: '/finance', label: 'Finanzas', icon: Landmark, roles: ['admin', 'cashier'] },
+  { path: '/staff', label: 'Personal & Nómina', icon: UsersRound, roles: ['admin'] },
   { path: '/settings', label: 'Configuración', icon: Settings },
 ];
+
+const visibleFor = (items: NavItem[], role?: string) => items.filter(i => !i.roles || (role && i.roles.includes(role)));
 
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName } = useStore();
+  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding } = useStore();
+  const visibleNav = visibleFor(navItems, user?.role);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -61,9 +69,9 @@ export const AppLayout = () => {
   const headerML = sidebarCollapsed ? 'lg:left-16' : 'lg:left-64';
 
   return (
-    <div className="min-h-screen bg-[#FEF3DE] text-[#242D49] font-sans">
+    <div className="min-h-screen bg-brand-bg text-brand-dark font-sans">
       {/* Desktop Sidebar */}
-      <aside className={cn('hidden lg:flex flex-col fixed left-0 top-0 bottom-0 bg-[#242D49] text-[#FEF3DE] z-40 transition-all duration-300 shadow-2xl', sideW)}>
+      <aside className={cn('hidden lg:flex flex-col fixed left-0 top-0 bottom-0 bg-brand-dark text-brand-bg z-40 transition-all duration-300 shadow-2xl', sideW)}>
         {/* Sidebar Header with Logo (No background, logo only) */}
         <div className={cn('p-3.5 border-b border-white/10 flex items-center justify-between gap-2', sidebarCollapsed && 'flex-col justify-center')}>
           <button
@@ -71,12 +79,12 @@ export const AppLayout = () => {
             className="flex items-center justify-center flex-1 py-1 hover:opacity-90 transition-opacity"
             title={businessName}
           >
-            <img src="/logo/logo-dark.svg" alt={businessName} className={cn('w-auto object-contain transition-all', sidebarCollapsed ? 'h-8' : 'h-14')} />
+            <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className={cn('w-auto object-contain transition-all', sidebarCollapsed ? 'h-8' : 'h-14')} />
           </button>
 
           <button
             onClick={toggleSidebar}
-            className={cn('w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center text-[#FEF3DE]/70 hover:text-white shrink-0 transition-colors', sidebarCollapsed && 'mt-1')}
+            className={cn('w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center text-brand-bg/70 hover:text-white shrink-0 transition-colors', sidebarCollapsed && 'mt-1')}
             title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
           >
             {sidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
@@ -85,7 +93,7 @@ export const AppLayout = () => {
 
         {/* Sidebar Navigation */}
         <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
-          {navItems.map(item => {
+          {visibleNav.map(item => {
             const active = location.pathname.startsWith(item.path);
             return (
               <button
@@ -94,19 +102,19 @@ export const AppLayout = () => {
                 className={cn(
                   'w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-sm font-semibold transition-all select-none',
                   active
-                    ? 'bg-[#FAF8EA] text-[#242D49] shadow-md font-bold scale-[1.01]'
-                    : 'text-[#FEF3DE]/80 hover:text-white hover:bg-white/10',
+                    ? 'bg-brand-card text-brand-dark shadow-md font-bold scale-[1.01]'
+                    : 'text-brand-bg/80 hover:text-white hover:bg-white/10',
                   sidebarCollapsed && 'justify-center px-0'
                 )}
                 title={sidebarCollapsed ? item.label : undefined}
               >
-                <item.icon size={20} className={active ? 'text-[#344268]' : 'text-[#C6BF81]'} />
+                <item.icon size={20} className={active ? 'text-brand-primary-strong' : 'text-brand-accent'} />
                 {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                 {!sidebarCollapsed && item.path === '/orders' && pendingCount > 0 && (
-                  <span className="ml-auto bg-[#C6BF81] text-[#242D49] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{pendingCount}</span>
+                  <span className="ml-auto bg-brand-accent text-brand-dark text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{pendingCount}</span>
                 )}
                 {sidebarCollapsed && item.path === '/orders' && pendingCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-[#C6BF81] text-[#242D49] text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
+                  <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-brand-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
                 )}
               </button>
             );
@@ -116,13 +124,13 @@ export const AppLayout = () => {
         {/* Sidebar Footer User Info */}
         <div className="p-3 border-t border-white/10 bg-[#1D243B]">
           <div className={cn('flex items-center gap-3 px-2 py-1', sidebarCollapsed && 'justify-center px-0')}>
-            <div className="w-9 h-9 rounded-2xl bg-[#C6BF81] text-[#242D49] flex items-center justify-center text-sm font-bold shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-2xl bg-brand-accent text-brand-dark flex items-center justify-center text-sm font-bold shrink-0 shadow-sm">
               {user?.name?.[0] || 'G'}
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-bold text-white truncate font-sans">{user?.name || 'Administrador'}</p>
-                <p className="text-[11px] text-[#C6BF81] capitalize font-sans">{user?.role || 'Admin'}</p>
+                <p className="text-[11px] text-brand-accent capitalize font-sans">{user?.role || 'Admin'}</p>
               </div>
             )}
             <button
@@ -137,12 +145,12 @@ export const AppLayout = () => {
       </aside>
 
       {/* Tablet Sidebar (icons only) */}
-      <aside className="hidden md:flex lg:hidden flex-col fixed left-0 top-0 bottom-0 w-16 bg-[#242D49] text-[#FEF3DE] z-40 items-center border-r border-white/10 shadow-2xl">
+      <aside className="hidden md:flex lg:hidden flex-col fixed left-0 top-0 bottom-0 w-16 bg-brand-dark text-brand-bg z-40 items-center border-r border-white/10 shadow-2xl">
         <div className="p-3 mt-2 flex items-center justify-center">
-          <img src="/logo/logo-dark.svg" alt={businessName} className="h-7 w-auto object-contain" />
+          <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" />
         </div>
         <nav className="flex-1 flex flex-col items-center gap-1.5 mt-4">
-          {navItems.map(item => {
+          {visibleNav.map(item => {
             const active = location.pathname.startsWith(item.path);
             return (
               <button
@@ -150,13 +158,13 @@ export const AppLayout = () => {
                 onClick={() => navigate(item.path)}
                 className={cn(
                   'w-11 h-11 flex items-center justify-center rounded-2xl transition-all relative',
-                  active ? 'bg-[#FAF8EA] text-[#242D49] shadow-md' : 'text-[#FEF3DE]/80 hover:bg-white/10 hover:text-white'
+                  active ? 'bg-brand-card text-brand-dark shadow-md' : 'text-brand-bg/80 hover:bg-white/10 hover:text-white'
                 )}
                 title={item.label}
               >
-                <item.icon size={20} className={active ? 'text-[#242D49]' : 'text-[#C6BF81]'} />
+                <item.icon size={20} className={active ? 'text-brand-dark' : 'text-brand-accent'} />
                 {item.path === '/orders' && pendingCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-[#C6BF81] text-[#242D49] text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
+                  <span className="absolute -top-0.5 -right-0.5 bg-brand-accent text-brand-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{pendingCount}</span>
                 )}
               </button>
             );
@@ -166,18 +174,18 @@ export const AppLayout = () => {
 
       {/* Topbar (Hidden on POS to avoid double header) */}
       {!isPOS && (
-        <header className={cn('fixed top-0 right-0 left-0 h-14 bg-white/90 backdrop-blur border-b border-[#364266]/10 z-30 flex items-center px-4 gap-3', 'md:left-16', headerML)}>
-          <button onClick={() => navigate('/pos')} className="font-serif font-bold text-base tracking-wide flex-1 md:hidden flex items-center gap-2 text-[#364266]">
-            <img src="/logo/logo-dark.svg" alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
+        <header className={cn('fixed top-0 right-0 left-0 h-14 bg-white/90 backdrop-blur border-b border-brand-primary/10 z-30 flex items-center px-4 gap-3', 'md:left-16', headerML)}>
+          <button onClick={() => navigate('/pos')} className="font-serif font-bold text-base tracking-wide flex-1 md:hidden flex items-center gap-2 text-brand-primary">
+            <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
           </button>
-          <h1 className="font-serif font-bold text-base flex-1 hidden md:block text-[#364266]">
+          <h1 className="font-serif font-bold text-base flex-1 hidden md:block text-brand-primary">
             {navItems.find(n => location.pathname.startsWith(n.path))?.label || businessName}
           </h1>
         {/* Notifications bell */}
         <div className="relative" ref={notifRef}>
           <button onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
             className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" title="Notificaciones">
-            <Bell size={20} className="text-[#364266]" />
+            <Bell size={20} className="text-brand-primary" />
             {pendingCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />}
           </button>
           {showNotifs && (
@@ -210,17 +218,17 @@ export const AppLayout = () => {
         {/* User avatar menu */}
         <div className="relative" ref={userMenuRef}>
           <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}
-            className="w-8 h-8 rounded-full bg-[#364266] text-[#FEF3DE] flex items-center justify-center text-sm font-bold cursor-pointer" title={user?.name}>
+            className="w-8 h-8 rounded-full bg-brand-primary text-brand-bg flex items-center justify-center text-sm font-bold cursor-pointer" title={user?.name}>
             {user?.name?.[0]}
           </button>
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#364266]/10 rounded-2xl shadow-elevated z-50 overflow-hidden">
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-brand-primary/10 rounded-2xl shadow-elevated z-50 overflow-hidden">
               <div className="px-3 py-2 border-b border-gray-100">
-                <p className="text-sm font-bold font-serif text-[#364266]">{user?.name}</p>
-                <p className="text-xs text-[#897863] capitalize">{user?.role}</p>
+                <p className="text-sm font-bold font-serif text-brand-primary">{user?.name}</p>
+                <p className="text-xs text-brand-muted capitalize">{user?.role}</p>
               </div>
               <button onClick={() => { navigate('/settings'); setShowUserMenu(false); }}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-[#FAF8EA] transition-colors flex items-center gap-2 text-[#364266]">
+                className="w-full px-3 py-2 text-left text-sm hover:bg-brand-card transition-colors flex items-center gap-2 text-brand-primary">
                 <Settings size={14} /> Configuración
               </button>
               <button onClick={() => { logout(); navigate('/login'); setShowUserMenu(false); }}
@@ -257,21 +265,24 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
     { path: '/reports', label: 'Reportes', icon: BarChart3 },
   ];
 
-  const moreItems = [
+  const role = useStore(s => s.user?.role);
+  const moreItems = visibleFor([
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/products', label: 'Sabores', icon: Package },
     { path: '/customers', label: 'Clientes', icon: Users },
+    { path: '/finance', label: 'Finanzas', icon: Landmark, roles: ['admin', 'cashier'] },
+    { path: '/staff', label: 'Personal', icon: UsersRound, roles: ['admin'] },
     { path: '/settings', label: 'Config', icon: Settings },
-  ];
+  ], role);
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#364266]/10 z-40 flex items-center justify-around px-2 safe-area-bottom shadow-lg">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-brand-primary/10 z-40 flex items-center justify-around px-2 safe-area-bottom shadow-lg">
         {mainItems.map(item => {
           const active = location.pathname.startsWith(item.path);
           return (
             <button key={item.path} onClick={() => navigate(item.path)}
-              className={cn('flex flex-col items-center gap-0.5 min-w-[48px] py-1', active ? 'text-[#364266] font-bold' : 'text-[#897863]')}>
+              className={cn('flex flex-col items-center gap-0.5 min-w-[48px] py-1', active ? 'text-brand-primary font-bold' : 'text-brand-muted')}>
               <div className="relative">
                 <item.icon size={22} />
                 {item.path === '/orders' && pendingCount > 0 && (
@@ -284,7 +295,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
         })}
 
         <button onClick={() => setShowMore(true)}
-          className={cn('flex flex-col items-center gap-0.5 min-w-[48px] py-1', showMore ? 'text-[#364266] font-bold' : 'text-[#897863]')}>
+          className={cn('flex flex-col items-center gap-0.5 min-w-[48px] py-1', showMore ? 'text-brand-primary font-bold' : 'text-brand-muted')}>
           <Settings size={22} />
           <span className="text-[10px]">Más</span>
         </button>
@@ -295,7 +306,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
         <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setShowMore(false)}>
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 pb-8 safe-area-bottom shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-base text-[#364266]">Menú {businessName}</h3>
+              <h3 className="font-serif font-bold text-base text-brand-primary">Menú {businessName}</h3>
               <button onClick={() => setShowMore(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                 <X size={16} />
               </button>
@@ -306,7 +317,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
                 return (
                   <button key={item.path} onClick={() => { navigate(item.path); setShowMore(false); }}
                     className={cn('flex items-center gap-2.5 p-3 rounded-2xl transition-all',
-                      active ? 'bg-[#364266] text-[#FEF3DE]' : 'bg-[#FAF8EA] hover:bg-[#EFEDD8] text-[#364266]')}>
+                      active ? 'bg-brand-primary text-brand-bg' : 'bg-brand-card hover:bg-brand-card-2 text-brand-primary')}>
                     <item.icon size={20} />
                     <span className="text-xs font-semibold">{item.label}</span>
                   </button>

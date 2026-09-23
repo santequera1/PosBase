@@ -8,6 +8,12 @@ Diseñado especialmente para el flujo de trabajo de heladerías artesanales, gel
 
 ## 🚀 Características Principales
 
+### ✨ Novedades v2.1 — marca blanca, finanzas y nómina
+- **Marca (Ajustes → Marca):** paleta a partir de 3 colores con verificación automática de contraste (WCAG) y ajuste con un clic, 8 presets, tipografías incluidas, de Google Fonts o propias (TTF/OTF/WOFF), logo principal, logo para fondos claros y favicon generado automáticamente desde el logo.
+- **Usuarios (Ajustes → Usuarios):** crear cajeros, cocina y administradores, cambiar contraseñas y desactivar accesos sin perder el historial de caja.
+- **Finanzas:** gastos por categoría (insumos, operativos, nómina), compras a proveedores de contado o a crédito, cuentas por pagar con vencimientos, descuento directo de la caja abierta y estado de resultados mes a mes (ventas − insumos − gastos − nómina = utilidad neta).
+- **Personal y Nómina:** colaboradores con modalidad de pago (por turno, día, hora, quincena o mes), asistencia automática al abrir/cerrar caja, propinas comunes o directas, anticipos vinculados a la caja y liquidación por período que se registra como gasto de nómina.
+
 ### 1. 🍨 Venta Rápida y Personalizada de Helados
 - **Gestión por Tamaños y Envases:** Selección intuitiva de presentación (Vaso 4 oz de 1 sabor, Vaso 6 oz de 2 sabores, Conos Waffle, Litro Familiar, Toppings, Bebidas y Café).
 - **Sabores Múltiples:** Manejo de copas/vasos con hasta 2 sabores divididos automáticamente y prorrateados en precio e inventario.

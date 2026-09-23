@@ -19,6 +19,9 @@ router.post('/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: 'Credenciales inválidas' });
   }
+  if (user.active === 0) {
+    return res.status(401).json({ error: 'Usuario desactivado. Contacta al administrador.' });
+  }
 
   const token = generateToken(user);
   res.json({

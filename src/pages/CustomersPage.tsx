@@ -126,8 +126,8 @@ const CustomersPage = () => {
       {/* Header & Page Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="font-bold text-xl sm:text-2xl text-[#242D49] tracking-tight flex items-center gap-2">
-            <Users size={24} className="text-[#364266]" />
+          <h1 className="font-bold text-xl sm:text-2xl text-brand-dark tracking-tight flex items-center gap-2">
+            <Users size={24} className="text-brand-primary" />
             Directorio de Clientes & F.E.
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -137,7 +137,7 @@ const CustomersPage = () => {
 
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#364266] text-[#FEF3DE] font-semibold text-xs shadow-md hover:bg-[#242D49] hover:shadow-lg transition-all self-start sm:self-auto"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-primary text-brand-bg font-semibold text-xs shadow-md hover:bg-brand-dark hover:shadow-lg transition-all self-start sm:self-auto"
         >
           <Plus size={16} />
           <span>Registrar Cliente / Empresa</span>
@@ -146,18 +146,18 @@ const CustomersPage = () => {
 
       {/* KPI Metrics Summary Bar */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-medium text-gray-500 block">Total Clientes</span>
-            <span className="text-xl lg:text-2xl font-black text-[#242D49] block mt-0.5">{stats.total}</span>
+            <span className="text-xl lg:text-2xl font-black text-brand-dark block mt-0.5">{stats.total}</span>
             <span className="text-[10px] text-gray-400 mt-0.5 block">{stats.totalOrders} pedidos totales</span>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#FAF8EA] border border-[#C6BF81]/30 flex items-center justify-center text-[#364266]">
+          <div className="w-11 h-11 rounded-xl bg-brand-card border border-brand-accent/30 flex items-center justify-center text-brand-primary">
             <Users size={20} />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-medium text-gray-500 block">Clientes VIP / Frecuentes</span>
             <span className="text-xl lg:text-2xl font-black text-[#B0892E] block mt-0.5">{stats.frequent}</span>
@@ -168,21 +168,21 @@ const CustomersPage = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-medium text-gray-500 block">Facturación Electrónica</span>
-            <span className="text-xl lg:text-2xl font-black text-[#364266] block mt-0.5">{stats.companies}</span>
+            <span className="text-xl lg:text-2xl font-black text-brand-primary block mt-0.5">{stats.companies}</span>
             <span className="text-[10px] text-gray-400 mt-0.5 block">Empresas o NIT registrados</span>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/50 flex items-center justify-center text-[#364266]">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/50 flex items-center justify-center text-brand-primary">
             <Building2 size={20} />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-medium text-gray-500 block">Ticket Promedio</span>
-            <span className="text-xl lg:text-2xl font-black text-[#242D49] block mt-0.5">{formatPrice(stats.avgTicket)}</span>
+            <span className="text-xl lg:text-2xl font-black text-brand-dark block mt-0.5">{formatPrice(stats.avgTicket)}</span>
             <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block flex items-center gap-0.5">
               <TrendingUp size={11} /> {formatPrice(stats.totalRevenue)} acumulados
             </span>
@@ -194,7 +194,7 @@ const CustomersPage = () => {
       </div>
 
       {/* Filter and Control Bar */}
-      <div className="bg-white rounded-2xl p-3 border border-[#364266]/10 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl p-3 border border-brand-primary/10 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search */}
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -202,7 +202,7 @@ const CustomersPage = () => {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre, razón social, teléfono, NIT o correo..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#364266] transition-all"
+            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary transition-all"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -218,7 +218,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all',
               activeTab === 'all'
-                ? 'bg-[#364266] text-[#FEF3DE] shadow-sm'
+                ? 'bg-brand-primary text-brand-bg shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -229,7 +229,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1',
               activeTab === 'frequent'
-                ? 'bg-[#364266] text-[#FEF3DE] shadow-sm'
+                ? 'bg-brand-primary text-brand-bg shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -241,7 +241,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1',
               activeTab === 'companies'
-                ? 'bg-[#364266] text-[#FEF3DE] shadow-sm'
+                ? 'bg-brand-primary text-brand-bg shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -253,7 +253,7 @@ const CustomersPage = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all',
               activeTab === 'new'
-                ? 'bg-[#364266] text-[#FEF3DE] shadow-sm'
+                ? 'bg-brand-primary text-brand-bg shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -264,14 +264,14 @@ const CustomersPage = () => {
           <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-xl ml-1 border border-gray-200">
             <button
               onClick={() => setViewMode('table')}
-              className={cn('p-1.5 rounded-lg transition-all', viewMode === 'table' ? 'bg-white text-[#364266] shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+              className={cn('p-1.5 rounded-lg transition-all', viewMode === 'table' ? 'bg-white text-brand-primary shadow-sm' : 'text-gray-400 hover:text-gray-600')}
               title="Vista Tabla Ejecutiva"
             >
               <TableIcon size={14} />
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={cn('p-1.5 rounded-lg transition-all', viewMode === 'cards' ? 'bg-white text-[#364266] shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+              className={cn('p-1.5 rounded-lg transition-all', viewMode === 'cards' ? 'bg-white text-brand-primary shadow-sm' : 'text-gray-400 hover:text-gray-600')}
               title="Vista Tarjetas"
             >
               <LayoutGrid size={14} />
@@ -282,11 +282,11 @@ const CustomersPage = () => {
 
       {/* Main Content: Table View or Cards View */}
       {viewMode === 'table' ? (
-        <div className="bg-white rounded-2xl border border-[#364266]/10 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-brand-primary/10 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-[#242D49] text-[#FEF3DE] font-semibold">
+                <tr className="bg-brand-dark text-brand-bg font-semibold">
                   <th className="py-3 px-4">Cliente / Razón Social</th>
                   <th className="py-3 px-4">Identificación (NIT / CC)</th>
                   <th className="py-3 px-4">Contacto Directo</th>
@@ -300,7 +300,7 @@ const CustomersPage = () => {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-gray-400">
-                      <Users size={32} className="mx-auto mb-2 opacity-40 text-[#364266]" />
+                      <Users size={32} className="mx-auto mb-2 opacity-40 text-brand-primary" />
                       No se encontraron clientes con el filtro seleccionado.
                     </td>
                   </tr>
@@ -314,7 +314,7 @@ const CustomersPage = () => {
                       <tr
                         key={c.id}
                         onClick={() => navigate(`/customers/${c.id}`)}
-                        className="hover:bg-[#FAF8EA]/50 transition-colors group cursor-pointer"
+                        className="hover:bg-brand-card/50 transition-colors group cursor-pointer"
                       >
                         {/* Name & Avatar */}
                         <td className="py-3.5 px-4">
@@ -322,16 +322,16 @@ const CustomersPage = () => {
                             <div className={cn(
                               'w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs',
                               isCompany
-                                ? 'bg-blue-50 text-[#364266] border border-blue-200'
+                                ? 'bg-blue-50 text-brand-primary border border-blue-200'
                                 : isVIP
                                 ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                : 'bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/40'
+                                : 'bg-brand-card text-brand-primary border border-brand-accent/40'
                             )}>
                               {isCompany ? <Building2 size={16} /> : (c.name ? c.name[0].toUpperCase() : 'C')}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-[#242D49] text-xs truncate hover:underline">
+                                <span className="font-bold text-brand-dark text-xs truncate hover:underline">
                                   {c.name}
                                 </span>
                                 {isVIP && (
@@ -340,7 +340,7 @@ const CustomersPage = () => {
                                   </span>
                                 )}
                                 {isCompany && (
-                                  <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-[#364266] text-[10px] font-bold border border-blue-200 shrink-0">
+                                  <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-brand-primary text-[10px] font-bold border border-blue-200 shrink-0">
                                     F.E. DIAN
                                   </span>
                                 )}
@@ -403,7 +403,7 @@ const CustomersPage = () => {
 
                         {/* Total Spent */}
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <span className="font-extrabold text-[#242D49] text-xs block">
+                          <span className="font-extrabold text-brand-dark text-xs block">
                             {formatPrice(c.totalSpent || 0)}
                           </span>
                         </td>
@@ -413,14 +413,14 @@ const CustomersPage = () => {
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => navigate(`/customers/${c.id}`)}
-                              className="p-1.5 rounded-lg hover:bg-[#FAF8EA] text-[#364266] transition-colors"
+                              className="p-1.5 rounded-lg hover:bg-brand-card text-brand-primary transition-colors"
                               title="Ver Perfil 360°"
                             >
                               <ArrowUpRight size={15} />
                             </button>
                             <button
                               onClick={e => openEdit(c, e)}
-                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-[#364266] transition-colors"
+                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-brand-primary transition-colors"
                               title="Editar Datos"
                             >
                               <Edit2 size={14} />
@@ -464,7 +464,7 @@ const CustomersPage = () => {
               <div
                 key={c.id}
                 onClick={() => navigate(`/customers/${c.id}`)}
-                className="bg-white rounded-2xl border border-[#364266]/10 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                className="bg-white rounded-2xl border border-brand-primary/10 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -472,15 +472,15 @@ const CustomersPage = () => {
                       <div className={cn(
                         'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0',
                         isCompany
-                          ? 'bg-blue-50 text-[#364266] border border-blue-200'
+                          ? 'bg-blue-50 text-brand-primary border border-blue-200'
                           : isVIP
                           ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                          : 'bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/40'
+                          : 'bg-brand-card text-brand-primary border border-brand-accent/40'
                       )}>
                         {isCompany ? <Building2 size={18} /> : (c.name ? c.name[0].toUpperCase() : 'C')}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold text-sm text-[#242D49] truncate group-hover:text-[#364266]">
+                        <h4 className="font-bold text-sm text-brand-dark truncate group-hover:text-brand-primary">
                           {c.name}
                         </h4>
                         <span className="text-[11px] text-gray-500 font-mono block">
@@ -496,7 +496,7 @@ const CustomersPage = () => {
                         </span>
                       )}
                       {isCompany && (
-                        <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#364266] text-[10px] font-bold border border-blue-200">
+                        <span className="px-2 py-0.5 rounded-full bg-blue-100 text-brand-primary text-[10px] font-bold border border-blue-200">
                           Empresa
                         </span>
                       )}
@@ -520,7 +520,7 @@ const CustomersPage = () => {
                 <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-gray-400 block">{plural(c.totalOrders || 0, 'pedido')}</span>
-                    <span className="text-xs font-extrabold text-[#242D49]">{formatPrice(c.totalSpent || 0)}</span>
+                    <span className="text-xs font-extrabold text-brand-dark">{formatPrice(c.totalSpent || 0)}</span>
                   </div>
 
                   <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -580,7 +580,7 @@ const CustomersPage = () => {
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
                 <div>
-                  <h2 className="font-bold text-lg text-[#242D49]">
+                  <h2 className="font-bold text-lg text-brand-dark">
                     {editingCustomer ? 'Editar Ficha del Cliente' : 'Nuevo Cliente & Facturación'}
                   </h2>
                   <p className="text-xs text-gray-400">Datos personales y fiscales para emisión de comprobantes</p>
@@ -600,7 +600,7 @@ const CustomersPage = () => {
                   onClick={() => setFormIsCompany(false)}
                   className={cn(
                     'py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all',
-                    !formIsCompany ? 'bg-white text-[#242D49] shadow-xs' : 'text-gray-500 hover:text-gray-800'
+                    !formIsCompany ? 'bg-white text-brand-dark shadow-xs' : 'text-gray-500 hover:text-gray-800'
                   )}
                 >
                   <User size={14} /> Persona Natural
@@ -610,7 +610,7 @@ const CustomersPage = () => {
                   onClick={() => setFormIsCompany(true)}
                   className={cn(
                     'py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all',
-                    formIsCompany ? 'bg-white text-[#242D49] shadow-xs' : 'text-gray-500 hover:text-gray-800'
+                    formIsCompany ? 'bg-white text-brand-dark shadow-xs' : 'text-gray-500 hover:text-gray-800'
                   )}
                 >
                   <Building2 size={14} /> Empresa (NIT)
@@ -627,7 +627,7 @@ const CustomersPage = () => {
                     value={formName}
                     onChange={e => setFormName(e.target.value)}
                     placeholder={formIsCompany ? 'Ej: Mi Empresa SAS' : 'Ej: Juan Pérez'}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-medium"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-medium"
                   />
                 </div>
 
@@ -638,7 +638,7 @@ const CustomersPage = () => {
                     <select
                       value={formDocType}
                       onChange={e => setFormDocType(e.target.value)}
-                      className="w-full px-2.5 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-medium"
+                      className="w-full px-2.5 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-medium"
                     >
                       <option value="CC">Cédula (CC)</option>
                       <option value="NIT">NIT</option>
@@ -652,7 +652,7 @@ const CustomersPage = () => {
                       value={formDocumentId}
                       onChange={e => setFormDocumentId(e.target.value)}
                       placeholder={formIsCompany ? '900000000-1' : '1000000000'}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-mono"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -665,7 +665,7 @@ const CustomersPage = () => {
                       value={formPhone}
                       onChange={e => setFormPhone(e.target.value)}
                       placeholder="300 123 4567"
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs font-mono"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-mono"
                     />
                   </div>
                   <div>
@@ -675,7 +675,7 @@ const CustomersPage = () => {
                       value={formEmail}
                       onChange={e => setFormEmail(e.target.value)}
                       placeholder="facturacion@empresa.com"
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                     />
                   </div>
                 </div>
@@ -687,7 +687,7 @@ const CustomersPage = () => {
                     value={formAddress}
                     onChange={e => setFormAddress(e.target.value)}
                     placeholder="Ej: Centro Histórico, Calle Santo Domingo #33-40"
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                   />
                 </div>
 
@@ -698,7 +698,7 @@ const CustomersPage = () => {
                     value={formNotes}
                     onChange={e => setFormNotes(e.target.value)}
                     placeholder="Ej: Amante del pistacho y avellana, pide siempre sin azúcar..."
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#364266] text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                   />
                 </div>
 
@@ -715,7 +715,7 @@ const CustomersPage = () => {
                     type="button"
                     onClick={handleSave}
                     disabled={!formName.trim() || !formPhone.trim()}
-                    className="px-5 py-2 rounded-xl bg-[#364266] text-[#FEF3DE] text-xs font-bold hover:bg-[#242D49] shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-5 py-2 rounded-xl bg-brand-primary text-brand-bg text-xs font-bold hover:bg-brand-dark shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {editingCustomer ? 'Guardar Cambios' : 'Registrar Cliente'}
                   </button>

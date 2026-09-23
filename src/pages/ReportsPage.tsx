@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/theme';
 import { orderNumber } from '@/lib/orderNumber';
 import React, { useState, useMemo } from 'react';
 import { useStore, type Order } from '@/store/useStore';
@@ -116,11 +117,11 @@ export const ReportsPage: React.FC = () => {
   // Statistics by container/presentation format
   const presentationStats = useMemo(() => {
     const res = {
-      '4oz': { key: '4oz', label: 'Vaso 4 oz', qty: 0, revenue: 0, emoji: '🍨', color: '#364266' },
-      '6oz': { key: '6oz', label: 'Vaso 6 oz', qty: 0, revenue: 0, emoji: '🍨', color: '#242D49' },
+      '4oz': { key: '4oz', label: 'Vaso 4 oz', qty: 0, revenue: 0, emoji: '🍨', color: BRAND.primary },
+      '6oz': { key: '6oz', label: 'Vaso 6 oz', qty: 0, revenue: 0, emoji: '🍨', color: BRAND.dark },
       'cono': { key: 'cono', label: 'Conos', qty: 0, revenue: 0, emoji: '🍦', color: '#B0892E' },
-      'litro': { key: 'litro', label: 'Litro Familiar', qty: 0, revenue: 0, emoji: '🧊', color: '#C6BF81' },
-      'otros': { key: 'otros', label: 'Bebidas & Otros', qty: 0, revenue: 0, emoji: '☕', color: '#897863' },
+      'litro': { key: 'litro', label: 'Litro Familiar', qty: 0, revenue: 0, emoji: '🧊', color: BRAND.accent },
+      'otros': { key: 'otros', label: 'Bebidas & Otros', qty: 0, revenue: 0, emoji: '☕', color: BRAND.muted },
     };
 
     filtered.forEach(o => {
@@ -248,21 +249,21 @@ export const ReportsPage: React.FC = () => {
       {/* Header & Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="font-sans font-bold text-2xl lg:text-3xl text-[#242D49]">
+          <h1 className="font-sans font-bold text-2xl lg:text-3xl text-brand-dark">
             Ventas e ingresos
           </h1>
-          <p className="text-xs text-[#897863] mt-0.5 font-sans">
+          <p className="text-xs text-brand-muted mt-0.5 font-sans">
             Registro de comprobantes, facturas de ingreso y balances de venta
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex bg-[#FAF8EA] p-1 rounded-2xl border border-[#364266]/10">
+          <div className="flex bg-brand-card p-1 rounded-2xl border border-brand-primary/10">
             <button
               onClick={() => setActiveTab('ventas')}
               className={cn(
                 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all',
-                activeTab === 'ventas' ? 'bg-[#364266] text-[#FEF3DE] shadow-sm' : 'text-[#364266] hover:bg-white/60'
+                activeTab === 'ventas' ? 'bg-brand-primary text-brand-bg shadow-sm' : 'text-brand-primary hover:bg-white/60'
               )}
             >
               <FileText size={14} />
@@ -272,7 +273,7 @@ export const ReportsPage: React.FC = () => {
               onClick={() => setActiveTab('graficas')}
               className={cn(
                 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all',
-                activeTab === 'graficas' ? 'bg-[#364266] text-[#FEF3DE] shadow-sm' : 'text-[#364266] hover:bg-white/60'
+                activeTab === 'graficas' ? 'bg-brand-primary text-brand-bg shadow-sm' : 'text-brand-primary hover:bg-white/60'
               )}
             >
               <BarChart3 size={14} />
@@ -282,7 +283,7 @@ export const ReportsPage: React.FC = () => {
 
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#364266]/20 text-xs font-bold text-[#364266] hover:bg-[#FAF8EA] shadow-sm transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-brand-primary/20 text-xs font-bold text-brand-primary hover:bg-brand-card shadow-sm transition-all"
           >
             <Download size={14} />
             <span className="hidden sm:inline">Descargar Excel</span>
@@ -291,7 +292,7 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl p-3 border border-[#364266]/10 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl p-3 border border-brand-primary/10 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search input */}
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -300,7 +301,7 @@ export const ReportsPage: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por N° comprobante (ej. POS-1003), cliente o vendedor..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#364266] font-sans"
+            className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -327,7 +328,7 @@ export const ReportsPage: React.FC = () => {
                 className={cn(
                   'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                   isSelected
-                    ? 'bg-[#364266] text-[#FEF3DE] shadow-sm'
+                    ? 'bg-brand-primary text-brand-bg shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 )}
               >
@@ -341,7 +342,7 @@ export const ReportsPage: React.FC = () => {
             className={cn(
               'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 font-sans',
               period === 'custom'
-                ? 'bg-[#364266] text-[#FEF3DE] shadow-sm'
+                ? 'bg-brand-primary text-brand-bg shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -366,15 +367,15 @@ export const ReportsPage: React.FC = () => {
 
       {/* Custom Date Range Picker */}
       {period === 'custom' && (
-        <div className="bg-[#FAF8EA] p-3 rounded-2xl border border-[#C6BF81]/40 flex items-center gap-3 text-xs font-sans">
-          <span className="font-bold text-[#364266]">Desde:</span>
+        <div className="bg-brand-card p-3 rounded-2xl border border-brand-accent/40 flex items-center gap-3 text-xs font-sans">
+          <span className="font-bold text-brand-primary">Desde:</span>
           <input
             type="date"
             value={customFrom}
             onChange={(e) => setCustomFrom(e.target.value)}
             className="p-1.5 rounded-lg border border-gray-300 bg-white"
           />
-          <span className="font-bold text-[#364266]">Hasta:</span>
+          <span className="font-bold text-brand-primary">Hasta:</span>
           <input
             type="date"
             value={customTo}
@@ -385,12 +386,12 @@ export const ReportsPage: React.FC = () => {
       )}
 
       {/* Top KPI Metrics Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-[#364266]/10 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 border border-brand-primary/10 shadow-sm">
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-left">
           {/* Efectivo */}
           <div className="p-2 border-r border-gray-100 last:border-r-0">
             <span className="text-[11px] font-medium text-gray-500 block font-sans">Efectivo</span>
-            <span className="text-sm lg:text-base font-bold font-sans text-[#242D49] block mt-0.5">
+            <span className="text-sm lg:text-base font-bold font-sans text-brand-dark block mt-0.5">
               {formatPrice(metrics.cash)}
             </span>
           </div>
@@ -398,7 +399,7 @@ export const ReportsPage: React.FC = () => {
           {/* Tarjetas */}
           <div className="p-2 border-r border-gray-100 last:border-r-0">
             <span className="text-[11px] font-medium text-gray-500 block font-sans">Tarjetas</span>
-            <span className="text-sm lg:text-base font-bold font-sans text-[#242D49] block mt-0.5">
+            <span className="text-sm lg:text-base font-bold font-sans text-brand-dark block mt-0.5">
               {formatPrice(metrics.cards)}
             </span>
             <span className="text-[10px] text-gray-400 font-sans block">(Déb: {formatPrice(metrics.debit)})</span>
@@ -407,7 +408,7 @@ export const ReportsPage: React.FC = () => {
           {/* Pagos en línea / QR */}
           <div className="p-2 border-r border-gray-100 last:border-r-0">
             <span className="text-[11px] font-medium text-gray-500 block font-sans">Pagos QR / Transferencia</span>
-            <span className="text-sm lg:text-base font-bold font-sans text-[#242D49] block mt-0.5">
+            <span className="text-sm lg:text-base font-bold font-sans text-brand-dark block mt-0.5">
               {formatPrice(metrics.transfer)}
             </span>
           </div>
@@ -438,22 +439,22 @@ export const ReportsPage: React.FC = () => {
 
           {/* Total Ventas */}
           <div className="p-2 relative col-span-2 sm:col-span-1">
-            <span className="text-[11px] font-bold font-sans text-[#242D49] block">Total ventas</span>
-            <span className="text-base lg:text-lg font-extrabold font-sans text-[#242D49] block mt-0.5">
+            <span className="text-[11px] font-bold font-sans text-brand-dark block">Total ventas</span>
+            <span className="text-base lg:text-lg font-extrabold font-sans text-brand-dark block mt-0.5">
               {formatPrice(metrics.totalSales)}
             </span>
-            <div className="w-full h-1 bg-[#364266] rounded-full mt-1.5" />
+            <div className="w-full h-1 bg-brand-primary rounded-full mt-1.5" />
           </div>
         </div>
       </div>
 
       {/* TAB 1: Comprobantes Table (Brand Palette) */}
       {activeTab === 'ventas' && (
-        <div className="bg-white rounded-2xl border border-[#364266]/10 shadow-sm overflow-hidden font-sans">
+        <div className="bg-white rounded-2xl border border-brand-primary/10 shadow-sm overflow-hidden font-sans">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-[#242D49] text-[#FEF3DE] font-semibold">
+                <tr className="bg-brand-dark text-brand-bg font-semibold">
                   <th className="py-3 px-4">Fecha</th>
                   <th className="py-3 px-4">Nro. Comprobante</th>
                   <th className="py-3 px-4">Tipo Comprobante</th>
@@ -484,7 +485,7 @@ export const ReportsPage: React.FC = () => {
                     return (
                       <tr
                         key={order.id}
-                        className="hover:bg-[#FAF8EA]/60 transition-colors group cursor-pointer"
+                        className="hover:bg-brand-card/60 transition-colors group cursor-pointer"
                         onClick={() => setSelectedInvoice(order)}
                       >
                         {/* Fecha */}
@@ -494,7 +495,7 @@ export const ReportsPage: React.FC = () => {
 
                         {/* Nro Comprobante */}
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="text-[#364266] font-bold font-sans hover:underline">
+                          <span className="text-brand-primary font-bold font-sans hover:underline">
                             {orderNumber(order.id)}
                           </span>
                         </td>
@@ -515,18 +516,18 @@ export const ReportsPage: React.FC = () => {
                         </td>
 
                         {/* Cliente */}
-                        <td className="py-3.5 px-4 text-[#242D49] font-semibold truncate max-w-[150px] font-sans">
+                        <td className="py-3.5 px-4 text-brand-dark font-semibold truncate max-w-[150px] font-sans">
                           {order.customer?.name || 'Consumidor Final'}
                         </td>
 
                         {/* Total Ventas */}
-                        <td className="py-3.5 px-4 text-right font-bold font-sans text-[#242D49] whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-right font-bold font-sans text-brand-dark whitespace-nowrap">
                           {formatPrice(order.total)}
                         </td>
 
                         {/* Métodos de Pago */}
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#FAF8EA] text-[#364266] border border-[#C6BF81]/40 font-sans">
+                          <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-brand-card text-brand-primary border border-brand-accent/40 font-sans">
                             {order.paymentMethod === 'cash' ? 'Efectivo' :
                              order.paymentMethod === 'card_debit' ? 'Tarjeta Débito' :
                              order.paymentMethod === 'card_credit' ? 'Tarjeta Crédito' : 'Transferencia QR'}
@@ -546,7 +547,7 @@ export const ReportsPage: React.FC = () => {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setSelectedInvoice(order)}
-                              className="p-1.5 rounded-lg hover:bg-[#FAF8EA] text-[#364266] transition-colors"
+                              className="p-1.5 rounded-lg hover:bg-brand-card text-brand-primary transition-colors"
                               title="Ver Factura"
                             >
                               <Eye size={15} />
@@ -556,7 +557,7 @@ export const ReportsPage: React.FC = () => {
                                 setSelectedInvoice(order);
                                 
                               }}
-                              className="p-1.5 rounded-lg hover:bg-[#FAF8EA] text-[#364266] transition-colors"
+                              className="p-1.5 rounded-lg hover:bg-brand-card text-brand-primary transition-colors"
                               title="Imprimir"
                             >
                               <Printer size={15} />
@@ -592,10 +593,10 @@ export const ReportsPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 font-sans">
           {/* Tarjetas de Presentaciones / Envases Vendidos en el Período */}
           <div className="col-span-1 lg:col-span-12">
-            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#364266]/10 shadow-sm space-y-3">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-brand-primary/10 shadow-sm space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h3 className="font-bold text-base text-[#242D49] flex items-center gap-2">
+                  <h3 className="font-bold text-base text-brand-dark flex items-center gap-2">
                     <span>🍨</span> Envases y Presentaciones Vendidas en el Período
                   </h3>
                   <p className="text-xs text-gray-500">
@@ -603,7 +604,7 @@ export const ReportsPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                  <div className="text-xs font-semibold text-[#364266] bg-[#FAF8EA] px-3 py-1.5 rounded-xl border border-[#C6BF81]/30">
+                  <div className="text-xs font-semibold text-brand-primary bg-brand-card px-3 py-1.5 rounded-xl border border-brand-accent/30">
                     Total Vasos (4 y 6 oz): <strong>{presentationStats.totalCups} unidades</strong>
                   </div>
                   <div className="text-xs font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl">
@@ -619,15 +620,15 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === 'cups'
-                      ? 'bg-[#364266] text-[#FEF3DE] border-[#364266] shadow-md ring-2 ring-[#364266]/30'
-                      : 'bg-[#FAF8EA]/80 hover:bg-[#FAF8EA] border-[#C6BF81]/40 text-[#242D49]'
+                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      : 'bg-brand-card/80 hover:bg-brand-card border-brand-accent/40 text-brand-dark'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xl">📦</span>
                     <span className={cn(
                       'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                      formatFilter === 'cups' ? 'bg-white/20 text-white' : 'bg-[#364266]/10 text-[#364266]'
+                      formatFilter === 'cups' ? 'bg-white/20 text-white' : 'bg-brand-primary/10 text-brand-primary'
                     )}>
                       Total Vasos
                     </span>
@@ -654,8 +655,8 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === '4oz'
-                      ? 'bg-[#364266] text-[#FEF3DE] border-[#364266] shadow-md ring-2 ring-[#364266]/30'
-                      : 'bg-gray-50/80 hover:bg-[#FAF8EA] border-gray-200 text-[#242D49]'
+                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -689,8 +690,8 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === '6oz'
-                      ? 'bg-[#364266] text-[#FEF3DE] border-[#364266] shadow-md ring-2 ring-[#364266]/30'
-                      : 'bg-gray-50/80 hover:bg-[#FAF8EA] border-gray-200 text-[#242D49]'
+                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -724,8 +725,8 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === 'cono'
-                      ? 'bg-[#364266] text-[#FEF3DE] border-[#364266] shadow-md ring-2 ring-[#364266]/30'
-                      : 'bg-gray-50/80 hover:bg-[#FAF8EA] border-gray-200 text-[#242D49]'
+                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -759,8 +760,8 @@ export const ReportsPage: React.FC = () => {
                   className={cn(
                     'p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden',
                     formatFilter === 'litro'
-                      ? 'bg-[#364266] text-[#FEF3DE] border-[#364266] shadow-md ring-2 ring-[#364266]/30'
-                      : 'bg-gray-50/80 hover:bg-[#FAF8EA] border-gray-200 text-[#242D49]'
+                      ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-md ring-2 ring-brand-primary/30'
+                      : 'bg-gray-50/80 hover:bg-brand-card border-gray-200 text-brand-dark'
                   )}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -789,7 +790,7 @@ export const ReportsPage: React.FC = () => {
                 </div>
 
                 {/* Bebidas & Otros */}
-                <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/80 text-[#242D49] text-left">
+                <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/80 text-brand-dark text-left">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xl">☕</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200/80 text-gray-700">
@@ -814,10 +815,10 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           {/* Top Flavors Sold - With interactive format filter */}
-          <div className="col-span-1 lg:col-span-8 bg-white rounded-2xl p-5 border border-[#364266]/10 shadow-sm flex flex-col justify-between">
+          <div className="col-span-1 lg:col-span-8 bg-white rounded-2xl p-5 border border-brand-primary/10 shadow-sm flex flex-col justify-between">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="font-bold text-base text-[#242D49]">Sabores más vendidos en el período</h3>
+                <h3 className="font-bold text-base text-brand-dark">Sabores más vendidos en el período</h3>
                 <span className="text-xs text-gray-500">
                   {formatFilter === 'all'
                     ? 'Mostrando ranking general (todas las presentaciones combinadas)'
@@ -851,7 +852,7 @@ export const ReportsPage: React.FC = () => {
                     className={cn(
                       'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
                       formatFilter === tab.id
-                        ? 'bg-[#364266] text-[#FEF3DE] shadow-xs'
+                        ? 'bg-brand-primary text-brand-bg shadow-xs'
                         : 'text-gray-600 hover:text-gray-900'
                     )}
                   >
@@ -870,15 +871,15 @@ export const ReportsPage: React.FC = () => {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={flavorStats} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
-                    <XAxis type="number" tick={{ fontSize: 11, fill: '#897863' }} />
-                    <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12, fill: '#242D49', fontWeight: 500 }} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: BRAND.muted }} />
+                    <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12, fill: BRAND.dark, fontWeight: 500 }} />
                     <Tooltip
                       content={({ active, payload }) => {
                         if (!active || !payload || !payload.length) return null;
                         const item = payload[0].payload;
                         return (
-                          <div className="bg-[#242D49] text-white p-3.5 rounded-xl shadow-xl border border-gray-700 text-xs font-sans min-w-[210px]">
-                            <div className="font-bold text-sm text-[#FEF3DE] border-b border-gray-600/60 pb-1.5 mb-1.5 flex items-center justify-between">
+                          <div className="bg-brand-dark text-white p-3.5 rounded-xl shadow-xl border border-gray-700 text-xs font-sans min-w-[210px]">
+                            <div className="font-bold text-sm text-brand-bg border-b border-gray-600/60 pb-1.5 mb-1.5 flex items-center justify-between">
                               <span>{item.name}</span>
                               <span className="text-emerald-400 font-extrabold">{formatPrice(item.revenue || 0)}</span>
                             </div>
@@ -889,7 +890,7 @@ export const ReportsPage: React.FC = () => {
                               </div>
                               {(formatFilter === 'all' || formatFilter === 'cups') && item.breakdown && (
                                 <div className="pt-2 mt-2 border-t border-gray-600/60 space-y-1 text-[11px] text-gray-300">
-                                  <span className="font-bold text-[#C6BF81] block">Desglose por envase:</span>
+                                  <span className="font-bold text-brand-accent block">Desglose por envase:</span>
                                   {item.breakdown['4oz'] > 0 && (
                                     <div className="flex justify-between">
                                       <span>• Vaso 4 oz (1 sabor):</span>
@@ -927,7 +928,7 @@ export const ReportsPage: React.FC = () => {
                         );
                       }}
                     />
-                    <Bar dataKey="qty" fill="#364266" radius={[0, 8, 8, 0]} barSize={22} />
+                    <Bar dataKey="qty" fill={BRAND.primary} radius={[0, 8, 8, 0]} barSize={22} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -935,17 +936,17 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           {/* Payment Methods Distribution - Compact width (4 cols on lg) */}
-          <div className="col-span-1 lg:col-span-4 bg-white rounded-2xl p-5 border border-[#364266]/10 shadow-sm flex flex-col justify-between">
-            <h3 className="font-bold text-base text-[#242D49] mb-4">Distribución por Método de Pago</h3>
+          <div className="col-span-1 lg:col-span-4 bg-white rounded-2xl p-5 border border-brand-primary/10 shadow-sm flex flex-col justify-between">
+            <h3 className="font-bold text-base text-brand-dark mb-4">Distribución por Método de Pago</h3>
             <div className="h-[420px] flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Efectivo', value: metrics.cash, color: '#364266' },
-                      { name: 'T. Débito', value: metrics.debit, color: '#242D49' },
-                      { name: 'T. Crédito', value: metrics.credit, color: '#C6BF81' },
-                      { name: 'QR / Transferencia', value: metrics.transfer, color: '#897863' },
+                      { name: 'Efectivo', value: metrics.cash, color: BRAND.primary },
+                      { name: 'T. Débito', value: metrics.debit, color: BRAND.dark },
+                      { name: 'T. Crédito', value: metrics.credit, color: BRAND.accent },
+                      { name: 'QR / Transferencia', value: metrics.transfer, color: BRAND.muted },
                     ].filter(d => d.value > 0)}
                     dataKey="value"
                     nameKey="name"
@@ -956,10 +957,10 @@ export const ReportsPage: React.FC = () => {
                     paddingAngle={3}
                   >
                     {[
-                      { color: '#364266' },
-                      { color: '#242D49' },
-                      { color: '#C6BF81' },
-                      { color: '#897863' },
+                      { color: BRAND.primary },
+                      { color: BRAND.dark },
+                      { color: BRAND.accent },
+                      { color: BRAND.muted },
                     ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}

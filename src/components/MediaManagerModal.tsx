@@ -161,25 +161,25 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
-          className="bg-[#FAF8EA] rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl border border-[#364266]/15 overflow-hidden"
+          className="bg-brand-card rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl border border-brand-primary/15 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-5 sm:px-6 py-4 bg-[#242D49] text-[#FEF3DE] flex items-center justify-between shrink-0 shadow-md">
+          <div className="px-5 sm:px-6 py-4 bg-brand-dark text-brand-bg flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-[#C6BF81]">
+              <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-brand-accent">
                 <ImageIcon size={22} />
               </div>
               <div>
                 <h2 className="font-bold text-base sm:text-lg leading-tight flex items-center gap-2">
                   <span>Administrador de Imágenes</span>
                   {productName && (
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#C6BF81]/30 text-[#FAF8EA] font-medium truncate max-w-[200px]">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-brand-accent/30 text-brand-card font-medium truncate max-w-[200px]">
                       {productName}
                     </span>
                   )}
                 </h2>
-                <p className="text-xs text-[#FEF3DE]/70">
+                <p className="text-xs text-brand-bg/70">
                   Selecciona una foto del catálogo o sube una imagen propia desde tu equipo
                 </p>
               </div>
@@ -187,23 +187,23 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[#FEF3DE] transition-colors"
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-bg transition-colors"
             >
               <X size={18} />
             </button>
           </div>
 
           {/* Controls Bar: Search, Upload Button, Refresh */}
-          <div className="p-4 bg-white border-b border-[#364266]/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+          <div className="p-4 bg-white border-b border-brand-primary/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
             {/* Search */}
             <div className="relative flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#897863]" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar imagen por sabor o nombre..."
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF8EA] border border-[#364266]/20 focus:outline-none focus:ring-2 focus:ring-[#364266]"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-brand-card border border-brand-primary/20 focus:outline-none focus:ring-2 focus:ring-brand-primary"
               />
               {searchQuery && (
                 <button
@@ -228,7 +228,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-3.5 py-2 rounded-xl bg-[#364266] hover:bg-[#242D49] text-[#FEF3DE] text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl bg-brand-primary hover:bg-brand-dark text-brand-bg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
               >
                 <Upload size={14} />
                 <span>{uploading ? 'Subiendo...' : 'Subir Foto Propia'}</span>
@@ -247,14 +247,14 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
           </div>
 
           {/* Category Pills Bar */}
-          <div className="px-4 py-2 bg-[#FAF8EA] border-b border-[#364266]/10 flex items-center gap-1.5 overflow-x-auto shrink-0">
+          <div className="px-4 py-2 bg-brand-card border-b border-brand-primary/10 flex items-center gap-1.5 overflow-x-auto shrink-0">
             <button
               onClick={() => setSelectedGroup('all')}
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all',
                 selectedGroup === 'all'
-                  ? 'bg-[#242D49] text-[#FEF3DE] shadow-xs'
-                  : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-white/80'
+                  ? 'bg-brand-dark text-brand-bg shadow-xs'
+                  : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-white/80'
               )}
             >
               Todos ({mediaList.length})
@@ -269,8 +269,8 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                   className={cn(
                     'px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all',
                     selectedGroup === grp
-                      ? 'bg-[#242D49] text-[#FEF3DE] shadow-xs'
-                      : 'bg-white text-[#364266] border border-[#364266]/15 hover:bg-white/80'
+                      ? 'bg-brand-dark text-brand-bg shadow-xs'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-white/80'
                   )}
                 >
                   {grp} ({count})
@@ -282,13 +282,13 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
           {/* Media Grid */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5">
             {loading ? (
-              <div className="h-64 flex flex-col items-center justify-center gap-2 text-[#897863]">
-                <RefreshCw size={24} className="animate-spin text-[#364266]" />
+              <div className="h-64 flex flex-col items-center justify-center gap-2 text-brand-muted">
+                <RefreshCw size={24} className="animate-spin text-brand-primary" />
                 <span className="text-xs font-semibold">Cargando catálogo de imágenes...</span>
               </div>
             ) : filteredMedia.length === 0 ? (
               <div className="h-64 flex flex-col items-center justify-center gap-3 text-center p-6 text-gray-400">
-                <Folder size={36} className="text-[#C6BF81]/70" />
+                <Folder size={36} className="text-brand-accent/70" />
                 <p className="text-sm font-semibold text-gray-600">No se encontraron imágenes en este grupo</p>
                 <p className="text-xs text-gray-400 max-w-sm">
                   Prueba cambiando de filtro o usa el botón "Subir Foto Propia" para agregar una nueva desde tu dispositivo.
@@ -305,19 +305,19 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                       className={cn(
                         'group relative bg-white rounded-2xl p-2.5 flex flex-col justify-between cursor-pointer border-2 transition-all select-none shadow-xs',
                         isSelected
-                          ? 'border-[#364266] ring-2 ring-[#364266]/30 bg-blue-50/20 shadow-md scale-[1.02]'
-                          : 'border-transparent hover:border-[#C6BF81] hover:shadow-sm'
+                          ? 'border-brand-primary ring-2 ring-brand-primary/30 bg-blue-50/20 shadow-md scale-[1.02]'
+                          : 'border-transparent hover:border-brand-accent hover:shadow-sm'
                       )}
                     >
                       {/* Checkmark when selected */}
                       {isSelected && (
-                        <div className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full bg-[#364266] text-white flex items-center justify-center shadow-md">
+                        <div className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full bg-brand-primary text-white flex items-center justify-center shadow-md">
                           <Check size={12} strokeWidth={3} />
                         </div>
                       )}
 
                       {/* Image Thumbnail */}
-                      <div className="w-full h-24 sm:h-28 rounded-xl bg-[#FAF8EA]/40 flex items-center justify-center overflow-hidden mb-1.5 p-1">
+                      <div className="w-full h-24 sm:h-28 rounded-xl bg-brand-card/40 flex items-center justify-center overflow-hidden mb-1.5 p-1">
                         <img
                           src={item.url}
                           alt={item.name}
@@ -328,10 +328,10 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
 
                       {/* Title & Group */}
                       <div className="pt-1 border-t border-gray-100">
-                        <p className="text-xs font-bold text-[#242D49] truncate leading-tight">
+                        <p className="text-xs font-bold text-brand-dark truncate leading-tight">
                           {item.name}
                         </p>
-                        <span className="text-[10px] text-[#897863] truncate block mt-0.5">
+                        <span className="text-[10px] text-brand-muted truncate block mt-0.5">
                           {item.group}
                         </span>
                       </div>
@@ -343,20 +343,20 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
           </div>
 
           {/* Footer with Selected Preview & Confirm Button */}
-          <div className="px-5 py-3.5 bg-white border-t border-[#364266]/10 flex items-center justify-between shrink-0 gap-3">
+          <div className="px-5 py-3.5 bg-white border-t border-brand-primary/10 flex items-center justify-between shrink-0 gap-3">
             <div className="flex items-center gap-3 min-w-0">
               {selectedUrl ? (
                 <>
-                  <div className="w-10 h-10 rounded-xl border border-[#364266]/20 bg-[#FAF8EA] overflow-hidden shrink-0 flex items-center justify-center p-0.5">
+                  <div className="w-10 h-10 rounded-xl border border-brand-primary/20 bg-brand-card overflow-hidden shrink-0 flex items-center justify-center p-0.5">
                     <img src={selectedUrl} alt="Seleccionada" className="max-h-full max-w-full object-contain" />
                   </div>
                   <div className="truncate">
-                    <span className="text-[10px] uppercase font-bold text-[#897863] block">Imagen Seleccionada</span>
-                    <span className="text-xs font-bold text-[#242D49] font-mono truncate block">{selectedUrl}</span>
+                    <span className="text-[10px] uppercase font-bold text-brand-muted block">Imagen Seleccionada</span>
+                    <span className="text-xs font-bold text-brand-dark font-mono truncate block">{selectedUrl}</span>
                   </div>
                 </>
               ) : (
-                <span className="text-xs text-[#897863] italic">Ninguna imagen seleccionada</span>
+                <span className="text-xs text-brand-muted italic">Ninguna imagen seleccionada</span>
               )}
             </div>
 
@@ -373,7 +373,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                 type="button"
                 onClick={handleApply}
                 disabled={!selectedUrl}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#364266] to-[#242D49] text-[#FEF3DE] font-bold text-xs shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-primary to-brand-dark text-brand-bg font-bold text-xs shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 <Sparkles size={14} />
                 <span>Aplicar a este Producto</span>
