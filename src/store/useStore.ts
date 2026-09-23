@@ -1,0 +1,546 @@
+import { create } from 'zustand';
+import { api, setToken } from '@/lib/api';
+
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderType = 'dine-in' | 'pickup' | 'delivery';
+export type PaymentMethod = 'cash' | 'card_debit' | 'card_credit' | 'card' | 'transfer' | 'mixed';
+export type UserRole = 'admin' | 'cashier' | 'kitchen';
+
+export interface PaymentSplit {
+  method1: PaymentMethod;
+  amount1: number;
+  method2: PaymentMethod;
+  amount2: number;
+}
+
+export interface CashMovement {
+  id: number;
+  shift_id: number;
+  type: 'withdrawal' | 'deposit';
+  amount: number;
+  reason: string;
+  cashier_name?: string;
+  created_at: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+}
+
+export interface ProductSize {
+  name: string;
+  price: number;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  categoryId: number;
+  price: number;
+  available: boolean;
+  image: string | null;
+  description?: string;
+  sizes?: ProductSize[] | null;
+  color_bg?: string;
+  color_accent?: string;
+  featured?: boolean;
+}
+
+export interface Customer {
+  id: number;
+  name: string;
+  documentId?: string;
+  email?: string;
+  phone: string;
+  address: string;
+  notes: string;
+  isCompany?: boolean;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrder: string;
+  tag: 'frequent' | 'new' | 'regular';
+}
+
+export interface OrderItem {
+  productId: number;
+  name: string;
+  size?: string;
+  flavors?: string;
+  quantity: number;
+  price: number;
+  notes: string;
+}
+
+export interface Order {
+  id: number;
+  type: OrderType;
+  status: OrderStatus;
+  customer: {
+    name: string;
+    doc?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    isElectronicInvoice?: boolean;
+  };
+  tableNumber?: number;
+  items: OrderItem[];
+  subtotal: number;
+  deliveryFee: number;
+  discount?: number;
+  total: number;
+  paymentMethod: PaymentMethod;
+  paymentSplit?: PaymentSplit;
+  paymentStatus: 'pending' | 'paid';
+  cashReceived?: number;
+  cashChange?: number;
+  createdAt: string;
+  driverId?: number;
+  receiptImage?: string;
+  notes?: string;
+  shiftId?: number;
+}
+
+export interface CashShift {
+  id: number;
+  userId?: number;
+  cashierName: string;
+  openedAt?: string;
+  closedAt?: string;
+  initialCash: number;
+  expectedCash: number;
+  actualCash: number;
+  difference: number;
+  cashSales: number;
+  debitSales: number;
+  creditSales: number;
+  transferSales: number;
+  totalSales: number;
+  totalOrders: number;
+  totalWithdrawals?: number;
+  totalDeposits?: number;
+  movements?: CashMovement[];
+  status: 'open' | 'closed';
+  notes?: string;
+  flavorStats?: Array<{ name: string; size?: string; flavors?: string; qty: number; revenue: number }>;
+}
+
+export interface Driver {
+  id: number;
+  name: string;
+  phone: string;
+  available: boolean;
+}
+
+interface AppState {
+  user: { name: string; role: UserRole } | null;
+  restoring: boolean;
+  categories: Category[];
+  products: Product[];
+  customers: Customer[];
+  orders: Order[];
+  drivers: Driver[];
+  currentShift: CashShift | null;
+  deliveryFee: number;
+  tableCount: number;
+  businessName: string;
+  businessSlogan: string;
+  businessAddress: string;
+  businessPhone: string;
+  businessNit: string;
+  invoicePrefix: string;
+  initialized: boolean;
+  sidebarCollapsed: boolean;
+
+  // Auth
+  loginWithCredentials: (username: string, password: string) => Promise<void>;
+  login: (role: UserRole) => void;
+  logout: () => void;
+  restoreSession: () => Promise<void>;
+
+  // Data loading
+  initialize: () => Promise<void>;
+  refreshOrders: () => Promise<void>;
+  refreshCurrentShift: () => Promise<void>;
+
+  // Orders
+  addOrder: (order: Omit<Order, 'id' | 'createdAt'>) => Promise<number>;
+  updateOrderStatus: (id: number, status: OrderStatus) => void;
+  updatePaymentStatus: (id: number, paymentStatus: 'pending' | 'paid', paymentMethod?: PaymentMethod) => void;
+  updateOrderCustomer: (id: number, data: { name?: string; phone?: string; address?: string; doc?: string; email?: string }) => void;
+  updateOrderNotes: (id: number, notes: string) => void;
+  uploadReceipt: (id: number, receiptImage: string) => void;
+  assignDriver: (orderId: number, driverId: number) => void;
+  deleteOrder: (id: number) => void;
+  deleteOrders: (ids: number[]) => void;
+  updateOrdersStatus: (ids: number[], status: OrderStatus) => void;
+
+  // Shifts
+  openShift: (initialCash: number, cashierName?: string, notes?: string) => Promise<void>;
+  closeShift: (actualCash: number, notes?: string) => Promise<CashShift>;
+  addCashMovement: (amount: number, reason: string, type?: 'withdrawal' | 'deposit') => Promise<void>;
+
+  // Products
+  addProduct: (product: Omit<Product, 'id'>) => void;
+  updateProduct: (id: number, data: Partial<Product>) => void;
+  deleteProduct: (id: number) => void;
+  toggleProductAvailability: (id: number) => void;
+
+  // Categories
+  addCategory: (category: Omit<Category, 'id'>) => void;
+  updateCategory: (id: number, data: Partial<Category>) => void;
+  deleteCategory: (id: number) => void;
+
+  // Customers
+  addCustomer: (customer: Omit<Customer, 'id' | 'totalOrders' | 'totalSpent' | 'lastOrder' | 'tag'>) => void;
+  updateCustomer: (id: number, data: Partial<Customer>) => void;
+  deleteCustomer: (id: number) => void;
+  findCustomerByPhone: (phone: string) => Customer | undefined;
+  findCustomerByDoc: (doc: string) => Customer | undefined;
+
+  // Drivers
+  addDriver: (driver: Omit<Driver, 'id'>) => void;
+  updateDriver: (id: number, data: Partial<Driver>) => void;
+  deleteDriver: (id: number) => void;
+
+  // UI
+  toggleSidebar: () => void;
+
+  // Socket handler
+  handleOrderEvent: (order: Order) => void;
+}
+
+export const useStore = create<AppState>((set, get) => ({
+  user: null,
+  restoring: true,
+  categories: [],
+  products: [],
+  customers: [],
+  orders: [],
+  drivers: [],
+  currentShift: null,
+  deliveryFee: 5000,
+  tableCount: 8,
+  businessName: 'Mi Heladería',
+  businessSlogan: 'Helado artesanal',
+  businessAddress: '',
+  businessPhone: '',
+  businessNit: '',
+  invoicePrefix: 'POS',
+  initialized: false,
+  sidebarCollapsed: false,
+
+  loginWithCredentials: async (username, password) => {
+    const { token, user } = await api.login(username, password);
+    setToken(token);
+    set({ user: { name: user.name, role: user.role as UserRole } });
+    await get().initialize();
+  },
+
+  login: (role) => {
+    const creds: Record<string, [string, string]> = {
+      admin: ['admin', 'admin123'],
+      cashier: ['cajero', 'cajero123'],
+      kitchen: ['cocina', 'cocina123'],
+    };
+    const [u, p] = creds[role];
+    get().loginWithCredentials(u, p).catch(console.error);
+  },
+
+  logout: () => {
+    setToken(null);
+    set({
+      user: null,
+      restoring: false,
+      initialized: false,
+      categories: [],
+      products: [],
+      customers: [],
+      orders: [],
+      drivers: [],
+      currentShift: null,
+    });
+  },
+
+  restoreSession: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      set({ restoring: false });
+      return;
+    }
+    try {
+      const b64 = token.split('.')[1];
+      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        setToken(null);
+        set({ restoring: false });
+        return;
+      }
+      set({ user: { name: payload.name, role: payload.role as UserRole }, restoring: false });
+      await get().initialize();
+    } catch {
+      setToken(null);
+      set({ restoring: false });
+    }
+  },
+
+  initialize: async () => {
+    try {
+      const [categories, products, customers, orders, settings, drivers, shift] = await Promise.all([
+        api.getCategories().catch(() => []),
+        api.getProducts().catch(() => []),
+        api.getCustomers().catch(() => []),
+        api.getOrders().catch(() => []),
+        api.getSettings().catch(() => ({})),
+        api.getDrivers().catch(() => []),
+        api.getCurrentShift().catch(() => null),
+      ]);
+      set({
+        categories,
+        products,
+        customers,
+        orders,
+        drivers,
+        currentShift: shift,
+        deliveryFee: settings.deliveryFee ? Number(settings.deliveryFee) : 5000,
+        tableCount: settings.tableCount ? Number(settings.tableCount) : 8,
+        businessName: settings.businessName || 'Mi Heladería',
+        businessSlogan: settings.businessSlogan || 'Helado artesanal',
+        businessAddress: settings.businessAddress ? String(settings.businessAddress) : '',
+        businessPhone: settings.businessPhone ? String(settings.businessPhone) : '',
+        businessNit: settings.businessNit ? String(settings.businessNit) : '',
+        invoicePrefix: settings.invoicePrefix ? String(settings.invoicePrefix) : 'POS',
+        initialized: true,
+      });
+    } catch (err) {
+      console.error('Error initializing data:', err);
+    }
+  },
+
+  refreshOrders: async () => {
+    try {
+      const orders = await api.getOrders();
+      set({ orders });
+    } catch (err) {
+      console.error('Error refreshing orders:', err);
+    }
+  },
+
+  refreshCurrentShift: async () => {
+    try {
+      const shift = await api.getCurrentShift();
+      set({ currentShift: shift });
+    } catch (err) {
+      console.error('Error refreshing shift:', err);
+    }
+  },
+
+  addOrder: async (order) => {
+    try {
+      const created = await api.addOrder(order);
+      set(s => {
+        if (s.orders.some(o => o.id === created.id)) return s;
+        return { orders: [created, ...s.orders] };
+      });
+      // Refresh shift stats in background
+      get().refreshCurrentShift();
+      return created.id;
+    } catch (err) {
+      console.error('Error creating order:', err);
+      return -1;
+    }
+  },
+
+  updateOrderStatus: (id, status) => {
+    set(s => ({ orders: s.orders.map(o => o.id === id ? { ...o, status } : o) }));
+    api.updateOrderStatus(id, status).then(() => {
+      get().refreshCurrentShift();
+    }).catch(err => {
+      console.error('Error updating order status:', err);
+      get().refreshOrders();
+    });
+  },
+
+  updatePaymentStatus: (id, paymentStatus, paymentMethod) => {
+    set(s => ({ orders: s.orders.map(o => o.id === id ? { ...o, paymentStatus, ...(paymentMethod ? { paymentMethod } : {}) } : o) }));
+    api.updatePaymentStatus(id, paymentStatus, paymentMethod).then(() => {
+      get().refreshCurrentShift();
+    }).catch(err => {
+      console.error('Error updating payment status:', err);
+      get().refreshOrders();
+    });
+  },
+
+  updateOrderCustomer: (id, data) => {
+    set(s => ({ orders: s.orders.map(o => o.id === id ? { ...o, customer: { ...o.customer, ...data } } : o) }));
+    api.updateOrderCustomer(id, data).catch(err => {
+      console.error('Error updating order customer:', err);
+      get().refreshOrders();
+    });
+  },
+
+  uploadReceipt: (id, receiptImage) => {
+    set(s => ({ orders: s.orders.map(o => o.id === id ? { ...o, receiptImage } : o) }));
+    api.uploadReceipt(id, receiptImage).catch(err => {
+      console.error('Error uploading receipt:', err);
+    });
+  },
+
+  updateOrderNotes: (id, notes) => {
+    set(s => ({ orders: s.orders.map(o => o.id === id ? { ...o, notes } : o) }));
+    api.updateOrderNotes(id, notes).catch(err => {
+      console.error('Error updating order notes:', err);
+    });
+  },
+
+  assignDriver: (orderId, driverId) => {
+    set(s => ({ orders: s.orders.map(o => o.id === orderId ? { ...o, driverId } : o) }));
+    api.assignDriver(orderId, driverId).catch(console.error);
+  },
+
+  deleteOrder: (id) => {
+    set(s => ({ orders: s.orders.filter(o => o.id !== id) }));
+    api.deleteOrder(id).then(() => {
+      get().refreshCurrentShift();
+    }).catch(err => {
+      console.error('Error deleting order:', err);
+      get().refreshOrders();
+    });
+  },
+
+  deleteOrders: (ids) => {
+    set(s => ({ orders: s.orders.filter(o => !ids.includes(o.id)) }));
+    Promise.all(ids.map(id => api.deleteOrder(id))).then(() => {
+      get().refreshCurrentShift();
+    }).catch(err => {
+      console.error('Error deleting orders:', err);
+      get().refreshOrders();
+    });
+  },
+
+  updateOrdersStatus: (ids, status) => {
+    set(s => ({ orders: s.orders.map(o => ids.includes(o.id) ? { ...o, status } : o) }));
+    Promise.all(ids.map(id => api.updateOrderStatus(id, status))).then(() => {
+      get().refreshCurrentShift();
+    }).catch(err => {
+      console.error('Error updating orders status:', err);
+      get().refreshOrders();
+    });
+  },
+
+  openShift: async (initialCash, cashierName, notes) => {
+    const shift = await api.openShift({ initialCash, cashierName, notes });
+    set({ currentShift: shift });
+  },
+
+  closeShift: async (actualCash, notes) => {
+    const shift = await api.closeShift({ actualCash, notes });
+    set({ currentShift: null });
+    return shift;
+  },
+
+  addCashMovement: async (amount, reason, type = 'withdrawal') => {
+    const res = await api.addCashMovement({ amount, reason, type });
+    if (res.shift) {
+      set({ currentShift: res.shift });
+    } else {
+      get().refreshCurrentShift();
+    }
+  },
+
+  addProduct: (product) => {
+    api.addProduct(product).then(created => {
+      set(s => ({ products: [...s.products, created] }));
+    }).catch(console.error);
+  },
+
+  updateProduct: (id, data) => {
+    set(s => ({ products: s.products.map(p => p.id === id ? { ...p, ...data } : p) }));
+    api.updateProduct(id, data).catch(console.error);
+  },
+
+  toggleProductAvailability: (id) => {
+    set(s => ({ products: s.products.map(p => p.id === id ? { ...p, available: !p.available } : p) }));
+    api.toggleAvailability(id).catch(console.error);
+  },
+
+  deleteProduct: (id) => {
+    set(s => ({ products: s.products.filter(p => p.id !== id) }));
+    api.deleteProduct(id).catch(console.error);
+  },
+
+  addCategory: (category) => {
+    api.addCategory(category).then(created => {
+      set(s => ({ categories: [...s.categories, created] }));
+    }).catch(console.error);
+  },
+
+  updateCategory: (id, data) => {
+    set(s => ({ categories: s.categories.map(c => c.id === id ? { ...c, ...data } : c) }));
+    api.updateCategory(id, data).catch(console.error);
+  },
+
+  deleteCategory: (id) => {
+    set(s => ({ categories: s.categories.filter(c => c.id !== id) }));
+    api.deleteCategory(id).catch(console.error);
+  },
+
+  addCustomer: (customer) => {
+    api.addCustomer(customer).then(created => {
+      set(s => ({ customers: [...s.customers, created] }));
+    }).catch(console.error);
+  },
+
+  updateCustomer: (id, data) => {
+    set(s => ({ customers: s.customers.map(c => c.id === id ? { ...c, ...data } : c) }));
+    api.updateCustomer(id, data).catch(console.error);
+  },
+
+  deleteCustomer: (id) => {
+    set(s => ({ customers: s.customers.filter(c => c.id !== id) }));
+    api.deleteCustomer(id).catch(console.error);
+  },
+
+  findCustomerByPhone: (phone) => {
+    return get().customers.find(c => c.phone === phone);
+  },
+
+  findCustomerByDoc: (doc) => {
+    return get().customers.find(c => c.documentId === doc);
+  },
+
+  addDriver: (driver) => {
+    api.addDriver(driver).then(created => {
+      set(s => ({ drivers: [...s.drivers, created] }));
+    }).catch(console.error);
+  },
+
+  updateDriver: (id, data) => {
+    set(s => ({ drivers: s.drivers.map(d => d.id === id ? { ...d, ...data } : d) }));
+    api.updateDriver(id, data).catch(console.error);
+  },
+
+  deleteDriver: (id) => {
+    set(s => ({ drivers: s.drivers.filter(d => d.id !== id) }));
+    api.deleteDriver(id).catch(console.error);
+  },
+
+  toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+  handleOrderEvent: (order) => {
+    set(s => {
+      const idx = s.orders.findIndex(o => o.id === order.id);
+      if (idx >= 0) {
+        const updated = [...s.orders];
+        updated[idx] = order;
+        return { orders: updated };
+      }
+      return { orders: [order, ...s.orders] };
+    });
+    get().refreshCurrentShift();
+  },
+}));

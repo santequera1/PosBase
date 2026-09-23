@@ -1,0 +1,261 @@
+/* Tipografías de marca — @font-face */
+@font-face { font-family: 'Lapture'; src: url('/fonts/Lapture-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Lapture'; src: url('/fonts/Lapture-Semibold.otf') format('opentype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Lapture Display'; src: url('/fonts/Lapture-Display.otf') format('opentype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Lapture Display'; src: url('/fonts/Lapture-Display-Semibold.otf') format('opentype'); font-weight: 600; font-display: swap; }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Paleta de marca (ver también tailwind.config.ts)
+       Crema:        #FEF3DE → 40 93% 93%
+       Azul Marino:  #364266 → 224 31% 31%
+       Azul Botón:   #344268 → 224 33% 31%
+       Azul Oscuro:  #242D49 → 225 34% 21%
+       Oliva Dorado: #C6BF81 → 54 38% 64%
+       Café Suave:   #897863 → 34 16% 46%
+       Tarjeta Luz:  #FAF8EA → 53 62% 95%
+    */
+    --background: 40 93% 94%;
+    --foreground: 224 31% 22%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 31% 22%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 31% 22%;
+
+    --primary: 224 33% 31%; /* #344268 */
+    --primary-foreground: 40 93% 95%;
+
+    --secondary: 54 38% 90%;
+    --secondary-foreground: 224 31% 25%;
+
+    --muted: 40 40% 90%;
+    --muted-foreground: 34 16% 46%;
+
+    --accent: 54 38% 64%; /* Oliva #C6BF81 */
+    --accent-foreground: 225 34% 21%;
+
+    --destructive: 340 60% 50%; /* #CC3366 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 25% 84%;
+    --input: 40 25% 84%;
+    --ring: 224 33% 31%;
+
+    --radius: 1rem;
+
+    /* Semantic */
+    --success: 142 65% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+    --info: 210 80% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Order status */
+    --status-pending: 38 92% 50%;
+    --status-preparing: 210 80% 48%;
+    --status-ready: 142 65% 36%;
+    --status-delivered: 224 20% 50%;
+
+    /* Order types */
+    --delivery: 224 33% 31%;
+    --delivery-foreground: 40 93% 95%;
+    --pickup: 54 38% 64%;
+    --pickup-foreground: 225 34% 21%;
+    --dine-in: 142 65% 36%;
+    --dine-in-foreground: 0 0% 100%;
+
+    /* Shadows */
+    --shadow-card: 0 2px 8px rgba(54,66,102,0.06), 0 1px 2px rgba(54,66,102,0.04);
+    --shadow-elevated: 0 8px 24px rgba(54,66,102,0.12);
+    --shadow-fab: 0 10px 30px rgba(52,66,104,0.35);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #364266, #242D49);
+    --gradient-gold: linear-gradient(135deg, #D4CE96, #B5AD6E);
+    --gradient-card: linear-gradient(180deg, #FAF8EA, #F4EED5);
+
+    --sidebar-background: 225 34% 18%;
+    --sidebar-foreground: 40 93% 95%;
+    --sidebar-primary: 54 38% 64%;
+    --sidebar-primary-foreground: 225 34% 18%;
+    --sidebar-accent: 224 30% 25%;
+    --sidebar-accent-foreground: 40 93% 95%;
+    --sidebar-border: 225 25% 26%;
+    --sidebar-ring: 54 38% 64%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Lapture', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+  .font-body {
+    font-family: 'Lapture', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  .font-script {
+    font-family: 'Great Vibes', cursive;
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  .shadow-fab {
+    box-shadow: var(--shadow-fab);
+  }
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  .gradient-gold {
+    background: var(--gradient-gold);
+  }
+}
+
+/* Bottom nav safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 64px);
+  }
+}
+
+/* Kitchen dark theme */
+.kitchen-dark {
+  background-color: #1a2035;
+  color: #fef3de;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(54, 66, 102, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(54, 66, 102, 0.35);
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); opacity: 0.8; }
+  50% { transform: translateY(-10px); opacity: 1; }
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(198, 191, 129, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(198, 191, 129, 0); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+/* Thermal Printing Direct DOM Engine */
+@media screen {
+  #pos-thermal-print-area {
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+@media print {
+  @page {
+    margin: 0mm !important;
+    size: auto !important;
+  }
+  
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  #root,
+  .no-print,
+  .print\:hidden,
+  header,
+  aside,
+  nav,
+  button,
+  .toaster,
+  [data-sonner-toaster],
+  .fixed.inset-0.z-50,
+  .fixed.inset-0.z-50.bg-black\/60,
+  .fixed.inset-0.z-50.bg-black\/70 {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #pos-thermal-print-area {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 50mm !important;
+    max-width: 50mm !important;
+    margin: 0 !important;
+    padding: 1mm 0mm 10mm 0mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, monospace, sans-serif !important;
+    font-size: 8.5px !important;
+    line-height: 1.2 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  #pos-thermal-print-area .text-center { text-align: center; }
+  #pos-thermal-print-area .text-right { text-align: right; }
+  #pos-thermal-print-area .text-left { text-align: left; }
+  #pos-thermal-print-area .font-bold { font-weight: bold; }
+  #pos-thermal-print-area .divider { border-top: 1.2px solid #000; margin: 3px 0; }
+  #pos-thermal-print-area .dashed { border-top: 1px dashed #333; margin: 3px 0; }
+  #pos-thermal-print-area .row { display: flex; justify-content: space-between; align-items: flex-start; margin: 1.5px 0; }
+  #pos-thermal-print-area .item-desc { font-weight: bold; word-break: break-word; }
+  #pos-thermal-print-area .item-flavors { font-size: 8.5px; color: #222; padding-left: 6px; font-style: italic; }
+}

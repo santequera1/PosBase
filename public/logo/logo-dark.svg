@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" width="320" height="96" role="img" aria-label="Logo de ejemplo">
+  <rect x="0" y="0" width="320" height="96" rx="20" fill="#242D49"/>
+  <g transform="translate(52 48)">
+    <circle cx="0" cy="0" r="34" fill="#FEF3DE"/>
+    <circle cx="-10" cy="-8" r="11" fill="#E87A90"/>
+    <circle cx="10" cy="-8" r="11" fill="#C6BF81"/>
+    <circle cx="0" cy="-15" r="11" fill="#F5E6C0" stroke="#364266" stroke-width="1"/>
+    <path d="M-13 2 L13 2 L0 30 Z" fill="#D4A373" stroke="#364266" stroke-width="1"/>
+  </g>
+  <text x="104" y="44" font-family="Georgia, serif" font-size="26" font-weight="700" fill="#FEF3DE">MI HELADERÍA</text>
+  <text x="104" y="70" font-family="Arial, Helvetica, sans-serif" font-size="13" letter-spacing="4" fill="#C6BF81">PUNTO DE VENTA</text>
+</svg>
