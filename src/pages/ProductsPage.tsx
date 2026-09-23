@@ -63,7 +63,7 @@ const ProductsPage = () => {
   };
 
   return (
-    <div className="space-y-4 font-sans p-4 lg:p-6 max-w-7xl mx-auto">
+    <div className="space-y-4 font-sans max-w-7xl mx-auto">
       {/* Header controls */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">

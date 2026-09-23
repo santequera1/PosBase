@@ -178,9 +178,8 @@ export const AppLayout = () => {
           <button onClick={() => navigate('/pos')} className="font-serif font-bold text-base tracking-wide flex-1 md:hidden flex items-center gap-2 text-brand-primary">
             <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
           </button>
-          <h1 className="font-serif font-bold text-base flex-1 hidden md:block text-brand-primary">
-            {navItems.find(n => location.pathname.startsWith(n.path))?.label || businessName}
-          </h1>
+          {/* El título de cada sección lo pone la propia página; aquí solo queda espacio para las acciones */}
+          <div className="flex-1 hidden md:block" />
         {/* Notifications bell */}
         <div className="relative" ref={notifRef}>
           <button onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
@@ -243,7 +242,7 @@ export const AppLayout = () => {
 
       {/* Main content */}
       <main className={cn(isPOS ? 'pt-0 pb-16 md:pb-0 h-[100dvh] overflow-hidden' : 'pt-14 pb-20 md:pb-4 min-h-screen', 'md:ml-16 transition-all duration-300', mainML)}>
-        <div className="p-0 max-w-full h-full">
+        <div className={cn('max-w-full h-full', isPOS ? 'p-0' : 'p-4 lg:p-6')}>
           <Outlet />
         </div>
       </main>
