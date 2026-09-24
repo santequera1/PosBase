@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { getDb } = require('../db');
 const { requireRole } = require('../auth');
 const { registerCashWithdrawal, removeCashMovementIfOpen, today, now, isDate } = require('../cashHelpers');
+const payroll = require('../payroll');
 
 const router = Router();
 const ADMIN = requireRole('admin');
@@ -12,7 +13,8 @@ const PAY_MODE_LABEL = { monthly: 'Sueldo mensual', biweekly: 'Sueldo quincenal'
 const UNIT_LABEL = { monthly: 'mes', biweekly: 'quincena', per_shift: 'turnos', per_day: 'días', hourly: 'horas' };
 
 const EMP_SELECT = `SELECT id, user_id AS userId, name, document, phone, email, position, pay_mode AS payMode, base_amount AS baseAmount,
-  start_date AS startDate, active, notes, created_at AS createdAt FROM employees`;
+  start_date AS startDate, active, notes, created_at AS createdAt, hours_per_day AS hoursPerDay, overtime, legal_deductions AS legalDeductions,
+  transport_allowance AS transportAllowance FROM employees`;
 const ATT_SELECT = `SELECT a.id, a.employee_id AS employeeId, e.name AS employeeName, a.date, a.check_in AS checkIn, a.check_out AS checkOut,
   a.hours, a.shift_id AS shiftId, a.source, a.notes FROM attendance a JOIN employees e ON e.id = a.employee_id`;
 const TIP_SELECT = `SELECT t.id, t.date, t.employee_id AS employeeId, e.name AS employeeName, t.amount, t.method, t.shift_id AS shiftId, t.notes, t.created_at AS createdAt
@@ -22,10 +24,13 @@ const ADV_SELECT = `SELECT a.id, a.employee_id AS employeeId, e.name AS employee
   FROM advances a JOIN employees e ON e.id = a.employee_id`;
 const SET_SELECT = `SELECT s.id, s.employee_id AS employeeId, e.name AS employeeName, e.position, s.period_start AS periodStart, s.period_end AS periodEnd,
   s.pay_mode AS payMode, s.units, s.unit_amount AS unitAmount, s.base_total AS baseTotal, s.tips_total AS tipsTotal, s.advances_total AS advancesTotal,
-  s.bonuses, s.deductions, s.total, s.status, s.paid_at AS paidAt, s.payment_method AS paymentMethod, s.expense_id AS expenseId, s.notes, s.created_at AS createdAt
+  s.bonuses, s.deductions, s.total, s.status, s.paid_at AS paidAt, s.payment_method AS paymentMethod, s.expense_id AS expenseId, s.notes, s.created_at AS createdAt,
+  s.extras_total AS extrasTotal, s.allowance_total AS allowanceTotal, s.legal_deductions_total AS legalDeductionsTotal, s.details
   FROM payroll_settlements s JOIN employees e ON e.id = s.employee_id`;
 
-const mapEmp = r => ({ ...r, active: Boolean(r.active), payModeLabel: PAY_MODE_LABEL[r.payMode] || r.payMode });
+const mapEmp = r => ({ ...r, active: Boolean(r.active), payModeLabel: PAY_MODE_LABEL[r.payMode] || r.payMode, hoursPerDay: Number(r.hoursPerDay) > 0 ? Number(r.hoursPerDay) : 8,
+  overtime: Boolean(r.overtime), legalDeductions: Boolean(r.legalDeductions), transportAllowance: Boolean(r.transportAllowance) });
+const mapSet = r => { let details = null; try { details = r.details ? JSON.parse(r.details) : null; } catch { details = null; } return { ...r, details }; };
 const mapAdv = r => ({ ...r, fromCashRegister: Boolean(r.fromCashRegister), settled: Boolean(r.settled) });
 
 /* ------------------------------------------------------------------ */
@@ -55,6 +60,10 @@ function employeePayload(body, cur = {}) {
     startDate: body.startDate !== undefined ? (isDate(body.startDate) ? body.startDate : null) : (cur.startDate || null),
     active: body.active !== undefined ? (body.active ? 1 : 0) : (cur.active === undefined ? 1 : (cur.active ? 1 : 0)),
     notes: body.notes !== undefined ? String(body.notes).trim() : (cur.notes || ''),
+    hoursPerDay: body.hoursPerDay !== undefined ? Math.min(16, Math.max(1, Number(body.hoursPerDay) || 8)) : (Number(cur.hoursPerDay) > 0 ? Number(cur.hoursPerDay) : 8),
+    overtime: body.overtime !== undefined ? (body.overtime ? 1 : 0) : (cur.overtime === undefined ? 1 : (cur.overtime ? 1 : 0)),
+    legalDeductions: body.legalDeductions !== undefined ? (body.legalDeductions ? 1 : 0) : (cur.legalDeductions ? 1 : 0),
+    transportAllowance: body.transportAllowance !== undefined ? (body.transportAllowance ? 1 : 0) : (cur.transportAllowance ? 1 : 0),
   };
 }
 
@@ -64,8 +73,8 @@ router.post('/employees', ADMIN, (req, res) => {
   if (p.name.length < 2) return res.status(400).json({ error: 'El nombre es requerido' });
   if (!PAY_MODES.includes(p.payMode)) return res.status(400).json({ error: 'Modalidad de pago inválida' });
   if (p.userId && !db.prepare('SELECT id FROM users WHERE id = ?').get(p.userId)) return res.status(400).json({ error: 'Usuario de acceso no encontrado' });
-  const info = db.prepare(`INSERT INTO employees (user_id, name, document, phone, email, position, pay_mode, base_amount, start_date, active, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes);
+  const info = db.prepare(`INSERT INTO employees (user_id, name, document, phone, email, position, pay_mode, base_amount, start_date, active, notes, hours_per_day, overtime, legal_deductions, transport_allowance)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance);
   res.status(201).json({ ...mapEmp(db.prepare(`${EMP_SELECT} WHERE id = ?`).get(info.lastInsertRowid)), monthAttendance: 0, monthHours: 0, unsettledAdvances: 0 });
 });
 
@@ -77,8 +86,9 @@ router.put('/employees/:id', ADMIN, (req, res) => {
   const p = employeePayload(req.body, cur);
   if (p.name.length < 2) return res.status(400).json({ error: 'El nombre es requerido' });
   if (!PAY_MODES.includes(p.payMode)) return res.status(400).json({ error: 'Modalidad de pago inválida' });
-  db.prepare(`UPDATE employees SET user_id = ?, name = ?, document = ?, phone = ?, email = ?, position = ?, pay_mode = ?, base_amount = ?, start_date = ?, active = ?, notes = ? WHERE id = ?`)
-    .run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, id);
+  db.prepare(`UPDATE employees SET user_id = ?, name = ?, document = ?, phone = ?, email = ?, position = ?, pay_mode = ?, base_amount = ?, start_date = ?, active = ?, notes = ?,
+    hours_per_day = ?, overtime = ?, legal_deductions = ?, transport_allowance = ? WHERE id = ?`)
+    .run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, id);
   res.json(mapEmp(db.prepare(`${EMP_SELECT} WHERE id = ?`).get(id)));
 });
 
@@ -245,10 +255,19 @@ function computeSettlement(db, emp, from, to) {
   const advances = db.prepare(`${ADV_SELECT} WHERE a.employee_id = ? AND a.settled = 0 AND a.date <= ? ORDER BY a.date`).all(emp.id, to).map(mapAdv);
   const advancesTotal = advances.reduce((a, r) => a + r.amount, 0);
 
+  // Horas extra, recargos nocturnos/dominicales, auxilio de transporte y deducciones de ley (salud y pensión)
+  const cfg = payroll.readConfig(db);
+  const extras = emp.overtime ? payroll.computeExtras(emp, attendance, cfg, to) : { ...payroll.computeExtras(emp, [], cfg, to), disabled: true };
+  const extrasTotal = extras.extrasTotal;
+  const allowance = payroll.computeAllowance(emp, cfg, from, to, attendance.length);
+  const salaryBase = baseTotal + extrasTotal;
+  const legalDeductions = payroll.computeLegalDeductions(emp, cfg, salaryBase);
+
   return {
     employee: mapEmp(emp), periodStart: from, periodEnd: to, payMode: emp.payMode, payModeLabel: PAY_MODE_LABEL[emp.payMode], unitLabel: UNIT_LABEL[emp.payMode],
     units, unitAmount, baseTotal, attendance, tipsDirect, tipsShared, sharedDetail, tipsTotal, advances, advancesTotal,
-    subtotal: baseTotal + tipsTotal - advancesTotal,
+    extras, extrasTotal, allowance, allowanceTotal: allowance.amount, salaryBase, legalDeductions, legalDeductionsTotal: legalDeductions.total, config: cfg,
+    subtotal: baseTotal + extrasTotal + allowance.amount + tipsTotal - advancesTotal - legalDeductions.total,
   };
 }
 
@@ -268,7 +287,7 @@ router.get('/settlements', ADMIN, (req, res) => {
   if (req.query.employeeId) { sql += ' AND s.employee_id = ?'; params.push(Number(req.query.employeeId)); }
   if (req.query.status === 'pending' || req.query.status === 'paid') { sql += ' AND s.status = ?'; params.push(req.query.status); }
   sql += ' ORDER BY s.period_end DESC, s.id DESC LIMIT 200';
-  res.json(db.prepare(sql).all(...params));
+  res.json(db.prepare(sql).all(...params).map(mapSet));
 });
 
 router.post('/settlements', ADMIN, (req, res) => {
@@ -282,13 +301,19 @@ router.post('/settlements', ADMIN, (req, res) => {
   const c = computeSettlement(db, emp, from, to);
   const bonuses = Math.max(0, Math.round(Number(req.body.bonuses) || 0));
   const deductions = Math.max(0, Math.round(Number(req.body.deductions) || 0));
-  const total = c.baseTotal + c.tipsTotal + bonuses - c.advancesTotal - deductions;
-  const info = db.prepare(`INSERT INTO payroll_settlements (employee_id, period_start, period_end, pay_mode, units, unit_amount, base_total, tips_total, advances_total, bonuses, deductions, total, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`)
-    .run(emp.id, from, to, emp.payMode, c.units, c.unitAmount, c.baseTotal, c.tipsTotal, c.advancesTotal, bonuses, deductions, total, String(req.body.notes || '').trim());
+  const total = c.baseTotal + c.extrasTotal + c.allowanceTotal + c.tipsTotal + bonuses - c.advancesTotal - c.legalDeductionsTotal - deductions;
+  const details = JSON.stringify({
+    extras: c.extras.lines, hours: c.extras.hoursSummary, hourlyValue: c.extras.hourlyValue, hoursPerDay: c.extras.hoursPerDay, sundayPct: c.extras.sundayPct,
+    allowance: c.allowance, legalDeductions: c.legalDeductions.lines, salaryBase: c.salaryBase, tipsDirect: c.tipsDirect, tipsShared: c.tipsShared,
+  });
+  const info = db.prepare(`INSERT INTO payroll_settlements (employee_id, period_start, period_end, pay_mode, units, unit_amount, base_total, tips_total, advances_total, bonuses, deductions, total, status, notes,
+    extras_total, allowance_total, legal_deductions_total, details)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
+    .run(emp.id, from, to, emp.payMode, c.units, c.unitAmount, c.baseTotal, c.tipsTotal, c.advancesTotal, bonuses, deductions, total, String(req.body.notes || '').trim(),
+      c.extrasTotal, c.allowanceTotal, c.legalDeductionsTotal, details);
   const id = Number(info.lastInsertRowid);
   if (c.advances.length) db.prepare(`UPDATE advances SET settled = 1, settlement_id = ? WHERE id IN (${c.advances.map(() => '?').join(',')})`).run(id, ...c.advances.map(a => a.id));
-  res.status(201).json(db.prepare(`${SET_SELECT} WHERE s.id = ?`).get(id));
+  res.status(201).json(mapSet(db.prepare(`${SET_SELECT} WHERE s.id = ?`).get(id)));
 });
 
 router.post('/settlements/:id/pay', ADMIN, (req, res) => {
@@ -314,7 +339,7 @@ router.post('/settlements/:id/pay', ADMIN, (req, res) => {
     expenseId = Number(info.lastInsertRowid);
   }
   db.prepare("UPDATE payroll_settlements SET status = 'paid', paid_at = ?, payment_method = ?, expense_id = ? WHERE id = ?").run(now(db), paymentMethod, expenseId, cur.id);
-  res.json(db.prepare(`${SET_SELECT} WHERE s.id = ?`).get(cur.id));
+  res.json(mapSet(db.prepare(`${SET_SELECT} WHERE s.id = ?`).get(cur.id)));
 });
 
 router.delete('/settlements/:id', ADMIN, (req, res) => {
@@ -346,6 +371,20 @@ router.get('/summary', ADMIN, (req, res) => {
     monthPayrollPaid: db.prepare("SELECT COALESCE(SUM(total), 0) AS t FROM payroll_settlements WHERE status = 'paid' AND paid_at >= ?").get(monthStart).t,
     payModes: PAY_MODE_LABEL,
   });
+});
+
+/* ------------------------------------------------------------------ */
+/* Parámetros de nómina (jornada, recargos, salario mínimo...)          */
+/* ------------------------------------------------------------------ */
+router.get('/payroll-config', STAFF, (req, res) => res.json({ ...payroll.readConfig(getDb()), defaults: payroll.DEFAULT_CONFIG }));
+router.put('/payroll-config', ADMIN, (req, res) => {
+  try { res.json({ ...payroll.saveConfig(getDb(), req.body || {}), defaults: payroll.DEFAULT_CONFIG }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.get('/holidays/:year', STAFF, (req, res) => {
+  const year = Number(req.params.year);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) return res.status(400).json({ error: 'Año inválido' });
+  res.json([...payroll.colombianHolidays(year)].sort());
 });
 
 module.exports = router;

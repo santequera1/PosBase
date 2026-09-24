@@ -223,9 +223,24 @@ export const ReportsPage: React.FC = () => {
   };
 
   // Excel real (.xlsx): fecha y hora en columnas separadas, totales numéricos para que Excel los sume
+  const PM_LABEL: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', mixed: 'Mixto' };
+  // Cómo se pagó realmente: para pagos mixtos, cada medio con su valor
+  const paymentDetail = (o: any): string => {
+    const s = o.paymentSplit;
+    if (o.paymentMethod === 'mixed' && s && s.method1) return `${PM_LABEL[s.method1] || s.method1} ${formatPrice(Number(s.amount1) || 0)} + ${PM_LABEL[s.method2] || s.method2} ${formatPrice(Number(s.amount2) || 0)}`;
+    return PM_LABEL[o.paymentMethod] || o.paymentMethod;
+  };
+  const partsOf = (o: any): number[] => {
+    const p = { cash: 0, debit: 0, credit: 0, transfer: 0 };
+    const add = (m: string, amt: number) => { if (m === 'cash') p.cash += amt; else if (m === 'card_debit') p.debit += amt; else if (m === 'card_credit' || m === 'card') p.credit += amt; else if (m === 'transfer') p.transfer += amt; };
+    const s = o.paymentSplit;
+    if (o.paymentMethod === 'mixed' && s && s.method1) { add(s.method1, Number(s.amount1) || 0); if (s.method2) add(s.method2, Number(s.amount2) || 0); }
+    else add(o.paymentMethod, o.total);
+    return [p.cash, p.debit, p.credit, p.transfer];
+  };
   const handleExportCSV = () => {
-    const pm: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', mixed: 'Mixto' };
-    const headers = ['Fecha', 'Hora', 'Comprobante', 'Tipo', 'Turno', 'Vendedor', 'Cliente', 'Doc Cliente', 'Método de pago', 'Estado', 'Total'];
+    const pm = PM_LABEL;
+    const headers = ['Fecha', 'Hora', 'Comprobante', 'Tipo', 'Turno', 'Vendedor', 'Cliente', 'Doc Cliente', 'Método de pago', 'Detalle del pago', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia', 'Estado', 'Total'];
     const rows = filtered.map(o => [
       xlsxDate(o.createdAt),
       xlsxTime(o.createdAt),
@@ -236,6 +251,8 @@ export const ReportsPage: React.FC = () => {
       o.customer?.name || 'Consumidor Final',
       o.customer?.doc || '222222222222',
       pm[o.paymentMethod] || o.paymentMethod,
+      paymentDetail(o),
+      ...partsOf(o),
       o.status === 'cancelled' ? 'Anulado' : 'Guardado',
       o.total,
     ]);
@@ -532,8 +549,10 @@ export const ReportsPage: React.FC = () => {
                           <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-brand-card text-brand-primary border border-brand-accent/40 font-sans">
                             {order.paymentMethod === 'cash' ? 'Efectivo' :
                              order.paymentMethod === 'card_debit' ? 'Tarjeta Débito' :
-                             order.paymentMethod === 'card_credit' ? 'Tarjeta Crédito' : 'Transferencia QR'}
+                             order.paymentMethod === 'card_credit' ? 'Tarjeta Crédito' :
+                             order.paymentMethod === 'mixed' ? 'Mixto' : 'Transferencia QR'}
                           </span>
+                          {order.paymentMethod === 'mixed' && <p className="text-[10px] text-muted-foreground mt-0.5 font-sans">{paymentDetail(order)}</p>}
                         </td>
 
                         {/* Estado */}

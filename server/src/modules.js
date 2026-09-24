@@ -143,6 +143,18 @@ function initModulesSchema(db) {
   const expenseCols = db.prepare('PRAGMA table_info(expenses)').all().map(c => c.name);
   if (!expenseCols.includes('tax_amount')) db.exec('ALTER TABLE expenses ADD COLUMN tax_amount INTEGER DEFAULT 0');
 
+  // Nómina: jornada, extras/recargos, deducciones de ley y auxilio de transporte por colaborador; detalle guardado en cada liquidación
+  const empCols = db.prepare('PRAGMA table_info(employees)').all().map(c => c.name);
+  if (!empCols.includes('hours_per_day')) db.exec('ALTER TABLE employees ADD COLUMN hours_per_day REAL DEFAULT 8');
+  if (!empCols.includes('overtime')) db.exec('ALTER TABLE employees ADD COLUMN overtime INTEGER DEFAULT 1');
+  if (!empCols.includes('legal_deductions')) db.exec('ALTER TABLE employees ADD COLUMN legal_deductions INTEGER DEFAULT 0');
+  if (!empCols.includes('transport_allowance')) db.exec('ALTER TABLE employees ADD COLUMN transport_allowance INTEGER DEFAULT 0');
+  const setCols = db.prepare('PRAGMA table_info(payroll_settlements)').all().map(c => c.name);
+  if (!setCols.includes('extras_total')) db.exec('ALTER TABLE payroll_settlements ADD COLUMN extras_total INTEGER DEFAULT 0');
+  if (!setCols.includes('allowance_total')) db.exec('ALTER TABLE payroll_settlements ADD COLUMN allowance_total INTEGER DEFAULT 0');
+  if (!setCols.includes('legal_deductions_total')) db.exec('ALTER TABLE payroll_settlements ADD COLUMN legal_deductions_total INTEGER DEFAULT 0');
+  if (!setCols.includes('details')) db.exec('ALTER TABLE payroll_settlements ADD COLUMN details TEXT');
+
   const count = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get().c;
   if (count === 0) {
     const ins = db.prepare('INSERT INTO expense_categories (name, emoji, kind, sort_order, is_system) VALUES (?, ?, ?, ?, ?)');

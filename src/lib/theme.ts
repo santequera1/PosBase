@@ -263,8 +263,11 @@ function resolveDark(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fo
   const h = base.h;
   const s = Math.max(8, Math.min(40, base.s));
   const background = hslToHex({ h, s: s * 0.6, l: 9 });
-  const surface = input.dark || hslToHex({ h, s: s * 0.7, l: 6 });
-  const card = input.card || hslToHex({ h, s: s * 0.55, l: 13 });
+  // Los ajustes avanzados guardados para el modo claro (tarjetas crema, texto oscuro) no sirven en oscuro:
+  // solo se respetan si realmente son colores oscuros; si no, se derivan del color principal.
+  const darkEnough = (hex: string | undefined, maxL: number) => !!hex && hexToHsl(hex).l <= maxL;
+  const surface = darkEnough(input.dark, 35) ? (input.dark as string) : hslToHex({ h, s: s * 0.7, l: 6 });
+  const card = darkEnough(input.card, 30) ? (input.card as string) : hslToHex({ h, s: s * 0.55, l: 13 });
   const card2 = hslToHex({ h, s: s * 0.5, l: 18 });
   const pill = hslToHex({ h, s: s * 0.5, l: 23 });
   const dark = hslToHex({ h, s: 15, l: 94 });
@@ -275,7 +278,7 @@ function resolveDark(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fo
   let accent = input.accent;
   accent = ensureContrast(accent, background, 3, 1);
   const onAccent = bestTextOn(accent, ['#111111', '#FFFFFF']);
-  let muted = input.muted || hslToHex({ h, s: 10, l: 64 });
+  let muted = input.muted && hexToHsl(input.muted).l >= 45 ? input.muted : hslToHex({ h, s: 10, l: 64 });
   muted = ensureContrast(muted, background, 3.5, 1);
   const wineBase = input.wine || DEFAULT_THEME.wine;
   const wine = ensureContrast(wineBase, background, 3, 1);

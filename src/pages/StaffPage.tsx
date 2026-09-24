@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Plus, Edit2, Trash2, UsersRound, CalendarCheck, HandCoins, PiggyBank, FileSpreadsheet, Search, Banknote, ArrowLeftRight, CreditCard,
-  CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info,
+  CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -19,6 +19,7 @@ interface Employee {
   id: number; userId: number | null; name: string; document: string; phone: string; email: string; position: string;
   payMode: PayMode; payModeLabel: string; baseAmount: number; startDate: string | null; active: boolean; notes: string;
   monthAttendance: number; monthHours: number; unsettledAdvances: number;
+  hoursPerDay: number; overtime: boolean; legalDeductions: boolean; transportAllowance: boolean;
 }
 
 const PAY_MODES: Array<{ id: PayMode; label: string; hint: string }> = [
@@ -45,6 +46,8 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
     name: employee?.name || '', document: employee?.document || '', phone: employee?.phone || '', email: employee?.email || '',
     position: employee?.position || 'Cajero', payMode: employee?.payMode || 'per_shift', baseAmount: employee ? String(employee.baseAmount) : '',
     startDate: employee?.startDate || '', userId: employee?.userId || 0, notes: employee?.notes || '', active: employee ? employee.active : true,
+    hoursPerDay: employee ? String(employee.hoursPerDay || 8) : '8', overtime: employee ? employee.overtime : true,
+    legalDeductions: employee ? employee.legalDeductions : false, transportAllowance: employee ? employee.transportAllowance : false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +55,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
   const save = async () => {
     setSaving(true); setError('');
     try {
-      const payload = { ...form, baseAmount: Number(form.baseAmount) || 0, userId: form.userId || null, startDate: form.startDate || null };
+      const payload = { ...form, baseAmount: Number(form.baseAmount) || 0, userId: form.userId || null, startDate: form.startDate || null, hoursPerDay: Number(form.hoursPerDay) || 8 };
       if (employee) await api.updateEmployee(employee.id, payload); else await api.addEmployee(payload);
       onSaved();
     } catch (e: any) { setError(e.message); }
@@ -86,6 +89,12 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
             {users.map(u => <option key={u.id} value={u.id}>{u.name} (@{u.username})</option>)}
           </select>
           <p className="text-[10px] text-muted-foreground mt-1">Si se vincula, la asistencia se registra sola al abrir y cerrar caja.</p>
+        </div>
+        <div><label className={LABEL}>Jornada ordinaria (horas por día)</label><input type="number" min={1} max={16} step={0.5} value={form.hoursPerDay} onChange={e => set({ hoursPerDay: e.target.value })} className={cn(INPUT, 'font-mono')} /><p className="text-[10px] text-muted-foreground mt-1">Lo que pase de estas horas en un día se paga como hora extra.</p></div>
+        <div className="sm:col-span-2 grid sm:grid-cols-3 gap-2 text-xs">
+          <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.overtime ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.overtime} onChange={e => set({ overtime: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Extras y recargos</span><span className="text-muted-foreground">Calcula horas extra, recargo nocturno y dominical/festivo según la asistencia.</span></span></label>
+          <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.legalDeductions ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.legalDeductions} onChange={e => set({ legalDeductions: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Salud y pensión</span><span className="text-muted-foreground">Descuenta el aporte del trabajador (4% + 4%) sobre sueldo y extras.</span></span></label>
+          <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.transportAllowance ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.transportAllowance} onChange={e => set({ transportAllowance: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Auxilio de transporte</span><span className="text-muted-foreground">Se suma si gana hasta 2 salarios mínimos.</span></span></label>
         </div>
         <div className="sm:col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} /></div>
         {employee && (
@@ -373,6 +382,60 @@ const AdvancesTab = ({ employees, isAdmin }: { employees: Employee[]; isAdmin: b
 /* ------------------------------------------------------------------ */
 /* Liquidaciones                                                        */
 /* ------------------------------------------------------------------ */
+const CONFIG_FIELDS: Array<{ key: string; label: string; suffix: string; hint?: string }> = [
+  { key: 'weeklyHours', label: 'Jornada semanal', suffix: 'h', hint: '42 h desde julio de 2026 (Ley 2101 de 2021)' },
+  { key: 'hoursPerDay', label: 'Jornada diaria por defecto', suffix: 'h' },
+  { key: 'nightStart', label: 'Inicio del horario nocturno', suffix: 'h', hint: '19 = 7 p. m. (Ley 2466 de 2025)' },
+  { key: 'nightEnd', label: 'Fin del horario nocturno', suffix: 'h' },
+  { key: 'extraDayPct', label: 'Hora extra diurna', suffix: '%' },
+  { key: 'extraNightPct', label: 'Hora extra nocturna', suffix: '%' },
+  { key: 'nightPct', label: 'Recargo nocturno', suffix: '%' },
+  { key: 'sundayPct', label: 'Recargo dominical y festivo', suffix: '%', hint: 'Vacío = automático: 90 % desde julio 2026 y 100 % desde julio 2027' },
+  { key: 'healthPct', label: 'Salud (aporte del trabajador)', suffix: '%' },
+  { key: 'pensionPct', label: 'Pensión (aporte del trabajador)', suffix: '%' },
+  { key: 'smmlv', label: 'Salario mínimo mensual', suffix: 'pesos' },
+  { key: 'transportAllowance', label: 'Auxilio de transporte mensual', suffix: 'pesos' },
+];
+
+/** Parámetros legales de la nómina, editables por el administrador (se guardan en Ajustes). */
+const PayrollConfigPanel = () => {
+  const [open, setOpen] = useState(false);
+  const [cfg, setCfg] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => { api.getPayrollConfig().then(setCfg).catch(() => {}); }, []);
+  const save = async () => {
+    setSaving(true); setMsg('');
+    try { setCfg(await api.updatePayrollConfig(cfg)); setMsg('Parámetros guardados. Aplican a las liquidaciones que calcules de ahora en adelante.'); }
+    catch (e: any) { setMsg(e.message); }
+    setSaving(false);
+  };
+  if (!cfg) return null;
+  return (
+    <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-2.5 text-left" title="Parámetros de nómina">
+        <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Settings2 size={14} /> Parámetros de nómina (Colombia)</span>
+        <span className="text-[11px] text-muted-foreground">{open ? 'Ocultar' : 'Ver y editar'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border">
+          <p className="text-[11px] text-muted-foreground pt-3">Valores por defecto según la normativa vigente en 2026. Cámbialos cuando cambie la ley o si tu contador lo indica.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {CONFIG_FIELDS.map(fld => (
+              <div key={fld.key}><label className={LABEL}>{fld.label} ({fld.suffix})</label>
+                <input type="number" value={cfg[fld.key] ?? ''} placeholder={fld.key === 'sundayPct' ? 'auto' : ''} onChange={e => setCfg({ ...cfg, [fld.key]: e.target.value === '' ? null : Number(e.target.value) })} className={cn(INPUT, 'font-mono py-1.5')} />
+                {fld.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{fld.hint}</p>}
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground">Valor hora = sueldo mensual ÷ (jornada semanal ÷ 6 × 30); con 42 h se divide entre 210. Las horas extra se pagan al 100 % más el recargo; en pago por hora la base ya cubre el 100 % y solo se suma el recargo. Los festivos se calculan solos (Ley Emiliani).</p>
+          <div className="flex items-center gap-2 flex-wrap"><button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold disabled:opacity-40">{saving ? 'Guardando...' : 'Guardar parámetros'}</button>{msg && <span className="text-[11px] text-muted-foreground">{msg}</span>}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onChanged: () => void }) => {
   const currentShift = useStore(s => s.currentShift);
   const refreshCurrentShift = useStore(s => s.refreshCurrentShift);
@@ -402,7 +465,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
     try { setPreview(await api.previewSettlement(employeeId, from, to)); } catch (e: any) { setError(e.message); }
     setCalculating(false);
   };
-  const total = preview ? preview.baseTotal + preview.tipsTotal + (Number(bonuses) || 0) - preview.advancesTotal - (Number(deductions) || 0) : 0;
+  const total = preview ? preview.baseTotal + (preview.extrasTotal || 0) + (preview.allowanceTotal || 0) + preview.tipsTotal + (Number(bonuses) || 0) - preview.advancesTotal - (preview.legalDeductionsTotal || 0) - (Number(deductions) || 0) : 0;
   const save = async () => {
     setError('');
     try {
@@ -443,6 +506,10 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
               <p className="text-[11px] text-muted-foreground">Período {fmtDate(preview.periodStart)} a {fmtDate(preview.periodEnd)}</p>
               <div className="divide-y divide-border">
                 <div className="flex justify-between py-1.5"><span>{preview.payMode === 'monthly' || preview.payMode === 'biweekly' ? `Sueldo fijo (${preview.unitLabel})` : `${preview.units} ${preview.unitLabel} × ${formatPrice(preview.unitAmount)}`}</span><span className="font-semibold">{formatPrice(preview.baseTotal)}</span></div>
+                {(preview.extras?.lines || []).map((l: any) => <div key={l.key} className="flex justify-between py-1.5"><span>{l.label} <span className="text-[11px] text-muted-foreground">· {l.hours} h × {formatPrice(preview.extras.hourlyValue)}</span></span><span className="font-semibold text-emerald-700">+ {formatPrice(l.amount)}</span></div>)}
+                {preview.extras && !preview.extras.disabled && preview.extras.lines.length === 0 && preview.extras.hoursSummary.total > 0 && <p className="text-[11px] text-muted-foreground py-1">Sin horas extra ni recargos: las {preview.extras.hoursSummary.total} h del período fueron ordinarias diurnas.</p>}
+                {preview.extras?.disabled && preview.attendance.length > 0 && <p className="text-[11px] text-muted-foreground py-1">Este colaborador no tiene activadas las extras y recargos (edítalo para activarlas).</p>}
+                {preview.allowanceTotal > 0 && <div className="flex justify-between py-1.5"><span>Auxilio de transporte <span className="text-[11px] text-muted-foreground">· {preview.allowance.reason}</span></span><span className="font-semibold">+ {formatPrice(preview.allowanceTotal)}</span></div>}
                 <div className="flex justify-between py-1.5"><span>Propinas directas</span><span>{formatPrice(preview.tipsDirect)}</span></div>
                 <div className="flex justify-between py-1.5"><span>Propinas comunes (su parte)</span><span>{formatPrice(preview.tipsShared)}</span></div>
                 {preview.advances.length > 0 && (
@@ -451,6 +518,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     <ul className="text-[11px] text-muted-foreground mt-1">{preview.advances.map((a: any) => <li key={a.id}>· {fmtDate(a.date)} {formatPrice(a.amount)}{a.notes ? ` (${a.notes})` : ''}</li>)}</ul>
                   </div>
                 )}
+                {(preview.legalDeductions?.lines || []).map((l: any) => <div key={l.key} className="flex justify-between py-1.5 text-red-700"><span>{l.label} <span className="text-[11px] text-muted-foreground">· sobre {formatPrice(preview.salaryBase)}</span></span><span>− {formatPrice(l.amount)}</span></div>)}
                 <div className="grid grid-cols-2 gap-2 py-2">
                   <div><label className={LABEL}>Bonificaciones (+)</label><input type="number" min={0} value={bonuses} onChange={e => setBonuses(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
                   <div><label className={LABEL}>Descuentos (−)</label><input type="number" min={0} value={deductions} onChange={e => setDeductions(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
@@ -459,6 +527,9 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                 <div className="flex justify-between py-2 text-base"><span className="font-bold text-brand-dark">Total a pagar</span><span className={cn('font-bold', total >= 0 ? 'text-emerald-700' : 'text-red-600')}>{formatPrice(total)}</span></div>
               </div>
               {preview.attendance.length > 0 && <p className="text-[11px] text-muted-foreground">Asistencias: {preview.attendance.map((a: any) => fmtDate(a.date).slice(0, 5)).join(', ')}</p>}
+              {preview.extras && !preview.extras.disabled && preview.extras.hoursSummary.total > 0 && (
+                <p className="text-[11px] text-muted-foreground">Horas: {preview.extras.hoursSummary.total} en total · {preview.extras.hoursSummary.ordinary} ordinarias · {preview.extras.hoursSummary.extra} extra · {preview.extras.hoursSummary.night} nocturnas · {preview.extras.hoursSummary.sunday} en domingo/festivo. Valor hora {formatPrice(preview.extras.hourlyValue)} (jornada de {preview.extras.hoursPerDay} h).</p>
+              )}
               {preview.units === 0 && (preview.payMode === 'per_shift' || preview.payMode === 'per_day' || preview.payMode === 'hourly') && (
                 <p className="text-[11px] text-amber-700 flex items-center gap-1"><AlertTriangle size={12} /> No hay asistencias registradas en el período; el pago base es cero.</p>
               )}
@@ -466,6 +537,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
             </div>
           )}
         </div>
+        <PayrollConfigPanel />
       </div>
 
       <div className="lg:col-span-2 space-y-3">
@@ -479,7 +551,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     <p className="text-sm font-semibold text-brand-dark truncate">{s.employeeName}</p>
                     {s.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1"><CheckCircle2 size={10} /> Pagada</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold flex items-center gap-1"><Clock size={10} /> Pendiente</span>}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}</p>
+                  <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)}{s.extrasTotal ? ` + extras ${formatPrice(s.extrasTotal)}` : ''}{s.allowanceTotal ? ` + auxilio ${formatPrice(s.allowanceTotal)}` : ''} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}{s.legalDeductionsTotal ? ` − salud/pensión ${formatPrice(s.legalDeductionsTotal)}` : ''}{s.deductions ? ` − descuentos ${formatPrice(s.deductions)}` : ''}{s.bonuses ? ` + bonos ${formatPrice(s.bonuses)}` : ''}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-brand-primary">{formatPrice(s.total)}</p>
                     <div className="flex gap-1">

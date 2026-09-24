@@ -177,6 +177,7 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
   const expected = shiftData.expectedCash !== undefined ? shiftData.expectedCash : (initial + cash - withdrawals);
   const actual = shiftData.actualCash !== undefined ? shiftData.actualCash : shiftData.actual_cash || 0;
   const diff = shiftData.difference !== undefined ? shiftData.difference : (actual - expected);
+  const closingNotes = String(shiftData.notes || '').trim().replace(/[<>&]/g, (c: string) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
 
   const dateStr = formatFullDate(shiftData.closedAt || shiftData.closed_at || shiftData.openedAt || shiftData.opened_at || new Date().toISOString());
   const reportTitle = options.isReportX ? 'CORTE PARCIAL (REPORTE X)' : 'CIERRE DE CAJA (REPORTE Z)';
@@ -232,6 +233,7 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
           <span>DIFERENCIA CAJA:</span>
           <span style="white-space: nowrap;">${diff === 0 ? 'Exacto ($0)' : diff > 0 ? '+' + formatPrice(diff) + ' (Sobrante)' : formatPrice(diff) + ' (Faltante)'}</span>
         </div>
+        ${closingNotes ? `<div style="margin-top: 4px; padding: 3px 4px; border: 1px dashed #666; font-size: 7.5px; text-align: left; white-space: normal;"><b>OBSERVACIONES DEL CIERRE:</b><br/>${closingNotes}</div>` : ''}
       </div>
 
       <div class="divider"></div>

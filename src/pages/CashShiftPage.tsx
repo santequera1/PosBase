@@ -566,16 +566,16 @@ export const CashShiftPage: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <button onClick={() => setViewShift(s)} className="px-2.5 py-1 mr-1.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all" title="Ver el cierre en pantalla"><EyeIcon size={13} /><span>Ver</span></button>
+                      <button onClick={() => api.getShiftReport(s.id).then(setViewShift).catch(() => setViewShift(s))} className="px-2.5 py-1 mr-1.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all" title="Ver el cierre en pantalla"><EyeIcon size={13} /><span>Ver</span></button>
                       <button
-                        onClick={() => handlePrintZReport(s)}
+                        onClick={() => api.getShiftReport(s.id).then(r => handlePrintZReport(r)).catch(() => handlePrintZReport(s))}
                         className="px-2.5 py-1 rounded-xl bg-white border border-brand-primary/20 hover:bg-brand-card text-brand-primary text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all"
                         title="Reimprimir Reporte Z en impresora térmica"
                       >
                         <Printer size={13} />
                         <span>Reimprimir Cierre</span>
                       </button>
-                      {viewShift?.id === s.id && <ZReportModal shift={s} onClose={() => setViewShift(null)} />}
+                      {viewShift?.id === s.id && <ZReportModal shift={viewShift} onClose={() => setViewShift(null)} />}
                     </td>
                   </tr>
                 ))}

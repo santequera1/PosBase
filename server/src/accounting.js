@@ -71,12 +71,12 @@ function buildAccounting(db, range) {
   const orders = orderRows.map(o => {
     const { date, time } = splitDateTime(o.created_at);
     const cancelled = o.status === 'cancelled';
+    const parts = paymentParts(o);
     const t = cancelled ? { base: 0, tax: 0 } : splitTax(o.total, tax.rate);
     if (cancelled) { cancelledCount++; cancelledTotal += o.total; }
     else {
       count++; gross += o.total; base += t.base; taxTotal += t.tax; discounts += o.discount || 0;
       if (o.is_electronic_invoice) electronicCount++;
-      const parts = paymentParts(o);
       for (const k of Object.keys(parts)) { byPaymentMap[k] += parts[k]; if (parts[k] > 0) byPaymentCount[k]++; }
       const d = byDayMap.get(date) || { date, count: 0, total: 0, base: 0, tax: 0, cash: 0, debit: 0, credit: 0, transfer: 0 };
       d.count++; d.total += o.total; d.base += t.base; d.tax += t.tax; d.cash += parts.cash; d.debit += parts.debit; d.credit += parts.credit; d.transfer += parts.transfer;
@@ -86,7 +86,7 @@ function buildAccounting(db, range) {
       id: o.id, number: `${prefix}-${o.id}`, date, time, customer: o.customer_name || 'Consumidor Final', doc: o.customer_doc || '',
       method: PAYMENT_LABEL[o.payment_method] || o.payment_method, methodKey: o.payment_method, status: cancelled ? 'Anulado' : 'Válido',
       subtotal: o.subtotal, discount: o.discount || 0, deliveryFee: o.delivery_fee || 0, total: o.total, base: t.base, tax: t.tax,
-      electronic: Boolean(o.is_electronic_invoice), seller: o.cashier_name || '', shift: o.shift_id ? `#${o.shift_id}` : '',
+      electronic: Boolean(o.is_electronic_invoice), seller: o.cashier_name || '', shift: o.shift_id ? `#${o.shift_id}` : '', parts,
     };
   });
 
@@ -117,7 +117,8 @@ function buildAccounting(db, range) {
   /* ---------- Nómina pagada en el período ---------- */
   const payrollRows = db.prepare(`
     SELECT s.id, e.name AS employee, e.document, s.period_start AS periodStart, s.period_end AS periodEnd, s.base_total AS baseTotal, s.tips_total AS tipsTotal,
-           s.advances_total AS advancesTotal, s.bonuses, s.deductions, s.total, s.paid_at AS paidAt, s.payment_method AS method
+           s.advances_total AS advancesTotal, s.bonuses, s.deductions, s.total, s.paid_at AS paidAt, s.payment_method AS method,
+           COALESCE(s.extras_total, 0) AS extrasTotal, COALESCE(s.allowance_total, 0) AS allowanceTotal, COALESCE(s.legal_deductions_total, 0) AS legalDeductionsTotal
     FROM payroll_settlements s JOIN employees e ON e.id = s.employee_id
     WHERE s.status = 'paid' AND date(s.paid_at) BETWEEN ? AND ? ORDER BY s.paid_at
   `).all(from, to);

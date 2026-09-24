@@ -224,8 +224,33 @@ router.post('/close', (req, res) => {
 // Shift history
 router.get('/history', (req, res) => {
   const db = getDb();
-  const rows = db.prepare('SELECT * FROM cash_shifts ORDER BY opened_at DESC LIMIT 30').all();
+  const rows = db.prepare('SELECT * FROM cash_shifts ORDER BY opened_at DESC, id DESC LIMIT 30').all();
   res.json(rows);
+});
+
+// Reporte completo de un turno (ver o reimprimir el cierre desde el historial). En turnos cerrados se respetan los totales firmados.
+router.get('/:id/report', (req, res) => {
+  const db = getDb();
+  const shift = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(Number(req.params.id));
+  if (!shift) return res.status(404).json({ error: 'Turno no encontrado' });
+  const live = getShiftLiveStats(db, shift);
+  const closed = shift.status === 'closed';
+  res.json({
+    ...live,
+    cashSales: closed ? (shift.total_cash_sales || 0) : live.cashSales,
+    debitSales: closed ? (shift.total_card_debit || 0) : live.debitSales,
+    creditSales: closed ? (shift.total_card_credit || 0) : live.creditSales,
+    transferSales: closed ? (shift.total_transfer || 0) : live.transferSales,
+    totalSales: closed ? (shift.total_sales || 0) : live.totalSales,
+    totalOrders: closed ? (shift.total_orders || 0) : live.totalOrders,
+    expectedCash: closed ? (shift.expected_cash || 0) : live.expectedCash,
+    actualCash: shift.actual_cash || 0,
+    difference: closed ? (shift.difference || 0) : 0,
+    notes: shift.notes || '',
+    openedAt: shift.opened_at,
+    closedAt: shift.closed_at,
+    status: shift.status,
+  });
 });
 
 module.exports = router;

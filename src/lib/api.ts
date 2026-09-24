@@ -111,6 +111,7 @@ export const api = {
   getCurrentShift: () => request<any>('/shifts/current'),
   openShift: (data: { initialCash: number; cashierName?: string; notes?: string }) =>
     request<any>('/shifts/open', { method: 'POST', body: JSON.stringify(data) }),
+  getShiftReport: (id: number) => request<any>(`/shifts/${id}/report`),
   closeShift: (data: { shiftId?: number; actualCash: number; notes?: string }) =>
     request<any>('/shifts/close', { method: 'POST', body: JSON.stringify(data) }),
   getShiftsHistory: () => request<any[]>('/shifts/history'),
@@ -201,6 +202,8 @@ export const api = {
 
   // Personal y nómina
   getStaffSummary: () => request<any>('/staff/summary'),
+  getPayrollConfig: () => request<any>('/staff/payroll-config'),
+  updatePayrollConfig: (data: any) => request<any>('/staff/payroll-config', { method: 'PUT', body: JSON.stringify(data) }),
   getEmployees: (all?: boolean) => request<any[]>(`/staff/employees${all ? '?all=1' : ''}`),
   addEmployee: (data: any) => request<any>('/staff/employees', { method: 'POST', body: JSON.stringify(data) }),
   updateEmployee: (id: number, data: any) => request<any>(`/staff/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
