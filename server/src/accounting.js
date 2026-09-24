@@ -100,7 +100,8 @@ function buildAccounting(db, range) {
   /* ---------- Compras y gastos ---------- */
   const expenseRows = db.prepare(`
     SELECT e.id, e.date, e.description, e.amount, COALESCE(e.tax_amount, 0) AS taxAmount, e.payment_method AS method, e.status, e.due_date AS dueDate, e.paid_at AS paidAt,
-           e.invoice_number AS invoice, e.source, c.name AS category, c.kind, s.name AS supplier, s.nit AS supplierNit
+           e.invoice_number AS invoice, e.source, c.name AS category, c.kind, s.name AS supplier, s.nit AS supplierNit,
+           COALESCE(c.pl_group, CASE c.kind WHEN 'cogs' THEN 'cost' WHEN 'payroll' THEN 'personnel' WHEN 'other' THEN 'other' ELSE 'admin' END) AS plGroup
     FROM expenses e JOIN expense_categories c ON c.id = e.category_id LEFT JOIN suppliers s ON s.id = e.supplier_id
     WHERE e.date BETWEEN ? AND ? ORDER BY e.date, e.id
   `).all(from, to);
@@ -148,6 +149,54 @@ function buildAccounting(db, range) {
   const cogs = pTotals.byKind.cogs || 0, opex = pTotals.byKind.opex || 0, payrollExp = pTotals.byKind.payroll || 0, other = pTotals.byKind.other || 0;
   const expensesTotal = cogs + opex + payrollExp + other;
 
+  // Estructura contable: ventas brutas → descuentos → impuesto recaudado → costo de ventas → gastos por grupo → financieros → renta estimada → utilidad neta
+  const incomeTaxRate = Math.max(0, Math.min(100, Number(readSettings(db, ['incomeTaxRate']).incomeTaxRate) || 0));
+  const GROUP_LABEL = { cost: 'Costo de ventas (insumos y empaques)', personnel: 'Gastos de personal (nómina)', admin: 'Gastos administrativos', sales: 'Gastos de ventas', financial: 'Gastos financieros (bancos, comisiones, intereses)', other: 'Otros gastos operativos' };
+  const byGroup = {}, catByGroup = {};
+  for (const e of purchases) {
+    const g = e.plGroup || 'admin';
+    byGroup[g] = (byGroup[g] || 0) + e.amount;
+    catByGroup[g] = catByGroup[g] || {};
+    catByGroup[g][e.category] = (catByGroup[g][e.category] || 0) + e.amount;
+  }
+  const detail = g => Object.entries(catByGroup[g] || {}).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
+  const grossSales = gross + discounts;
+  const revenue = tax.rate > 0 ? base : gross;
+  const cost = byGroup.cost || 0, personnel = byGroup.personnel || 0, admin = byGroup.admin || 0, salesExp = byGroup.sales || 0, otherExp = byGroup.other || 0, financial = byGroup.financial || 0;
+  const grossProfit = revenue - cost;
+  const opexTotal = personnel + admin + salesExp + otherExp;
+  const operating = grossProfit - opexTotal;
+  const ebt = operating - financial;
+  const incomeTax = ebt > 0 && incomeTaxRate > 0 ? Math.round((ebt * incomeTaxRate) / 100) : 0;
+  const net = ebt - incomeTax;
+  const pctOf = v => (revenue > 0 ? Math.round((v / revenue) * 1000) / 10 : 0);
+  const money = n => '$ ' + Math.round(n).toLocaleString('es-CO');
+  const statementLines = [
+    { key: 'grossSales', label: 'Ventas brutas', amount: grossSales, kind: 'line', note: `${count} comprobantes válidos${cancelledCount ? ` · ${cancelledCount} anulados por ${money(cancelledTotal)} (no incluidos)` : ''}` },
+    { key: 'discounts', label: '(−) Descuentos otorgados', amount: -discounts, kind: 'line' },
+    { key: 'netSales', label: 'Ventas netas', amount: gross, kind: 'subtotal' },
+    ...(tax.rate > 0 ? [
+      { key: 'taxCollected', label: `(−) ${tax.label} recaudado (${tax.rate}%), se traslada a la DIAN`, amount: -taxTotal, kind: 'line' },
+      { key: 'revenue', label: 'Ingresos netos (sin impuesto)', amount: revenue, kind: 'subtotal' },
+    ] : []),
+    { key: 'cost', label: `(−) ${GROUP_LABEL.cost}`, amount: -cost, kind: 'line', detail: detail('cost') },
+    { key: 'grossProfit', label: 'Utilidad bruta', amount: grossProfit, kind: 'subtotal', pct: pctOf(grossProfit) },
+    { key: 'personnel', label: `(−) ${GROUP_LABEL.personnel}`, amount: -personnel, kind: 'line', detail: detail('personnel') },
+    { key: 'admin', label: `(−) ${GROUP_LABEL.admin}`, amount: -admin, kind: 'line', detail: detail('admin') },
+    { key: 'sales', label: `(−) ${GROUP_LABEL.sales}`, amount: -salesExp, kind: 'line', detail: detail('sales') },
+    ...(otherExp ? [{ key: 'other', label: `(−) ${GROUP_LABEL.other}`, amount: -otherExp, kind: 'line', detail: detail('other') }] : []),
+    { key: 'opexTotal', label: 'Gastos operativos totales', amount: -opexTotal, kind: 'subtotal' },
+    { key: 'operating', label: 'Utilidad operativa', amount: operating, kind: 'subtotal', pct: pctOf(operating) },
+    { key: 'financial', label: `(−) ${GROUP_LABEL.financial}`, amount: -financial, kind: 'line', detail: detail('financial') },
+    { key: 'ebt', label: 'Utilidad antes de impuestos', amount: ebt, kind: 'subtotal' },
+    { key: 'incomeTax', label: incomeTaxRate > 0 ? `(−) Impuesto de renta estimado (${incomeTaxRate}%)` : '(−) Impuesto de renta estimado (tarifa sin configurar)', amount: -incomeTax, kind: 'line' },
+    { key: 'net', label: 'Utilidad neta', amount: net, kind: 'total', pct: pctOf(net) },
+  ];
+  const statement = {
+    incomeTaxRate, lines: statementLines,
+    totals: { grossSales, discounts, netSales: gross, taxCollected: taxTotal, revenue, cost, grossProfit, personnel, admin, sales: salesExp, other: otherExp, opexTotal, operating, financial, ebt, incomeTax, net, netMargin: pctOf(net) },
+  };
+
   return {
     period: range,
     business: { name: biz.businessName || 'Mi Heladería', nit: biz.businessNit || '', address: biz.businessAddress || '', phone: biz.businessPhone || '', prefix, dianResolution: biz.dianResolution || '' },
@@ -162,7 +211,8 @@ function buildAccounting(db, range) {
     payroll: { total: payrollTotal, rows: payrollRows },
     cash,
     payables,
-    pnl: { sales: gross, cogs, opex, payroll: payrollExp, other, expenses: expensesTotal, net: gross - expensesTotal, netMargin: gross > 0 ? Math.round(((gross - expensesTotal) / gross) * 1000) / 10 : 0 },
+    pnl: { sales: gross, cogs, opex, payroll: payrollExp, other, expenses: expensesTotal, net, netMargin: pctOf(net) },
+    statement,
   };
 }
 

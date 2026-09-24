@@ -135,6 +135,50 @@ const VoucherList = ({ items, amountOf, showMethod = true }: { items: any[]; amo
   </div>
 );
 
+/** Estado de resultados con estructura contable (ventas brutas → utilidad neta), con el detalle por categoría de cada grupo. */
+const IncomeStatement = ({ data, onTaxRateSaved }: { data: any; onTaxRateSaved: () => void }) => {
+  const st = data.statement;
+  const [rate, setRate] = useState(String(st?.incomeTaxRate ?? 0));
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setRate(String(st?.incomeTaxRate ?? 0)); }, [st?.incomeTaxRate]);
+  const saveRate = async () => {
+    setSaving(true);
+    try { await api.updateSettings({ incomeTaxRate: Math.max(0, Math.min(100, Number(rate) || 0)) }); onTaxRateSaved(); } catch { /* se muestra el valor anterior */ }
+    setSaving(false);
+  };
+  if (!st) return null;
+  return (
+    <div className="p-4 text-xs">
+      <div className="max-w-3xl mx-auto">
+        <table className="w-full">
+          <thead><tr className="text-muted-foreground border-b border-border"><th className="text-left py-1.5 px-2 font-semibold">Concepto</th><th className="text-right py-1.5 px-2 font-semibold">Valor</th><th className="text-right py-1.5 px-2 font-semibold w-24">% ingresos</th></tr></thead>
+          <tbody>
+            {st.lines.map((l: any) => (
+              <Fragment key={l.key}>
+                <tr className={cn(l.kind === 'subtotal' && 'font-semibold bg-brand-card/70', l.kind === 'total' && 'font-bold text-sm bg-emerald-50 text-emerald-800 border-t-2 border-brand-primary/30', l.kind === 'line' && 'border-t border-border/60')} data-line={l.key}>
+                  <td className={cn('py-1.5 px-2', l.kind === 'line' && 'pl-5')}>{l.label}{l.note && <span className="block text-[10px] text-muted-foreground font-normal">{l.note}</span>}</td>
+                  <td className={cn('py-1.5 px-2 text-right whitespace-nowrap', l.kind === 'line' && l.amount < 0 && 'text-red-700', l.kind !== 'line' && l.amount < 0 && 'text-red-600')}>{formatPrice(l.amount)}</td>
+                  <td className="py-1.5 px-2 text-right text-muted-foreground whitespace-nowrap">{l.pct !== undefined ? `${l.pct}%` : ''}</td>
+                </tr>
+                {(l.detail || []).map((d: any) => (
+                  <tr key={l.key + d.name} className="text-[11px] text-muted-foreground"><td className="pl-9 pr-2 py-0.5">· {d.name}</td><td className="text-right px-2 py-0.5 whitespace-nowrap">{formatPrice(-d.total)}</td><td /></tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex flex-wrap items-center gap-2 mt-3 print:hidden">
+          <label className="text-[11px] text-muted-foreground">Tarifa estimada de impuesto de renta (%)</label>
+          <input type="number" min={0} max={100} step={0.5} value={rate} onChange={e => setRate(e.target.value)} className={cn(INPUT, 'w-24 py-1 text-xs font-mono')} title="Tarifa estimada de renta" />
+          <button onClick={saveRate} disabled={saving} className="px-3 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold disabled:opacity-40">{saving ? 'Guardando...' : 'Aplicar'}</button>
+          <span className="text-[10px] text-muted-foreground">Solo para estimar. La liquidación real la hace el contador según el régimen (ordinario 35 % sobre la renta líquida; SIMPLE por tarifas sobre ingresos).</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground pt-2">Ingresos sin {data.tax.type === 'none' ? 'impuesto' : data.tax.label} (el impuesto recaudado se traslada a la DIAN). Los gastos se toman por su fecha (causación), pagados o pendientes, con IVA incluido; la nómina entra cuando se paga la liquidación. El grupo de cada gasto se define en la pestaña Categorías.</p>
+      </div>
+    </div>
+  );
+};
+
 const ExportBtn = ({ onClick, children }: { onClick: () => void; children: any }) => (
   <button onClick={onClick} className="px-2.5 py-1.5 rounded-lg border border-border bg-white text-[11px] font-semibold text-brand-primary hover:bg-brand-button/5 flex items-center gap-1 print:hidden"><Download size={12} /> {children}</button>
 );
@@ -147,12 +191,13 @@ const AccountingTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAllOrders, setShowAllOrders] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setLoading(true);
     setError('');
     api.getAccounting({ period, from, to }).then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
-  }, [period, from, to]);
+  }, [period, from, to, reloadKey]);
 
   const periods: Array<[Period, string]> = [['today', 'Hoy'], ['week', '7 días'], ['month', 'Este mes'], ['last_month', 'Mes anterior'], ['year', 'Este año'], ['custom', 'Personalizado']];
   const fileSuffix = data ? `${data.period.from}_a_${data.period.to}` : '';
@@ -169,17 +214,20 @@ const AccountingTab = () => {
     rows: data.payroll.rows.map((r: any) => [csvDate(r.paidAt), r.employee, r.document || '', csvDate(r.periodStart), csvDate(r.periodEnd), r.baseTotal, r.extrasTotal || 0, r.allowanceTotal || 0, r.tipsTotal, r.advancesTotal, r.legalDeductionsTotal || 0, r.bonuses, r.deductions, r.total, r.method]) });
   const sheetCash = () => ({ name: 'Cierres de caja', headers: ['Cierre', 'Cajero', 'Ventas', 'Efectivo en ventas', 'Base inicial', 'Esperado', 'Contado', 'Diferencia', 'Observaciones'],
     rows: data.cash.shifts.map((s: any) => [csvDate(s.closedAt), s.cashier, s.totalSales, s.cashSales, s.initialCash, s.expectedCash, s.actualCash, s.difference, s.notes || '']) });
+  const sheetStatement = () => ({ name: 'Estado de resultados', headers: ['Concepto', 'Valor', '% de ingresos'],
+    rows: [[`${data.business.name} · ${csvDate(data.period.from)} a ${csvDate(data.period.to)}`, '', ''], ...data.statement.lines.flatMap((l: any) => [[l.label, l.amount, l.pct !== undefined ? l.pct : ''], ...(l.detail || []).map((d: any) => [`      · ${d.name}`, -d.total, ''])])] });
   const sheetSummary = () => ({ name: 'Resumen', headers: ['Concepto', 'Valor'], rows: [
     ['Negocio', data.business.name], ['NIT', data.business.nit], ['Período', `${csvDate(data.period.from)} a ${csvDate(data.period.to)}`], ['Régimen', `${data.tax.label}${data.tax.rate ? ' ' + data.tax.rate + '%' : ''}`],
     ['Ventas', data.sales.totals.gross], ['Base gravable', data.sales.totals.base], [`${taxName} generado`, data.sales.totals.tax], ['Comprobantes válidos', data.sales.totals.count], ['Comprobantes anulados', data.sales.totals.cancelledCount],
     ['Compras y gastos', data.purchases.totals.total], ['IVA en compras', data.purchases.totals.tax], ['Costo de insumos', data.pnl.cogs], ['Gastos operativos', data.pnl.opex + data.pnl.other], ['Nómina', data.pnl.payroll],
     ['Utilidad neta', data.pnl.net], ['Margen neto %', data.pnl.netMargin], ['Cuentas por pagar (saldo)', data.payables.total], ['Retiros de caja', data.cash.withdrawals], ['Depósitos en caja', data.cash.deposits],
   ] });
+  const exportStatement = () => downloadXlsx(`estado_de_resultados_${fileSuffix}`, [sheetStatement()]);
   const exportSalesByDay = () => downloadXlsx(`libro_ventas_diario_${fileSuffix}`, [sheetSalesByDay(), sheetOrders()]);
   const exportOrders = () => downloadXlsx(`comprobantes_${fileSuffix}`, [sheetOrders()]);
   const exportPurchases = () => downloadXlsx(`compras_gastos_${fileSuffix}`, [sheetPurchases()]);
   const exportPayroll = () => downloadXlsx(`nomina_${fileSuffix}`, [sheetPayroll()]);
-  const exportAll = () => downloadXlsx(`informe_contable_${fileSuffix}`, [sheetSummary(), sheetSalesByDay(), sheetOrders(), sheetPurchases(), sheetPayroll(), sheetCash()]);
+  const exportAll = () => downloadXlsx(`informe_contable_${fileSuffix}`, [sheetStatement(), sheetSummary(), sheetSalesByDay(), sheetOrders(), sheetPurchases(), sheetPayroll(), sheetCash()]);
 
   // Activa las reglas de impresión del informe solo durante este diálogo de impresión
   const printReport = () => {
@@ -335,18 +383,12 @@ const AccountingTab = () => {
             </Section>
           </div>
 
-          {/* Estado de resultados y cuentas por pagar */}
+          {/* Estado de resultados con estructura contable */}
+          <Section title="Estado de resultados del período" icon={BookOpen} right={<ExportBtn onClick={exportStatement}>Excel</ExportBtn>}>
+            <IncomeStatement data={data} onTaxRateSaved={() => setReloadKey(k => k + 1)} />
+          </Section>
+
           <div className="grid lg:grid-cols-2 gap-4">
-            <Section title="Estado de resultados del período" icon={BookOpen}>
-              <div className="p-4 text-xs space-y-1.5">
-                <div className="flex justify-between"><span>Ventas</span><span className="font-semibold">{formatPrice(data.pnl.sales)}</span></div>
-                <div className="flex justify-between"><span>(−) Costo de insumos</span><span>{formatPrice(data.pnl.cogs)}</span></div>
-                <div className="flex justify-between"><span>(−) Gastos operativos</span><span>{formatPrice(data.pnl.opex + data.pnl.other)}</span></div>
-                <div className="flex justify-between"><span>(−) Nómina</span><span>{formatPrice(data.pnl.payroll)}</span></div>
-                <div className={cn('flex justify-between border-t border-border pt-1.5 mt-1.5 text-sm font-bold', data.pnl.net >= 0 ? 'text-emerald-700' : 'text-red-600')}><span>Utilidad neta</span><span>{formatPrice(data.pnl.net)} ({data.pnl.netMargin}%)</span></div>
-                <p className="text-[10px] text-muted-foreground pt-1">Los gastos se toman por su fecha (causación), pagados o pendientes. La nómina entra cuando se paga la liquidación.</p>
-              </div>
-            </Section>
             <Section title="Cuentas por pagar (saldo a hoy)" icon={CalendarClock}>
               <div className="p-4 text-xs space-y-1.5">
                 <div className="flex justify-between"><span>Facturas pendientes</span><span className="font-semibold">{data.payables.count}</span></div>

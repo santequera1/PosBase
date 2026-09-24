@@ -155,6 +155,11 @@ function initModulesSchema(db) {
   if (!setCols.includes('legal_deductions_total')) db.exec('ALTER TABLE payroll_settlements ADD COLUMN legal_deductions_total INTEGER DEFAULT 0');
   if (!setCols.includes('details')) db.exec('ALTER TABLE payroll_settlements ADD COLUMN details TEXT');
 
+  // Estado de resultados: grupo contable de cada categoría de gasto (costo de ventas, personal, administrativos, ventas, financieros, otros)
+  const catCols = db.prepare('PRAGMA table_info(expense_categories)').all().map(c => c.name);
+  if (!catCols.includes('pl_group')) db.exec('ALTER TABLE expense_categories ADD COLUMN pl_group TEXT');
+  backfillPlGroups(db);
+
   const count = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get().c;
   if (count === 0) {
     const ins = db.prepare('INSERT INTO expense_categories (name, emoji, kind, sort_order, is_system) VALUES (?, ?, ?, ?, ?)');
@@ -171,7 +176,21 @@ function initModulesSchema(db) {
       ['Otros', '📦', 'other', 10, 1],
     ];
     for (const row of seed) ins.run(...row);
+    backfillPlGroups(db);
   }
+}
+
+/** Asigna el grupo del estado de resultados a las categorías que no lo tienen, según su tipo y nombre. */
+function backfillPlGroups(db) {
+  db.exec(`
+    UPDATE expense_categories SET pl_group = CASE
+      WHEN kind = 'cogs' THEN 'cost'
+      WHEN kind = 'payroll' THEN 'personnel'
+      WHEN kind = 'other' THEN 'other'
+      WHEN LOWER(name) LIKE '%marketing%' OR LOWER(name) LIKE '%publicidad%' OR LOWER(name) LIKE '%transporte%' OR LOWER(name) LIKE '%domicilio%' THEN 'sales'
+      WHEN LOWER(name) LIKE '%banco%' OR LOWER(name) LIKE '%financier%' OR LOWER(name) LIKE '%inter%s%' THEN 'financial'
+      ELSE 'admin' END
+    WHERE pl_group IS NULL OR pl_group = ''`);
 }
 
 module.exports = { initModulesSchema };

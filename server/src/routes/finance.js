@@ -8,10 +8,12 @@ const ADMIN = requireRole('admin');
 const STAFF = requireRole('admin', 'cashier');
 
 const KINDS = ['cogs', 'opex', 'payroll', 'other'];
+const PL_GROUPS = ['cost', 'personnel', 'admin', 'sales', 'financial', 'other'];
+const defaultGroup = kind => ({ cogs: 'cost', payroll: 'personnel', other: 'other' }[kind] || 'admin');
 const PAYMENT_METHODS = ['cash', 'transfer', 'card', 'credit'];
 const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const CAT_SELECT = 'SELECT id, name, emoji, kind, sort_order AS sortOrder, is_system AS isSystem FROM expense_categories';
+const CAT_SELECT = 'SELECT id, name, emoji, kind, pl_group AS plGroup, sort_order AS sortOrder, is_system AS isSystem FROM expense_categories';
 const SUP_SELECT = 'SELECT id, name, nit, phone, email, address, category, notes, active, created_at AS createdAt FROM suppliers';
 const EXP_SELECT = `
   SELECT e.id, e.date, e.category_id AS categoryId, c.name AS categoryName, c.emoji AS categoryEmoji, c.kind AS categoryKind,
@@ -74,7 +76,8 @@ router.post('/categories', ADMIN, (req, res) => {
     return res.status(409).json({ error: 'Ya existe una categoría con ese nombre' });
   }
   const max = db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM expense_categories').get().m;
-  const info = db.prepare('INSERT INTO expense_categories (name, emoji, kind, sort_order) VALUES (?, ?, ?, ?)').run(name, emoji, kind, max + 1);
+  const plGroup = PL_GROUPS.includes(req.body.plGroup) ? req.body.plGroup : defaultGroup(kind);
+  const info = db.prepare('INSERT INTO expense_categories (name, emoji, kind, pl_group, sort_order) VALUES (?, ?, ?, ?, ?)').run(name, emoji, kind, plGroup, max + 1);
   const row = db.prepare(`${CAT_SELECT} WHERE id = ?`).get(info.lastInsertRowid);
   res.status(201).json({ ...row, isSystem: false });
 });
@@ -88,7 +91,8 @@ router.put('/categories/:id', ADMIN, (req, res) => {
   const emoji = req.body.emoji !== undefined ? String(req.body.emoji).slice(0, 8) : cur.emoji;
   const kind = req.body.kind !== undefined && KINDS.includes(req.body.kind) ? req.body.kind : cur.kind;
   if (name.length < 2) return res.status(400).json({ error: 'El nombre es requerido' });
-  db.prepare('UPDATE expense_categories SET name = ?, emoji = ?, kind = ? WHERE id = ?').run(name, emoji, kind, id);
+  const plGroup = PL_GROUPS.includes(req.body.plGroup) ? req.body.plGroup : (kind !== cur.kind ? defaultGroup(kind) : (cur.plGroup || defaultGroup(kind)));
+  db.prepare('UPDATE expense_categories SET name = ?, emoji = ?, kind = ?, pl_group = ? WHERE id = ?').run(name, emoji, kind, plGroup, id);
   const row = db.prepare(`${CAT_SELECT} WHERE id = ?`).get(id);
   res.json({ ...row, isSystem: Boolean(row.isSystem) });
 });

@@ -15,10 +15,13 @@ import AccountingTab from '@/components/finance/AccountingTab';
 /* Tipos y constantes                                                   */
 /* ------------------------------------------------------------------ */
 type Kind = 'cogs' | 'opex' | 'payroll' | 'other';
+type PlGroup = 'cost' | 'personnel' | 'admin' | 'sales' | 'financial' | 'other';
+const PL_GROUP_META: Record<PlGroup, string> = { cost: 'Costo de ventas', personnel: 'Gastos de personal', admin: 'Gastos administrativos', sales: 'Gastos de ventas', financial: 'Gastos financieros', other: 'Otros gastos' };
+const defaultGroup = (k: Kind): PlGroup => (({ cogs: 'cost', payroll: 'personnel', other: 'other' } as Record<string, PlGroup>)[k] || 'admin');
 type Tab = 'resumen' | 'contabilidad' | 'gastos' | 'porpagar' | 'proveedores' | 'categorias';
 type Period = 'today' | 'week' | 'month' | 'last_month' | 'year' | 'custom';
 
-interface ExpenseCategory { id: number; name: string; emoji: string; kind: Kind; isSystem: boolean }
+interface ExpenseCategory { id: number; name: string; emoji: string; kind: Kind; plGroup?: PlGroup; isSystem: boolean }
 interface Supplier { id: number; name: string; nit: string; phone: string; email: string; address: string; category: string; notes: string; active: boolean; totalPurchased: number; pendingAmount: number; purchases: number; lastPurchase: string | null }
 interface Expense {
   id: number; date: string; categoryId: number; categoryName: string; categoryEmoji: string; categoryKind: Kind;
@@ -653,14 +656,14 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
 /* Pestaña Categorías                                                   */
 /* ------------------------------------------------------------------ */
 const CategoriesTab = ({ categories, reload }: { categories: ExpenseCategory[]; reload: () => void }) => {
-  const [form, setForm] = useState<{ id: number | null; name: string; emoji: string; kind: Kind }>({ id: null, name: '', emoji: '💸', kind: 'opex' });
+  const [form, setForm] = useState<{ id: number | null; name: string; emoji: string; kind: Kind; plGroup: PlGroup }>({ id: null, name: '', emoji: '💸', kind: 'opex', plGroup: 'admin' });
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const save = async () => {
     setError('');
     try {
       if (form.id) await api.updateExpenseCategory(form.id, form); else await api.addExpenseCategory(form);
-      setShowForm(false); setForm({ id: null, name: '', emoji: '💸', kind: 'opex' }); reload();
+      setShowForm(false); setForm({ id: null, name: '', emoji: '💸', kind: 'opex', plGroup: 'admin' }); reload();
     } catch (e: any) { setError(e.message); }
   };
   const remove = async (c: ExpenseCategory) => {
@@ -671,15 +674,16 @@ const CategoriesTab = ({ categories, reload }: { categories: ExpenseCategory[]; 
     <div className="max-w-xl space-y-3">
       <div className="bg-card rounded-xl border border-border p-4 shadow-card space-y-2">
         <div className="flex items-center justify-between">
-          <div><h3 className="font-bold text-sm">Categorías de gasto</h3><p className="text-[11px] text-muted-foreground">El tipo define cómo se agrupa en el estado de resultados.</p></div>
-          <button onClick={() => { setForm({ id: null, name: '', emoji: '💸', kind: 'opex' }); setShowForm(true); }} className="text-xs text-primary font-medium flex items-center gap-1"><Plus size={14} /> Agregar</button>
+          <div><h3 className="font-bold text-sm">Categorías de gasto</h3><p className="text-[11px] text-muted-foreground">El tipo y el grupo definen dónde cae cada gasto en el estado de resultados.</p></div>
+          <button onClick={() => { setForm({ id: null, name: '', emoji: '💸', kind: 'opex', plGroup: 'admin' }); setShowForm(true); }} className="text-xs text-primary font-medium flex items-center gap-1"><Plus size={14} /> Agregar</button>
         </div>
         {categories.map(c => (
           <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
             <span className="text-lg">{c.emoji}</span>
             <span className="text-sm font-medium flex-1">{c.name}</span>
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">{PL_GROUP_META[c.plGroup || defaultGroup(c.kind)]}</span>
             <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-semibold', KIND_META[c.kind].className)}>{KIND_META[c.kind].short}</span>
-            <button onClick={() => { setForm({ id: c.id, name: c.name, emoji: c.emoji, kind: c.kind }); setShowForm(true); }} className="text-muted-foreground hover:text-primary"><Edit2 size={14} /></button>
+            <button onClick={() => { setForm({ id: c.id, name: c.name, emoji: c.emoji, kind: c.kind, plGroup: c.plGroup || defaultGroup(c.kind) }); setShowForm(true); }} className="text-muted-foreground hover:text-primary"><Edit2 size={14} /></button>
             {!c.isSystem && <button onClick={() => remove(c)} className="text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>}
           </div>
         ))}
@@ -691,7 +695,11 @@ const CategoriesTab = ({ categories, reload }: { categories: ExpenseCategory[]; 
             </div>
             <div><label className={LABEL}>Tipo</label>
               <div className="grid grid-cols-2 gap-1.5">
-                {(Object.keys(KIND_META) as Kind[]).map(k => <Chip key={k} active={form.kind === k} onClick={() => setForm({ ...form, kind: k })} className="justify-start text-left">{KIND_META[k].label}</Chip>)}
+                {(Object.keys(KIND_META) as Kind[]).map(k => <Chip key={k} active={form.kind === k} onClick={() => setForm({ ...form, kind: k, plGroup: defaultGroup(k) })} className="justify-start text-left">{KIND_META[k].label}</Chip>)}
+              </div></div>
+            <div><label className={LABEL}>Grupo en el estado de resultados</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {(Object.keys(PL_GROUP_META) as PlGroup[]).map(g => <Chip key={g} active={form.plGroup === g} onClick={() => setForm({ ...form, plGroup: g })} className="justify-start text-left">{PL_GROUP_META[g]}</Chip>)}
               </div></div>
             {error && <p className="text-xs text-red-600">{error}</p>}
             <div className="flex gap-2">
