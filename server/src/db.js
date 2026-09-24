@@ -17,6 +17,7 @@ function getDb() {
     initModulesSchema(db);
     seedIfEmpty();
     syncSpecialProducts();
+    backfillOrderCashier(db);
   }
   return db;
 }
@@ -272,6 +273,9 @@ function migrateSchema() {
   addCol('orders', 'fe_cufe', 'TEXT');
   addCol('orders', 'fe_status', 'TEXT');
   addCol('orders', 'fe_issued_at', 'TEXT');
+  addCol('orders', 'cashier_name', 'TEXT');
+  addCol('orders', 'user_id', 'INTEGER');
+  backfillOrderCashier(db);
 
   // Clientes: el teléfono deja de ser obligatorio y único (basta con cédula/NIT para el directorio y la F.E.)
   try {
@@ -306,6 +310,14 @@ function migrateSchema() {
 }
 
 // Sincroniza categorías y productos especiales del catálogo base.
+// Pedidos sin vendedor registrado (anteriores a esta versión o de la semilla): se toma el cajero que abrió su turno.
+function backfillOrderCashier(db) {
+  try {
+    db.prepare(`UPDATE orders SET cashier_name = (SELECT cashier_name FROM cash_shifts WHERE cash_shifts.id = orders.shift_id)
+      WHERE (cashier_name IS NULL OR cashier_name = '') AND shift_id IS NOT NULL`).run();
+  } catch (e) { console.warn('No se pudo completar el vendedor de pedidos anteriores:', e.message); }
+}
+
 // Se ejecuta DESPUÉS de seedIfEmpty(): en una base de datos nueva las tablas están vacías
 // y este bloque fallaría por claves foráneas, dejando la base sin usuarios ni productos.
 function syncSpecialProducts() {

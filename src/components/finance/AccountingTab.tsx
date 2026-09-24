@@ -73,8 +73,8 @@ const AccountingTab = () => {
   const kindName: Record<string, string> = { cogs: 'Insumos', opex: 'Operativo', payroll: 'Nómina', other: 'Otro' };
   const sheetSalesByDay = () => ({ name: 'Ventas diario', headers: ['Fecha', 'Comprobantes', 'Base', taxName, 'Total', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia'],
     rows: data.sales.byDay.map((d: any) => [csvDate(d.date), d.count, d.base, d.tax, d.total, d.cash, d.debit, d.credit, d.transfer]) });
-  const sheetOrders = () => ({ name: 'Comprobantes', headers: ['Fecha', 'Hora', 'Comprobante', 'Cliente', 'Documento', 'Medio de pago', 'Estado', 'Subtotal', 'Descuento', 'Base', taxName, 'Total', 'Factura electrónica'],
-    rows: data.sales.orders.map((o: any) => [csvDate(o.date), o.time, o.number, o.customer, o.doc, o.method, o.status, o.subtotal, o.discount, o.base, o.tax, o.total, o.electronic ? 'Sí' : 'No']) });
+  const sheetOrders = () => ({ name: 'Comprobantes', headers: ['Fecha', 'Hora', 'Comprobante', 'Vendedor', 'Turno', 'Cliente', 'Documento', 'Medio de pago', 'Estado', 'Subtotal', 'Descuento', 'Base', taxName, 'Total', 'Factura electrónica'],
+    rows: data.sales.orders.map((o: any) => [csvDate(o.date), o.time, o.number, o.seller || '', o.shift || '', o.customer, o.doc, o.method, o.status, o.subtotal, o.discount, o.base, o.tax, o.total, o.electronic ? 'Sí' : 'No']) });
   const sheetPurchases = () => ({ name: 'Compras y gastos', headers: ['Fecha', 'Categoría', 'Tipo', 'Proveedor', 'NIT', 'Factura', 'Descripción', 'Medio de pago', 'Estado', 'Vence', 'Base', 'IVA', 'Total'],
     rows: data.purchases.rows.map((e: any) => [csvDate(e.date), e.category, kindName[e.kind] || e.kind, e.supplier || '', e.supplierNit || '', e.invoice || '', e.description, e.methodLabel, e.statusLabel, csvDate(e.dueDate), e.base, e.taxAmount, e.amount]) });
   const sheetPayroll = () => ({ name: 'Nómina', headers: ['Pagado el', 'Colaborador', 'Documento', 'Período desde', 'Período hasta', 'Base', 'Propinas', 'Anticipos', 'Bonificaciones', 'Descuentos', 'Total', 'Medio'],
@@ -182,9 +182,9 @@ const AccountingTab = () => {
           {/* Comprobantes */}
           <Section title={`Comprobantes del período (${data.sales.orders.length})`} icon={Receipt} right={<ExportBtn onClick={exportOrders}>Excel</ExportBtn>}>
             <Table
-              headers={['Fecha', 'Hora', 'Comprobante', 'Cliente', 'Documento', 'Medio', 'Estado', 'Base', taxName, 'Total']}
-              align={['l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']}
-              rows={ordersToShow.map((o: any) => [fmtDate(o.date), o.time, <span key="n" className="font-mono">{o.number}</span>, o.customer, o.doc, o.method,
+              headers={['Fecha', 'Hora', 'Comprobante', 'Vendedor', 'Cliente', 'Documento', 'Medio', 'Estado', 'Base', taxName, 'Total']}
+              align={['l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']}
+              rows={ordersToShow.map((o: any) => [fmtDate(o.date), o.time, <span key="n" className="font-mono">{o.number}</span>, o.seller || '—', o.customer, o.doc, o.method,
                 <span key="s" className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold', o.status === 'Anulado' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800')}>{o.status}</span>,
                 formatPrice(o.base), formatPrice(o.tax), <b key="t">{formatPrice(o.total)}</b>])}
             />

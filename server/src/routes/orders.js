@@ -45,6 +45,7 @@ function formatOrder(db, order) {
     receiptImage: order.receipt_image || undefined,
     notes: order.notes || '',
     shiftId: order.shift_id || undefined,
+    cashierName: order.cashier_name || undefined,
     electronicInvoice: electronicInvoiceOf(order),
   };
 }
@@ -137,12 +138,21 @@ router.post('/', (req, res) => {
     effectiveShiftId = openShift ? openShift.id : null;
   }
 
+  // Vendedor: el usuario que registra la venta; si no hay sesión con nombre, el cajero del turno
+  let cashierName = (req.user && req.user.name) ? String(req.user.name).trim() : '';
+  if (!cashierName && effectiveShiftId) {
+    const sh = db.prepare('SELECT cashier_name FROM cash_shifts WHERE id = ?').get(effectiveShiftId);
+    cashierName = sh && sh.cashier_name ? sh.cashier_name : '';
+  }
+  const sellerUserId = req.user && req.user.id ? Number(req.user.id) : null;
+
   const result = db.prepare(`
     INSERT INTO orders (
       type, status, customer_name, customer_doc, customer_email, customer_phone, customer_address,
       is_electronic_invoice, table_number, subtotal, delivery_fee, discount, total,
-      payment_method, payment_status, cash_received, cash_change, receipt_image, notes, shift_id, payment_split, customer_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      payment_method, payment_status, cash_received, cash_change, receipt_image, notes, shift_id, payment_split, customer_id,
+      cashier_name, user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     type, status,
     custName, custDoc, custEmail, custPhone, custAddress,
@@ -155,7 +165,9 @@ router.post('/', (req, res) => {
     notes,
     effectiveShiftId,
     splitJson,
-    customerId
+    customerId,
+    cashierName || null,
+    sellerUserId
   );
 
   const orderId = result.lastInsertRowid;

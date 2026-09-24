@@ -59,7 +59,7 @@ function buildAccounting(db, range) {
 
   /* ---------- Ventas ---------- */
   const orderRows = db.prepare(`
-    SELECT id, created_at, customer_name, customer_doc, payment_method, payment_split, subtotal, discount, delivery_fee, total, status, is_electronic_invoice
+    SELECT id, created_at, customer_name, customer_doc, payment_method, payment_split, subtotal, discount, delivery_fee, total, status, is_electronic_invoice, cashier_name, shift_id
     FROM orders WHERE date(created_at) BETWEEN ? AND ? ORDER BY created_at, id
   `).all(from, to);
 
@@ -86,7 +86,7 @@ function buildAccounting(db, range) {
       id: o.id, number: `${prefix}-${o.id}`, date, time, customer: o.customer_name || 'Consumidor Final', doc: o.customer_doc || '',
       method: PAYMENT_LABEL[o.payment_method] || o.payment_method, methodKey: o.payment_method, status: cancelled ? 'Anulado' : 'Válido',
       subtotal: o.subtotal, discount: o.discount || 0, deliveryFee: o.delivery_fee || 0, total: o.total, base: t.base, tax: t.tax,
-      electronic: Boolean(o.is_electronic_invoice),
+      electronic: Boolean(o.is_electronic_invoice), seller: o.cashier_name || '', shift: o.shift_id ? `#${o.shift_id}` : '',
     };
   });
 

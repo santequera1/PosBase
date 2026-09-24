@@ -107,6 +107,7 @@ export interface Order {
   receiptImage?: string;
   notes?: string;
   shiftId?: number;
+  cashierName?: string;
   electronicInvoice?: { number: string; cufe: string; status: string; issuedAt: string; test?: boolean };
 }
 

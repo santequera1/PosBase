@@ -83,7 +83,7 @@ export const ReportsPage: React.FC = () => {
         const docId = `${orderNumber(o.id)} #${o.id}`.toLowerCase();
         const clientName = (o.customer?.name || '').toLowerCase();
         const clientDoc = (o.customer?.doc || '').toLowerCase();
-        const cashier = (currentShift?.cashierName || user?.name || '').toLowerCase();
+        const cashier = (o.cashierName || '').toLowerCase();
         if (!docId.includes(q) && !clientName.includes(q) && !clientDoc.includes(q) && !cashier.includes(q)) {
           return false;
         }
@@ -232,7 +232,7 @@ export const ReportsPage: React.FC = () => {
       orderNumber(o.id),
       'Doc. de ingreso',
       o.shiftId ? `#${o.shiftId}` : '',
-      o.shiftId && currentShift?.id === o.shiftId ? (currentShift?.cashierName || '') : '',
+      o.cashierName || '',
       o.customer?.name || 'Consumidor Final',
       o.customer?.doc || '222222222222',
       pm[o.paymentMethod] || o.paymentMethod,
@@ -509,12 +509,12 @@ export const ReportsPage: React.FC = () => {
 
                         {/* Vendedor */}
                         <td className="py-3.5 px-4 text-gray-700 font-medium whitespace-nowrap font-sans">
-                          {currentShift?.cashierName || 'Elena C Vanegas'}
+                          {order.cashierName || '—'}
                         </td>
 
                         {/* Turno */}
                         <td className="py-3.5 px-4 text-gray-500 whitespace-nowrap font-sans">
-                          {order.shiftId ? `${order.shiftId}` : '1'}
+                          {order.shiftId ? `#${order.shiftId}` : '—'}
                         </td>
 
                         {/* Cliente */}
