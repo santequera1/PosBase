@@ -1,7 +1,12 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { applySaleStock, restoreOrderStock } = require('../stock');
-const { issueTestInvoice, electronicInvoiceOf } = require('../einvoice');
+const { issueTestInvoice } = require('../einvoice');
+const { formatOrder } = require('../orderFormat');
+const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
+const { getOpenShift, now } = require('../cashHelpers');
+const CHANNEL_IDS = CHANNELS.map(c => c.id);
+const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
 const { requireRole } = require('../auth');
 const path = require('path');
 const fs = require('fs');
@@ -12,43 +17,6 @@ const router = Router();
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-function formatOrder(db, order) {
-  const items = db.prepare(
-    'SELECT product_id AS productId, name, size, flavors, quantity, price, notes FROM order_items WHERE order_id = ?'
-  ).all(order.id);
-
-  return {
-    id: order.id,
-    type: order.type,
-    status: order.status,
-    customer: {
-      name: order.customer_name || 'Consumidor Final',
-      doc: order.customer_doc || '222222222222',
-      email: order.customer_email || undefined,
-      phone: order.customer_phone || undefined,
-      address: order.customer_address || undefined,
-      isElectronicInvoice: Boolean(order.is_electronic_invoice),
-    },
-    tableNumber: order.table_number || undefined,
-    items,
-    subtotal: order.subtotal,
-    deliveryFee: order.delivery_fee,
-    discount: order.discount || 0,
-    total: order.total,
-    paymentMethod: order.payment_method,
-    paymentStatus: order.payment_status,
-    cashReceived: order.cash_received || 0,
-    cashChange: order.cash_change || 0,
-    paymentSplit: order.payment_split ? (typeof order.payment_split === 'string' ? JSON.parse(order.payment_split) : order.payment_split) : undefined,
-    createdAt: order.created_at,
-    driverId: order.driver_id || undefined,
-    receiptImage: order.receipt_image || undefined,
-    notes: order.notes || '',
-    shiftId: order.shift_id || undefined,
-    cashierName: order.cashier_name || undefined,
-    electronicInvoice: electronicInvoiceOf(order),
-  };
-}
 
 router.get('/', (req, res) => {
   const { status, search } = req.query;
@@ -96,6 +64,9 @@ router.post('/', (req, res) => {
     receiptImage,
     notes = '',
     shiftId,
+    channel = 'local',
+    label,
+    tip = 0,
   } = req.body;
 
   if (!items || !items.length || !paymentMethod) {
@@ -111,6 +82,8 @@ router.post('/', (req, res) => {
   const splitJson = paymentSplit ? JSON.stringify(paymentSplit) : null;
 
   const db = getDb();
+  if (!METHODS.includes(paymentMethod)) return res.status(400).json({ error: 'Medio de pago inválido' });
+  if (readRestaurantConfig(db).requireOpenShift && !getOpenShift(db)) return res.status(400).json({ error: 'Abre la caja antes de registrar ventas' });
 
   // Guardar o actualizar el cliente en el directorio cuando trae documento (F.E.) o teléfono
   let customerId = null;
@@ -151,8 +124,8 @@ router.post('/', (req, res) => {
       type, status, customer_name, customer_doc, customer_email, customer_phone, customer_address,
       is_electronic_invoice, table_number, subtotal, delivery_fee, discount, total,
       payment_method, payment_status, cash_received, cash_change, receipt_image, notes, shift_id, payment_split, customer_id,
-      cashier_name, user_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      cashier_name, user_id, channel, sale_label, tip
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     type, status,
     custName, custDoc, custEmail, custPhone, custAddress,
@@ -167,7 +140,10 @@ router.post('/', (req, res) => {
     splitJson,
     customerId,
     cashierName || null,
-    sellerUserId
+    sellerUserId,
+    CHANNEL_IDS.includes(channel) ? channel : 'local',
+    label ? String(label).trim().slice(0, 60) : null,
+    Math.max(0, Math.round(Number(tip) || 0))
   );
 
   const orderId = result.lastInsertRowid;
@@ -190,6 +166,8 @@ router.post('/', (req, res) => {
   }
 
   applySaleStock(db, req.app.io, orderId, items, req.user?.name);
+  // Pedidos que no se entregan de inmediato: todos sus productos salen como primera comanda a cocina
+  if (status !== 'delivered' && status !== 'cancelled') db.prepare("UPDATE order_items SET batch = 1, sent_at = datetime('now', '-5 hours'), kitchen_status = 'pending' WHERE order_id = ?").run(orderId);
   if (isElectronicInvoice) issueTestInvoice(db, orderId);
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   const formatted = formatOrder(db, order);
@@ -216,7 +194,7 @@ router.post('/:id/electronic-invoice', (req, res) => {
 
 router.patch('/:id/status', (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['pending', 'preparing', 'ready', 'shipped', 'delivered', 'cancelled'];
+  const validStatuses = ['open', 'pending', 'preparing', 'ready', 'shipped', 'delivered', 'billing', 'cancelled'];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
   }
@@ -227,7 +205,14 @@ router.patch('/:id/status', (req, res) => {
 
   if (status === 'cancelled' && order.status !== 'cancelled') restoreOrderStock(db, req.app.io, Number(req.params.id), req.user?.name);
 
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
+  const ts = now(db);
+  db.prepare(`UPDATE orders SET status = ?,
+    ready_at = CASE WHEN ? = 'ready' THEN COALESCE(ready_at, ?) ELSE ready_at END,
+    shipped_at = CASE WHEN ? = 'shipped' THEN ? ELSE shipped_at END,
+    delivered_at = CASE WHEN ? = 'delivered' THEN COALESCE(delivered_at, ?) ELSE delivered_at END,
+    closed_at = CASE WHEN ? IN ('delivered', 'cancelled') THEN ? ELSE closed_at END,
+    closed_by = CASE WHEN ? IN ('delivered', 'cancelled') THEN ? ELSE closed_by END
+    WHERE id = ?`).run(status, status, ts, status, ts, status, ts, status, ts, status, req.user?.name || null, req.params.id);
   const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   const formatted = formatOrder(db, updated);
 

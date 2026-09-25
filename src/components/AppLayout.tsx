@@ -19,6 +19,7 @@ import {
   Landmark,
   Sun,
   Moon,
+  LayoutGrid, ShoppingBag, Bike, ChefHat,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice, formatTime } from '@/lib/format';
@@ -26,8 +27,12 @@ import { cn } from '@/lib/utils';
 
 type NavItem = { path: string; label: string; icon: any; roles?: string[] };
 
-const navItems: NavItem[] = [
+const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: boolean; kitchen?: boolean } | null): NavItem[] => [
   { path: '/pos', label: 'Punto de Venta', icon: Store },
+  ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid }] : []),
+  ...(modules?.counter ? [{ path: '/counter', label: 'Para llevar', icon: ShoppingBag }] : []),
+  ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike }] : []),
+  ...(modules?.kitchen ? [{ path: '/kitchen', label: 'Cocina', icon: ChefHat, roles: ['admin', 'cashier', 'kitchen'] }] : []),
   { path: '/shift', label: 'Cierre de Caja', icon: Wallet },
   { path: '/reports', label: 'Ventas e Ingresos', icon: BarChart3 },
   { path: '/orders', label: 'Historial Pedidos', icon: ClipboardList },
@@ -43,9 +48,10 @@ const visibleFor = (items: NavItem[], role?: string) => items.filter(i => !i.rol
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride } = useStore();
+  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride, restaurant } = useStore();
   const isDark = (modeOverride ?? branding.theme?.mode ?? 'light') === 'dark';
-  const visibleNav = visibleFor(navItems, user?.role);
+  // El personal de cocina solo ve el monitor de cocina
+  const visibleNav = visibleFor(navFor(restaurant?.modules), user?.role).filter(i => user?.role !== 'kitchen' || i.path === '/kitchen');
   const pendingCount = orders.filter(o => o.status === 'pending').length;
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -66,7 +72,7 @@ export const AppLayout = () => {
   const isKitchen = location.pathname === '/kitchen';
   if (isKitchen) return <Outlet />;
 
-  const isPOS = location.pathname.startsWith('/pos');
+  const isPOS = location.pathname.startsWith('/pos') || location.pathname.startsWith('/cuenta/');
   const sideW = sidebarCollapsed ? 'w-16' : 'w-64';
   const mainML = sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64';
   const headerML = sidebarCollapsed ? 'lg:left-16' : 'lg:left-64';
@@ -267,11 +273,14 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
   const [showMore, setShowMore] = useState(false);
   const businessName = useStore(s => s.businessName);
 
+  const modules = useStore(s => s.restaurant?.modules);
   const mainItems = [
     { path: '/pos', label: 'POS Caja', icon: Store },
+    ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid }] : []),
+    ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike }] : []),
     { path: '/shift', label: 'Turno', icon: Wallet },
     { path: '/orders', label: 'Pedidos', icon: ClipboardList },
-    { path: '/reports', label: 'Reportes', icon: BarChart3 },
+    ...(!modules?.tables && !modules?.delivery ? [{ path: '/reports', label: 'Reportes', icon: BarChart3 }] : []),
   ];
 
   const role = useStore(s => s.user?.role);

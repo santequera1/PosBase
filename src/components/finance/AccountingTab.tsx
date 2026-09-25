@@ -9,8 +9,9 @@ import { downloadXlsx, xlsxDate as csvDate } from '@/lib/xlsx';
 type Period = 'today' | 'week' | 'month' | 'last_month' | 'year' | 'custom';
 const monthStart = () => `${getColombiaTodayStr().slice(0, 7)}-01`;
 
-const PART_LABEL: Record<string, string> = { cash: 'Efectivo', debit: 'Tarjeta débito', credit: 'Tarjeta crédito', transfer: 'Transferencia / QR' };
-const PART_KEYS = ['cash', 'debit', 'credit', 'transfer'];
+const PART_LABEL: Record<string, string> = { cash: 'Efectivo', debit: 'Tarjeta débito', credit: 'Tarjeta crédito', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', onCredit: 'Por cobrar' };
+const PART_KEYS = ['cash', 'debit', 'credit', 'transfer', 'platform', 'onCredit'];
+const saleType = (o: any) => (o.type === 'dine-in' ? `Mesa ${o.table || ''}`.trim() : o.type === 'delivery' ? 'Domicilio' : 'Para llevar / mostrador');
 
 /** Texto con el detalle del pago: para pagos mixtos muestra cada medio con su valor. */
 const paymentDetail = (o: any): string => {
@@ -204,10 +205,10 @@ const AccountingTab = () => {
   const taxName = data?.tax?.type === 'none' ? 'Impuesto' : (data?.tax?.type || '').toUpperCase();
 
   const kindName: Record<string, string> = { cogs: 'Insumos', opex: 'Operativo', payroll: 'Nómina', other: 'Otro' };
-  const sheetSalesByDay = () => ({ name: 'Ventas diario', headers: ['Fecha', 'Comprobantes', 'Base', taxName, 'Total', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia'],
-    rows: data.sales.byDay.map((d: any) => [csvDate(d.date), d.count, d.base, d.tax, d.total, d.cash, d.debit, d.credit, d.transfer]) });
-  const sheetOrders = () => ({ name: 'Comprobantes', headers: ['Fecha', 'Hora', 'Comprobante', 'Vendedor', 'Turno', 'Cliente', 'Documento', 'Medio de pago', 'Detalle del pago', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia', 'Estado', 'Subtotal', 'Descuento', 'Base', taxName, 'Total', 'Factura electrónica'],
-    rows: data.sales.orders.map((o: any) => [csvDate(o.date), o.time, o.number, o.seller || '', o.shift || '', o.customer, o.doc, isMixed(o) ? 'Mixto' : o.method, paymentDetail(o), o.parts?.cash || 0, o.parts?.debit || 0, o.parts?.credit || 0, o.parts?.transfer || 0, o.status, o.subtotal, o.discount, o.base, o.tax, o.total, o.electronic ? 'Sí' : 'No']) });
+  const sheetSalesByDay = () => ({ name: 'Ventas diario', headers: ['Fecha', 'Comprobantes', 'Base', taxName, 'Total', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia', 'Plataforma', 'Por cobrar'],
+    rows: data.sales.byDay.map((d: any) => [csvDate(d.date), d.count, d.base, d.tax, d.total, d.cash, d.debit, d.credit, d.transfer, d.platform || 0, d.onCredit || 0]) });
+  const sheetOrders = () => ({ name: 'Comprobantes', headers: ['Fecha', 'Hora', 'Comprobante', 'Vendedor', 'Turno', 'Tipo de venta', 'Canal', 'Cliente', 'Documento', 'Medio de pago', 'Detalle del pago', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia', 'Plataforma', 'Por cobrar', 'Propina', 'Estado', 'Subtotal', 'Descuento', 'Base', taxName, 'Total', 'Factura electrónica'],
+    rows: data.sales.orders.map((o: any) => [csvDate(o.date), o.time, o.number, o.seller || '', o.shift || '', saleType(o), o.channel || 'local', o.customer, o.doc, isMixed(o) ? 'Mixto' : o.method, paymentDetail(o), o.parts?.cash || 0, o.parts?.debit || 0, o.parts?.credit || 0, o.parts?.transfer || 0, o.parts?.platform || 0, o.parts?.onCredit || 0, o.tip || 0, o.status, o.subtotal, o.discount, o.base, o.tax, o.total, o.electronic ? 'Sí' : 'No']) });
   const sheetPurchases = () => ({ name: 'Compras y gastos', headers: ['Fecha', 'Categoría', 'Tipo', 'Proveedor', 'NIT', 'Factura', 'Descripción', 'Medio de pago', 'Estado', 'Vence', 'Base', 'IVA', 'Total'],
     rows: data.purchases.rows.map((e: any) => [csvDate(e.date), e.category, kindName[e.kind] || e.kind, e.supplier || '', e.supplierNit || '', e.invoice || '', e.description, e.methodLabel, e.statusLabel, csvDate(e.dueDate), e.base, e.taxAmount, e.amount]) });
   const sheetPayroll = () => ({ name: 'Nómina', headers: ['Pagado el', 'Colaborador', 'Documento', 'Período desde', 'Período hasta', 'Base', 'Extras y recargos', 'Auxilio transporte', 'Propinas', 'Anticipos', 'Salud y pensión', 'Bonificaciones', 'Descuentos', 'Total', 'Medio'],
@@ -290,11 +291,11 @@ const AccountingTab = () => {
           {/* Libro de ventas diario (cada día se abre y muestra sus comprobantes) */}
           <Section title="Libro de ventas (resumen diario)" icon={BookOpen} right={<ExportBtn onClick={exportSalesByDay}>Excel</ExportBtn>}>
             <ExpandableTable
-              headers={['Fecha', 'Compr.', 'Base', taxName, 'Total', 'Efectivo', 'T. débito', 'T. crédito', 'Transf.']}
+              headers={['Fecha', 'Compr.', 'Base', taxName, 'Total', 'Efectivo', 'T. débito', 'T. crédito', 'Transf.', 'Plataf.', 'Por cobrar']}
               hint="Haz clic en un día para ver sus comprobantes uno a uno."
               rows={data.sales.byDay.map((d: any) => ({
                 key: d.date,
-                cells: [fmtDate(d.date), d.count, formatPrice(d.base), formatPrice(d.tax), <b key="t">{formatPrice(d.total)}</b>, formatPrice(d.cash), formatPrice(d.debit), formatPrice(d.credit), formatPrice(d.transfer)],
+                cells: [fmtDate(d.date), d.count, formatPrice(d.base), formatPrice(d.tax), <b key="t">{formatPrice(d.total)}</b>, formatPrice(d.cash), formatPrice(d.debit), formatPrice(d.credit), formatPrice(d.transfer), formatPrice(d.platform || 0), formatPrice(d.onCredit || 0)],
                 detail: data.sales.orders.filter((o: any) => o.date === d.date),
               }))}
               footer={['Total', data.sales.totals.count, formatPrice(data.sales.totals.base), formatPrice(data.sales.totals.tax), formatPrice(data.sales.totals.gross), ...data.sales.byPayment.map((p: any) => formatPrice(p.total))]}
@@ -340,9 +341,9 @@ const AccountingTab = () => {
           {/* Comprobantes */}
           <Section title={`Comprobantes del período (${data.sales.orders.length})`} icon={Receipt} right={<ExportBtn onClick={exportOrders}>Excel</ExportBtn>}>
             <Table
-              headers={['Fecha', 'Hora', 'Comprobante', 'Vendedor', 'Cliente', 'Documento', 'Medio', 'Estado', 'Base', taxName, 'Total']}
-              align={['l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']}
-              rows={ordersToShow.map((o: any) => [fmtDate(o.date), o.time, <span key="n" className="font-mono">{o.number}</span>, o.seller || '—', o.customer, o.doc,
+              headers={['Fecha', 'Hora', 'Comprobante', 'Tipo', 'Vendedor', 'Cliente', 'Documento', 'Medio', 'Estado', 'Base', taxName, 'Total']}
+              align={['l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'l', 'r', 'r', 'r']}
+              rows={ordersToShow.map((o: any) => [fmtDate(o.date), o.time, <span key="n" className="font-mono">{o.number}</span>, <span key="ty" className="text-[10px] px-1.5 py-0.5 rounded bg-brand-card border border-brand-accent/40">{saleType(o)}</span>, o.seller || '—', o.customer, o.doc,
                 isMixed(o) ? <span key="m"><span className="text-[9px] px-1 rounded bg-amber-100 text-amber-800 font-semibold mr-1">Mixto</span><span className="whitespace-normal">{paymentDetail(o)}</span></span> : o.method,
                 <span key="s" className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold', o.status === 'Anulado' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800')}>{o.status}</span>,
                 formatPrice(o.base), formatPrice(o.tax), <b key="t">{formatPrice(o.total)}</b>])}

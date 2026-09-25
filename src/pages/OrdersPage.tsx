@@ -4,23 +4,34 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, LayoutGrid, List, Plus, Trash2, Printer, Eye, CheckCircle2, X } from 'lucide-react';
 import { useStore, type OrderStatus, type Order } from '@/store/useStore';
+import { statusLabel, STATUS_CLASS, isActive, TYPE_LABEL, CHANNEL_LABEL, type Channel } from '@/lib/restaurant';
+
+/** Chip con el tipo de venta (mesa, para llevar, domicilio), el canal y si está por cobrar. */
+const OrderTypeChip = ({ order }: { order: any }) => (
+  <span className="inline-flex flex-wrap gap-1 ml-1.5">
+    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-brand-card text-brand-primary border border-brand-accent/40 font-sans">{order.type === 'dine-in' ? `Mesa ${order.tableLabel || order.tableNumber || ''}` : TYPE_LABEL[order.type as 'pickup' | 'delivery'] || order.type}</span>
+    {order.channel && order.channel !== 'local' && <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200 font-sans">{CHANNEL_LABEL[order.channel as Channel]}</span>}
+    {order.paymentStatus === 'pending' && order.status !== 'cancelled' && <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 font-sans">Por cobrar</span>}
+  </span>
+);
 import { formatPrice, getColombiaTodayStr, getColombiaYesterdayStr, getColombiaNow, getOrderDateStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { PrintModal } from '@/components/PrintModal';
 
-const statusTabs: { label: string; status: OrderStatus | 'all' }[] = [
+const statusTabs: { label: string; status: OrderStatus | 'all' | 'active' | 'unpaid' }[] = [
   { label: 'Todos', status: 'all' },
+  { label: '🔥 En curso', status: 'active' },
   { label: '✅ Entregados', status: 'delivered' },
-  { label: '🟡 Pendientes', status: 'pending' },
-  { label: '❌ Cancelados', status: 'cancelled' },
+  { label: '💳 Por cobrar', status: 'unpaid' },
+  { label: '❌ Anulados', status: 'cancelled' },
 ];
 
 export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const { orders, deleteOrder, currentShift, user } = useStore();
-  const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all');
+  const [activeTab, setActiveTab] = useState<OrderStatus | 'all' | 'active' | 'unpaid'>('all');
   const [feOrderId, setFeOrderId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
@@ -55,7 +66,9 @@ export const OrdersPage: React.FC = () => {
           if (customTo && orderDate > customTo) return false;
         }
       }
-      if (activeTab !== 'all' && o.status !== activeTab) return false;
+      if (activeTab === 'unpaid') { if (o.paymentStatus !== 'pending' || o.status === 'cancelled') return false; }
+      else if (activeTab === 'active') { if (!isActive(o)) return false; }
+      else if (activeTab !== 'all' && o.status !== activeTab) return false;
       if (search && !`#${o.id} ${orderNumber(o.id)} ${o.customer.name} ${o.customer.doc}`.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
@@ -200,12 +213,11 @@ export const OrdersPage: React.FC = () => {
                       {feOrderId === order.id && <ElectronicInvoiceModal order={order} onClose={() => setFeOrderId(null)} />}
                       <p className="text-[11px] text-gray-500 font-sans">{order.createdAt}</p>
                     </div>
-                    <span className={cn(
-                      'px-2 py-0.5 rounded-md text-[10px] font-bold uppercase font-sans',
-                      order.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
-                      order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
-                    )}>
-                      {order.status === 'delivered' ? 'Entregado' : order.status}
+                    <span className="flex flex-wrap items-center justify-end gap-y-1">
+                      <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold uppercase font-sans', STATUS_CLASS[order.status] || 'bg-amber-100 text-amber-800')}>
+                        {statusLabel(order)}
+                      </span>
+                      <OrderTypeChip order={order} />
                     </span>
                   </div>
 
@@ -300,14 +312,15 @@ export const OrdersPage: React.FC = () => {
                       <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-brand-card text-brand-primary border border-brand-accent/40">
                         {order.paymentMethod === 'cash' ? 'Efectivo' :
                          order.paymentMethod === 'card_debit' ? 'Tarjeta Débito' :
-                         order.paymentMethod === 'card_credit' ? 'Tarjeta Crédito' : 'QR Transferencia'}
+                         order.paymentMethod === 'card_credit' ? 'Tarjeta Crédito' :
+                         order.paymentMethod === 'platform' ? 'Plataforma' : order.paymentMethod === 'credit' ? 'A crédito' : order.paymentMethod === 'mixed' ? 'Mixto' : 'QR Transferencia'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-brand-dark font-sans">{formatPrice(order.total)}</td>
                     <td className="py-3 px-4 font-sans">
-                      <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
-                        <CheckCircle2 size={13} className="text-emerald-600" />
-                        Entregado
+                      <span className={cn("inline-flex items-center gap-1 font-semibold text-[11px]", order.status === "delivered" ? "text-emerald-700" : order.status === "cancelled" ? "text-red-600" : "text-amber-700")}>
+                        {order.status === "delivered" && <CheckCircle2 size={13} className="text-emerald-600" />}
+                        {statusLabel(order)}<OrderTypeChip order={order} />
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center font-sans">

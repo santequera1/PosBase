@@ -22,6 +22,9 @@ import SettingsPage from "@/pages/SettingsPage";
 import StaffPage from "@/pages/StaffPage";
 import FinancePage from "@/pages/FinancePage";
 import TablesPage from "@/pages/TablesPage";
+import CounterPage from "@/pages/CounterPage";
+import DeliveryPage from "@/pages/DeliveryPage";
+import OpenOrderPage from "@/pages/OpenOrderPage";
 import NotFound from "@/pages/NotFound";
 import { io } from "socket.io-client";
 
@@ -98,6 +101,9 @@ const App = () => (
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/kitchen" element={<KitchenPage />} />
             <Route path="/tables" element={<TablesPage />} />
+            <Route path="/counter" element={<CounterPage />} />
+            <Route path="/delivery" element={<DeliveryPage />} />
+            <Route path="/cuenta/:id" element={<OpenOrderPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customers/:id" element={<CustomerDetailPage />} />

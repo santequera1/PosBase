@@ -652,7 +652,7 @@ export const POSPage: React.FC = () => {
         total,
         paymentMethod,
         paymentSplit: finalSplit,
-        paymentStatus: 'paid' as const,
+        paymentStatus: (paymentMethod === 'credit' ? 'pending' : 'paid') as 'paid' | 'pending',
         cashReceived: paymentMethod === 'cash'
           ? (numericCash || total)
           : paymentMethod === 'mixed'

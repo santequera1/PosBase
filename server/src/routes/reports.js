@@ -5,6 +5,9 @@ const { requireRole } = require('../auth');
 const router = Router();
 
 function getPeriodFilter(period) {
+  return "AND status != 'open' " + periodClause(period);
+}
+function periodClause(period) {
   switch (period) {
     case 'today': return "AND date(created_at) = date('now', '-5 hours')";
     case 'yesterday': return "AND date(created_at) = date('now', '-5 hours', '-1 day')";
@@ -93,9 +96,9 @@ router.get('/top-drivers', requireRole('admin', 'cashier'), (req, res) => {
   const pf = getPeriodFilter(req.query.period);
 
   const rows = db.prepare(`
-    SELECT d.id, d.name, d.phone, COUNT(o.id) as orderCount, COALESCE(SUM(o.total), 0) as totalRevenue
-    FROM drivers d
-    JOIN orders o ON o.driver_id = d.id
+    SELECT d.id, d.name, d.phone, COUNT(o.id) as orderCount, COALESCE(SUM(o.total), 0) as totalRevenue, COALESCE(SUM(o.delivery_fee), 0) as deliveryFees
+    FROM employees d
+    JOIN orders o ON o.driver_id = d.id AND o.type = 'delivery'
     WHERE o.status != 'cancelled' ${pf}
     GROUP BY d.id
     ORDER BY orderCount DESC

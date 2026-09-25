@@ -4,6 +4,7 @@ import { BRAND } from '@/lib/theme';
 import { orderNumber } from '@/lib/orderNumber';
 import React, { useState, useMemo } from 'react';
 import { useStore, type Order } from '@/store/useStore';
+import { RestaurantStats } from '@/components/restaurant/RestaurantStats';
 import { formatPrice, getColombiaTodayStr, getColombiaYesterdayStr, getColombiaNow, getOrderDateStr } from '@/lib/format';
 import {
   Search,
@@ -92,6 +93,11 @@ export const ReportsPage: React.FC = () => {
       return true;
     });
   }, [orders, period, customFrom, customTo, paymentFilter, search, currentShift, user]);
+  // Rango del período para las estadísticas del restaurante (mesas, domicilios, meseros, repartidores)
+  const statsRange = useMemo(() => {
+    const dates = filtered.map(o => o.createdAt.slice(0, 10)).sort();
+    return dates.length ? { from: dates[0], to: dates[dates.length - 1] } : null;
+  }, [filtered]);
 
   const metrics = useMemo(() => {
     const validOrders = filtered.filter(o => o.status !== 'cancelled');
@@ -223,7 +229,7 @@ export const ReportsPage: React.FC = () => {
   };
 
   // Excel real (.xlsx): fecha y hora en columnas separadas, totales numéricos para que Excel los sume
-  const PM_LABEL: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', mixed: 'Mixto' };
+  const PM_LABEL: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', credit: 'A crédito', mixed: 'Mixto' };
   // Cómo se pagó realmente: para pagos mixtos, cada medio con su valor
   const paymentDetail = (o: any): string => {
     const s = o.paymentSplit;
@@ -231,21 +237,21 @@ export const ReportsPage: React.FC = () => {
     return PM_LABEL[o.paymentMethod] || o.paymentMethod;
   };
   const partsOf = (o: any): number[] => {
-    const p = { cash: 0, debit: 0, credit: 0, transfer: 0 };
-    const add = (m: string, amt: number) => { if (m === 'cash') p.cash += amt; else if (m === 'card_debit') p.debit += amt; else if (m === 'card_credit' || m === 'card') p.credit += amt; else if (m === 'transfer') p.transfer += amt; };
+    const p = { cash: 0, debit: 0, credit: 0, transfer: 0, platform: 0 };
+    const add = (m: string, amt: number) => { if (m === 'cash') p.cash += amt; else if (m === 'card_debit') p.debit += amt; else if (m === 'card_credit' || m === 'card') p.credit += amt; else if (m === 'transfer') p.transfer += amt; else if (m === 'platform') p.platform += amt; };
     const s = o.paymentSplit;
     if (o.paymentMethod === 'mixed' && s && s.method1) { add(s.method1, Number(s.amount1) || 0); if (s.method2) add(s.method2, Number(s.amount2) || 0); }
     else add(o.paymentMethod, o.total);
-    return [p.cash, p.debit, p.credit, p.transfer];
+    return [p.cash, p.debit, p.credit, p.transfer, p.platform];
   };
   const handleExportCSV = () => {
     const pm = PM_LABEL;
-    const headers = ['Fecha', 'Hora', 'Comprobante', 'Tipo', 'Turno', 'Vendedor', 'Cliente', 'Doc Cliente', 'Método de pago', 'Detalle del pago', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia', 'Estado', 'Total'];
+    const headers = ['Fecha', 'Hora', 'Comprobante', 'Tipo', 'Turno', 'Vendedor', 'Cliente', 'Doc Cliente', 'Método de pago', 'Detalle del pago', 'Efectivo', 'Tarjeta débito', 'Tarjeta crédito', 'Transferencia', 'Plataforma', 'Estado', 'Total'];
     const rows = filtered.map(o => [
       xlsxDate(o.createdAt),
       xlsxTime(o.createdAt),
       orderNumber(o.id),
-      'Doc. de ingreso',
+      o.type === 'dine-in' ? `Mesa ${o.tableLabel || o.tableNumber || ''}` : o.type === 'delivery' ? 'Domicilio' : 'Para llevar / mostrador',
       o.shiftId ? `#${o.shiftId}` : '',
       o.cashierName || '',
       o.customer?.name || 'Consumidor Final',
@@ -521,7 +527,8 @@ export const ReportsPage: React.FC = () => {
 
                         {/* Tipo */}
                         <td className="py-3.5 px-4 text-gray-600 whitespace-nowrap font-sans">
-                          Doc. de ingreso
+                          {order.type === 'dine-in' ? `Mesa ${order.tableLabel || order.tableNumber || ''}` : order.type === 'delivery' ? 'Domicilio' : 'Para llevar'}
+                          {order.paymentStatus === 'pending' && order.status !== 'cancelled' && <span className="ml-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold">Por cobrar</span>}
                         </td>
 
                         {/* Vendedor */}
@@ -550,7 +557,9 @@ export const ReportsPage: React.FC = () => {
                             {order.paymentMethod === 'cash' ? 'Efectivo' :
                              order.paymentMethod === 'card_debit' ? 'Tarjeta Débito' :
                              order.paymentMethod === 'card_credit' ? 'Tarjeta Crédito' :
-                             order.paymentMethod === 'mixed' ? 'Mixto' : 'Transferencia QR'}
+                             order.paymentMethod === 'mixed' ? 'Mixto' :
+                             order.paymentMethod === 'platform' ? 'Plataforma' :
+                             order.paymentMethod === 'credit' ? 'A crédito' : 'Transferencia QR'}
                           </span>
                           {order.paymentMethod === 'mixed' && <p className="text-[10px] text-muted-foreground mt-0.5 font-sans">{paymentDetail(order)}</p>}
                         </td>
@@ -612,6 +621,7 @@ export const ReportsPage: React.FC = () => {
       {/* TAB 2: Gráficas y Estadísticas */}
       {activeTab === 'graficas' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 font-sans">
+          {statsRange && <RestaurantStats from={statsRange.from} to={statsRange.to} />}
           {/* Tarjetas de Presentaciones / Envases Vendidos en el Período */}
           <div className="col-span-1 lg:col-span-12">
             <div className="bg-white rounded-2xl p-4 sm:p-5 border border-brand-primary/10 shadow-sm space-y-3">
@@ -968,6 +978,8 @@ export const ReportsPage: React.FC = () => {
                       { name: 'T. Débito', value: metrics.debit, color: BRAND.dark },
                       { name: 'T. Crédito', value: metrics.credit, color: BRAND.accent },
                       { name: 'QR / Transferencia', value: metrics.transfer, color: BRAND.muted },
+                      { name: 'Plataforma (Rappi/DiDi)', value: filtered.filter(o => o.status !== 'cancelled' && o.paymentMethod === 'platform').reduce((s, o) => s + o.total, 0), color: '#0ea5e9' },
+                      { name: 'Por cobrar', value: filtered.filter(o => o.status !== 'cancelled' && o.paymentStatus === 'pending').reduce((s, o) => s + o.total, 0), color: '#f59e0b' },
                     ].filter(d => d.value > 0)}
                     dataKey="value"
                     nameKey="name"
@@ -982,6 +994,8 @@ export const ReportsPage: React.FC = () => {
                       { color: BRAND.dark },
                       { color: BRAND.accent },
                       { color: BRAND.muted },
+                      { color: '#0ea5e9' },
+                      { color: '#f59e0b' },
                     ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}

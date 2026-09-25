@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { api, setToken } from '@/lib/api';
 import { toast } from 'sonner';
 import { type ThemeInput, type ThemeMode, type CustomFont, BASE_THEME, resolveTheme, applyTheme, setFavicon } from '@/lib/theme';
+import type { RestaurantConfig } from '@/lib/restaurant';
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus = 'open' | 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'billing' | 'cancelled';
 export type OrderType = 'dine-in' | 'pickup' | 'delivery';
-export type PaymentMethod = 'cash' | 'card_debit' | 'card_credit' | 'card' | 'transfer' | 'mixed';
+export type PaymentMethod = 'cash' | 'card_debit' | 'card_credit' | 'card' | 'transfer' | 'platform' | 'credit' | 'mixed';
 export type UserRole = 'admin' | 'cashier' | 'kitchen';
 
 export interface PaymentSplit {
@@ -52,6 +53,7 @@ export interface Product {
   trackStock?: boolean;
   stock?: number;
   minStock?: number;
+  station?: 'cocina' | 'barra' | 'none';
 }
 
 export interface Customer {
@@ -61,6 +63,8 @@ export interface Customer {
   email?: string;
   phone: string;
   address: string;
+  address2?: string;
+  neighborhood?: string;
   notes: string;
   isCompany?: boolean;
   totalOrders: number;
@@ -70,6 +74,7 @@ export interface Customer {
 }
 
 export interface OrderItem {
+  id?: number;
   productId: number;
   name: string;
   size?: string;
@@ -77,6 +82,10 @@ export interface OrderItem {
   quantity: number;
   price: number;
   notes: string;
+  batch?: number;
+  sentAt?: string;
+  kitchenStatus?: 'pending' | 'preparing' | 'ready';
+  station?: string;
 }
 
 export interface Order {
@@ -89,9 +98,31 @@ export interface Order {
     email?: string;
     phone?: string;
     address?: string;
+    address2?: string;
+    neighborhood?: string;
     isElectronicInvoice?: boolean;
   };
+  customerId?: number;
+  channel?: string;
+  label?: string;
+  tableId?: number;
+  tableLabel?: string;
   tableNumber?: number;
+  people?: number;
+  waiterId?: number;
+  waiterName?: string;
+  driverName?: string;
+  tip?: number;
+  tipTo?: string;
+  amountDue?: number;
+  unsentCount?: number;
+  estimatedMinutes?: number;
+  readyAt?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  closedAt?: string;
+  closedBy?: string;
+  discountReason?: string;
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
@@ -193,6 +224,7 @@ interface AppState {
   customers: Customer[];
   orders: Order[];
   drivers: Driver[];
+  restaurant: RestaurantConfig | null;
   currentShift: CashShift | null;
   deliveryFee: number;
   tableCount: number;
@@ -273,6 +305,7 @@ interface AppState {
 
   // Socket handler
   handleOrderEvent: (order: Order) => void;
+  loadRestaurantConfig: () => Promise<void>;
   handleProductEvent: (product: Product) => void;
 }
 
@@ -284,6 +317,7 @@ export const useStore = create<AppState>((set, get) => ({
   customers: [],
   orders: [],
   drivers: [],
+  restaurant: null,
   currentShift: null,
   deliveryFee: 5000,
   tableCount: 8,
@@ -389,6 +423,7 @@ export const useStore = create<AppState>((set, get) => ({
         initialized: true,
       });
       applyBranding(get().branding, get().businessName);
+      get().loadRestaurantConfig();
     } catch (err) {
       console.error('Error initializing data:', err);
     }
@@ -646,6 +681,10 @@ export const useStore = create<AppState>((set, get) => ({
     } catch {
       applyBranding(get().branding, get().businessName);
     }
+  },
+
+  loadRestaurantConfig: async () => {
+    try { set({ restaurant: await api.getRestaurantConfig() }); } catch { /* sin módulo de restaurante */ }
   },
 
   handleOrderEvent: (order) => {

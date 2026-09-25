@@ -2,6 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { initModulesSchema } = require('./modules');
+const { initRestaurantSchema } = require('./restaurantSchema');
 
 const DB_PATH = path.join(__dirname, '..', 'data.db');
 
@@ -15,6 +16,7 @@ function getDb() {
     initSchema();
     migrateSchema();
     initModulesSchema(db);
+    initRestaurantSchema(db);
     seedIfEmpty();
     syncSpecialProducts();
     backfillOrderCashier(db);

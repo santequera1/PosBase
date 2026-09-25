@@ -4,6 +4,8 @@ import {
   CreditCard,
   Banknote,
   QrCode,
+  Smartphone,
+  Handshake,
   Shuffle,
   Tag,
   ArrowLeft,
@@ -127,7 +129,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <label className="text-xs font-bold text-brand-primary uppercase tracking-wider block mb-2">
                 Selecciona Método de Pago
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   onClick={() => onUpdateTab({ paymentMethod: 'cash' })}
                   className={cn(
@@ -178,6 +180,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 >
                   <QrCode size={20} />
                   <span>QR / Nequi</span>
+                </button>
+
+                <button
+                  onClick={() => onUpdateTab({ paymentMethod: 'platform' })}
+                  title="Paga la plataforma (Rappi, DiDi): no entra a la caja en efectivo"
+                  className={cn(
+                    'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
+                    paymentMethod === 'platform'
+                      ? 'bg-brand-button text-brand-on-button ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
+                  )}
+                >
+                  <Smartphone size={20} />
+                  <span>Plataforma</span>
+                </button>
+
+                <button
+                  onClick={() => onUpdateTab({ paymentMethod: 'credit' })}
+                  title="A crédito: queda por cobrar"
+                  className={cn(
+                    'py-3 px-2 rounded-2xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all',
+                    paymentMethod === 'credit'
+                      ? 'bg-brand-button text-brand-on-button ring-2 ring-brand-primary shadow-md scale-[1.02]'
+                      : 'bg-white text-brand-primary border border-brand-primary/15 hover:bg-brand-card'
+                  )}
+                >
+                  <Handshake size={20} />
+                  <span>A crédito</span>
                 </button>
 
                 <button
@@ -331,6 +361,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <option value="card_debit">💳 T. Débito</option>
                       <option value="card_credit">💳 T. Crédito</option>
                       <option value="transfer">📱 QR / Nequi</option>
+                      <option value="platform">🛵 Plataforma (Rappi/DiDi)</option>
                     </select>
                   </div>
                   <div>

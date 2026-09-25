@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils';
 import type { OrderStatus, OrderType } from '@/store/useStore';
 
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
+  open: { label: 'Cuenta abierta', className: 'bg-sky-100 text-sky-700' },
+  billing: { label: 'Pidiendo la cuenta', className: 'bg-rose-100 text-rose-700' },
   pending: { label: 'Pendiente', className: 'bg-warning/15 text-warning' },
   preparing: { label: 'En preparación', className: 'bg-info/15 text-info' },
   ready: { label: 'Listo', className: 'bg-success/15 text-success' },

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
-import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks } from 'lucide-react';
+import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks, UtensilsCrossed } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import BrandingPanel from '@/components/settings/BrandingPanel';
 import UsersPanel from '@/components/settings/UsersPanel';
+import RestaurantPanel from '@/components/settings/RestaurantPanel';
 
-type Tab = 'negocio' | 'marca' | 'usuarios' | 'categorias' | 'integracion';
+type Tab = 'negocio' | 'marca' | 'usuarios' | 'categorias' | 'restaurante' | 'integracion';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -152,6 +153,7 @@ const SettingsPage = () => {
     { id: 'marca', label: 'Marca', icon: Palette, adminOnly: true },
     { id: 'usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
     { id: 'categorias', label: 'Categorías', icon: FolderOpen },
+    { id: 'restaurante', label: 'Restaurante', icon: UtensilsCrossed, adminOnly: true },
     { id: 'integracion', label: 'IA WhatsApp', icon: Bot, adminOnly: true },
   ];
 
@@ -315,6 +317,8 @@ const SettingsPage = () => {
       )}
 
       {/* ---------- Integración IA WhatsApp ---------- */}
+      {tab === 'restaurante' && isAdmin && <RestaurantPanel />}
+
       {tab === 'integracion' && isAdmin && (
         <section className="max-w-xl bg-white rounded-2xl border border-brand-primary/15 p-5 shadow-sm space-y-4 font-sans text-left">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">

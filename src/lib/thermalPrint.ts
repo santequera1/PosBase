@@ -76,6 +76,10 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
   else if (order.paymentMethod === 'card_credit') paymentMethodLabel = 'T. Crédito';
   else if (order.paymentMethod === 'transfer') paymentMethodLabel = 'QR / Nequi';
   else if (order.paymentMethod === 'card') paymentMethodLabel = 'Tarjeta';
+  else if (order.paymentMethod === 'platform') paymentMethodLabel = 'Plataforma (Rappi/DiDi)';
+  else if (order.paymentMethod === 'credit') paymentMethodLabel = 'A crédito (por cobrar)';
+  const tip = Number(order.tip) || 0;
+  const c = order.customer || {};
 
   return `
     <div class="ticket" style="width: ${widthCss}; max-width: ${widthCss};">
@@ -98,6 +102,9 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div style="font-size: 8px; margin-bottom: 2px;">
         <div class="row"><span><strong>Cliente:</strong> ${customerName}</span></div>
         <div class="row"><span><strong>C.C / NIT:</strong> ${customerDoc}</span></div>
+        ${order.type === 'dine-in' ? `<div class="row"><span><strong>Mesa:</strong> ${order.tableLabel || order.tableNumber || ''}${order.people ? ` · ${order.people} personas` : ''}${order.waiterName ? ` · Atiende: ${order.waiterName}` : ''}</span></div>` : ''}
+        ${order.type === 'pickup' && order.label ? `<div class="row"><span><strong>Para llevar:</strong> ${order.label}</span></div>` : ''}
+        ${order.type === 'delivery' ? `<div class="row"><span><strong>Domicilio:</strong> ${c.address || ''}${c.address2 ? `, ${c.address2}` : ''}${c.neighborhood ? ` · ${c.neighborhood}` : ''}</span></div>${c.phone ? `<div class="row"><span><strong>Tel:</strong> ${c.phone}</span></div>` : ''}${order.driverName ? `<div class="row"><span><strong>Repartidor:</strong> ${order.driverName}</span></div>` : ''}` : ''}
         ${order.electronicInvoice ? `<div class="row"><span><strong>F.E. PRUEBA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE (simulado): ${String(order.electronicInvoice.cufe).slice(0, 48)}…</div><div style="font-size: 6.5px; font-weight: bold;">DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL</div>` : ''}
       </div>
 
@@ -125,12 +132,14 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
 
       <div style="font-size: 8.5px;">
         <div class="row"><span>Subtotal:</span><span style="white-space: nowrap;">${formatPrice(subtotal)}</span></div>
-        ${discount > 0 ? `<div class="row font-bold" style="color: #000;"><span>Descuento:</span><span style="white-space: nowrap;">-${formatPrice(discount)}</span></div>` : ''}
+        ${order.deliveryFee > 0 ? `<div class="row"><span>Envío:</span><span style="white-space: nowrap;">${formatPrice(order.deliveryFee)}</span></div>` : ''}
+        ${discount > 0 ? `<div class="row font-bold" style="color: #000;"><span>Descuento${order.discountReason ? ` (${order.discountReason})` : ''}:</span><span style="white-space: nowrap;">-${formatPrice(discount)}</span></div>` : ''}
         ${biz.taxRate > 0 ? `<div class="row" style="font-size: 7.5px;"><span>Base gravable:</span><span style="white-space: nowrap;">${formatPrice(taxBase)}</span></div><div class="row" style="font-size: 7.5px;"><span>${biz.taxLabel} ${biz.taxRate}% (incluido):</span><span style="white-space: nowrap;">${formatPrice(taxAmount)}</span></div>` : ''}
         <div class="row font-bold" style="font-size: 10px; margin-top: 3px; border-top: 1px solid #000; padding-top: 2px;">
-          <span>TOTAL A PAGAR:</span>
+          <span>${tip > 0 ? 'TOTAL:' : 'TOTAL A PAGAR:'}</span>
           <span style="white-space: nowrap;">${formatPrice(total)}</span>
         </div>
+        ${tip > 0 ? `<div class="row" style="font-size: 8px;"><span>Propina:</span><span style="white-space: nowrap;">${formatPrice(tip)}</span></div><div class="row font-bold" style="font-size: 10px;"><span>TOTAL A PAGAR:</span><span style="white-space: nowrap;">${formatPrice(total + tip)}</span></div>` : ''}
         <div class="row" style="font-size: 8px; margin-top: 2px;">
           <span>Forma de Pago:</span>
           <span class="font-bold">${paymentMethodLabel}</span>
@@ -208,6 +217,8 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
         <div class="row font-bold"><span>Total Datáfono (Tarjetas):</span><span style="white-space: nowrap;">${formatPrice(debit + credit)}</span></div>
         <div class="row" style="font-size: 7.5px; color: #333; padding-left: 6px;"><span>↳ Débito: ${formatPrice(debit)} | Crédito: ${formatPrice(credit)}</span></div>
         <div class="row"><span>Ventas QR / Nequi:</span><span style="white-space: nowrap;">${formatPrice(transfer)}</span></div>
+        ${(shiftData.platformSales || 0) > 0 ? `<div class="row"><span>Plataformas (Rappi/DiDi):</span><span style="white-space: nowrap;">${formatPrice(shiftData.platformSales)}</span></div>` : ''}
+        ${(shiftData.pendingSales || 0) > 0 ? `<div class="row"><span>Por cobrar (crédito / sin pagar):</span><span style="white-space: nowrap;">${formatPrice(shiftData.pendingSales)}</span></div>` : ''}
         <div class="row font-bold" style="font-size: 9.5px; margin-top: 3px; border-top: 1px solid #000; padding-top: 2px;">
           <span>TOTAL VENTAS:</span>
           <span style="white-space: nowrap;">${formatPrice(totalSales)}</span>

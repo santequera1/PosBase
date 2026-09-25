@@ -22,6 +22,8 @@ function enrichCustomer(db, customer) {
     email: customer.email || '',
     phone: customer.phone,
     address: customer.address || '',
+    address2: customer.address2 || '',
+    neighborhood: customer.neighborhood || '',
     notes: customer.notes || '',
     isCompany: Boolean(customer.is_company),
     totalOrders,
@@ -69,7 +71,7 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { name, documentId = '222222222222', email = '', phone = '', address = '', notes = '', isCompany = false } = req.body;
+  const { name, documentId = '222222222222', email = '', phone = '', address = '', address2 = '', neighborhood = '', notes = '', isCompany = false } = req.body;
   if (!name) return res.status(400).json({ error: 'El nombre es requerido' });
 
   const db = getDb();
@@ -95,16 +97,16 @@ router.post('/', (req, res) => {
   }
 
   const result = db.prepare(`
-    INSERT INTO customers (name, document_id, email, phone, address, notes, is_company)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(name, documentId, email, cleanPhone, address, notes, isCompany ? 1 : 0);
+    INSERT INTO customers (name, document_id, email, phone, address, address2, neighborhood, notes, is_company)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(name, documentId, email, cleanPhone, address, String(address2 || '').trim(), String(neighborhood || '').trim(), notes, isCompany ? 1 : 0);
 
   const created = db.prepare('SELECT * FROM customers WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(enrichCustomer(db, created));
 });
 
 router.put('/:id', (req, res) => {
-  const { name, documentId, email, phone, address, notes, isCompany } = req.body;
+  const { name, documentId, email, phone, address, address2, neighborhood, notes, isCompany } = req.body;
   const db = getDb();
   const existing = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Cliente no encontrado' });
@@ -116,10 +118,12 @@ router.put('/:id', (req, res) => {
       email = COALESCE(?, email),
       phone = COALESCE(?, phone),
       address = COALESCE(?, address),
+      address2 = COALESCE(?, address2),
+      neighborhood = COALESCE(?, neighborhood),
       notes = COALESCE(?, notes),
       is_company = COALESCE(?, is_company)
     WHERE id = ?
-  `).run(name, documentId, email, phone, address, notes, isCompany !== undefined ? (isCompany ? 1 : 0) : existing.is_company, req.params.id);
+  `).run(name, documentId, email, phone, address, address2 !== undefined ? String(address2).trim() : null, neighborhood !== undefined ? String(neighborhood).trim() : null, notes, isCompany !== undefined ? (isCompany ? 1 : 0) : existing.is_company, req.params.id);
 
   const updated = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   res.json(enrichCustomer(db, updated));

@@ -10,20 +10,24 @@ function getShiftLiveStats(db, shift) {
 
   // Sales totals strictly for this shift
   const orders = db.prepare(`
-    SELECT payment_method, total, payment_split
+    SELECT payment_method, total, payment_split, payment_status, status
     FROM orders
-    WHERE status != 'cancelled' AND shift_id = ?
+    WHERE status NOT IN ('cancelled', 'open') AND shift_id = ?
   `).all(shift.id);
 
   let cashSales = 0;
   let debitSales = 0;
   let creditSales = 0;
   let transferSales = 0;
+  let platformSales = 0;
+  let pendingSales = 0;
   let totalOrders = orders.length;
   let totalSales = 0;
 
   for (const o of orders) {
     totalSales += o.total;
+    // Sin pagar (a crédito, domicilio por cobrar, cuenta en curso): no entra a ningún medio de pago todavía
+    if (o.payment_status !== 'paid') { pendingSales += o.total; continue; }
     if (o.payment_split) {
       try {
         const split = typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split;
@@ -32,6 +36,7 @@ function getShiftLiveStats(db, shift) {
           else if (m === 'card_debit') debitSales += amt;
           else if (m === 'card_credit' || m === 'card') creditSales += amt;
           else if (m === 'transfer') transferSales += amt;
+          else if (m === 'platform') platformSales += amt;
         };
         if (split.method1 && split.amount1) addSplit(split.method1, Number(split.amount1));
         if (split.method2 && split.amount2) addSplit(split.method2, Number(split.amount2));
@@ -45,6 +50,7 @@ function getShiftLiveStats(db, shift) {
     else if (o.payment_method === 'card_debit') debitSales += o.total;
     else if (o.payment_method === 'card_credit' || o.payment_method === 'card') creditSales += o.total;
     else if (o.payment_method === 'transfer') transferSales += o.total;
+    else if (o.payment_method === 'platform') platformSales += o.total;
   }
 
   // Cash Movements (Withdrawals / Deposits) strictly for this shift
@@ -83,6 +89,8 @@ function getShiftLiveStats(db, shift) {
     debitSales,
     creditSales,
     transferSales,
+    platformSales,
+    pendingSales,
     totalSales,
     totalOrders,
     totalWithdrawals,

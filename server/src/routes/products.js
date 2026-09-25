@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { getDb } = require('../db');
 const { requireRole } = require('../auth');
 const { PRODUCT_SELECT, mapProduct, getProduct, emitProduct, adjustStock } = require('../stock');
+const { STATIONS } = require('../restaurantSchema');
 
 const router = Router();
 const STAFF = requireRole('admin', 'cashier');
@@ -39,6 +40,7 @@ router.post('/', STAFF, (req, res) => {
   if (ts && st > 0) {
     db.prepare("INSERT INTO stock_movements (product_id, delta, stock_after, reason, user_name) VALUES (?, ?, ?, 'inventario', ?)").run(result.lastInsertRowid, st, st, req.user?.name || '');
   }
+  if (STATIONS.includes(req.body.station)) db.prepare('UPDATE products SET station = ? WHERE id = ?').run(req.body.station, result.lastInsertRowid);
   const product = getProduct(db, result.lastInsertRowid);
   emitProduct(req.app.io, product);
   res.status(201).json(product);
@@ -66,6 +68,7 @@ router.put('/:id', STAFF, (req, res) => {
   `).run(name, categoryId, price, available != null ? (available ? 1 : 0) : null, image, description, sizesJson !== undefined ? sizesJson : null,
     trackStock !== undefined ? (trackStock ? 1 : 0) : null, minStock !== undefined ? Math.max(0, Math.round(Number(minStock) || 0)) : null, req.params.id);
 
+  if (STATIONS.includes(req.body.station)) db.prepare('UPDATE products SET station = ? WHERE id = ?').run(req.body.station, req.params.id);
   // Cambio de stock desde el formulario: se registra como ajuste de inventario
   const nowTracking = trackStock !== undefined ? Boolean(trackStock) : Boolean(existing.ts);
   if (nowTracking && stock !== undefined && stock !== null && stock !== '') {

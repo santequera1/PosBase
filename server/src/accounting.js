@@ -6,7 +6,7 @@
  * software), pero los datos salen listos para digitar o importar.
  */
 
-const PAYMENT_LABEL = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', mixed: 'Mixto', credit: 'Crédito' };
+const PAYMENT_LABEL = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', mixed: 'Mixto', credit: 'A crédito' };
 const TAX_LABEL = { none: 'Sin impuesto', iva: 'IVA', inc: 'INC (impuesto al consumo)' };
 
 function readSettings(db, keys) {
@@ -29,13 +29,16 @@ function splitTax(total, rate) {
 }
 
 function paymentParts(o) {
-  const parts = { cash: 0, debit: 0, credit: 0, transfer: 0 };
+  const parts = { cash: 0, debit: 0, credit: 0, transfer: 0, platform: 0, onCredit: 0 };
   const add = (m, amt) => {
     if (m === 'cash') parts.cash += amt;
     else if (m === 'card_debit') parts.debit += amt;
     else if (m === 'card_credit' || m === 'card') parts.credit += amt;
     else if (m === 'transfer') parts.transfer += amt;
+    else if (m === 'platform') parts.platform += amt;
+    else if (m === 'credit') parts.onCredit += amt;
   };
+  if (o.payment_status && o.payment_status !== 'paid') { parts.onCredit += o.total; return parts; }
   if (o.payment_split) {
     try {
       const split = typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split;
@@ -59,13 +62,14 @@ function buildAccounting(db, range) {
 
   /* ---------- Ventas ---------- */
   const orderRows = db.prepare(`
-    SELECT id, created_at, customer_name, customer_doc, payment_method, payment_split, subtotal, discount, delivery_fee, total, status, is_electronic_invoice, cashier_name, shift_id
-    FROM orders WHERE date(created_at) BETWEEN ? AND ? ORDER BY created_at, id
+    SELECT id, created_at, customer_name, customer_doc, payment_method, payment_split, payment_status, subtotal, discount, delivery_fee, total, status, is_electronic_invoice, cashier_name, shift_id,
+           type, channel, tip, table_label, waiter_name, driver_name
+    FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status != 'open' ORDER BY created_at, id
   `).all(from, to);
 
   const byDayMap = new Map();
-  const byPaymentMap = { cash: 0, debit: 0, credit: 0, transfer: 0 };
-  const byPaymentCount = { cash: 0, debit: 0, credit: 0, transfer: 0 };
+  const byPaymentMap = { cash: 0, debit: 0, credit: 0, transfer: 0, platform: 0, onCredit: 0 };
+  const byPaymentCount = { cash: 0, debit: 0, credit: 0, transfer: 0, platform: 0, onCredit: 0 };
   let count = 0, gross = 0, base = 0, taxTotal = 0, cancelledCount = 0, cancelledTotal = 0, discounts = 0, electronicCount = 0;
 
   const orders = orderRows.map(o => {
@@ -78,8 +82,8 @@ function buildAccounting(db, range) {
       count++; gross += o.total; base += t.base; taxTotal += t.tax; discounts += o.discount || 0;
       if (o.is_electronic_invoice) electronicCount++;
       for (const k of Object.keys(parts)) { byPaymentMap[k] += parts[k]; if (parts[k] > 0) byPaymentCount[k]++; }
-      const d = byDayMap.get(date) || { date, count: 0, total: 0, base: 0, tax: 0, cash: 0, debit: 0, credit: 0, transfer: 0 };
-      d.count++; d.total += o.total; d.base += t.base; d.tax += t.tax; d.cash += parts.cash; d.debit += parts.debit; d.credit += parts.credit; d.transfer += parts.transfer;
+      const d = byDayMap.get(date) || { date, count: 0, total: 0, base: 0, tax: 0, cash: 0, debit: 0, credit: 0, transfer: 0, platform: 0, onCredit: 0 };
+      d.count++; d.total += o.total; d.base += t.base; d.tax += t.tax; d.cash += parts.cash; d.debit += parts.debit; d.credit += parts.credit; d.transfer += parts.transfer; d.platform += parts.platform; d.onCredit += parts.onCredit;
       byDayMap.set(date, d);
     }
     return {
@@ -87,6 +91,7 @@ function buildAccounting(db, range) {
       method: PAYMENT_LABEL[o.payment_method] || o.payment_method, methodKey: o.payment_method, status: cancelled ? 'Anulado' : 'Válido',
       subtotal: o.subtotal, discount: o.discount || 0, deliveryFee: o.delivery_fee || 0, total: o.total, base: t.base, tax: t.tax,
       electronic: Boolean(o.is_electronic_invoice), seller: o.cashier_name || '', shift: o.shift_id ? `#${o.shift_id}` : '', parts,
+      type: o.type, channel: o.channel || 'local', tip: o.tip || 0, table: o.table_label || '', waiter: o.waiter_name || '', courier: o.driver_name || '', paid: o.payment_status === 'paid',
     };
   });
 
@@ -95,6 +100,8 @@ function buildAccounting(db, range) {
     { key: 'debit', label: 'Tarjeta débito', total: byPaymentMap.debit, count: byPaymentCount.debit },
     { key: 'credit', label: 'Tarjeta crédito', total: byPaymentMap.credit, count: byPaymentCount.credit },
     { key: 'transfer', label: 'Transferencia / QR', total: byPaymentMap.transfer, count: byPaymentCount.transfer },
+    { key: 'platform', label: 'Plataformas (Rappi / DiDi)', total: byPaymentMap.platform, count: byPaymentCount.platform },
+    { key: 'onCredit', label: 'Por cobrar (crédito / sin pagar)', total: byPaymentMap.onCredit, count: byPaymentCount.onCredit },
   ];
 
   /* ---------- Compras y gastos ---------- */
