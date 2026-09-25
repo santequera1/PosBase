@@ -36,7 +36,10 @@ const TablesPage = () => {
   const [roomForm, setRoomForm] = useState<{ room?: Room } | null>(null);
   const [, setTick] = useState(0);
   const planRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
+  const drag = useRef<{ id: number; dx: number; dy: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const justDragged = useRef(false);
+  const roomsRef = useRef<Room[]>([]);
+  useEffect(() => { roomsRef.current = rooms; }, [rooms]);
 
   const load = useCallback(async () => {
     try { const r = await api.getTablesState(); setRooms(r); setRoomId(id => id && r.some(x => x.id === id) ? id : (r[0]?.id ?? null)); } catch (e: any) { toast.error(e.message); }
@@ -55,20 +58,37 @@ const TablesPage = () => {
   const onPointerDown = (e: React.PointerEvent, t: RestaurantTable) => {
     if (!editMode || !planRef.current) return;
     const rect = planRef.current.getBoundingClientRect();
-    drag.current = { id: t.id, dx: ((e.clientX - rect.left) / rect.width) * 100 - t.x, dy: ((e.clientY - rect.top) / rect.height) * 100 - t.y };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current = { id: t.id, dx: ((e.clientX - rect.left) / rect.width) * 100 - t.x, dy: ((e.clientY - rect.top) / rect.height) * 100 - t.y, startX: t.x, startY: t.y, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current || !planRef.current || !room) return;
+    const d = drag.current;
+    if (!d || !planRef.current || !room) return;
     const rect = planRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100 - 6, ((e.clientX - rect.left) / rect.width) * 100 - drag.current.dx));
-    const y = Math.max(0, Math.min(100 - 6, ((e.clientY - rect.top) / rect.height) * 100 - drag.current.dy));
-    setRooms(rs => rs.map(r => r.id !== room.id ? r : { ...r, tables: r.tables.map(t => t.id === drag.current!.id ? { ...t, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 } : t) }));
+    const x = Math.round(Math.max(0, Math.min(100 - 6, ((e.clientX - rect.left) / rect.width) * 100 - d.dx)) * 10) / 10;
+    const y = Math.round(Math.max(0, Math.min(100 - 6, ((e.clientY - rect.top) / rect.height) * 100 - d.dy)) * 10) / 10;
+    if (Math.abs(x - d.startX) < 0.8 && Math.abs(y - d.startY) < 0.8 && !d.moved) return;
+    d.moved = true;
+    // Se capturan id y salón aquí: la actualización de estado corre después, cuando el arrastre ya puede haber terminado
+    const tableId = d.id, roomId = room.id;
+    setRooms(rs => rs.map(r => r.id !== roomId ? r : { ...r, tables: r.tables.map(t => t.id === tableId ? { ...t, x, y } : t) }));
     setDirty(true);
   };
-  const onPointerUp = () => { drag.current = null; };
-  const saveLayout = async () => {
-    try { await api.saveTableLayout(rooms.flatMap(r => r.tables.map(t => ({ id: t.id, x: t.x, y: t.y, w: t.w, h: t.h })))); setDirty(false); toast.success('Plano guardado'); } catch (e: any) { toast.error(e.message); }
+  const saveLayout = async (silent = false) => {
+    try {
+      await api.saveTableLayout(roomsRef.current.flatMap(r => r.tables.map(t => ({ id: t.id, x: t.x, y: t.y, w: t.w, h: t.h }))));
+      setDirty(false);
+      if (!silent) toast.success('Plano guardado');
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const onPointerUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || !d.moved) return;
+    // El clic que sigue al arrastre no debe abrir el editor de la mesa; la posición se guarda sola al soltar
+    justDragged.current = true;
+    setTimeout(() => { justDragged.current = false; }, 300);
+    setTimeout(() => saveLayout(true), 50);
   };
   const removeTable = async (t: RestaurantTable) => {
     if (!window.confirm(`¿Eliminar la mesa ${t.label}?`)) return;
@@ -110,7 +130,7 @@ const TablesPage = () => {
             <>
               <button onClick={() => setTableForm({})} className="px-3 py-1.5 rounded-xl border border-border bg-white text-xs font-semibold flex items-center gap-1.5"><Plus size={13} /> Mesa</button>
               <button onClick={() => setRoomForm({})} className="px-3 py-1.5 rounded-xl border border-border bg-white text-xs font-semibold flex items-center gap-1.5"><Plus size={13} /> Salón</button>
-              <button onClick={saveLayout} disabled={!dirty} className="px-3 py-1.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Save size={13} /> Guardar plano</button>
+              <button onClick={() => saveLayout()} disabled={!dirty} className="px-3 py-1.5 rounded-xl bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Save size={13} /> Guardar plano</button>
               <button onClick={() => { setEditMode(false); setDirty(false); load(); }} className="px-3 py-1.5 rounded-xl border border-border bg-white text-xs font-semibold flex items-center gap-1.5"><X size={13} /> Salir</button>
             </>
           )}
@@ -136,7 +156,7 @@ const TablesPage = () => {
               const st = t.state || 'free';
               const Icon = SHAPE_ICON[t.shape] || Square;
               return (
-                <button key={t.id} onPointerDown={e => onPointerDown(e, t)} onClick={() => { if (editMode) setTableForm({ table: t }); else if (st === 'free') setOpening(t); else setSelected(t); }}
+                <button key={t.id} onPointerDown={e => onPointerDown(e, t)} onClick={() => { if (justDragged.current) return; if (editMode) setTableForm({ table: t }); else if (st === 'free') setOpening(t); else setSelected(t); }}
                   title={editMode ? 'Arrastra para mover · clic para editar' : st === 'free' ? `Abrir mesa ${t.label}` : `Mesa ${t.label}: ${formatPrice(t.order?.total || 0)}`}
                   className={cn('absolute flex flex-col items-center justify-center border-2 shadow-md transition-transform', t.shape === 'round' ? 'rounded-full' : 'rounded-2xl', STATE_STYLE[st], editMode && 'cursor-move', selected?.id === t.id && 'ring-4 ring-brand-accent scale-105')}
                   style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%` }}>
@@ -153,7 +173,7 @@ const TablesPage = () => {
             {room && room.tables.length === 0 && <p className="absolute inset-0 flex items-center justify-center text-sm text-brand-muted">Este salón no tiene mesas{editMode ? ': agrega una con el botón "+ Mesa"' : ''}.</p>}
             {!room && <p className="absolute inset-0 flex items-center justify-center text-sm text-brand-muted">Cargando plano...</p>}
           </div>
-          {editMode && <p className="text-[11px] text-muted-foreground mt-2">Arrastra las mesas a su posición real, tócalas para cambiar nombre, forma o puestos, y guarda el plano.</p>}
+          {editMode && <p className="text-[11px] text-muted-foreground mt-2">Arrastra las mesas a su posición real (se guarda sola al soltar); tócalas sin mover para cambiar nombre, forma o puestos.</p>}
         </div>
 
         <div className="space-y-3">
