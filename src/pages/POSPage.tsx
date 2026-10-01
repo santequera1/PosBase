@@ -282,6 +282,7 @@ export const POSPage: React.FC = () => {
 
   const [customItem, setCustomItem] = useState({ name: '', price: '' });
   const [affogatoModalProd, setAffogatoModalProd] = useState<Product | null>(null);
+  const [sizingProd, setSizingProd] = useState<Product | null>(null);
   const [lastOrder, setLastOrder] = useState<any | null>(null);
   const recentOrders = useStore(s => s.orders);
   const lastSale = useMemo(() => recentOrders.reduce((a: any, o: any) => (!a || o.id > a.id ? o : a), null), [recentOrders]);
@@ -573,6 +574,9 @@ export const POSPage: React.FC = () => {
       return;
     }
 
+    // Productos con tamaños o variantes (sencilla / doble / triple, combo...): se elige la variante antes de agregar
+    if (prod.sizes && prod.sizes.length > 0) { setSizingProd(prod); return; }
+
     addItemToCart({
       productId: prod.id,
       name: prod.name,
@@ -583,6 +587,12 @@ export const POSPage: React.FC = () => {
       notes: '',
     });
     toast.success(`Agregado: ${prod.name}`);
+  };
+  const addSizedProduct = (prod: Product, s: { name: string; price: number }) => {
+    // Misma convención que el módulo restaurante: el nombre lleva la variante para recibos y comandas
+    addItemToCart({ productId: prod.id, name: `${prod.name} - ${s.name}`, size: s.name, flavors: undefined, quantity: 1, price: s.price, notes: '' });
+    setSizingProd(null);
+    toast.success(`Agregado: ${prod.name} · ${s.name}`);
   };
 
   const handleAddCustomItem = () => {
@@ -768,8 +778,8 @@ export const POSPage: React.FC = () => {
               <span>Gelatos Artesanales</span>
             </button>
 
-            {/* Affogatos, Bebidas & Aguas, Adicionales */}
-            {categories.filter(c => c.id === 6 || c.id === 4 || c.id === 5).map(cat => (
+            {/* Las demás categorías (bebidas, toppings, affogatos y cualquier categoría nueva: hamburguesas, combos, etc.) */}
+            {categories.filter(c => ![1, 2, 3].includes(c.id)).map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { setCatalogTab(cat.id); setFirstFlavor(null); }}
@@ -1082,11 +1092,11 @@ export const POSPage: React.FC = () => {
                         </div>
                       )}
 
-                      <p className="font-sans text-xs text-brand-muted not-italic my-1 line-clamp-2">{prod.description || 'Producto Gia'}</p>
+                      <p className="font-sans text-xs text-brand-muted not-italic my-1 line-clamp-2">{prod.description || ''}</p>
                     </div>
 
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                      <span className="font-sans font-bold text-sm lg:text-base text-brand-primary-strong">{formatPrice(prod.price)}</span>
+                      <span className="font-sans font-bold text-sm lg:text-base text-brand-primary-strong">{prod.sizes && prod.sizes.length ? `Desde ${formatPrice(Math.min(...prod.sizes.map(s => s.price)))}` : formatPrice(prod.price)}</span>
                       <span className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-brand-button text-brand-on-button flex items-center justify-center text-sm font-bold shadow-sm group-hover:scale-105 transition-transform">
                         +
                       </span>
@@ -1334,7 +1344,7 @@ export const POSPage: React.FC = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <span className="font-sans font-bold text-xs sm:text-sm text-brand-dark leading-tight block">
-                      {item.size || item.name.replace(/—.*$/, '').trim()}
+                      {item.size && !item.name.includes('—') && item.name !== item.size ? item.name : (item.size || item.name.replace(/—.*$/, '').trim())}
                     </span>
                     {item.size && item.name.includes('—') && (
                       <span className="text-[10px] text-gray-500 font-sans block truncate">
@@ -1694,6 +1704,24 @@ export const POSPage: React.FC = () => {
 
       {/* Affogato Flavor Selection Modal */}
       <AnimatePresence>
+        {sizingProd && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSizingProd(null)}>
+            <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-3" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm text-brand-dark">{sizingProd.name} · elige la opción</h4>
+                <button onClick={() => setSizingProd(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>
+              </div>
+              {sizingProd.description && <p className="text-xs text-brand-muted">{sizingProd.description}</p>}
+              <div className="grid gap-2">
+                {(sizingProd.sizes || []).map(s => (
+                  <button key={s.name} onClick={() => addSizedProduct(sizingProd, s)} data-size-option className="flex items-center justify-between px-4 py-3 rounded-xl border border-brand-primary/15 bg-brand-card hover:bg-brand-button hover:text-brand-on-button transition-colors text-sm font-semibold">
+                    <span>{s.name}</span><span>{formatPrice(s.price)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         {affogatoModalProd && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
             <motion.div
