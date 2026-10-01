@@ -440,8 +440,8 @@ function syncSpecialProducts() {
       db.prepare("UPDATE products SET name = 'Café', price = 5000, image = '/images/products/vaso-pequeno.webp', available = 1 WHERE id = ?").run(cafeProd.id);
     }
 
-    // Auto-migrate any legacy .png product image paths to .webp
-    db.prepare("UPDATE products SET image = REPLACE(image, '.png', '.webp') WHERE image LIKE '%.png'").run();
+    // Fotos semilla antiguas en .png → .webp (solo la carpeta de productos; las fotos subidas por el negocio se respetan)
+    db.prepare("UPDATE products SET image = REPLACE(image, '.png', '.webp') WHERE image LIKE '/images/products/%.png'").run();
   } catch (err) {
     console.error('Error syncing special products:', err);
   }
