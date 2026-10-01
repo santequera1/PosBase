@@ -3,7 +3,8 @@ import { LayoutGrid, ShoppingBag, Bike, ChefHat, Percent, Wallet, Printer, Info 
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { INPUT, LABEL } from '@/components/common/Primitives';
+import { INPUT, LABEL, Chip } from '@/components/common/Primitives';
+import { STATION_LABEL, PRINT_STATIONS } from '@/lib/restaurant';
 
 const MODULES = [
   { key: 'tables', label: 'Mesas', icon: LayoutGrid, desc: 'Plano del salón, cuentas abiertas por mesa, comandas por tandas, precuenta y cobro.' },
@@ -25,7 +26,7 @@ export const RestaurantPanel = () => {
   const save = async () => {
     setSaving(true); setMsg('');
     try {
-      const saved = await api.updateRestaurantConfig({ modules: cfg.modules, tipPercent: cfg.tipPercent, tipDineIn: cfg.tipDineIn, tipCounter: cfg.tipCounter, tipDelivery: cfg.tipDelivery, deliveryFee: cfg.deliveryFee, deliveryTimes: times, requireOpenShift: cfg.requireOpenShift, autoPrintKitchen: cfg.autoPrintKitchen });
+      const saved = await api.updateRestaurantConfig({ modules: cfg.modules, tipPercent: cfg.tipPercent, tipDineIn: cfg.tipDineIn, tipCounter: cfg.tipCounter, tipDelivery: cfg.tipDelivery, deliveryFee: cfg.deliveryFee, deliveryTimes: times, requireOpenShift: cfg.requireOpenShift, autoPrintKitchen: cfg.autoPrintKitchen, kitchenPrintMode: cfg.kitchenPrintMode, stationPrinters: cfg.stationPrinters });
       setCfg(saved); setTimes(saved.deliveryTimes.join(', ')); setMsg('Guardado. El menú lateral se actualiza con los módulos activos.');
       loadRestaurantConfig();
     } catch (e: any) { setMsg(e.message); }
@@ -69,7 +70,39 @@ export const RestaurantPanel = () => {
       <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3">
         <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Wallet size={14} /> Caja y cocina</h3>
         <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={!!cfg.requireOpenShift} onChange={e => set({ requireOpenShift: e.target.checked })} className="mt-0.5" /><span><span className="font-semibold text-brand-dark block">Exigir caja abierta para vender</span><span className="text-muted-foreground">Sin un turno de caja abierto no se pueden registrar ni cobrar ventas.</span></span></label>
-        <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={!!cfg.autoPrintKitchen} onChange={e => set({ autoPrintKitchen: e.target.checked })} className="mt-0.5" /><span><span className="font-semibold text-brand-dark flex items-center gap-1"><Printer size={12} /> Imprimir la comanda al enviarla a cocina</span><span className="text-muted-foreground">Además del monitor de cocina, abre la impresión térmica de cada comanda.</span></span></label>
+      </section>
+
+      <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3">
+        <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Printer size={14} /> Impresión de comandas</h3>
+        <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={!!cfg.autoPrintKitchen} onChange={e => set({ autoPrintKitchen: e.target.checked })} className="mt-0.5" /><span><span className="font-semibold text-brand-dark block">Imprimir la comanda al enviarla a cocina desde la caja o la mesa</span><span className="text-muted-foreground">Además del monitor de cocina, se imprime la comanda térmica de cada envío.</span></span></label>
+        <div>
+          <label className={LABEL}>Cómo se imprime</label>
+          <div className="flex flex-wrap gap-2">
+            <Chip active={cfg.kitchenPrintMode !== 'station'} onClick={() => set({ kitchenPrintMode: 'single' })}>Una sola comanda con todo (una impresora)</Chip>
+            <Chip active={cfg.kitchenPrintMode === 'station'} onClick={() => set({ kitchenPrintMode: 'station' })}>Separada por estación (cocina y barra)</Chip>
+          </div>
+        </div>
+        {cfg.kitchenPrintMode === 'station' && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {PRINT_STATIONS.map(st => {
+              const p = cfg.stationPrinters?.[st] || { enabled: true, label: '', copies: 1 };
+              const setP = (patch: any) => set({ stationPrinters: { ...cfg.stationPrinters, [st]: { ...p, ...patch } } });
+              return (
+                <div key={st} className={cn('rounded-xl border p-3 space-y-2', p.enabled ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border opacity-70')} data-station={st}>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><input type="checkbox" checked={p.enabled !== false} onChange={e => setP({ enabled: e.target.checked })} /> Comanda de {STATION_LABEL[st]}</label>
+                  <div><label className={LABEL}>Nombre de la impresora (como aparece en el diálogo de impresión)</label><input value={p.label || ''} onChange={e => setP({ label: e.target.value })} placeholder={st === 'cocina' ? 'Ej: EPSON TM-T20 Cocina' : 'Ej: XPrinter Barra'} className={INPUT} /></div>
+                  <div><label className={LABEL}>Copias</label><input type="number" min={1} max={3} value={p.copies || 1} onChange={e => setP({ copies: Number(e.target.value) })} className={cn(INPUT, 'w-24 font-mono')} /></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="text-[11px] text-muted-foreground space-y-1 rounded-lg bg-muted/30 p-3">
+          <p className="font-semibold text-brand-dark flex items-center gap-1"><Info size={12} /> Cómo sacar cocina y barra en impresoras distintas</p>
+          <p>Cada producto tiene su estación (Menú → producto → "Se prepara en"). Con el modo separado, al enviar una comanda salen dos tickets: uno solo con lo de cocina y otro solo con lo de barra.</p>
+          <p><b>Opción recomendada:</b> una pantalla de cocina en cada estación (tablet o PC con su impresora conectada), filtrada por su estación y con el botón <b>Imprimir → Auto</b> activado: cada comanda nueva sale sola en la impresora de esa estación, sin pasar por la caja.</p>
+          <p><b>Desde la caja:</b> cada ticket abre su propio diálogo de impresión y ahí se elige la impresora indicada arriba. Si el navegador está en modo quiosco (impresión sin diálogo), todo sale en la impresora predeterminada de ese equipo.</p>
+        </div>
       </section>
 
       <div className="flex items-center gap-3 flex-wrap">

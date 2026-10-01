@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChefHat, Play, CheckCircle2, Undo2, ArrowLeft, LogOut, RefreshCw } from 'lucide-react';
+import { ChefHat, Play, CheckCircle2, Undo2, ArrowLeft, LogOut, RefreshCw, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { elapsedLabel, minutesSince, TYPE_LABEL, CHANNEL_LABEL, type KitchenTicket, type Channel } from '@/lib/restaurant';
+import { elapsedLabel, minutesSince, TYPE_LABEL, CHANNEL_LABEL, STATION_LABEL, type KitchenTicket, type Channel } from '@/lib/restaurant';
+import { kitchenTicketFromKds } from '@/lib/restaurantPrint';
+import { printThermal } from '@/lib/thermalPrint';
+
+const AUTOPRINT_KEY = 'kds-autoprint';
 
 const STATIONS: Array<[string, string]> = [['', 'Todas'], ['cocina', 'Cocina'], ['barra', 'Barra']];
 
@@ -14,14 +18,33 @@ const KitchenPage = () => {
   const navigate = useNavigate();
   const { orders, user, logout } = useStore();
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
-  const [station, setStation] = useState('');
+  const [station, setStation] = useState(() => { try { return localStorage.getItem('kds-station') || ''; } catch { return ''; } });
   const [, setTick] = useState(0);
   const [loading, setLoading] = useState(false);
+  // Impresión automática en ESTE equipo: cada estación (cocina, barra) pone su pantalla con su impresora y marca esta opción
+  const [autoPrint, setAutoPrint] = useState(() => { try { return localStorage.getItem(AUTOPRINT_KEY) === '1'; } catch { return false; } });
+  const seen = useRef<Set<string> | null>(null);
+  const printing = useRef(false);
+  const printTicket = useCallback(async (t: KitchenTicket) => {
+    await printThermal(kitchenTicketFromKds(t, station || undefined), `Comanda-${t.orderId}-${t.batch}`);
+  }, [station]);
+  const toggleAutoPrint = () => { const v = !autoPrint; setAutoPrint(v); try { localStorage.setItem(AUTOPRINT_KEY, v ? '1' : '0'); } catch { /* sin almacenamiento */ } toast.success(v ? `Las comandas nuevas${station ? ' de ' + STATION_LABEL[station] : ''} se imprimirán solas en este equipo` : 'Impresión automática desactivada en este equipo'); };
+  const chooseStation = (id: string) => { setStation(id); seen.current = null; try { localStorage.setItem('kds-station', id); } catch { /* sin almacenamiento */ } };
 
   const load = useCallback(async () => {
-    try { setTickets(await api.getKitchen(station || undefined)); } catch (e: any) { toast.error(e.message); }
+    try {
+      const list: KitchenTicket[] = await api.getKitchen(station || undefined);
+      setTickets(list);
+      const keys = new Set(list.map(t => t.key));
+      if (seen.current === null) seen.current = keys; // primera carga: no imprime lo que ya estaba
+      else {
+        const fresh = list.filter(t => t.kitchenStatus === 'new' && !seen.current!.has(t.key));
+        fresh.forEach(t => seen.current!.add(t.key));
+        if (autoPrint && fresh.length && !printing.current) { printing.current = true; try { for (const t of fresh) await printTicket(t); } finally { printing.current = false; } }
+      }
+    } catch (e: any) { toast.error(e.message); }
     setLoading(false);
-  }, [station]);
+  }, [station, autoPrint, printTicket]);
   useEffect(() => { setLoading(true); load(); }, [load]);
   const sig = orders.map(o => `${o.id}:${o.status}:${o.items.filter(i => i.batch).map(i => `${i.batch}${i.kitchenStatus}`).join('')}`).join('|');
   useEffect(() => { load(); }, [sig, load]);
@@ -44,8 +67,9 @@ const KitchenPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-white/10 rounded-xl p-1">
-            {STATIONS.map(([id, label]) => <button key={id} onClick={() => setStation(id)} className={cn('px-3 py-1.5 rounded-lg text-xs font-bold', station === id ? 'bg-brand-accent text-brand-on-accent' : 'opacity-80 hover:opacity-100')}>{label}</button>)}
+            {STATIONS.map(([id, label]) => <button key={id} onClick={() => chooseStation(id)} className={cn('px-3 py-1.5 rounded-lg text-xs font-bold', station === id ? 'bg-brand-accent text-brand-on-accent' : 'opacity-80 hover:opacity-100')}>{label}</button>)}
           </div>
+          <button onClick={toggleAutoPrint} title={autoPrint ? 'Las comandas nuevas se imprimen solas en este equipo' : 'Imprimir automáticamente las comandas nuevas en este equipo'} className={cn('h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold', autoPrint ? 'bg-emerald-500 text-white' : 'bg-white/10 hover:bg-white/20')}><Printer size={15} /> {autoPrint ? 'Auto' : 'Imprimir'}</button>
           <button onClick={() => { setLoading(true); load(); }} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Actualizar"><RefreshCw size={16} className={cn(loading && 'animate-spin')} /></button>
           {user?.role === 'kitchen' && <button onClick={logout} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Cerrar sesión"><LogOut size={16} /></button>}
         </div>
@@ -68,7 +92,10 @@ const KitchenPage = () => {
                         <p className="font-bold text-base leading-tight truncate">{t.type === 'dine-in' ? `Mesa ${t.tableLabel || '?'}` : t.label || t.customerName}</p>
                         <p className="text-[11px] text-brand-muted">{TYPE_LABEL[t.type]}{t.channel && t.channel !== 'local' ? ` · ${CHANNEL_LABEL[t.channel as Channel]}` : ''} · comanda #{t.batch} · pedido #{t.orderId}{t.waiterName ? ` · ${t.waiterName}` : ''}</p>
                       </div>
-                      <span className={cn('text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap', timeCls)}>{elapsedLabel(t.sentAt)}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button onClick={() => printTicket(t)} title="Imprimir esta comanda" className="w-7 h-7 rounded-lg bg-white/70 hover:bg-white text-brand-dark flex items-center justify-center print:hidden"><Printer size={13} /></button>
+                        <span className={cn('text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap', timeCls)}>{elapsedLabel(t.sentAt)}</span>
+                      </div>
                     </div>
                     <div className="px-3 py-2 space-y-1.5">
                       {t.items.map(i => (

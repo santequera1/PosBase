@@ -11,7 +11,7 @@ import { ProductPicker } from '@/components/restaurant/ProductPicker';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { orderTitle, statusLabel, STATUS_CLASS, elapsedLabel, CHANNEL_LABEL, TYPE_LABEL, type Channel, isActive } from '@/lib/restaurant';
 import { printThermal } from '@/lib/thermalPrint';
-import { generateKitchenTicketHtml, generatePreBillHtml } from '@/lib/restaurantPrint';
+import { printKitchenTickets, generatePreBillHtml } from '@/lib/restaurantPrint';
 
 const backPath = (o: Order) => (o.type === 'dine-in' ? '/tables' : o.type === 'pickup' ? '/counter' : '/delivery');
 const sameLine = (a: OrderItem, b: OrderItem) => a.productId === b.productId && (a.size || '') === (b.size || '') && (a.notes || '') === (b.notes || '');
@@ -90,13 +90,13 @@ const OpenOrderPage = () => {
       if (r.batch) {
         lastBatch.current = { batch: r.batch, items: r.items };
         toast.success(`Comanda #${r.batch} enviada a cocina (${r.items.length} producto${r.items.length === 1 ? '' : 's'})`);
-        if (restaurant?.autoPrintKitchen) printThermal(generateKitchenTicketHtml(r.order, r.items, r.batch), `Comanda-${orderId}-${r.batch}`);
+        if (restaurant?.autoPrintKitchen) await printKitchenTickets(r.order, r.items, r.batch, restaurant);
       } else toast.info('No hay productos nuevos para enviar');
       if (order.type !== 'dine-in') navigate(backPath(order));
     } catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
-  const printLastBatch = () => { if (order && lastBatch.current) printThermal(generateKitchenTicketHtml(order, lastBatch.current.items, lastBatch.current.batch), `Comanda-${orderId}`); };
+  const printLastBatch = () => { if (order && lastBatch.current) printKitchenTickets(order, lastBatch.current.items, lastBatch.current.batch, restaurant); };
   const prebill = async () => {
     if (!order) return;
     setBusy(true);

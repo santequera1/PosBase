@@ -16,11 +16,15 @@ export interface RestaurantConfig {
   deliveryTimes: number[];
   requireOpenShift: boolean;
   autoPrintKitchen: boolean;
+  kitchenPrintMode: 'single' | 'station';
+  stationPrinters: Record<string, StationPrinter>;
   channels: Array<{ id: Channel; label: string }>;
   stations: string[];
   staff: { waiters: StaffMember[]; couriers: StaffMember[] };
 }
 export interface StaffMember { id: number; name: string; position: string }
+export interface StationPrinter { enabled: boolean; label: string; copies: number }
+export const PRINT_STATIONS = ['cocina', 'barra'];
 export interface RestaurantTable {
   id: number; roomId: number; label: string; shape: TableShape; seats: number; x: number; y: number; w: number; h: number;
   state?: TableState;

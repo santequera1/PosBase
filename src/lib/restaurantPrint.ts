@@ -2,19 +2,21 @@
 import type { Order, OrderItem } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
-import { orderTitle, TYPE_LABEL, CHANNEL_LABEL, type Channel } from '@/lib/restaurant';
+import { orderTitle, TYPE_LABEL, CHANNEL_LABEL, STATION_LABEL, PRINT_STATIONS, type Channel, type KitchenTicket, type StationPrinter } from '@/lib/restaurant';
+import { printThermal } from '@/lib/thermalPrint';
 
 const esc = (s: any) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
 const nowLabel = () => new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-/** Comanda: solo lo que cocina necesita, en letra grande. */
-export function generateKitchenTicketHtml(order: Order, items: OrderItem[], batch?: number): string {
+/** Comanda: solo lo que cocina necesita, en letra grande. Con `station` se imprime solo esa estación (cocina o barra) con su título. */
+export function generateKitchenTicketHtml(order: Order, items: OrderItem[], batch?: number, station?: string): string {
   const title = orderTitle(order);
   const extra = order.type === 'dine-in' ? `${order.people || 0} personas${order.waiterName ? ` · ${order.waiterName}` : ''}` : order.type === 'delivery' ? 'DOMICILIO' : 'PARA LLEVAR';
+  const stationTitle = station && STATION_LABEL[station] ? ` ${STATION_LABEL[station].toUpperCase()}` : '';
   return `
     <div class="ticket" style="width: 50mm; max-width: 50mm;">
       <div class="text-center">
-        <p class="font-bold" style="font-size: 12px;">COMANDA${batch ? ` #${batch}` : ''}</p>
+        <p class="font-bold" style="font-size: 12px;">COMANDA${stationTitle}${batch ? ` #${batch}` : ''}</p>
         <p class="font-bold" style="font-size: 13px;">${esc(title)}</p>
         <p style="font-size: 8px;">${esc(extra)} · Pedido #${order.id}</p>
         <p style="font-size: 8px;">${nowLabel()}</p>
@@ -29,6 +31,39 @@ export function generateKitchenTicketHtml(order: Order, items: OrderItem[], batc
       ${order.notes ? `<div class="divider"></div><div style="font-size: 9px; font-weight: bold;">NOTA: ${esc(order.notes)}</div>` : ''}
       <div class="divider"></div>
     </div>`;
+}
+
+type PrintCfg = { kitchenPrintMode?: 'single' | 'station'; stationPrinters?: Record<string, StationPrinter> } | null | undefined;
+
+/**
+ * Imprime la comanda según la configuración: una sola con todo, o una por estación (cocina y barra) con sus copias.
+ * Cada trabajo se envía por separado para que, en el diálogo de impresión, se pueda elegir la impresora de cada estación
+ * (o salga sola en la impresora predeterminada del equipo si el navegador imprime sin diálogo). Devuelve cuántas se imprimieron.
+ */
+export async function printKitchenTickets(order: Order, items: OrderItem[], batch: number | undefined, cfg: PrintCfg): Promise<number> {
+  const printable = items.filter(i => (i.station || 'cocina') !== 'none');
+  if (!printable.length) return 0;
+  if (!cfg || cfg.kitchenPrintMode !== 'station') {
+    await printThermal(generateKitchenTicketHtml(order, printable, batch), `Comanda-${order.id}-${batch || ''}`);
+    return 1;
+  }
+  let jobs = 0;
+  for (const st of PRINT_STATIONS) {
+    const p = cfg.stationPrinters?.[st];
+    if (p && p.enabled === false) continue;
+    const list = printable.filter(i => (i.station || 'cocina') === st);
+    if (!list.length) continue;
+    const copies = Math.min(3, Math.max(1, p?.copies || 1));
+    for (let c = 0; c < copies; c++) { await printThermal(generateKitchenTicketHtml(order, list, batch, st), `Comanda-${st}-${order.id}-${batch || ''}`); jobs++; }
+  }
+  return jobs;
+}
+
+/** Comanda desde el monitor de cocina: el ticket ya trae solo los productos de la estación que se está viendo. */
+export function kitchenTicketFromKds(t: KitchenTicket, station?: string): string {
+  const order = { id: t.orderId, type: t.type, status: t.status, tableLabel: t.tableLabel, label: t.label, people: t.people, waiterName: t.waiterName, notes: t.orderNotes || '', customer: { name: t.customerName }, items: [] } as unknown as Order;
+  const items = t.items.map(i => ({ id: i.id, productId: 0, name: i.name, size: i.size, flavors: i.flavors, quantity: i.quantity, price: 0, notes: i.notes, station: i.station })) as unknown as OrderItem[];
+  return generateKitchenTicketHtml(order, items, t.batch, station || undefined);
 }
 
 /** Precuenta / control de mesa: detalle de consumo con propina sugerida, sin valor fiscal. */

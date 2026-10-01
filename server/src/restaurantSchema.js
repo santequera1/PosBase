@@ -24,7 +24,10 @@ const DEFAULT_CONFIG = {
   deliveryTimes: [15, 20, 30, 45, 60, 90],
   requireOpenShift: false,
   autoPrintKitchen: false,
+  kitchenPrintMode: 'single', // 'single' = una comanda con todo · 'station' = una comanda por estación (cocina, barra)
+  stationPrinters: { cocina: { enabled: true, label: '', copies: 1 }, barra: { enabled: true, label: '', copies: 1 } },
 };
+const PRINT_STATIONS = ['cocina', 'barra'];
 
 /* ---------- utilidades ---------- */
 function hasCol(db, table, col) {
@@ -163,6 +166,9 @@ function readRestaurantConfig(db) {
   cfg.deliveryFee = num('deliveryFee', cfg.deliveryFee);
   cfg.requireOpenShift = bool('requireOpenShift', cfg.requireOpenShift);
   cfg.autoPrintKitchen = bool('autoPrintKitchen', cfg.autoPrintKitchen);
+  cfg.kitchenPrintMode = readSetting(db, 'kitchenPrintMode') === 'station' ? 'station' : 'single';
+  cfg.stationPrinters = { cocina: { ...DEFAULT_CONFIG.stationPrinters.cocina }, barra: { ...DEFAULT_CONFIG.stationPrinters.barra } };
+  try { const sp = readSetting(db, 'stationPrinters'); if (sp) { const j = JSON.parse(sp); for (const st of PRINT_STATIONS) if (j[st]) cfg.stationPrinters[st] = { ...cfg.stationPrinters[st], ...j[st] }; } } catch { /* valor por defecto */ }
   return cfg;
 }
 
@@ -176,6 +182,20 @@ function saveRestaurantConfig(db, body) {
   }
   if (body.tipPercent !== undefined) { const n = Number(body.tipPercent); if (!Number.isFinite(n) || n < 0 || n > 50) throw new Error('La propina sugerida debe estar entre 0 y 50 %'); up.run('tipPercent', String(n)); }
   for (const k of ['tipDineIn', 'tipCounter', 'tipDelivery', 'requireOpenShift', 'autoPrintKitchen']) if (body[k] !== undefined) up.run(k, body[k] ? '1' : '0');
+  if (body.kitchenPrintMode !== undefined) up.run('kitchenPrintMode', body.kitchenPrintMode === 'station' ? 'station' : 'single');
+  if (body.stationPrinters && typeof body.stationPrinters === 'object') {
+    const cur = readRestaurantConfig(db).stationPrinters;
+    const next = {};
+    for (const st of PRINT_STATIONS) {
+      const b = body.stationPrinters[st] || {}, c = cur[st];
+      next[st] = {
+        enabled: b.enabled !== undefined ? Boolean(b.enabled) : c.enabled,
+        label: b.label !== undefined ? String(b.label).trim().slice(0, 60) : c.label,
+        copies: b.copies !== undefined ? Math.min(3, Math.max(1, Math.round(Number(b.copies)) || 1)) : c.copies,
+      };
+    }
+    up.run('stationPrinters', JSON.stringify(next));
+  }
   if (body.deliveryFee !== undefined) { const n = Math.round(Number(body.deliveryFee)); if (!Number.isFinite(n) || n < 0) throw new Error('Costo de envío inválido'); up.run('deliveryFee', String(n)); }
   if (body.deliveryTimes !== undefined) {
     const arr = (Array.isArray(body.deliveryTimes) ? body.deliveryTimes : String(body.deliveryTimes).split(',')).map(v => Math.round(Number(v))).filter(n => n > 0 && n <= 2880);

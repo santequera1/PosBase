@@ -47,3 +47,7 @@ public/branding/*
 !public/branding/.gitkeep
 public/fonts/uploads/*
 !public/fonts/uploads/.gitkeep
+
+# Material de marca de prospectos (logos, briefs): no se publica
+scripts/wonkas/
+scripts/brand-assets/
