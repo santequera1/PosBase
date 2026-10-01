@@ -1,6 +1,6 @@
 /**
  * Motor contable de partida doble.
- *  - Contabiliza automáticamente ventas, abonos de clientes, gastos y compras, pagos a proveedores, nómina,
+ *  - Contabiliza automáticamente ventas entregadas (cerradas), abonos de clientes, gastos y compras, pagos a proveedores, nómina,
  *    anticipos, diferencias de caja y movimientos de caja sin soporte, según la parametrización (accountingSchema).
  *  - syncLedger() es idempotente: contabiliza lo que falte y anula asientos de documentos anulados o eliminados.
  *  - Informes: balance de prueba (por nivel y por tercero), libro auxiliar, estado de situación financiera,
@@ -93,7 +93,7 @@ function postSale(db, o, ctx) {
   const due = total + tip;
   if (o.payment_method === 'platform') {
     lines.push({ account: map.platformReceivable, debit: due, third, description: 'Por cobrar a la plataforma', docRef });
-  } else if (o.payment_status !== 'paid') {
+  } else if (o.payment_status && o.payment_status !== 'paid') {
     lines.push({ account: map.customerReceivable, debit: due, third, description: 'Venta a crédito', docRef });
   } else if (o.payment_method === 'mixed' && o.payment_split) {
     let s = null; try { s = JSON.parse(o.payment_split); } catch { s = null; }
@@ -232,8 +232,8 @@ function syncLedger(db) {
     for (const r of db.prepare("SELECT j.id AS entryId, j.doc_hash AS hash, o.* FROM journal_entries j JOIN orders o ON o.id = j.source_id WHERE j.source = 'sale' AND j.status = 'posted' AND j.doc_hash IS NOT NULL AND o.status != 'cancelled'").all()) if (r.hash !== saleHash(r)) voidEntry(db, r.entryId, 'Pedido modificado');
     for (const r of db.prepare("SELECT j.id AS entryId, j.doc_hash AS hash, e.* FROM journal_entries j JOIN expenses e ON e.id = j.source_id WHERE j.source = 'expense' AND j.status = 'posted' AND j.doc_hash IS NOT NULL").all()) if (r.hash !== expenseHash(r)) voidEntry(db, r.entryId, 'Gasto modificado');
     // Ventas nuevas y anulaciones
-    for (const o of db.prepare("SELECT o.* FROM orders o LEFT JOIN journal_entries j ON j.source = 'sale' AND j.source_id = o.id AND j.status = 'posted' WHERE j.id IS NULL AND o.status NOT IN ('open', 'cancelled') ORDER BY o.id").all()) safe(`venta #${o.id}`, () => postSale(db, o, ctx));
-    for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN orders o ON o.id = j.source_id WHERE j.source = 'sale' AND j.status = 'posted' AND (o.id IS NULL OR o.status = 'cancelled')").all()) voidEntry(db, j.id, 'Pedido anulado o eliminado');
+    for (const o of db.prepare("SELECT o.* FROM orders o LEFT JOIN journal_entries j ON j.source = 'sale' AND j.source_id = o.id AND j.status = 'posted' WHERE j.id IS NULL AND o.status = 'delivered' ORDER BY o.id").all()) safe(`venta #${o.id}`, () => postSale(db, o, ctx));
+    for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN orders o ON o.id = j.source_id WHERE j.source = 'sale' AND j.status = 'posted' AND (o.id IS NULL OR o.status != 'delivered')").all()) voidEntry(db, j.id, 'Pedido anulado, eliminado o reabierto');
     // Abonos de clientes
     for (const p of db.prepare("SELECT p.* FROM order_payments p LEFT JOIN journal_entries j ON j.source = 'payment_in' AND j.source_id = p.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY p.id").all()) safe(`abono cliente #${p.id}`, () => postOrderPayment(db, p, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN order_payments p ON p.id = j.source_id WHERE j.source = 'payment_in' AND j.status = 'posted' AND p.id IS NULL").all()) voidEntry(db, j.id, 'Abono eliminado');
@@ -395,7 +395,7 @@ function agingReceivables(db, { date, thirdDoc }) {
   const orders = db.prepare(`SELECT o.id, o.created_at, o.customer_name, o.customer_doc, o.customer_id, o.customer_phone, o.channel, o.payment_method, o.total, o.tip, o.type, c.credit_days AS creditDays,
       COALESCE((SELECT SUM(amount) FROM order_payments p WHERE p.order_id = o.id), 0) AS paid
     FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
-    WHERE o.status NOT IN ('open', 'cancelled') AND (o.payment_status != 'paid' OR o.payment_method = 'platform') AND date(o.created_at) <= ?`).all(t);
+    WHERE o.status = 'delivered' AND (COALESCE(o.payment_status, 'paid') != 'paid' OR o.payment_method = 'platform') AND date(o.created_at) <= ?`).all(t);
   const docs = [];
   for (const o of orders) {
     const total = (o.total || 0) + (o.tip || 0);
