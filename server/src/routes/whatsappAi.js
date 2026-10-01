@@ -514,4 +514,26 @@ router.post('/webhook', (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// Cartera: cuentas por pagar y por cobrar con vencimientos (recordatorios por WhatsApp)
+// -------------------------------------------------------------
+router.get('/payables', (req, res) => {
+  const db = getDb();
+  const L = require('../ledger');
+  const days = Math.min(Math.max(Number(req.query.days) || 7, 0), 90);
+  const t = db.prepare("SELECT date('now', '-5 hours') AS t").get().t;
+  const pay = L.agingPayables(db, { date: t });
+  const rec = L.agingReceivables(db, { date: t });
+  const soon = d => d.overdueDays >= -days;
+  const payDocs = pay.thirds.flatMap(x => x.documents), recDocs = rec.thirds.flatMap(x => x.documents);
+  const fmt = d => ({ ...d, totalFormatted: formatCOP(d.total), balanceFormatted: formatCOP(d.balance), status: d.overdueDays > 0 ? `vencido hace ${d.overdueDays} día(s)` : d.overdueDays === 0 ? 'vence hoy' : `vence en ${-d.overdueDays} día(s)` });
+  const payables = payDocs.filter(soon).map(fmt);
+  const receivables = recDocs.filter(soon).map(fmt);
+  const lines = [`*Cartera ${businessName()}* (${t})`, '', `*Por pagar:* ${formatCOP(pay.total)} (${pay.count} documentos, vencido ${formatCOP(pay.overdue)})`];
+  for (const d of payables.slice(0, 15)) lines.push(`• ${d.third.name} · ${d.doc} · ${d.balanceFormatted} · ${d.status}`);
+  lines.push('', `*Por cobrar:* ${formatCOP(rec.total)} (${rec.count} documentos, vencido ${formatCOP(rec.overdue)})`);
+  for (const d of receivables.slice(0, 15)) lines.push(`• ${d.third.name} · ${d.doc} · ${d.balanceFormatted} · ${d.status}`);
+  res.json({ success: true, date: t, days, payables: { total: pay.total, buckets: pay.buckets, docs: payables }, receivables: { total: rec.total, buckets: rec.buckets, docs: receivables }, message: lines.join('\n') });
+});
+
 module.exports = router;

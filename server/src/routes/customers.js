@@ -26,11 +26,36 @@ function enrichCustomer(db, customer) {
     neighborhood: customer.neighborhood || '',
     notes: customer.notes || '',
     isCompany: Boolean(customer.is_company),
+    docType: customer.doc_type || '',
+    dv: customer.dv || '',
+    legalName: customer.legal_name || '',
+    firstName: customer.first_name || '',
+    lastName: customer.last_name || '',
+    personType: customer.person_type || '',
+    city: customer.city || '',
+    state: customer.state || '',
+    country: customer.country || 'Colombia',
+    postalCode: customer.postal_code || '',
+    ciiu: customer.ciiu || '',
+    ivaResponsible: Boolean(customer.iva_responsible),
+    regime: customer.regime || '',
+    creditDays: customer.credit_days || 0,
     totalOrders,
     totalSpent: stats?.totalSpent || 0,
     lastOrder: stats?.lastOrder || '',
     tag,
   };
+}
+
+/** Datos del RUT (exógena, factura electrónica, cartera): se guardan solo los campos enviados. */
+const RUT_COLS = { docType: 'doc_type', dv: 'dv', legalName: 'legal_name', firstName: 'first_name', lastName: 'last_name', personType: 'person_type', city: 'city', state: 'state', country: 'country', postalCode: 'postal_code', ciiu: 'ciiu', regime: 'regime' };
+function applyRut(db, table, id, body) {
+  const sets = []; const vals = [];
+  for (const [k, col] of Object.entries(RUT_COLS)) if (body[k] !== undefined) { sets.push(`${col} = ?`); vals.push(String(body[k] ?? '').trim().slice(0, 120)); }
+  if (body.ivaResponsible !== undefined) { sets.push('iva_responsible = ?'); vals.push(body.ivaResponsible ? 1 : 0); }
+  if (body.creditDays !== undefined) { sets.push('credit_days = ?'); vals.push(Math.max(0, Math.min(365, Math.round(Number(body.creditDays) || 0)))); }
+  if (body.retentionPct !== undefined) { sets.push('retention_pct = ?'); vals.push(Math.max(0, Math.min(100, Number(body.retentionPct) || 0))); }
+  if (sets.length) db.prepare(`UPDATE ${table} SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
 }
 
 router.get('/', (req, res) => {
@@ -91,6 +116,7 @@ router.post('/', (req, res) => {
         notes = COALESCE(?, notes)
       WHERE id = ?
     `).run(name, documentId, email, address, notes, existing.id);
+    applyRut(db, 'customers', existing.id, req.body);
 
     const updated = db.prepare('SELECT * FROM customers WHERE id = ?').get(existing.id);
     return res.json(enrichCustomer(db, updated));
@@ -101,6 +127,7 @@ router.post('/', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(name, documentId, email, cleanPhone, address, String(address2 || '').trim(), String(neighborhood || '').trim(), notes, isCompany ? 1 : 0);
 
+  applyRut(db, 'customers', result.lastInsertRowid, req.body);
   const created = db.prepare('SELECT * FROM customers WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(enrichCustomer(db, created));
 });
@@ -124,6 +151,7 @@ router.put('/:id', (req, res) => {
       is_company = COALESCE(?, is_company)
     WHERE id = ?
   `).run(name, documentId, email, phone, address, address2 !== undefined ? String(address2).trim() : null, neighborhood !== undefined ? String(neighborhood).trim() : null, notes, isCompany !== undefined ? (isCompany ? 1 : 0) : existing.is_company, req.params.id);
+  applyRut(db, 'customers', Number(req.params.id), req.body);
 
   const updated = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
   res.json(enrichCustomer(db, updated));

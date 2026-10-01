@@ -57,7 +57,7 @@ const ProductsPage = () => {
     await deleteCategory(c.id);
     if (selectedCategory === c.id) setSelectedCategory(null);
   };
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] as { name: string; price: number }[], trackStock: false, stock: '', minStock: '', station: 'cocina' });
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] as { name: string; price: number }[], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' });
   const [stockTarget, setStockTarget] = useState<number | null>(null);
   const lowStock = products.filter(p => p.trackStock && (Number(p.stock) || 0) <= (Number(p.minStock) || 0));
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
@@ -71,13 +71,13 @@ const ProductsPage = () => {
 
   const openEdit = (id: number) => {
     const p = products.find(pr => pr.id === id)!;
-    setFormData({ name: p.name, description: p.description || '', price: String(p.price), categoryId: p.categoryId, image: p.image || '', available: p.available, sizes: p.sizes ? [...p.sizes] : [], trackStock: !!p.trackStock, stock: String(p.stock ?? 0), minStock: String(p.minStock ?? 0), station: (p as any).station || 'cocina' });
+    setFormData({ name: p.name, description: p.description || '', price: String(p.price), categoryId: p.categoryId, image: p.image || '', available: p.available, sizes: p.sizes ? [...p.sizes] : [], trackStock: !!p.trackStock, stock: String(p.stock ?? 0), minStock: String(p.minStock ?? 0), station: (p as any).station || 'cocina', cost: p.cost ? String(p.cost) : '' });
     setEditingId(id);
     setShowForm(true);
   };
 
   const handleSave = () => {
-    const data: any = { name: formData.name, description: formData.description, price: Number(formData.price), categoryId: formData.categoryId, image: formData.image, available: formData.available, trackStock: formData.trackStock, stock: formData.trackStock ? Number(formData.stock) || 0 : 0, minStock: formData.trackStock ? Number(formData.minStock) || 0 : 0, station: formData.station };
+    const data: any = { name: formData.name, description: formData.description, price: Number(formData.price), categoryId: formData.categoryId, image: formData.image, available: formData.available, trackStock: formData.trackStock, stock: formData.trackStock ? Number(formData.stock) || 0 : 0, minStock: formData.trackStock ? Number(formData.minStock) || 0 : 0, station: formData.station, cost: Number(formData.cost) || 0 };
     data.sizes = formData.sizes.length > 0 ? formData.sizes : null;
     if (editingId) {
       updateProduct(editingId, data);
@@ -86,7 +86,7 @@ const ProductsPage = () => {
     }
     setShowForm(false);
     setEditingId(null);
-    setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina' });
+    setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' });
   };
 
   const addSize = () => {
@@ -134,7 +134,7 @@ const ProductsPage = () => {
           <span className="hidden sm:inline">Galería de Fotos</span>
         </button>
         <button
-          onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina' }); setShowForm(true); }}
+          onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' }); setShowForm(true); }}
           className="h-10 px-4 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
         >
           <Plus size={16} /> Agregar Producto
@@ -369,6 +369,12 @@ const ProductsPage = () => {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-base font-bold text-brand-primary-strong outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>
                 )}
+                <div>
+                  <label className="font-bold text-brand-primary mb-1 block">Costo unitario (opcional)</label>
+                  <input type="number" min={0} value={formData.cost} onChange={e => setFormData({ ...formData, cost: e.target.value })} placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
+                  <p className="text-[10px] text-brand-muted mt-1">Cuánto cuesta producir o comprar una unidad. Se usa para el costo de ventas cuando la contabilidad está en inventario permanente.</p>
+                </div>
                 {/* Estación de preparación (comandas a cocina o barra) */}
                 <div>
                   <label className="font-bold text-brand-primary mb-1 block">Se prepara en</label>

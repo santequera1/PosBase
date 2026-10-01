@@ -105,7 +105,9 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
         ${order.type === 'dine-in' ? `<div class="row"><span><strong>Mesa:</strong> ${order.tableLabel || order.tableNumber || ''}${order.people ? ` · ${order.people} personas` : ''}${order.waiterName ? ` · Atiende: ${order.waiterName}` : ''}</span></div>` : ''}
         ${order.type === 'pickup' && order.label ? `<div class="row"><span><strong>Para llevar:</strong> ${order.label}</span></div>` : ''}
         ${order.type === 'delivery' ? `<div class="row"><span><strong>Domicilio:</strong> ${c.address || ''}${c.address2 ? `, ${c.address2}` : ''}${c.neighborhood ? ` · ${c.neighborhood}` : ''}</span></div>${c.phone ? `<div class="row"><span><strong>Tel:</strong> ${c.phone}</span></div>` : ''}${order.driverName ? `<div class="row"><span><strong>Repartidor:</strong> ${order.driverName}</span></div>` : ''}` : ''}
-        ${order.electronicInvoice ? `<div class="row"><span><strong>F.E. PRUEBA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE (simulado): ${String(order.electronicInvoice.cufe).slice(0, 48)}…</div><div style="font-size: 6.5px; font-weight: bold;">DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL</div>` : ''}
+        ${order.electronicInvoice && order.electronicInvoice.number ? (order.electronicInvoice.test === false
+          ? `<div class="row"><span><strong>FACTURA ELECTRÓNICA DE VENTA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE: ${String(order.electronicInvoice.cufe)}</div><div style="font-size: 6.5px;">Validada por la DIAN${order.electronicInvoice.publicUrl ? ` · ${order.electronicInvoice.publicUrl}` : ''}</div>`
+          : `<div class="row"><span><strong>F.E. PRUEBA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE (simulado): ${String(order.electronicInvoice.cufe).slice(0, 48)}…</div><div style="font-size: 6.5px; font-weight: bold;">DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL</div>`) : ''}
       </div>
 
       <div class="divider"></div>

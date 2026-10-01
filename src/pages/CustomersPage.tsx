@@ -32,6 +32,8 @@ const CustomersPage = () => {
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formRut, setFormRut] = useState({ city: '', state: '', postalCode: '', ciiu: '', dv: '', ivaResponsible: false, creditDays: '' });
+  const [showRut, setShowRut] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   // Computed KPIs
@@ -71,6 +73,7 @@ const CustomersPage = () => {
     setFormPhone('');
     setFormAddress('');
     setFormNotes('');
+    setFormRut({ city: '', state: '', postalCode: '', ciiu: '', dv: '', ivaResponsible: false, creditDays: '' });
     setShowModal(true);
   };
 
@@ -85,6 +88,8 @@ const CustomersPage = () => {
     setFormPhone(c.phone || '');
     setFormAddress(c.address || '');
     setFormNotes(c.notes || '');
+    setFormRut({ city: c.city || '', state: c.state || '', postalCode: c.postalCode || '', ciiu: c.ciiu || '', dv: c.dv || '', ivaResponsible: Boolean(c.ivaResponsible), creditDays: c.creditDays ? String(c.creditDays) : '' });
+    setShowRut(Boolean(c.city || c.ciiu || c.creditDays));
     setShowModal(true);
   };
 
@@ -100,6 +105,10 @@ const CustomersPage = () => {
       address: formAddress.trim(),
       notes: formNotes.trim(),
       isCompany: formIsCompany,
+      docType: formDocumentId.trim() ? formDocType : '',
+      personType: formIsCompany ? 'juridica' : 'natural',
+      city: formRut.city.trim(), state: formRut.state.trim(), postalCode: formRut.postalCode.trim(), ciiu: formRut.ciiu.trim(), dv: formRut.dv.trim(),
+      ivaResponsible: formRut.ivaResponsible, creditDays: Number(formRut.creditDays) || 0,
     };
 
     if (editingCustomer) {
@@ -689,6 +698,24 @@ const CustomersPage = () => {
                     placeholder="Ej: Centro Histórico, Calle Santo Domingo #33-40"
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                   />
+                </div>
+
+                {/* Datos del RUT: factura electrónica, exógena y crédito */}
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button type="button" onClick={() => setShowRut(s => !s)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-50">
+                    <span>Datos del RUT y crédito (factura electrónica, exógena)</span><span className="text-brand-primary">{showRut ? 'Ocultar' : 'Mostrar'}</span>
+                  </button>
+                  {showRut && (
+                    <div className="grid grid-cols-2 gap-2 p-3 text-xs">
+                      <div><label className="font-semibold text-gray-700 mb-1 block">Ciudad</label><input value={formRut.city} onChange={e => setFormRut({ ...formRut, city: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs" placeholder="Barranquilla" /></div>
+                      <div><label className="font-semibold text-gray-700 mb-1 block">Departamento</label><input value={formRut.state} onChange={e => setFormRut({ ...formRut, state: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs" placeholder="Atlántico" /></div>
+                      <div><label className="font-semibold text-gray-700 mb-1 block">Código postal</label><input value={formRut.postalCode} onChange={e => setFormRut({ ...formRut, postalCode: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs" /></div>
+                      <div><label className="font-semibold text-gray-700 mb-1 block">Actividad económica (CIIU)</label><input value={formRut.ciiu} onChange={e => setFormRut({ ...formRut, ciiu: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs" placeholder="5611" /></div>
+                      {formIsCompany && <div><label className="font-semibold text-gray-700 mb-1 block">Dígito de verificación</label><input value={formRut.dv} onChange={e => setFormRut({ ...formRut, dv: e.target.value.replace(/\D/g, '').slice(0, 1) })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs" /></div>}
+                      <div><label className="font-semibold text-gray-700 mb-1 block">Días de crédito</label><input type="number" min={0} value={formRut.creditDays} onChange={e => setFormRut({ ...formRut, creditDays: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs" placeholder="30" /></div>
+                      <label className="col-span-2 flex items-center gap-2 font-semibold text-gray-700"><input type="checkbox" checked={formRut.ivaResponsible} onChange={e => setFormRut({ ...formRut, ivaResponsible: e.target.checked })} /> Responsable de IVA</label>
+                    </div>
+                  )}
                 </div>
 
                 {/* Preferences / Notes */}

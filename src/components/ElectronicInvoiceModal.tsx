@@ -58,7 +58,9 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
   }, [onClose]);
 
   if (!live) return null;
-  const fe = live.electronicInvoice;
+  const fe = live.electronicInvoice && live.electronicInvoice.number ? live.electronicInvoice : undefined;
+  const feError = live.electronicInvoice?.error;
+  const real = Boolean(fe && fe.test === false);
   const items = live.items || [];
   const subtotal = live.subtotal ?? items.reduce((a: number, i: any) => a + (i.price || 0) * (i.quantity || 1), 0);
   const discount = live.discount || 0;
@@ -91,7 +93,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
           <div className="flex gap-2">
             {!fe && (
               <button onClick={issue} disabled={issuing} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow disabled:opacity-50">
-                <FileCheck2 size={14} /> {issuing ? 'Generando...' : 'Generar factura electrónica de prueba'}
+                <FileCheck2 size={14} /> {issuing ? 'Emitiendo...' : feError ? 'Reintentar emisión' : 'Emitir factura electrónica'}
               </button>
             )}
             {fe && (
@@ -99,21 +101,33 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
                 <Printer size={14} /> Imprimir / PDF
               </button>
             )}
+            {real && fe?.publicUrl && (
+              <a href={fe.publicUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow">Ver en la DIAN</a>
+            )}
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X size={16} /></button>
         </div>
-        {error && <p className="text-xs text-red-200 mb-2">{error}</p>}
+        {(error || feError) && <p className="text-xs text-red-200 mb-2 bg-red-900/60 rounded-lg px-3 py-1.5">{error || `El proveedor rechazó la factura: ${feError}`}</p>}
 
         {/* Documento */}
         <div className="print-area paper bg-white rounded-2xl shadow-2xl p-6 sm:p-8 text-[12px] text-gray-800 font-sans relative overflow-hidden">
           {/* Marca de agua / aviso de pruebas */}
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <span className="text-5xl sm:text-7xl font-black tracking-widest -rotate-[24deg] text-red-500/10 select-none">PRUEBA</span>
-          </div>
-          <div className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 text-red-800 px-3 py-2 text-[11px] font-semibold flex items-start gap-2">
-            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-            <span>DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL. Generado en ambiente de pruebas para demostración; no ha sido transmitido ni validado por la DIAN. Al activar la facturación electrónica (proveedor tecnológico), este documento será reemplazado por la factura validada con CUFE y QR oficiales.</span>
-          </div>
+          {!real && (
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <span className="text-5xl sm:text-7xl font-black tracking-widest -rotate-[24deg] text-red-500/10 select-none">PRUEBA</span>
+            </div>
+          )}
+          {real ? (
+            <div className="mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 text-emerald-800 px-3 py-2 text-[11px] font-semibold flex items-start gap-2">
+              <FileCheck2 size={16} className="shrink-0 mt-0.5" />
+              <span>Factura electrónica validada por la DIAN a través de Factus. El PDF y XML oficiales están disponibles en el portal del proveedor y en el enlace de consulta.</span>
+            </div>
+          ) : (
+            <div className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 text-red-800 px-3 py-2 text-[11px] font-semibold flex items-start gap-2">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <span>DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL. Generado en ambiente de pruebas para demostración; no ha sido transmitido ni validado por la DIAN. Al activar la facturación electrónica (Factus), este documento será reemplazado por la factura validada con CUFE y QR oficiales.</span>
+            </div>
+          )}
 
           <div className="flex flex-wrap justify-between gap-4 border-b border-gray-200 pb-4">
             <div>
@@ -129,7 +143,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
               <p className="font-mono font-bold text-lg text-brand-dark">{fe ? fe.number : 'Sin emitir'}</p>
               <p className="text-gray-500">Comprobante POS {orderNumber(live.id)}</p>
               <p className="text-gray-500">Fecha: {String(issued).slice(0, 16).replace('T', ' ')}</p>
-              <p className={cn('inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold', fe ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600')}>{fe ? 'AMBIENTE DE PRUEBAS' : 'PENDIENTE DE GENERAR'}</p>
+              <p className={cn('inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold', real ? 'bg-emerald-100 text-emerald-800' : fe ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600')}>{real ? 'VALIDADA POR LA DIAN' : fe ? 'AMBIENTE DE PRUEBAS' : 'PENDIENTE DE GENERAR'}</p>
             </div>
           </div>
 
@@ -145,7 +159,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
             <div>
               <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mb-1">Pago</p>
               <p>Forma de pago: <b>{PAYMENT[live.paymentMethod] || live.paymentMethod}</b></p>
-              <p>Medio: contado</p>
+              <p>Medio: {live.paymentStatus && live.paymentStatus !== 'paid' ? 'crédito' : 'contado'}</p>
               <p>Moneda: COP</p>
             </div>
           </div>
@@ -179,9 +193,9 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
                 <PseudoQr seed={fe?.cufe || String(live.id)} />
               </div>
               <div className="text-[10px] text-gray-500 max-w-xs">
-                <p className="font-semibold text-gray-700">CUFE {fe ? '(simulado)' : ''}</p>
-                <p className="font-mono break-all leading-tight">{fe ? fe.cufe : 'Se genera al emitir el documento de prueba.'}</p>
-                <p className="mt-1">QR ilustrativo de pruebas. No enlaza al catálogo de la DIAN.</p>
+                <p className="font-semibold text-gray-700">CUFE {fe && !real ? '(simulado)' : ''}</p>
+                <p className="font-mono break-all leading-tight">{fe ? fe.cufe : 'Se genera al emitir la factura electrónica.'}</p>
+                {real ? <p className="mt-1 break-all">{fe?.qr || fe?.publicUrl ? `Consulta: ${fe?.publicUrl || fe?.qr}` : 'Consulte el documento en el catálogo de la DIAN con el CUFE.'}</p> : <p className="mt-1">QR ilustrativo de pruebas. No enlaza al catálogo de la DIAN.</p>}
               </div>
             </div>
             <div className="w-full sm:w-64 space-y-1">
@@ -197,7 +211,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
             </div>
           </div>
 
-          <p className="mt-6 text-[10px] text-gray-400 text-center">Representación gráfica de prueba generada por el POS. {businessName} · {new Date().getFullYear()}</p>
+          <p className="mt-6 text-[10px] text-gray-400 text-center">{real ? 'Representación gráfica de la factura electrónica de venta. Proveedor tecnológico: Factus.' : 'Representación gráfica de prueba generada por el POS.'} {businessName} · {new Date().getFullYear()}</p>
         </div>
       </div>
     </div>

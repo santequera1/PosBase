@@ -6,7 +6,7 @@
  *   en stock_movements (venta, devolucion, ajuste, compra, merma, inventario).
  */
 const PRODUCT_SELECT = `SELECT id, name, category_id AS categoryId, price, available, image, description, sizes, color_bg, color_accent, featured,
-  COALESCE(track_stock, 0) AS trackStock, COALESCE(stock, 0) AS stock, COALESCE(min_stock, 0) AS minStock, COALESCE(station, 'cocina') AS station FROM products`;
+  COALESCE(track_stock, 0) AS trackStock, COALESCE(stock, 0) AS stock, COALESCE(min_stock, 0) AS minStock, COALESCE(station, 'cocina') AS station, COALESCE(cost, 0) AS cost FROM products`;
 
 function mapProduct(r) {
   if (!r) return null;

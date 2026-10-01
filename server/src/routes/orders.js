@@ -1,7 +1,8 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { applySaleStock, restoreOrderStock } = require('../stock');
-const { issueTestInvoice } = require('../einvoice');
+const { issueElectronicInvoice } = require('../einvoice');
+const L = require('../ledger');
 const { formatOrder } = require('../orderFormat');
 const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
 const { getOpenShift, now } = require('../cashHelpers');
@@ -12,6 +13,7 @@ const path = require('path');
 const fs = require('fs');
 
 const router = Router();
+router.use(L.syncOnWrite(getDb));
 
 // Ensure uploads directory exists
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
@@ -45,7 +47,7 @@ router.get('/:id', (req, res) => {
   res.json(formatOrder(db, order));
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const {
     type = 'pickup',
     status = 'delivered',
@@ -168,7 +170,7 @@ router.post('/', (req, res) => {
   applySaleStock(db, req.app.io, orderId, items, req.user?.name);
   // Pedidos que no se entregan de inmediato: todos sus productos salen como primera comanda a cocina
   if (status !== 'delivered' && status !== 'cancelled') db.prepare("UPDATE order_items SET batch = 1, sent_at = datetime('now', '-5 hours'), kitchen_status = 'pending' WHERE order_id = ?").run(orderId);
-  if (isElectronicInvoice) issueTestInvoice(db, orderId);
+  if (isElectronicInvoice) { try { await issueElectronicInvoice(db, orderId); } catch (e) { console.warn('Factura electrónica:', e.message); } }
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   const formatted = formatOrder(db, order);
 
@@ -180,16 +182,65 @@ router.post('/', (req, res) => {
   res.status(201).json(formatted);
 });
 
-// Factura electrónica (modo pruebas): genera el documento simulado para un pedido existente
-router.post('/:id/electronic-invoice', (req, res) => {
+// Factura electrónica: con Factus configurado emite la factura real; si no, el documento simulado de pruebas
+router.post('/:id/electronic-invoice', async (req, res) => {
   const db = getDb();
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
   if (order.status === 'cancelled') return res.status(400).json({ error: 'El pedido está anulado' });
-  const updated = issueTestInvoice(db, Number(req.params.id));
-  const formatted = formatOrder(db, updated);
+  try {
+    const updated = await issueElectronicInvoice(db, Number(req.params.id));
+    const formatted = formatOrder(db, updated);
+    if (req.app.io) req.app.io.emit('order:updated', formatted);
+    res.json(formatted);
+  } catch (e) {
+    const formatted = formatOrder(db, db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id));
+    if (req.app.io) req.app.io.emit('order:updated', formatted);
+    res.status(400).json({ error: e.message, order: formatted });
+  }
+});
+
+// Abonos de clientes (ventas a crédito y plataformas): cartera por cobrar
+router.get('/:id/payments', (req, res) => {
+  const db = getDb();
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+  const payments = db.prepare('SELECT id, date, amount, method, notes, created_by AS createdBy, created_at AS createdAt FROM order_payments WHERE order_id = ? ORDER BY date, id').all(order.id);
+  const paid = payments.reduce((a, p) => a + p.amount, 0);
+  res.json({ payments, paid, total: (order.total || 0) + (order.tip || 0), balance: (order.total || 0) + (order.tip || 0) - paid });
+});
+router.post('/:id/payments', (req, res) => {
+  const db = getDb();
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+  if (order.status === 'cancelled') return res.status(400).json({ error: 'El pedido está anulado' });
+  if (order.payment_status === 'paid' && order.payment_method !== 'platform') return res.status(400).json({ error: 'Este pedido ya está pagado' });
+  const total = (order.total || 0) + (order.tip || 0);
+  const paid = db.prepare('SELECT COALESCE(SUM(amount), 0) AS s FROM order_payments WHERE order_id = ?').get(order.id).s;
+  const balance = total - paid;
+  if (balance <= 0) return res.status(400).json({ error: 'Este pedido no tiene saldo pendiente' });
+  const amount = req.body.amount === undefined || req.body.amount === null || req.body.amount === '' ? balance : Math.round(Number(req.body.amount));
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'El abono debe ser mayor a cero' });
+  if (amount > balance) return res.status(400).json({ error: `El abono supera el saldo pendiente (${balance})` });
+  const method = ['cash', 'transfer', 'card', 'card_debit', 'card_credit'].includes(req.body.method) ? req.body.method : 'cash';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || '')) ? req.body.date : now(db).slice(0, 10);
+  const info = db.prepare('INSERT INTO order_payments (order_id, date, amount, method, notes, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(order.id, date, amount, method, String(req.body.notes || '').slice(0, 200), req.user?.name || '');
+  if (paid + amount >= total) db.prepare("UPDATE orders SET payment_status = 'paid' WHERE id = ?").run(order.id);
+  const formatted = formatOrder(db, db.prepare('SELECT * FROM orders WHERE id = ?').get(order.id));
   if (req.app.io) req.app.io.emit('order:updated', formatted);
-  res.json(formatted);
+  res.status(201).json({ id: Number(info.lastInsertRowid), amount, balance: balance - amount, order: formatted });
+});
+router.delete('/:id/payments/:pid', requireRole('admin'), (req, res) => {
+  const db = getDb();
+  const p = db.prepare('SELECT * FROM order_payments WHERE id = ? AND order_id = ?').get(req.params.pid, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Abono no encontrado' });
+  db.prepare('DELETE FROM order_payments WHERE id = ?').run(p.id);
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(p.order_id);
+  if (order && order.payment_method !== 'platform') db.prepare("UPDATE orders SET payment_status = 'pending' WHERE id = ?").run(order.id);
+  const formatted = formatOrder(db, db.prepare('SELECT * FROM orders WHERE id = ?').get(p.order_id));
+  if (req.app.io) req.app.io.emit('order:updated', formatted);
+  res.json({ success: true, order: formatted });
 });
 
 router.patch('/:id/status', (req, res) => {

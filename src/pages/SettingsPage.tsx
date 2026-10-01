@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
-import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks, UtensilsCrossed } from 'lucide-react';
+import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks, UtensilsCrossed, FileCheck2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import BrandingPanel from '@/components/settings/BrandingPanel';
 import UsersPanel from '@/components/settings/UsersPanel';
 import RestaurantPanel from '@/components/settings/RestaurantPanel';
+import EinvoicingPanel from '@/components/settings/EinvoicingPanel';
 
-type Tab = 'negocio' | 'marca' | 'usuarios' | 'categorias' | 'restaurante' | 'integracion';
+type Tab = 'negocio' | 'marca' | 'usuarios' | 'categorias' | 'restaurante' | 'facturacion' | 'integracion';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -154,6 +155,7 @@ const SettingsPage = () => {
     { id: 'usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
     { id: 'categorias', label: 'Categorías', icon: FolderOpen },
     { id: 'restaurante', label: 'Restaurante', icon: UtensilsCrossed, adminOnly: true },
+    { id: 'facturacion', label: 'Factura electrónica', icon: FileCheck2, adminOnly: true },
     { id: 'integracion', label: 'IA WhatsApp', icon: Bot, adminOnly: true },
   ];
 
@@ -235,7 +237,7 @@ const SettingsPage = () => {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">Los precios del POS ya incluyen el impuesto. El sistema desglosa base e impuesto en los recibos térmicos y en Finanzas → Contabilidad.</p>
-            <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">Facturación electrónica: <b>modo de pruebas</b>. Las ventas marcadas como F.E. generan un documento simulado (prefijo FEP, sin validez fiscal) para demostración. La conexión con el proveedor tecnológico (Factus) se activa después.</p>
+            <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">Facturación electrónica: el proveedor (pruebas o Factus) y sus credenciales se configuran en la pestaña <b>Factura electrónica</b>. En modo pruebas las ventas marcadas como F.E. generan un documento simulado (prefijo FEP, sin validez fiscal).</p>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Resolución DIAN / leyenda del comprobante (opcional)</label>
               <textarea value={dianResolution} onChange={e => setDianResolution(e.target.value)} rows={2} placeholder="Ej: Resolución DIAN No. 18764... del 01/01/2026, numeración POS-1 a POS-50000" className={INPUT} />
@@ -318,6 +320,7 @@ const SettingsPage = () => {
 
       {/* ---------- Integración IA WhatsApp ---------- */}
       {tab === 'restaurante' && isAdmin && <RestaurantPanel />}
+      {tab === 'facturacion' && isAdmin && <EinvoicingPanel />}
 
       {tab === 'integracion' && isAdmin && (
         <section className="max-w-xl bg-white rounded-2xl border border-brand-primary/15 p-5 shadow-sm space-y-4 font-sans text-left">

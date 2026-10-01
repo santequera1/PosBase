@@ -10,7 +10,10 @@ const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, get
 const { getOpenShift, now, today, isDate } = require('../cashHelpers');
 const { readRestaurantConfig, saveRestaurantConfig, staffLists, CHANNELS, STATIONS } = require('../restaurantSchema');
 
+const L = require('../ledger');
+
 const router = Router();
+router.use(L.syncOnWrite(getDb));
 const ADMIN = requireRole('admin');
 const TYPES = ['dine-in', 'pickup', 'delivery'];
 const ACTIVE = ['open', 'pending', 'preparing', 'ready', 'shipped', 'billing'];

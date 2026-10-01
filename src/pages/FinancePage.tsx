@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import {
   Plus, Edit2, Trash2, X, Search, Landmark, Receipt, CalendarClock, Truck, FolderOpen, TrendingUp, TrendingDown,
-  Wallet, AlertTriangle, CheckCircle2, Banknote, CreditCard, ArrowLeftRight, Clock, Filter, BookOpen,
+  Wallet, AlertTriangle, CheckCircle2, Banknote, CreditCard, ArrowLeftRight, Clock, Filter, BookOpen, Scale, BookMarked, HandCoins, ListTree, FileCheck2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -10,6 +10,10 @@ import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/theme';
 import AccountingTab from '@/components/finance/AccountingTab';
+import AccountsTab from '@/components/finance/AccountsTab';
+import JournalTab from '@/components/finance/JournalTab';
+import LedgerReportsTab from '@/components/finance/LedgerReportsTab';
+import CarteraTab from '@/components/finance/CarteraTab';
 
 /* ------------------------------------------------------------------ */
 /* Tipos y constantes                                                   */
@@ -18,16 +22,20 @@ type Kind = 'cogs' | 'opex' | 'payroll' | 'other';
 type PlGroup = 'cost' | 'personnel' | 'admin' | 'sales' | 'financial' | 'other';
 const PL_GROUP_META: Record<PlGroup, string> = { cost: 'Costo de ventas', personnel: 'Gastos de personal', admin: 'Gastos administrativos', sales: 'Gastos de ventas', financial: 'Gastos financieros', other: 'Otros gastos' };
 const defaultGroup = (k: Kind): PlGroup => (({ cogs: 'cost', payroll: 'personnel', other: 'other' } as Record<string, PlGroup>)[k] || 'admin');
-type Tab = 'resumen' | 'contabilidad' | 'gastos' | 'porpagar' | 'proveedores' | 'categorias';
+type Tab = 'resumen' | 'contabilidad' | 'balances' | 'diario' | 'cartera' | 'plan' | 'gastos' | 'porpagar' | 'proveedores' | 'categorias';
 type Period = 'today' | 'week' | 'month' | 'last_month' | 'year' | 'custom';
 
 interface ExpenseCategory { id: number; name: string; emoji: string; kind: Kind; plGroup?: PlGroup; isSystem: boolean }
-interface Supplier { id: number; name: string; nit: string; phone: string; email: string; address: string; category: string; notes: string; active: boolean; totalPurchased: number; pendingAmount: number; purchases: number; lastPurchase: string | null }
+interface Supplier {
+  id: number; name: string; nit: string; phone: string; email: string; address: string; category: string; notes: string; active: boolean; totalPurchased: number; pendingAmount: number; purchases: number; lastPurchase: string | null;
+  docType?: string; dv?: string; legalName?: string; personType?: string; city?: string; state?: string; country?: string; postalCode?: string; ciiu?: string; ivaResponsible?: boolean; regime?: string; creditDays?: number; retentionPct?: number; rutComplete?: boolean;
+}
 interface Expense {
   id: number; date: string; categoryId: number; categoryName: string; categoryEmoji: string; categoryKind: Kind;
   supplierId: number | null; supplierName: string | null; description: string; amount: number; paymentMethod: string;
   status: 'paid' | 'pending'; dueDate: string | null; paidAt: string | null; invoiceNumber: string; notes: string;
   fromCashRegister: boolean; source: string; overdue?: boolean; dueSoon?: boolean; taxAmount?: number;
+  retention?: number; retentionPct?: number; paidAmount?: number; balance?: number; supportDoc?: boolean; supportDocNumber?: string | null; supportDocStatus?: string | null; invoiceDate?: string | null; supplierNit?: string | null; daysToDue?: number | null;
 }
 
 const KIND_META: Record<Kind, { label: string; short: string; className: string }> = {
@@ -126,6 +134,9 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
     invoiceNumber: expense?.invoiceNumber || '',
     notes: expense?.notes || '',
     fromCashRegister: false,
+    retentionPct: expense && expense.retentionPct ? String(expense.retentionPct) : '',
+    invoiceDate: expense?.invoiceDate || '',
+    supportDoc: Boolean(expense?.supportDoc),
   });
   const [newSupplier, setNewSupplier] = useState('');
   const [supplierList, setSupplierList] = useState(suppliers);
@@ -136,6 +147,10 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
   const isCredit = form.paymentMethod === 'credit';
   const status = isCredit ? 'pending' : form.status;
   const canCash = form.paymentMethod === 'cash' && status === 'paid' && !expense;
+  const supplier = supplierList.find(s => s.id === Number(form.supplierId));
+  const retentionPct = form.retentionPct !== '' ? Number(form.retentionPct) || 0 : (supplier?.retentionPct || 0);
+  const retention = Math.round(((Number(form.amount) || 0) - (Number(form.taxAmount) || 0)) * retentionPct / 100);
+  const toPay = Math.max(0, (Number(form.amount) || 0) - retention);
 
   const quickAddSupplier = async () => {
     if (newSupplier.trim().length < 2) return;
@@ -156,6 +171,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
         description: form.description.trim(), amount: Number(form.amount), taxAmount: Number(form.taxAmount) || 0, paymentMethod: form.paymentMethod, status,
         dueDate: status === 'pending' ? form.dueDate || null : null, invoiceNumber: form.invoiceNumber, notes: form.notes,
         fromCashRegister: canCash && form.fromCashRegister,
+        retentionPct, invoiceDate: form.invoiceDate || null, supportDoc: form.supportDoc,
       };
       const saved = expense ? await api.updateExpense(expense.id, payload) : await api.addExpense(payload);
       if (payload.fromCashRegister) refreshCurrentShift();
@@ -227,9 +243,22 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
           <input value={form.invoiceNumber} onChange={e => set({ invoiceNumber: e.target.value })} className={INPUT} />
         </div>
         <div>
+          <label className={LABEL}>Fecha de la factura</label>
+          <input type="date" value={form.invoiceDate} onChange={e => set({ invoiceDate: e.target.value })} className={INPUT} />
+        </div>
+        <div>
           <label className={LABEL}>IVA incluido en el monto (opcional)</label>
           <input type="number" min={0} value={form.taxAmount} onChange={e => set({ taxAmount: e.target.value })} placeholder="0" className={cn(INPUT, 'font-mono')} />
         </div>
+        <div>
+          <label className={LABEL}>Retención en la fuente (% sobre la base)</label>
+          <input type="number" min={0} max={100} step={0.1} value={form.retentionPct} onChange={e => set({ retentionPct: e.target.value })} placeholder={supplier?.retentionPct ? `${supplier.retentionPct} (del proveedor)` : '0'} className={cn(INPUT, 'font-mono')} />
+          {retention > 0 && <p className="text-[10px] text-muted-foreground mt-1">Retención {formatPrice(retention)} · a pagar al proveedor {formatPrice(toPay)}</p>}
+        </div>
+        <label className="sm:col-span-2 flex items-start gap-2 p-3 rounded-lg border border-border text-xs cursor-pointer">
+          <input type="checkbox" checked={form.supportDoc} onChange={e => set({ supportDoc: e.target.checked })} className="mt-0.5" />
+          <span><span className="font-semibold text-brand-dark block">Documento soporte (proveedor no obligado a facturar)</span><span className="text-muted-foreground">Compras a personas naturales sin factura electrónica. Se numera como documento soporte (DSP, numeración interna de prueba) para sustentar el costo o gasto.</span></span>
+        </label>
         <div className="sm:col-span-2">
           <label className={LABEL}>Notas</label>
           <input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} />
@@ -262,13 +291,17 @@ const PayModal = ({ expense, onClose, onPaid }: { expense: Expense; onClose: () 
   const [method, setMethod] = useState('transfer');
   const [fromCash, setFromCash] = useState(false);
   const [paidAt, setPaidAt] = useState(getColombiaTodayStr());
+  const balance = expense.balance ?? (expense.amount - (expense.retention || 0) - (expense.paidAmount || 0));
+  const [amount, setAmount] = useState(String(balance));
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const n = Math.round(Number(amount) || 0);
   const pay = async () => {
     setSaving(true);
     setError('');
     try {
-      const r = await api.payExpense(expense.id, { paymentMethod: method, fromCashRegister: method === 'cash' && fromCash, paidAt });
+      const r = await api.payExpense(expense.id, { paymentMethod: method, fromCashRegister: method === 'cash' && fromCash, paidAt, amount: n, notes });
       if (method === 'cash' && fromCash) refreshCurrentShift();
       onPaid(r);
     } catch (e: any) { setError(e.message); }
@@ -279,7 +312,13 @@ const PayModal = ({ expense, onClose, onPaid }: { expense: Expense; onClose: () 
       <div className="p-3 rounded-lg bg-brand-card border border-border">
         <p className="text-sm font-semibold text-brand-dark">{expense.description}</p>
         <p className="text-xs text-muted-foreground">{expense.supplierName || 'Sin proveedor'} · vence {fmtDate(expense.dueDate)}</p>
-        <p className="text-lg font-bold text-brand-primary mt-1">{formatPrice(expense.amount)}</p>
+        <p className="text-lg font-bold text-brand-primary mt-1">Saldo {formatPrice(balance)}</p>
+        {(expense.paidAmount || expense.retention) ? <p className="text-[11px] text-muted-foreground">Valor {formatPrice(expense.amount)}{expense.retention ? ` · retención ${formatPrice(expense.retention)}` : ''}{expense.paidAmount ? ` · abonado ${formatPrice(expense.paidAmount)}` : ''}</p> : null}
+      </div>
+      <div>
+        <label className={LABEL}>Valor a pagar</label>
+        <input type="number" min={1} max={balance} value={amount} onChange={e => setAmount(e.target.value)} className={cn(INPUT, 'font-mono text-base')} />
+        <div className="flex gap-1 mt-1"><Chip active={n === balance} onClick={() => setAmount(String(balance))}>Saldo total</Chip><Chip onClick={() => setAmount(String(Math.round(balance / 2)))}>Mitad</Chip></div>
       </div>
       <div>
         <label className={LABEL}>Método</label>
@@ -291,6 +330,10 @@ const PayModal = ({ expense, onClose, onPaid }: { expense: Expense; onClose: () 
         <label className={LABEL}>Fecha de pago</label>
         <input type="date" value={paidAt} onChange={e => setPaidAt(e.target.value)} className={INPUT} />
       </div>
+      <div>
+        <label className={LABEL}>Nota (opcional)</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} className={INPUT} placeholder="Ej: pago semanal, consignación" />
+      </div>
       {method === 'cash' && (
         <label className={cn('flex items-start gap-2 p-3 rounded-lg border text-xs', currentShift ? 'border-brand-accent/40 bg-brand-card cursor-pointer' : 'border-border bg-muted/30 opacity-70')}>
           <input type="checkbox" disabled={!currentShift} checked={fromCash} onChange={e => setFromCash(e.target.checked)} className="mt-0.5" />
@@ -298,7 +341,7 @@ const PayModal = ({ expense, onClose, onPaid }: { expense: Expense; onClose: () 
         </label>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <button onClick={pay} disabled={saving} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Registrando...' : 'Confirmar pago'}</button>
+      <button onClick={pay} disabled={saving || n <= 0 || n > balance} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Registrando...' : n >= balance ? 'Confirmar pago total' : `Registrar abono de ${formatPrice(n)}`}</button>
     </Modal>
   );
 };
@@ -502,7 +545,7 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-brand-dark truncate">{e.description}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
-                      {fmtDate(e.date)} · {e.categoryName}{e.supplierName ? ` · ${e.supplierName}` : ''}{e.invoiceNumber ? ` · Fac. ${e.invoiceNumber}` : ''}{e.fromCashRegister ? ' · desde caja' : ''}
+                      {fmtDate(e.date)} · {e.categoryName}{e.supplierName ? ` · ${e.supplierName}` : ''}{e.invoiceNumber ? ` · Fac. ${e.invoiceNumber}` : ''}{e.fromCashRegister ? ' · desde caja' : ''}{e.retention ? ` · ret. ${formatPrice(e.retention)}` : ''}{e.supportDocNumber ? ` · DS ${e.supportDocNumber}` : ''}
                     </p>
                   </div>
                   <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground"><PM size={12} /> {PAYMENT_META[e.paymentMethod]?.label}</span>
@@ -558,8 +601,8 @@ const PayablesTab = () => {
                   <p className={cn('text-[11px] font-semibold', e.overdue ? 'text-red-600' : e.dueSoon ? 'text-amber-700' : 'text-muted-foreground')}>{e.dueDate ? `Vence ${fmtDate(e.dueDate)}` : 'Sin fecha'}</p>
                   <StatusPill e={e} />
                 </div>
-                <p className="text-sm font-bold text-brand-primary w-24 text-right">{formatPrice(e.amount)}</p>
-                <button onClick={() => setPaying(e)} className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold whitespace-nowrap">Pagar</button>
+                <div className="w-28 text-right"><p className="text-sm font-bold text-brand-primary">{formatPrice(e.balance ?? e.amount)}</p>{(e.paidAmount || 0) > 0 && <p className="text-[10px] text-muted-foreground">abonado {formatPrice(e.paidAmount || 0)}</p>}</div>
+                <button onClick={() => setPaying(e)} className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold whitespace-nowrap">{(e.paidAmount || 0) > 0 ? 'Abonar' : 'Pagar'}</button>
               </li>
             ))}
           </ul>
@@ -583,7 +626,7 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
 
   const open = (s: Supplier | 'new') => {
     setEditing(s);
-    setForm(s === 'new' ? { name: '', nit: '', phone: '', email: '', address: '', category: '', notes: '' } : { ...s });
+    setForm(s === 'new' ? { name: '', nit: '', phone: '', email: '', address: '', category: '', notes: '', docType: 'NIT', dv: '', legalName: '', personType: 'juridica', city: '', state: '', country: 'Colombia', postalCode: '', ciiu: '', ivaResponsible: false, regime: 'ordinario', creditDays: 0, retentionPct: 0 } : { ...s });
     setError('');
   };
   const save = async () => {
@@ -615,7 +658,8 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
               <div className="w-10 h-10 rounded-xl bg-brand-button/10 text-brand-primary flex items-center justify-center shrink-0"><Truck size={18} /></div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-brand-dark truncate">{s.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{s.category || 'Sin categoría'}{s.nit ? ` · NIT ${s.nit}` : ''}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{s.category || 'Sin categoría'}{s.nit ? ` · ${s.docType || 'NIT'} ${s.nit}${s.dv ? '-' + s.dv : ''}` : ''}</p>
+                <span className={cn('inline-block mt-0.5 text-[9px] px-1.5 py-0.5 rounded-full font-semibold', s.rutComplete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}>{s.rutComplete ? 'RUT completo' : 'Faltan datos del RUT'}</span>
                 {s.phone && <p className="text-[11px] text-muted-foreground">{s.phone}</p>}
               </div>
               {isAdmin && (
@@ -634,16 +678,32 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
         {list.length === 0 && <p className="text-xs text-muted-foreground">No hay proveedores registrados.</p>}
       </div>
       {editing && (
-        <Modal title={editing === 'new' ? 'Nuevo proveedor' : 'Editar proveedor'} onClose={() => setEditing(null)}>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2"><label className={LABEL}>Nombre / Razón social</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={INPUT} /></div>
-            <div><label className={LABEL}>NIT / Cédula</label><input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} className={INPUT} /></div>
+        <Modal title={editing === 'new' ? 'Nuevo proveedor' : 'Editar proveedor'} onClose={() => setEditing(null)} wide>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="col-span-2 sm:col-span-4 flex gap-2">
+              <Chip active={form.personType !== 'natural'} onClick={() => setForm({ ...form, personType: 'juridica', docType: 'NIT' })}>Persona jurídica (NIT)</Chip>
+              <Chip active={form.personType === 'natural'} onClick={() => setForm({ ...form, personType: 'natural', docType: form.docType === 'NIT' ? 'CC' : form.docType })}>Persona natural</Chip>
+            </div>
+            <div className="col-span-2 sm:col-span-3"><label className={LABEL}>{form.personType === 'natural' ? 'Nombre completo' : 'Razón social'}</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={INPUT} /></div>
+            <div><label className={LABEL}>Tipo doc.</label><select value={form.docType || ''} onChange={e => setForm({ ...form, docType: e.target.value })} className={INPUT}><option value="">—</option>{['NIT', 'CC', 'CE', 'PAS', 'TI', 'PEP', 'NUIP'].map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+            <div className="col-span-2"><label className={LABEL}>{form.docType === 'NIT' ? 'NIT' : 'Número de documento'}</label><input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
+            <div><label className={LABEL}>DV</label><input value={form.dv || ''} onChange={e => setForm({ ...form, dv: e.target.value.replace(/\D/g, '').slice(0, 1) })} className={cn(INPUT, 'font-mono')} /></div>
             <div><label className={LABEL}>Qué provee</label><input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Insumos, empaques..." className={INPUT} /></div>
-            <div><label className={LABEL}>Teléfono</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={INPUT} /></div>
-            <div><label className={LABEL}>Correo</label><input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={INPUT} /></div>
+            {form.personType !== 'natural' && <div className="col-span-2 sm:col-span-4"><label className={LABEL}>Nombre comercial (si difiere)</label><input value={form.legalName || ''} onChange={e => setForm({ ...form, legalName: e.target.value })} className={INPUT} /></div>}
             <div className="col-span-2"><label className={LABEL}>Dirección</label><input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className={INPUT} /></div>
-            <div className="col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={INPUT} /></div>
+            <div><label className={LABEL}>Ciudad</label><input value={form.city || ''} onChange={e => setForm({ ...form, city: e.target.value })} className={INPUT} /></div>
+            <div><label className={LABEL}>Departamento</label><input value={form.state || ''} onChange={e => setForm({ ...form, state: e.target.value })} className={INPUT} /></div>
+            <div><label className={LABEL}>Código postal</label><input value={form.postalCode || ''} onChange={e => setForm({ ...form, postalCode: e.target.value })} className={INPUT} /></div>
+            <div><label className={LABEL}>Teléfono</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={INPUT} /></div>
+            <div className="col-span-2"><label className={LABEL}>Correo</label><input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={INPUT} /></div>
+            <div><label className={LABEL}>Actividad económica (CIIU)</label><input value={form.ciiu || ''} onChange={e => setForm({ ...form, ciiu: e.target.value })} placeholder="Ej: 1040" className={cn(INPUT, 'font-mono')} /></div>
+            <div><label className={LABEL}>Régimen</label><select value={form.regime || ''} onChange={e => setForm({ ...form, regime: e.target.value })} className={INPUT}><option value="">—</option><option value="ordinario">Ordinario (responsable IVA)</option><option value="simple">Régimen simple</option><option value="no_responsable">No responsable de IVA</option></select></div>
+            <div><label className={LABEL}>Días de crédito</label><input type="number" min={0} value={form.creditDays ?? 0} onChange={e => setForm({ ...form, creditDays: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
+            <div><label className={LABEL}>Retención en la fuente %</label><input type="number" min={0} max={100} step={0.1} value={form.retentionPct ?? 0} onChange={e => setForm({ ...form, retentionPct: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
+            <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={Boolean(form.ivaResponsible)} onChange={e => setForm({ ...form, ivaResponsible: e.target.checked, regime: e.target.checked && form.regime === 'no_responsable' ? 'ordinario' : form.regime })} /> Responsable de IVA (sus facturas traen IVA)</label>
+            <div className="col-span-2 sm:col-span-4"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={INPUT} /></div>
           </div>
+          <p className="text-[10px] text-muted-foreground">Dirección, ciudad, teléfono, correo y actividad económica son los datos que pide la información exógena y el documento soporte.</p>
           {error && <p className="text-xs text-red-600">{error}</p>}
           <button onClick={save} disabled={saving || !form.name || form.name.trim().length < 2} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Guardando...' : 'Guardar'}</button>
         </Modal>
@@ -730,7 +790,11 @@ const FinancePage = () => {
 
   const tabs = useMemo(() => [
     { id: 'resumen' as Tab, label: 'Resumen', icon: Landmark, admin: true },
-    { id: 'contabilidad' as Tab, label: 'Contabilidad', icon: BookOpen, admin: true },
+    { id: 'contabilidad' as Tab, label: 'Informe contable', icon: BookOpen, admin: true },
+    { id: 'balances' as Tab, label: 'Balances', icon: Scale, admin: true },
+    { id: 'diario' as Tab, label: 'Libro diario', icon: BookMarked, admin: true },
+    { id: 'cartera' as Tab, label: 'Cartera', icon: HandCoins },
+    { id: 'plan' as Tab, label: 'Plan de cuentas', icon: ListTree, admin: true },
     { id: 'gastos' as Tab, label: 'Gastos', icon: Receipt },
     { id: 'porpagar' as Tab, label: 'Por pagar', icon: CalendarClock },
     { id: 'proveedores' as Tab, label: 'Proveedores', icon: Truck },
@@ -742,7 +806,7 @@ const FinancePage = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="font-display font-bold text-lg text-brand-dark">Finanzas</h2>
-          <p className="text-xs text-muted-foreground">Gastos, compras a proveedores, cuentas por pagar y utilidad real del negocio.</p>
+          <p className="text-xs text-muted-foreground">Gastos, proveedores, cartera, contabilidad de partida doble (PUC) y estados financieros.</p>
         </div>
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map(t => (
@@ -757,6 +821,10 @@ const FinancePage = () => {
 
       {tab === 'resumen' && isAdmin && <SummaryTab goTo={setTab} />}
       {tab === 'contabilidad' && isAdmin && <AccountingTab />}
+      {tab === 'balances' && isAdmin && <LedgerReportsTab />}
+      {tab === 'diario' && isAdmin && <JournalTab />}
+      {tab === 'cartera' && <CarteraTab isAdmin={isAdmin} />}
+      {tab === 'plan' && isAdmin && <AccountsTab />}
       {tab === 'gastos' && <ExpensesTab categories={categories} suppliers={suppliers.filter(s => s.active)} isAdmin={isAdmin} />}
       {tab === 'porpagar' && <PayablesTab />}
       {tab === 'proveedores' && <SuppliersTab suppliers={suppliers} isAdmin={isAdmin} reload={loadSuppliers} />}

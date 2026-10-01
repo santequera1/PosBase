@@ -27,6 +27,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+const qstr = (params: Record<string, any> = {}) => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.set(k, String(v)); });
+  const s = qs.toString();
+  return s ? '?' + s : '';
+};
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ token: string; user: { name: string; role: string } }>('/auth/login', {
@@ -182,7 +189,10 @@ export const api = {
   },
   addExpense: (data: any) => request<any>('/finance/expenses', { method: 'POST', body: JSON.stringify(data) }),
   updateExpense: (id: number, data: any) => request<any>(`/finance/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  payExpense: (id: number, data: { paymentMethod: string; fromCashRegister?: boolean; paidAt?: string }) => request<any>(`/finance/expenses/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  payExpense: (id: number, data: { paymentMethod: string; fromCashRegister?: boolean; paidAt?: string; amount?: number; notes?: string }) => request<any>(`/finance/expenses/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  getExpensePayments: (id: number) => request<any>(`/finance/expenses/${id}/payments`),
+  deleteExpensePayment: (id: number, pid: number) => request<any>(`/finance/expenses/${id}/payments/${pid}`, { method: 'DELETE' }),
+  issueSupportDoc: (id: number) => request<any>(`/finance/expenses/${id}/support-doc`, { method: 'POST' }),
   deleteExpense: (id: number) => request<any>(`/finance/expenses/${id}`, { method: 'DELETE' }),
   getPayables: () => request<any>('/finance/payables'),
   // Finanzas: estado de resultados
@@ -199,6 +209,37 @@ export const api = {
     const q = qs.toString();
     return request<any>(`/finance/accounting${q ? '?' + q : ''}`);
   },
+
+  // Contabilidad: plan de cuentas, parametrización, libro diario, balances, cartera y terceros
+  getAcctConfig: () => request<any>('/accounting/config'),
+  updateAcctConfig: (data: any) => request<any>('/accounting/config', { method: 'PUT', body: JSON.stringify(data) }),
+  getAccounts: (all?: boolean) => request<any[]>(`/accounting/accounts${all ? '?all=1' : ''}`),
+  addAccount: (data: any) => request<any>('/accounting/accounts', { method: 'POST', body: JSON.stringify(data) }),
+  updateAccount: (code: string, data: any) => request<any>(`/accounting/accounts/${code}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteAccount: (code: string) => request<any>(`/accounting/accounts/${code}`, { method: 'DELETE' }),
+  getJournal: (params: Record<string, any> = {}) => request<any>(`/accounting/entries${qstr(params)}`),
+  addJournalEntry: (data: any) => request<any>('/accounting/entries', { method: 'POST', body: JSON.stringify(data) }),
+  voidJournalEntry: (id: number, reason: string) => request<any>(`/accounting/entries/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  syncLedger: () => request<any>('/accounting/sync', { method: 'POST' }),
+  rebuildLedger: (data: { from?: string; to?: string }) => request<any>('/accounting/rebuild', { method: 'POST', body: JSON.stringify(data) }),
+  getAcctSummary: (params: Record<string, any> = {}) => request<any>(`/accounting/summary${qstr(params)}`),
+  getTrialBalance: (params: Record<string, any> = {}) => request<any>(`/accounting/trial-balance${qstr(params)}`),
+  getLedgerAccount: (params: Record<string, any> = {}) => request<any>(`/accounting/ledger${qstr(params)}`),
+  getBalanceSheet: (date?: string) => request<any>(`/accounting/balance-sheet${qstr({ date })}`),
+  getIncomeStatementLedger: (from: string, to: string) => request<any>(`/accounting/income-statement${qstr({ from, to })}`),
+  getReceivablesAging: (date?: string, third?: string) => request<any>(`/accounting/receivables${qstr({ date, third })}`),
+  getPayablesAging: (date?: string, third?: string) => request<any>(`/accounting/payables${qstr({ date, third })}`),
+  getThirdParties: (from: string, to: string) => request<any>(`/accounting/third-parties${qstr({ from, to })}`),
+  // Abonos de clientes (ventas a crédito y plataformas)
+  getOrderPayments: (id: number) => request<any>(`/orders/${id}/payments`),
+  addOrderPayment: (id: number, data: { amount?: number; method: string; date?: string; notes?: string }) => request<any>(`/orders/${id}/payments`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteOrderPayment: (id: number, pid: number) => request<any>(`/orders/${id}/payments/${pid}`, { method: 'DELETE' }),
+  // Facturación electrónica (Factus)
+  getFeConfig: () => request<any>('/einvoicing/config'),
+  updateFeConfig: (data: any) => request<any>('/einvoicing/config', { method: 'PUT', body: JSON.stringify(data) }),
+  testFeConnection: () => request<any>('/einvoicing/test', { method: 'POST' }),
+  getFeMunicipalities: (q: string) => request<any[]>(`/einvoicing/municipalities${qstr({ q })}`),
+  getFePreview: (orderId: number) => request<any>(`/einvoicing/preview/${orderId}`),
 
   // Personal y nómina
   // Restaurante: mesas, cuentas abiertas, cocina, domicilios

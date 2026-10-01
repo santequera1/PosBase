@@ -25,8 +25,15 @@ function issueTestInvoice(db, orderId) {
 }
 
 function electronicInvoiceOf(order) {
-  if (!order || !order.fe_number) return undefined;
-  return { number: order.fe_number, cufe: order.fe_cufe, status: order.fe_status || 'test', issuedAt: order.fe_issued_at, test: order.fe_status !== 'accepted' };
+  if (!order || (!order.fe_number && !order.fe_error)) return undefined;
+  return { number: order.fe_number || '', cufe: order.fe_cufe || '', status: order.fe_status || 'test', issuedAt: order.fe_issued_at, test: order.fe_status !== 'accepted', provider: order.fe_provider || 'test', qr: order.fe_qr || undefined, publicUrl: order.fe_public_url || undefined, error: order.fe_error || undefined };
 }
 
-module.exports = { issueTestInvoice, electronicInvoiceOf };
+/** Emite con el proveedor configurado: Factus (real) o el documento simulado de pruebas. */
+async function issueElectronicInvoice(db, orderId) {
+  const factus = require('./factus');
+  if (factus.readFeConfig(db).provider === 'factus') return factus.issueInvoice(db, orderId);
+  return issueTestInvoice(db, orderId);
+}
+
+module.exports = { issueTestInvoice, issueElectronicInvoice, electronicInvoiceOf };

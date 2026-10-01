@@ -54,6 +54,7 @@ export interface Product {
   stock?: number;
   minStock?: number;
   station?: 'cocina' | 'barra' | 'none';
+  cost?: number;
 }
 
 export interface Customer {
@@ -67,6 +68,18 @@ export interface Customer {
   neighborhood?: string;
   notes: string;
   isCompany?: boolean;
+  docType?: string;
+  dv?: string;
+  legalName?: string;
+  personType?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  ciiu?: string;
+  ivaResponsible?: boolean;
+  regime?: string;
+  creditDays?: number;
   totalOrders: number;
   totalSpent: number;
   lastOrder: string;
@@ -139,7 +152,7 @@ export interface Order {
   notes?: string;
   shiftId?: number;
   cashierName?: string;
-  electronicInvoice?: { number: string; cufe: string; status: string; issuedAt: string; test?: boolean };
+  electronicInvoice?: { number: string; cufe: string; status: string; issuedAt: string; test?: boolean; provider?: string; qr?: string; publicUrl?: string; error?: string };
 }
 
 export interface CashShift {

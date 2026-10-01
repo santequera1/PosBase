@@ -41,6 +41,7 @@ router.post('/', STAFF, (req, res) => {
     db.prepare("INSERT INTO stock_movements (product_id, delta, stock_after, reason, user_name) VALUES (?, ?, ?, 'inventario', ?)").run(result.lastInsertRowid, st, st, req.user?.name || '');
   }
   if (STATIONS.includes(req.body.station)) db.prepare('UPDATE products SET station = ? WHERE id = ?').run(req.body.station, result.lastInsertRowid);
+  if (req.body.cost !== undefined) db.prepare('UPDATE products SET cost = ? WHERE id = ?').run(Math.max(0, Math.round(Number(req.body.cost) || 0)), result.lastInsertRowid);
   const product = getProduct(db, result.lastInsertRowid);
   emitProduct(req.app.io, product);
   res.status(201).json(product);
@@ -69,6 +70,7 @@ router.put('/:id', STAFF, (req, res) => {
     trackStock !== undefined ? (trackStock ? 1 : 0) : null, minStock !== undefined ? Math.max(0, Math.round(Number(minStock) || 0)) : null, req.params.id);
 
   if (STATIONS.includes(req.body.station)) db.prepare('UPDATE products SET station = ? WHERE id = ?').run(req.body.station, req.params.id);
+  if (req.body.cost !== undefined) db.prepare('UPDATE products SET cost = ? WHERE id = ?').run(Math.max(0, Math.round(Number(req.body.cost) || 0)), req.params.id);
   // Cambio de stock desde el formulario: se registra como ajuste de inventario
   const nowTracking = trackStock !== undefined ? Boolean(trackStock) : Boolean(existing.ts);
   if (nowTracking && stock !== undefined && stock !== null && stock !== '') {

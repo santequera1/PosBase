@@ -1,8 +1,10 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { registerAttendanceForShift, closeAttendanceForShift } = require('../cashHelpers');
+const L = require('../ledger');
 
 const router = Router();
+router.use(L.syncOnWrite(getDb));
 
 // Calculate live stats for a shift (STRICTLY isolated by shift_id)
 function getShiftLiveStats(db, shift) {
