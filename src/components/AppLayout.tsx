@@ -24,26 +24,27 @@ import {
 import { useStore } from '@/store/useStore';
 import { formatPrice, formatTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { can, type ViewKey, type PermUser } from '@/lib/permissions';
 
-type NavItem = { path: string; label: string; icon: any; roles?: string[] };
+type NavItem = { path: string; label: string; icon: any; view?: ViewKey };
 
 const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: boolean; kitchen?: boolean } | null): NavItem[] => [
-  { path: '/pos', label: 'Punto de Venta', icon: Store },
-  ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid }] : []),
-  ...(modules?.counter ? [{ path: '/counter', label: 'Para llevar', icon: ShoppingBag }] : []),
-  ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike }] : []),
-  ...(modules?.kitchen ? [{ path: '/kitchen', label: 'Cocina', icon: ChefHat, roles: ['admin', 'cashier', 'kitchen'] }] : []),
-  { path: '/shift', label: 'Cierre de Caja', icon: Wallet },
-  { path: '/reports', label: 'Ventas e Ingresos', icon: BarChart3 },
-  { path: '/orders', label: 'Historial Pedidos', icon: ClipboardList },
-  { path: '/products', label: 'Menú', icon: Package },
-  { path: '/customers', label: 'Clientes & F.E.', icon: Users },
-  { path: '/finance', label: 'Finanzas', icon: Landmark, roles: ['admin', 'cashier'] },
-  { path: '/staff', label: 'Personal & Nómina', icon: UsersRound, roles: ['admin'] },
-  { path: '/settings', label: 'Configuración', icon: Settings },
+  { path: '/pos', label: 'Punto de Venta', icon: Store, view: 'pos' },
+  ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid, view: 'tables' as ViewKey }] : []),
+  ...(modules?.counter ? [{ path: '/counter', label: 'Para llevar', icon: ShoppingBag, view: 'counter' as ViewKey }] : []),
+  ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike, view: 'delivery' as ViewKey }] : []),
+  ...(modules?.kitchen ? [{ path: '/kitchen', label: 'Cocina', icon: ChefHat, view: 'kitchen' as ViewKey }] : []),
+  { path: '/shift', label: 'Cierre de Caja', icon: Wallet, view: 'shift' },
+  { path: '/reports', label: 'Ventas e Ingresos', icon: BarChart3, view: 'reports' },
+  { path: '/orders', label: 'Historial Pedidos', icon: ClipboardList, view: 'orders' },
+  { path: '/products', label: 'Menú', icon: Package, view: 'menu' },
+  { path: '/customers', label: 'Clientes & F.E.', icon: Users, view: 'customers' },
+  { path: '/finance', label: 'Finanzas', icon: Landmark, view: 'finance' },
+  { path: '/staff', label: 'Personal & Nómina', icon: UsersRound, view: 'staff' },
+  { path: '/settings', label: 'Configuración', icon: Settings, view: 'settings' },
 ];
 
-const visibleFor = (items: NavItem[], role?: string) => items.filter(i => !i.roles || (role && i.roles.includes(role)));
+const visibleFor = (items: NavItem[], user?: PermUser | null) => items.filter(i => !i.view || can(user, i.view));
 
 export const AppLayout = () => {
   const location = useLocation();
@@ -51,7 +52,7 @@ export const AppLayout = () => {
   const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride, restaurant } = useStore();
   const isDark = (modeOverride ?? branding.theme?.mode ?? 'light') === 'dark';
   // El personal de cocina solo ve el monitor de cocina
-  const visibleNav = visibleFor(navFor(restaurant?.modules), user?.role).filter(i => user?.role !== 'kitchen' || i.path === '/kitchen');
+  const visibleNav = visibleFor(navFor(restaurant?.modules), user);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -264,7 +265,8 @@ export const AppLayout = () => {
       </main>
 
       {/* Mobile bottom nav */}
-      <MobileNav navigate={navigate} location={location} pendingCount={pendingCount} logout={logout} />
+      {/* En la cuenta abierta la página tiene su propia barra inferior (Productos / Cuenta): no se superpone la navegación general */}
+      {!location.pathname.startsWith('/cuenta/') && <MobileNav navigate={navigate} location={location} pendingCount={pendingCount} logout={logout} />}
     </div>
   );
 };
@@ -274,24 +276,27 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
   const businessName = useStore(s => s.businessName);
 
   const modules = useStore(s => s.restaurant?.modules);
-  const mainItems = [
-    { path: '/pos', label: 'POS Caja', icon: Store },
-    ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid }] : []),
-    ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike }] : []),
-    { path: '/shift', label: 'Turno', icon: Wallet },
-    { path: '/orders', label: 'Pedidos', icon: ClipboardList },
-    ...(!modules?.tables && !modules?.delivery ? [{ path: '/reports', label: 'Reportes', icon: BarChart3 }] : []),
-  ];
+  const user = useStore(s => s.user);
+  const mainItems = visibleFor([
+    { path: '/pos', label: 'POS Caja', icon: Store, view: 'pos' },
+    ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid, view: 'tables' as ViewKey }] : []),
+    ...(modules?.counter ? [{ path: '/counter', label: 'Llevar', icon: ShoppingBag, view: 'counter' as ViewKey }] : []),
+    ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike, view: 'delivery' as ViewKey }] : []),
+    ...(modules?.kitchen ? [{ path: '/kitchen', label: 'Cocina', icon: ChefHat, view: 'kitchen' as ViewKey }] : []),
+    { path: '/shift', label: 'Turno', icon: Wallet, view: 'shift' },
+    { path: '/orders', label: 'Pedidos', icon: ClipboardList, view: 'orders' },
+    ...(!modules?.tables && !modules?.delivery ? [{ path: '/reports', label: 'Reportes', icon: BarChart3, view: 'reports' as ViewKey }] : []),
+  ], user).slice(0, 5);
 
-  const role = useStore(s => s.user?.role);
   const moreItems = visibleFor([
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/products', label: 'Sabores', icon: Package },
-    { path: '/customers', label: 'Clientes', icon: Users },
-    { path: '/finance', label: 'Finanzas', icon: Landmark, roles: ['admin', 'cashier'] },
-    { path: '/staff', label: 'Personal', icon: UsersRound, roles: ['admin'] },
-    { path: '/settings', label: 'Config', icon: Settings },
-  ], role);
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, view: 'reports' },
+    { path: '/reports', label: 'Ventas', icon: BarChart3, view: 'reports' },
+    { path: '/products', label: 'Menú', icon: Package, view: 'menu' },
+    { path: '/customers', label: 'Clientes', icon: Users, view: 'customers' },
+    { path: '/finance', label: 'Finanzas', icon: Landmark, view: 'finance' },
+    { path: '/staff', label: 'Personal', icon: UsersRound, view: 'staff' },
+    { path: '/settings', label: 'Config', icon: Settings, view: 'settings' },
+  ], user);
 
   return (
     <>

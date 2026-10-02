@@ -26,11 +26,28 @@ import CounterPage from "@/pages/CounterPage";
 import DeliveryPage from "@/pages/DeliveryPage";
 import OpenOrderPage from "@/pages/OpenOrderPage";
 import NotFound from "@/pages/NotFound";
+import NoAccess from "@/pages/NoAccess";
+import { can, homePath, type ViewKey } from "@/lib/permissions";
+import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 
 const queryClient = new QueryClient();
 
 const SOCKET_URL = typeof window !== 'undefined' ? window.location.origin : (import.meta.env.VITE_API_URL?.replace('/api', '') || '');
+
+/** Protección por sección: si la persona entra por URL a algo que no tiene habilitado, ve el aviso en lugar de la pantalla. */
+const Guard = ({ view, children }: { view: ViewKey | ViewKey[]; children: any }) => {
+  const user = useStore(s => s.user);
+  const refreshMe = useStore(s => s.refreshMe);
+  const location = useLocation();
+  useEffect(() => { refreshMe(); }, [location.pathname, refreshMe]);
+  return can(user, view) ? children : <NoAccess view={view} />;
+};
+const Home = () => {
+  const user = useStore(s => s.user);
+  const modules = useStore(s => s.restaurant?.modules);
+  return <Navigate to={homePath(user, modules)} replace />;
+};
 
 const ProtectedRoutes = () => {
   const user = useStore(s => s.user);
@@ -92,25 +109,25 @@ const App = () => (
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoutes />}>
-            <Route path="/" element={<Navigate to="/pos" replace />} />
-            <Route path="/pos" element={<POSPage />} />
-            <Route path="/shift" element={<CashShiftPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/orders/new" element={<NewOrderPage />} />
-            <Route path="/orders/:id" element={<OrderDetailPage />} />
-            <Route path="/kitchen" element={<KitchenPage />} />
-            <Route path="/tables" element={<TablesPage />} />
-            <Route path="/counter" element={<CounterPage />} />
-            <Route path="/delivery" element={<DeliveryPage />} />
-            <Route path="/cuenta/:id" element={<OpenOrderPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/customers" element={<CustomersPage />} />
-            <Route path="/customers/:id" element={<CustomerDetailPage />} />
-            <Route path="/staff" element={<StaffPage />} />
-            <Route path="/finance" element={<FinancePage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/pos" element={<Guard view="pos"><POSPage /></Guard>} />
+            <Route path="/shift" element={<Guard view="shift"><CashShiftPage /></Guard>} />
+            <Route path="/dashboard" element={<Guard view="reports"><DashboardPage /></Guard>} />
+            <Route path="/orders" element={<Guard view="orders"><OrdersPage /></Guard>} />
+            <Route path="/orders/new" element={<Guard view={['orders', 'pos']}><NewOrderPage /></Guard>} />
+            <Route path="/orders/:id" element={<Guard view="orders"><OrderDetailPage /></Guard>} />
+            <Route path="/kitchen" element={<Guard view="kitchen"><KitchenPage /></Guard>} />
+            <Route path="/tables" element={<Guard view="tables"><TablesPage /></Guard>} />
+            <Route path="/counter" element={<Guard view="counter"><CounterPage /></Guard>} />
+            <Route path="/delivery" element={<Guard view="delivery"><DeliveryPage /></Guard>} />
+            <Route path="/cuenta/:id" element={<Guard view={['tables', 'counter', 'delivery', 'pos']}><OpenOrderPage /></Guard>} />
+            <Route path="/products" element={<Guard view="menu"><ProductsPage /></Guard>} />
+            <Route path="/customers" element={<Guard view="customers"><CustomersPage /></Guard>} />
+            <Route path="/customers/:id" element={<Guard view="customers"><CustomerDetailPage /></Guard>} />
+            <Route path="/staff" element={<Guard view="staff"><StaffPage /></Guard>} />
+            <Route path="/finance" element={<Guard view="finance"><FinancePage /></Guard>} />
+            <Route path="/reports" element={<Guard view="reports"><ReportsPage /></Guard>} />
+            <Route path="/settings" element={<Guard view="settings"><SettingsPage /></Guard>} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

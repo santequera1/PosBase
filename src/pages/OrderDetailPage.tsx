@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, MapPin, Upload, X, Truck, Edit2, FileText, Image, Eye, UserPlus, MessageCircle } from 'lucide-react';
 import { useStore, type OrderStatus, type OrderType, type PaymentMethod, type Driver } from '@/store/useStore';
+import { canDo } from '@/lib/permissions';
 import { StatusBadge, getDeliveredLabel } from '@/components/StatusBadge';
 import { OrderTypeBadge } from '@/components/OrderTypeBadge';
 import { formatPrice, formatTime } from '@/lib/format';
@@ -43,7 +44,7 @@ function getFlowSteps(type: OrderType): { status: OrderStatus; label: string; em
 const OrderDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { orders, updateOrderStatus, updatePaymentStatus, updateOrderCustomer, updateOrderNotes, uploadReceipt, drivers, assignDriver, businessName } = useStore();
+  const { orders, updateOrderStatus, updatePaymentStatus, updateOrderCustomer, updateOrderNotes, uploadReceipt, drivers, assignDriver, businessName, user } = useStore();
   const order = orders.find(o => o.id === Number(id));
   const receiptRef = useRef<HTMLDivElement>(null);
   const notesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -317,7 +318,7 @@ const OrderDetailPage = () => {
 
         {showStatusPicker && (
           <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-border">
-            {[...flowSteps, { status: 'cancelled' as OrderStatus, label: 'Cancelar', emoji: '❌' }].map(s => (
+            {[...flowSteps, ...(canDo(user, 'cancel_orders') ? [{ status: 'cancelled' as OrderStatus, label: 'Cancelar', emoji: '❌' }] : [])].map(s => (
               <button key={s.status}
                 onClick={() => { updateOrderStatus(order.id, s.status); setShowStatusPicker(false); }}
                 disabled={order.status === s.status}

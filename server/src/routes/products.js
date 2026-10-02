@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole } = require('../auth');
+const { requireRole, requirePerm } = require('../auth');
 const { PRODUCT_SELECT, mapProduct, getProduct, emitProduct, adjustStock } = require('../stock');
 const { STATIONS } = require('../restaurantSchema');
 
@@ -23,7 +23,7 @@ router.get('/low-stock', STAFF, (req, res) => {
   res.json(rows.map(mapProduct));
 });
 
-router.post('/', STAFF, (req, res) => {
+router.post('/', requirePerm('edit_menu'), (req, res) => {
   const { name, categoryId, price, available = true, image = null, description = null, sizes = null, trackStock = false, stock = 0, minStock = 0 } = req.body;
   if (!name || !categoryId || price == null) {
     return res.status(400).json({ error: 'Campos requeridos: name, categoryId, price' });
@@ -47,7 +47,7 @@ router.post('/', STAFF, (req, res) => {
   res.status(201).json(product);
 });
 
-router.put('/:id', STAFF, (req, res) => {
+router.put('/:id', requirePerm('edit_menu'), (req, res) => {
   const { name, categoryId, price, available, image, description, sizes, trackStock, stock, minStock } = req.body;
   const db = getDb();
   const existing = db.prepare('SELECT *, COALESCE(track_stock, 0) AS ts, COALESCE(stock, 0) AS st FROM products WHERE id = ?').get(req.params.id);
@@ -112,7 +112,7 @@ router.get('/:id/movements', STAFF, (req, res) => {
   res.json(rows);
 });
 
-router.delete('/:id', STAFF, (req, res) => {
+router.delete('/:id', requirePerm('edit_menu'), (req, res) => {
   const db = getDb();
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ error: 'Producto no encontrado' });

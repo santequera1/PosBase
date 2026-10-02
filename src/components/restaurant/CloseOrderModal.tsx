@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { PAYMENT_LABEL } from '@/lib/restaurant';
+import { canDo } from '@/lib/permissions';
 import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
 
 const METHODS = [
@@ -22,6 +23,7 @@ const METHODS = [
 /** Cobro de una cuenta: descuento con motivo, propina, uno o dos medios de pago, vueltas. */
 export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; onClose: () => void; onClosed: (o: Order) => void }) => {
   const restaurant = useStore(s => s.restaurant);
+  const user = useStore(s => s.user);
   const tipEnabled = restaurant ? (order.type === 'dine-in' ? restaurant.tipDineIn : order.type === 'pickup' ? restaurant.tipCounter : restaurant.tipDelivery) : false;
   const tipPct = restaurant?.tipPercent ?? 10;
   const [discount, setDiscount] = useState(String(order.discount || ''));
@@ -93,13 +95,15 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
             {tip > 0 && <div className="flex justify-between"><span>Propina</span><span>+ {formatPrice(tip)}</span></div>}
             <div className="flex justify-between text-base font-bold text-brand-dark border-t border-border pt-1"><span>A pagar</span><span>{formatPrice(due)}</span></div>
           </div>
-          <div>
-            <label className={LABEL}>Descuento</label>
-            <div className="flex gap-2">
-              <input type="number" min={0} value={discount} onChange={e => setDiscount(e.target.value)} placeholder="0" className={cn(INPUT, 'font-mono w-28')} />
-              <input value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="Motivo (obligatorio si hay descuento)" className={INPUT} />
+          {canDo(user, 'discounts') && (
+            <div>
+              <label className={LABEL}>Descuento</label>
+              <div className="flex gap-2">
+                <input type="number" min={0} value={discount} onChange={e => setDiscount(e.target.value)} placeholder="0" className={cn(INPUT, 'font-mono w-28')} />
+                <input value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="Motivo (obligatorio si hay descuento)" className={INPUT} />
+              </div>
             </div>
-          </div>
+          )}
           {tipEnabled && (
             <div>
               <label className={LABEL}>Propina</label>

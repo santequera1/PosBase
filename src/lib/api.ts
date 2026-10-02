@@ -36,7 +36,7 @@ const qstr = (params: Record<string, any> = {}) => {
 
 export const api = {
   login: (username: string, password: string) =>
-    request<{ token: string; user: { name: string; role: string } }>('/auth/login', {
+    request<{ token: string; user: { id?: number; name: string; role: string; profile?: string; perms?: { views: string[]; actions: string[] } } }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
@@ -142,6 +142,7 @@ export const api = {
   getTopDrivers: (period?: string) => request<any[]>(`/reports/top-drivers${period ? '?period=' + period : ''}`),
 
   // Settings
+  me: () => request<{ id: number; name: string; role: string; profile: string; perms: { views: string[]; actions: string[] } }>('/auth/me'),
   getSettings: () => request<any>('/settings'),
   getIntegration: () => request<any>('/settings/integration'),
   updateSettings: (data: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(data) }),

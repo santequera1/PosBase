@@ -6,6 +6,7 @@ import { Search, Plus, Grid3X3, List, X, Trash2, Edit3, Image as ImageIcon, Penc
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { canDo } from '@/lib/permissions';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MediaManagerModal } from '@/components/MediaManagerModal';
 
@@ -133,12 +134,12 @@ const ProductsPage = () => {
           <ImageIcon size={15} className="text-brand-muted" />
           <span className="hidden sm:inline">Galería de Fotos</span>
         </button>
-        <button
+        {canDo(user, 'edit_menu') && <button
           onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' }); setShowForm(true); }}
           className="h-10 px-4 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
         >
           <Plus size={16} /> Agregar Producto
-        </button>
+        </button>}
       </div>
 
       {/* Category Pills */}
@@ -162,8 +163,8 @@ const ProductsPage = () => {
               </button>
               {active && isAdmin && (
                 <>
-                  <button onClick={() => openCatForm(c)} title={`Editar categoría ${c.name}`} className="px-1.5 border-l border-brand-on-button/20 hover:bg-brand-on-button/10 flex items-center"><Pencil size={12} /></button>
-                  <button onClick={() => handleDeleteCat(c)} title={`Eliminar categoría ${c.name}`} className="px-1.5 border-l border-brand-on-button/20 hover:bg-brand-on-button/10 flex items-center"><Trash2 size={12} /></button>
+                  {canDo(user, 'edit_menu') && <button onClick={() => openCatForm(c)} title={`Editar categoría ${c.name}`} className="px-1.5 border-l border-brand-on-button/20 hover:bg-brand-on-button/10 flex items-center"><Pencil size={12} /></button>}
+                  {canDo(user, 'edit_menu') && <button onClick={() => handleDeleteCat(c)} title={`Eliminar categoría ${c.name}`} className="px-1.5 border-l border-brand-on-button/20 hover:bg-brand-on-button/10 flex items-center"><Trash2 size={12} /></button>}
                 </>
               )}
             </div>
@@ -255,9 +256,9 @@ const ProductsPage = () => {
                 </div>
                 <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(p.id)} className="text-xs text-brand-primary hover:underline font-bold flex items-center gap-0.5">
+                    {canDo(user, 'edit_menu') && <button onClick={() => openEdit(p.id)} className="text-xs text-brand-primary hover:underline font-bold flex items-center gap-0.5">
                       <Edit3 size={11} /> Editar
-                    </button>
+                    </button>}
                     <button
                       onClick={() => {
                         setMediaTarget({ mode: 'product', id: p.id, name: p.name, currentImage: p.image });
@@ -268,10 +269,10 @@ const ProductsPage = () => {
                     >
                       <ImageIcon size={11} /> Foto
                     </button>
-                    <button onClick={() => { if (window.confirm(`¿Eliminar el producto "${p.name}"?`)) deleteProduct(p.id); }}
+                    {canDo(user, 'edit_menu') && <button onClick={() => { if (window.confirm(`¿Eliminar el producto "${p.name}"?`)) deleteProduct(p.id); }}
                       className="text-xs text-red-600 hover:underline font-semibold flex items-center gap-0.5">
                       <Trash2 size={11} />
-                    </button>
+                    </button>}
                   </div>
                   <button onClick={() => toggleProductAvailability(p.id)}
                     title={p.available ? 'Disponible' : 'Agotado'}

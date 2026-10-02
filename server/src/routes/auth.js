@@ -1,7 +1,8 @@
 const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
-const { generateToken } = require('../auth');
+const { generateToken, authMiddleware } = require('../auth');
+const { resolvePerms, profileOf } = require('../permissions');
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.post('/login', (req, res) => {
   const token = generateToken(user);
   res.json({
     token,
-    user: { name: user.name, role: user.role },
+    user: { id: user.id, name: user.name, role: user.role, profile: profileOf(user), perms: resolvePerms(user) },
   });
 });
 
@@ -59,5 +60,8 @@ router.post('/change-password', (req, res) => {
   db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashed, user.id);
   res.json({ success: true, message: 'Contraseña actualizada con éxito' });
 });
+
+// Usuario actual con sus permisos vigentes (se consulta al entrar y al cambiar de sección)
+router.get('/me', authMiddleware, (req, res) => res.json({ id: req.user.id, name: req.user.name, role: req.user.role, profile: req.user.profile, perms: req.user.perms }));
 
 module.exports = router;

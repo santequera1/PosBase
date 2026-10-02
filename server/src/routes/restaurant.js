@@ -4,7 +4,7 @@
  */
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole } = require('../auth');
+const { requireRole, hasAction } = require('../auth');
 const { formatOrder } = require('../orderFormat');
 const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, getProduct, emitProduct } = require('../stock');
 const { getOpenShift, now, today, isDate } = require('../cashHelpers');
@@ -341,6 +341,7 @@ router.post('/orders/:id/status', (req, res) => {
   const status = String(req.body.status || '');
   const allowed = ['open', 'pending', 'preparing', 'ready', 'shipped', 'delivered', 'billing', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Estado inválido' });
+  if (status === 'cancelled' && !hasAction(req.user, 'cancel_orders')) return res.status(403).json({ error: 'No tienes permiso para anular cuentas. Pídele a un administrador.' });
   if (order.status === 'cancelled') return res.status(400).json({ error: 'El pedido está anulado' });
   if (order.status === 'delivered' && status !== 'cancelled') return res.status(400).json({ error: 'El pedido ya está cerrado' });
   if (status === 'shipped' && order.type === 'delivery' && !order.driver_id && !req.body.driverId) return res.status(400).json({ error: 'Asigna un repartidor antes de marcar el pedido como enviado' });
@@ -377,6 +378,7 @@ router.post('/orders/:id/close', (req, res) => {
 
   sendUnsent(db, req.app.io, order, req.user?.name);
   const discount = Math.max(0, Math.round(Number(b.discount ?? order.discount) || 0));
+  if (discount > 0 && discount !== (order.discount || 0) && !hasAction(req.user, 'discounts')) return res.status(403).json({ error: 'No tienes permiso para aplicar descuentos. Pídele a un administrador.' });
   const tip = Math.max(0, Math.round(Number(b.tip ?? order.tip) || 0));
   db.prepare('UPDATE orders SET discount = ?, discount_reason = ?, tip = ?, tip_to = ? WHERE id = ?').run(discount, discount > 0 ? String(b.discountReason || order.discount_reason || '').trim() : null, tip, tip > 0 ? (b.tipTo === 'waiter' ? 'waiter' : 'common') : null, order.id);
   recomputeTotals(db, order.id);

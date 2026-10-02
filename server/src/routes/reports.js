@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole } = require('../auth');
+const { requirePerm } = require('../auth');
 
 const router = Router();
 
@@ -17,7 +17,7 @@ function periodClause(period) {
   }
 }
 
-router.get('/summary', requireRole('admin', 'cashier'), (req, res) => {
+router.get('/summary', requirePerm('reports'), (req, res) => {
   const db = getDb();
   const pf = getPeriodFilter(req.query.period);
 
@@ -33,7 +33,7 @@ router.get('/summary', requireRole('admin', 'cashier'), (req, res) => {
   });
 });
 
-router.get('/top-products', requireRole('admin', 'cashier'), (req, res) => {
+router.get('/top-products', requirePerm('reports'), (req, res) => {
   const db = getDb();
   const pf = getPeriodFilter(req.query.period);
 
@@ -50,7 +50,7 @@ router.get('/top-products', requireRole('admin', 'cashier'), (req, res) => {
   res.json(rows);
 });
 
-router.get('/by-payment', requireRole('admin', 'cashier'), (req, res) => {
+router.get('/by-payment', requirePerm('reports'), (req, res) => {
   const db = getDb();
   const pf = getPeriodFilter(req.query.period);
 
@@ -63,7 +63,7 @@ router.get('/by-payment', requireRole('admin', 'cashier'), (req, res) => {
   res.json(rows);
 });
 
-router.get('/by-type', requireRole('admin', 'cashier'), (req, res) => {
+router.get('/by-type', requirePerm('reports'), (req, res) => {
   const db = getDb();
   const pf = getPeriodFilter(req.query.period);
 
@@ -76,7 +76,7 @@ router.get('/by-type', requireRole('admin', 'cashier'), (req, res) => {
   res.json(rows);
 });
 
-router.get('/by-hour', requireRole('admin', 'cashier'), (req, res) => {
+router.get('/by-hour', requirePerm('reports'), (req, res) => {
   const db = getDb();
   const pf = getPeriodFilter(req.query.period);
 
@@ -91,7 +91,7 @@ router.get('/by-hour', requireRole('admin', 'cashier'), (req, res) => {
 });
 
 // Top drivers by order count
-router.get('/top-drivers', requireRole('admin', 'cashier'), (req, res) => {
+router.get('/top-drivers', requirePerm('reports'), (req, res) => {
   const db = getDb();
   const pf = getPeriodFilter(req.query.period);
 

@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { registerAttendanceForShift, closeAttendanceForShift } = require('../cashHelpers');
+const { requirePerm } = require('../auth');
 const L = require('../ledger');
 
 const router = Router();
@@ -117,7 +118,7 @@ router.get('/current', (req, res) => {
 });
 
 // Register cash movement (withdrawal / deposit)
-router.post('/movement', (req, res) => {
+router.post('/movement', requirePerm('cash_withdrawals'), (req, res) => {
   const { shiftId, type = 'withdrawal', amount, reason, cashierName } = req.body;
   if (!amount || amount <= 0 || !reason?.trim()) {
     return res.status(400).json({ error: 'Monto y motivo del retiro son requeridos' });
@@ -158,7 +159,7 @@ router.get('/movements', (req, res) => {
 });
 
 // Open a new shift
-router.post('/open', (req, res) => {
+router.post('/open', requirePerm('shift'), (req, res) => {
   const { initialCash = 0, cashierName, notes = '' } = req.body;
   const db = getDb();
 
@@ -177,7 +178,7 @@ router.post('/open', (req, res) => {
 });
 
 // Close shift (Arqueo / Cierre Z)
-router.post('/close', (req, res) => {
+router.post('/close', requirePerm('shift'), (req, res) => {
   const { shiftId, actualCash = 0, notes = '' } = req.body;
   const db = getDb();
 

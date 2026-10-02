@@ -8,6 +8,7 @@ export type OrderStatus = 'open' | 'pending' | 'preparing' | 'ready' | 'shipped'
 export type OrderType = 'dine-in' | 'pickup' | 'delivery';
 export type PaymentMethod = 'cash' | 'card_debit' | 'card_credit' | 'card' | 'transfer' | 'platform' | 'credit' | 'mixed';
 export type UserRole = 'admin' | 'cashier' | 'kitchen';
+let lastMeRefresh = 0;
 
 export interface PaymentSplit {
   method1: PaymentMethod;
@@ -230,7 +231,8 @@ export function applyBranding(b: Branding, businessName?: string) {
 }
 
 interface AppState {
-  user: { name: string; role: UserRole } | null;
+  user: { id?: number; name: string; role: UserRole; profile?: string; perms?: { views: string[]; actions: string[] } } | null;
+  refreshMe: () => Promise<void>;
   restoring: boolean;
   categories: Category[];
   products: Product[];
@@ -351,7 +353,7 @@ export const useStore = create<AppState>((set, get) => ({
   loginWithCredentials: async (username, password) => {
     const { token, user } = await api.login(username, password);
     setToken(token);
-    set({ user: { name: user.name, role: user.role as UserRole } });
+    set({ user: { id: user.id, name: user.name, role: user.role as UserRole, profile: user.profile, perms: user.perms } });
     await get().initialize();
   },
 
@@ -395,7 +397,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({ restoring: false });
         return;
       }
-      set({ user: { name: payload.name, role: payload.role as UserRole }, restoring: false });
+      set({ user: { id: payload.id, name: payload.name, role: payload.role as UserRole, profile: payload.profile, perms: payload.perms }, restoring: false });
       await get().initialize();
     } catch {
       setToken(null);
@@ -403,7 +405,19 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  // Permisos vigentes (los cambios del administrador aplican sin volver a entrar); como mucho una consulta cada 20 s
+  refreshMe: async () => {
+    const now = Date.now();
+    if (now - lastMeRefresh < 20000) return;
+    lastMeRefresh = now;
+    try {
+      const u = await api.me();
+      if (u && u.role) set(s => ({ user: { ...(s.user || { name: u.name }), id: u.id, name: u.name, role: u.role as UserRole, profile: u.profile, perms: u.perms } }));
+    } catch { /* sin conexión: se conservan los permisos conocidos */ }
+  },
+
   initialize: async () => {
+    get().refreshMe();
     try {
       const [categories, products, customers, orders, settings, drivers, shift] = await Promise.all([
         api.getCategories().catch(() => []),

@@ -1,10 +1,11 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole } = require('../auth');
+const { requireRole, requirePerm } = require('../auth');
 const { registerCashWithdrawal, removeCashMovementIfOpen, today, now, isDate } = require('../cashHelpers');
 const L = require('../ledger');
 
 const router = Router();
+router.use(requirePerm('finance'));
 router.use(L.syncOnWrite(getDb));
 const ADMIN = requireRole('admin');
 const STAFF = requireRole('admin', 'cashier');

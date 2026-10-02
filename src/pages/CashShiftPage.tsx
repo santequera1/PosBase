@@ -24,6 +24,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useStore, type CashShift } from '@/store/useStore';
+import { canDo } from '@/lib/permissions';
 import { api } from '@/lib/api';
 import { formatPrice, formatFullDate, formatTime } from '@/lib/format';
 import { printThermal, generateZReportHtml } from '@/lib/thermalPrint';
@@ -32,7 +33,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 export const CashShiftPage: React.FC = () => {
-  const { currentShift, refreshCurrentShift, closeShift, openShift, addCashMovement, businessName, businessSlogan } = useStore();
+  const { currentShift, refreshCurrentShift, closeShift, openShift, addCashMovement, businessName, businessSlogan, user } = useStore();
 
   const [actualCashInput, setActualCashInput] = useState<string>('');
   const [closureNotes, setClosureNotes] = useState<string>('');
@@ -200,13 +201,13 @@ export const CashShiftPage: React.FC = () => {
                 <span>Imprimir Reporte X</span>
               </button>
 
-              <button
+              {canDo(user, 'cash_withdrawals') && <button
                 onClick={() => setShowWithdrawalModal(true)}
                 className="px-3.5 py-2 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
               >
                 <MinusCircle size={14} className="text-red-600" />
                 <span>Registrar Retiro / Gasto</span>
-              </button>
+              </button>}
             </>
           )}
 

@@ -8,7 +8,7 @@ const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
 const { getOpenShift, now } = require('../cashHelpers');
 const CHANNEL_IDS = CHANNELS.map(c => c.id);
 const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
-const { requireRole } = require('../auth');
+const { requireRole, hasAction } = require('../auth');
 const path = require('path');
 const fs = require('fs');
 
@@ -254,6 +254,7 @@ router.patch('/:id/status', (req, res) => {
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
 
+  if (status === 'cancelled' && order.status !== 'cancelled' && !hasAction(req.user, 'cancel_orders')) return res.status(403).json({ error: 'No tienes permiso para anular pedidos. Pídele a un administrador.' });
   if (status === 'cancelled' && order.status !== 'cancelled') restoreOrderStock(db, req.app.io, Number(req.params.id), req.user?.name);
 
   const ts = now(db);

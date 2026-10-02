@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole } = require('../auth');
+const { requirePerm } = require('../auth');
 
 const router = Router();
 
@@ -9,14 +9,14 @@ router.get('/', (req, res) => {
   res.json(cats);
 });
 
-router.post('/', requireRole('admin'), (req, res) => {
+router.post('/', requirePerm('edit_menu'), (req, res) => {
   const { name, emoji, color } = req.body;
   if (!name || !emoji || !color) return res.status(400).json({ error: 'Campos requeridos: name, emoji, color' });
   const result = getDb().prepare('INSERT INTO categories (name, emoji, color) VALUES (?, ?, ?)').run(name, emoji, color);
   res.status(201).json({ id: result.lastInsertRowid, name, emoji, color });
 });
 
-router.put('/:id', requireRole('admin'), (req, res) => {
+router.put('/:id', requirePerm('edit_menu'), (req, res) => {
   const { name, emoji, color } = req.body;
   const { id } = req.params;
   if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: 'El nombre no puede estar vacío' });
@@ -26,7 +26,7 @@ router.put('/:id', requireRole('admin'), (req, res) => {
   res.json(cat);
 });
 
-router.delete('/:id', requireRole('admin'), (req, res) => {
+router.delete('/:id', requirePerm('edit_menu'), (req, res) => {
   const db = getDb();
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM products WHERE category_id = ?').get(req.params.id);
   if (n > 0) return res.status(409).json({ error: `La categoría tiene ${n} producto(s). Muévelos a otra categoría antes de eliminarla.` });

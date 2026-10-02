@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { homePath } from '@/lib/permissions';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
@@ -20,7 +21,8 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await loginWithCredentials(username.trim().toLowerCase(), password.trim());
-      navigate('/pos');
+      const s = useStore.getState();
+      navigate(homePath(s.user, s.restaurant?.modules));
     } catch (err: any) {
       setError(err.message || 'Usuario o contraseña incorrectos');
     }
