@@ -748,7 +748,7 @@ export const POSPage: React.FC = () => {
       <div className={cn('flex-1 flex-col h-full overflow-hidden border-r border-brand-primary/10', mobileView === 'catalog' ? 'flex' : 'hidden lg:flex')}>
         {/* Top Navigation & Size Switcher Bar */}
         <div className="p-2.5 lg:p-3 bg-white/80 backdrop-blur border-b border-brand-primary/10 shrink-0 shadow-sm">
-          <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 mb-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-brand-card text-brand-primary border border-brand-accent/50 font-sans">
                 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
@@ -757,7 +757,7 @@ export const POSPage: React.FC = () => {
             </div>
 
             {/* Buscador de productos (busca en todo el menú) */}
-            <div className="relative flex-1 max-w-xl">
+            <div className="relative w-full order-3 sm:order-none sm:w-auto sm:flex-1 max-w-xl">
               <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
