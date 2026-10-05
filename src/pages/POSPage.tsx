@@ -271,7 +271,7 @@ export const POSPage: React.FC = () => {
   };
 
   // POS State
-  const [catalogTab, setCatalogTab] = useState<'gelato' | number | 'custom'>('gelato');
+  const [catalogTab, setCatalogTab] = useState<'gelato' | number | 'custom' | 'all'>('gelato');
   const hasGelato = categories.some(c => [1, 2, 3].includes(c.id));
   const defaultTab: 'gelato' | number = hasGelato ? 'gelato' : (categories.find(c => ![1, 2, 3].includes(c.id))?.id ?? 'gelato');
   useEffect(() => { if (!hasGelato && catalogTab === 'gelato' && typeof defaultTab === 'number') setCatalogTab(defaultTab); }, [hasGelato, catalogTab, defaultTab]);
@@ -341,6 +341,14 @@ export const POSPage: React.FC = () => {
   }, [products, searchQuery]);
 
   const otherProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    // "Todo" o una búsqueda: productos de todas las categorías (en el orden del menú)
+    if (catalogTab === 'all' || (q && catalogTab !== 'gelato')) {
+      const order = new Map(categories.map((c, i) => [c.id, i]));
+      return products
+        .filter(p => { const cid = Number(p.categoryId || (p as any).category_id); return !(hasGelato && [1, 2, 3].includes(cid)) && (!q || p.name.toLowerCase().includes(q)); })
+        .sort((a, b) => (order.get(Number(a.categoryId)) ?? 999) - (order.get(Number(b.categoryId)) ?? 999));
+    }
     if (typeof catalogTab !== 'number') return [];
     return products.filter(p => {
       const catId = Number(p.categoryId || (p as any).category_id);
@@ -350,7 +358,7 @@ export const POSPage: React.FC = () => {
       }
       return true;
     });
-  }, [products, catalogTab, searchQuery]);
+  }, [products, catalogTab, searchQuery, categories, hasGelato]);
 
   // Cart operations
   const addItemToCart = (item: OrderItem) => {
@@ -748,26 +756,35 @@ export const POSPage: React.FC = () => {
               </span>
             </div>
 
-            {/* Quick Search */}
-            <div className="relative w-44 sm:w-60">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            {/* Buscador de productos (busca en todo el menú) */}
+            <div className="relative flex-1 max-w-xl">
+              <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar producto..."
-                className="w-full pl-7 pr-3 py-1 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans"
+                placeholder="Buscar producto en todo el menú..."
+                data-pos-search
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm bg-white border border-brand-primary/20 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 font-sans"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
-                  <X size={11} />
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center" title="Limpiar búsqueda">
+                  <X size={13} />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          {/* Categorías: se acomodan en varias líneas (sin scroll lateral) y "Todo" muestra el menú completo */}
+          <div className="flex flex-wrap items-center gap-1.5" data-pos-categories>
+            {!hasGelato && <button
+              onClick={() => { setCatalogTab('all'); setFirstFlavor(null); }}
+              data-cat-all
+              className={cn(
+                'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all font-sans',
+                catalogTab === 'all' ? 'bg-brand-button text-brand-on-button shadow-md' : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
+              )}
+            >Todo</button>}
             {hasGelato && <button
               onClick={() => { setCatalogTab('gelato'); setFirstFlavor(null); }}
               className={cn(
@@ -1053,7 +1070,7 @@ export const POSPage: React.FC = () => {
           )}
 
           {/* Other Categories Grid (Affogatos, Bebidas, Toppings) */}
-          {typeof catalogTab === 'number' && (
+          {(typeof catalogTab === 'number' || catalogTab === 'all' || (searchQuery.trim() && catalogTab !== 'gelato')) && (
             <div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-2.5">
                 {otherProducts.map(prod => (
