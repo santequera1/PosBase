@@ -45,7 +45,7 @@ function paidParts(o) {
 const mapOrder = o => ({
   id: o.id, label: o.sale_label || null, type: o.type, typeLabel: TYPE_LABEL[o.type] || o.type, status: o.status, paymentStatus: o.payment_status,
   table: o.table_label || o.table_number || null, people: o.people || 0, waiter: o.type === 'delivery' ? (o.driver_name || o.waiter_name || '') : (o.waiter_name || ''),
-  customer: o.customer_name || '', createdAt: o.created_at, closedAt: o.closed_at || o.delivered_at || null, closedBy: o.closed_by || o.cashier_name || '',
+  customer: o.customer_name || '', createdAt: o.created_at, closedAt: o.closed_at || o.delivered_at || (o.status === 'delivered' ? o.created_at : null), closedBy: o.closed_by || o.cashier_name || '',
   method: o.payment_method, methodLabel: METHOD_LABEL[o.payment_method] || o.payment_method, parts: paidParts(o), total: o.total || 0, tip: o.tip || 0,
   discount: o.discount || 0, discountReason: o.discount_reason || '', subtotal: o.subtotal || 0, shiftId: o.shift_id || null,
 });

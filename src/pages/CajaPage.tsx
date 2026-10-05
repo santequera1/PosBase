@@ -117,7 +117,7 @@ const VentasTab = ({ scope }: { scope: Scope }) => {
         </div>
         {s && (
           <div className="bg-card rounded-xl border border-border overflow-hidden" data-ventas-summary>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap">
+            <div className="grid grid-cols-2 sm:grid-cols-4 2xl:grid-cols-7">
               <div className="px-4 py-3 border-r border-border text-[11px] text-muted-foreground italic min-w-[120px]">{data.scope.label}<br />{data.orders.length} registros</div>
               <Kpi label="Ventas" value={String(s.count)} sub={s.cancelled ? `${s.cancelled} anulada(s)` : undefined} />
               <Kpi label="Promedio por venta" value={formatPrice(s.avgTicket)} />
