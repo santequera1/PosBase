@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, X } from 'lucide-react';
 import { useStore, type OrderItem, type Product } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
@@ -8,7 +8,16 @@ import { cn } from '@/lib/utils';
 export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) => {
   const { categories, products } = useStore();
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<number | null>(null);
+  const readCat = () => { try { const v = Number(localStorage.getItem('picker-category')); return v || null; } catch { return null; } };
+  const [category, setCategoryState] = useState<number | null>(readCat);
+  const setCategory = (c: number | null) => { setCategoryState(c); try { localStorage.setItem('picker-category', c ? String(c) : '0'); } catch { /* sin almacenamiento */ } };
+  // Si no hay una categoría recordada válida, se abre en la primera (p. ej. Hamburguesas)
+  useEffect(() => {
+    if (!categories.length) return;
+    const saved = (() => { try { return localStorage.getItem('picker-category'); } catch { return null; } })();
+    if (saved === '0') return; // la persona eligió "Todo"
+    if (!category || !categories.some(c => c.id === category)) setCategoryState(categories[0].id);
+  }, [categories, category]);
   const [sizing, setSizing] = useState<Product | null>(null);
 
   const list = useMemo(() => {

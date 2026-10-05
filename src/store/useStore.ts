@@ -228,7 +228,19 @@ export function applyBranding(b: Branding, businessName?: string) {
   applyTheme(resolveTheme(theme), b.customFonts);
   setFavicon(b.faviconUrl || '/logo.svg', b.appleIconUrl || undefined);
   if (typeof document !== 'undefined' && businessName) document.title = `${businessName} — Punto de Venta`;
+  // Caché local: el próximo arranque pinta la marca de inmediato (sin mostrar la plantilla)
+  try {
+    if (typeof document !== 'undefined' && businessName) {
+      const fonts = Array.from(document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com"]')).map(l => (l as HTMLLinkElement).href);
+      const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+      localStorage.setItem('pos-brand-cache', JSON.stringify({ title: document.title, css: document.documentElement.getAttribute('style') || '', dark: document.documentElement.classList.contains('dark'), favicon: b.faviconUrl || '/logo.svg', themeColor: meta?.content || '', fonts, branding: b, businessName }));
+    }
+  } catch { /* almacenamiento no disponible */ }
 }
+function readBrandCache(): { branding?: Branding; businessName?: string } {
+  try { return JSON.parse(localStorage.getItem('pos-brand-cache') || 'null') || {}; } catch { return {}; }
+}
+const brandCache = typeof window !== 'undefined' ? readBrandCache() : {};
 
 interface AppState {
   user: { id?: number; name: string; role: UserRole; profile?: string; perms?: { views: string[]; actions: string[] } } | null;
@@ -339,7 +351,7 @@ export const useStore = create<AppState>((set, get) => ({
   currentShift: null,
   deliveryFee: 5000,
   tableCount: 8,
-  businessName: 'Mi Negocio',
+  businessName: brandCache.businessName || '',
   businessSlogan: '',
   businessAddress: '',
   businessHours: '',
@@ -349,7 +361,7 @@ export const useStore = create<AppState>((set, get) => ({
   taxType: 'none',
   taxRate: 0,
   dianResolution: '',
-  branding: DEFAULT_BRANDING,
+  branding: brandCache.branding || DEFAULT_BRANDING,
   modeOverride: readModeOverride(),
   initialized: false,
   sidebarCollapsed: false,

@@ -3,20 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Heladería POS — Punto de Venta</title>
-    <meta name="description" content="Sistema de Punto de Venta POS, facturación y turnos de caja para heladerías y gelaterías" />
+    <title>Punto de Venta</title>
+    <meta name="description" content="Sistema de punto de venta: ventas, mesas, domicilios, caja, inventario y contabilidad." />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <meta name="theme-color" content="#242D49" />
-
-    <!-- Open Graph / WhatsApp: personalizar con el nombre, dominio e imagen del cliente -->
+    <meta name="theme-color" content="#111111" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Heladería POS" />
-    <meta property="og:title" content="Heladería POS — Sistema de Punto de Venta" />
-    <meta property="og:description" content="Punto de Venta rápido, facturación, turnos de caja e historial de ventas." />
-
+    <meta property="og:title" content="Punto de Venta" />
+    <meta property="og:description" content="Ventas, mesas, domicilios, caja, inventario y contabilidad." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      // Marca del negocio guardada en este equipo: título, colores, fuentes y favicon se aplican antes de que cargue la app
+      (function () {
+        try {
+          var c = JSON.parse(localStorage.getItem('pos-brand-cache') || 'null');
+          if (!c) return;
+          if (c.title) document.title = c.title;
+          var root = document.documentElement;
+          if (c.css) root.setAttribute('style', c.css);
+          if (c.dark) root.classList.add('dark');
+          if (c.favicon) { var l = document.querySelector('link[rel="icon"]'); if (l) { l.href = c.favicon; l.type = /\.svg$/.test(c.favicon) ? 'image/svg+xml' : 'image/png'; } }
+          if (c.themeColor) { var m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = c.themeColor; }
+          (c.fonts || []).forEach(function (href) { var k = document.createElement('link'); k.rel = 'stylesheet'; k.href = href; document.head.appendChild(k); });
+        } catch (e) { /* sin caché */ }
+      })();
+    </script>
   </head>
 
   <body class="bg-background text-foreground antialiased selection:bg-brand-accent/30 selection:text-brand-primary">

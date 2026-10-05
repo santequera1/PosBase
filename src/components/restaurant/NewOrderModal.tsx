@@ -16,6 +16,22 @@ interface Props {
 }
 
 /** Abrir una mesa, un pedido para llevar o un domicilio. Los productos se agregan después en la cuenta. */
+/** Selector de persona (mesero o repartidor) con botones e iniciales, en lugar de una lista desplegable. */
+const PersonPicker = ({ people, value, onChange, empty }: { people: Array<{ id: number; name: string }>; value: number; onChange: (id: number) => void; empty: string }) => {
+  const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  return (
+    <div className="flex flex-wrap gap-1.5" data-person-picker>
+      <button type="button" onClick={() => onChange(0)} className={cn('px-3 py-2 rounded-xl border text-xs font-semibold transition-all', !value ? 'bg-brand-button text-brand-on-button border-brand-primary shadow' : 'bg-white text-muted-foreground border-border hover:bg-brand-card')}>Sin asignar</button>
+      {people.map(w => (
+        <button key={w.id} type="button" onClick={() => onChange(w.id)} className={cn('pl-1.5 pr-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all', value === w.id ? 'bg-brand-button text-brand-on-button border-brand-primary shadow' : 'bg-white text-brand-dark border-border hover:bg-brand-card')}>
+          <span className={cn('w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold', value === w.id ? 'bg-white/25' : 'bg-brand-card text-brand-primary')}>{initials(w.name)}</span>{w.name}
+        </button>
+      ))}
+      {people.length === 0 && <p className="text-[10px] text-muted-foreground w-full">{empty}</p>}
+    </div>
+  );
+};
+
 export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }: Props) => {
   const { restaurant, customers } = useStore();
   const waiters = restaurant?.staff.waiters || [];
@@ -69,16 +85,14 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
       <div className="grid sm:grid-cols-2 gap-3 text-sm">
         {type === 'dine-in' && (
           <>
-            <div><label className={cn(LABEL, 'flex items-center gap-1')}><Users size={12} /> Personas</label>
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5, 6].map(n => <Chip key={n} active={people === String(n)} onClick={() => setPeople(String(n))}>{n}</Chip>)}
-                <input type="number" min={1} value={people} onChange={e => setPeople(e.target.value)} className={cn(INPUT, 'w-16 font-mono')} />
+            <div className="sm:col-span-2"><label className={cn(LABEL, 'flex items-center gap-1')}><Users size={12} /> Personas</label>
+              <div className="flex flex-wrap items-center gap-1.5" data-people>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12].map(n => <button key={n} type="button" onClick={() => setPeople(String(n))} className={cn('w-10 h-10 rounded-full border text-sm font-bold transition-all', people === String(n) ? 'bg-brand-button text-brand-on-button border-brand-primary shadow' : 'bg-white text-brand-dark border-border hover:bg-brand-card')}>{n}</button>)}
+                <div className="flex items-center gap-1 ml-1"><span className="text-xs text-muted-foreground">Otro:</span><input type="number" min={1} value={people} onChange={e => setPeople(e.target.value)} className={cn(INPUT, 'w-20 font-mono text-center')} /></div>
               </div></div>
-            <div><label className={cn(LABEL, 'flex items-center gap-1')}><UserRound size={12} /> Mesero</label>
-              <select value={waiterId} onChange={e => setWaiterId(Number(e.target.value))} className={INPUT}>
-                <option value={0}>— Sin asignar —</option>{waiters.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-              {waiters.length === 0 && <p className="text-[10px] text-muted-foreground mt-1">Crea los meseros en Personal para poder asignarlos.</p>}</div>
+            <div className="sm:col-span-2"><label className={cn(LABEL, 'flex items-center gap-1')}><UserRound size={12} /> Mesero</label>
+              <PersonPicker people={waiters} value={waiterId} onChange={setWaiterId} empty="Crea los meseros en Personal para poder asignarlos." />
+            </div>
             <div><label className={LABEL}>Cliente (opcional)</label><input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre para la cuenta" className={INPUT} /></div>
             <div><label className={LABEL}>Etiqueta (opcional)</label><input value={label} onChange={e => setLabel(e.target.value)} placeholder="Ej. Cumpleaños, reserva Ana..." className={INPUT} /></div>
           </>
@@ -111,8 +125,7 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
             <div className="sm:col-span-2"><label className={LABEL}>Canal</label>
               <div className="flex flex-wrap gap-1.5">{(Object.keys(CHANNEL_LABEL) as Channel[]).map(c => <Chip key={c} active={channel === c} onClick={() => { setChannel(c); if (c === 'rappi' || c === 'didi') setPaymentMethod('platform'); }}>{CHANNEL_LABEL[c]}</Chip>)}</div></div>
             <div><label className={cn(LABEL, 'flex items-center gap-1')}><Bike size={12} /> Repartidor (se puede asignar después)</label>
-              <select value={driverId} onChange={e => setDriverId(Number(e.target.value))} className={INPUT}><option value={0}>— Sin asignar —</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-              {couriers.length === 0 && <p className="text-[10px] text-muted-foreground mt-1">Crea los domiciliarios en Personal con el cargo "Domiciliario".</p>}</div>
+              <PersonPicker people={couriers} value={driverId} onChange={setDriverId} empty='Crea los domiciliarios en Configuración → Usuarios con el perfil "Domiciliario".' /></div>
             <div><label className={cn(LABEL, 'flex items-center gap-1')}><Clock size={12} /> Tiempo estimado</label>
               <div className="flex flex-wrap gap-1.5">{(restaurant?.deliveryTimes || [15, 30, 45, 60]).map(m => <Chip key={m} active={minutes === m} onClick={() => setMinutes(m)}>{m >= 60 ? `${m / 60} h` : `${m} min`}</Chip>)}</div></div>
             <div><label className={LABEL}>Costo de envío</label><input type="number" min={0} value={fee} onChange={e => setFee(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
