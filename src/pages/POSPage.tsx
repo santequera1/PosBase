@@ -773,10 +773,22 @@ export const POSPage: React.FC = () => {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setCatalogTab('custom')}
+              className={cn(
+                'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
+                catalogTab === 'custom'
+                  ? 'bg-brand-button text-brand-on-button shadow-md'
+                  : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
+              )}
+            >
+              <Plus size={14} />
+              <span>Personalizado</span>
+            </button>
           </div>
 
           {/* Categorías: se acomodan en varias líneas (sin scroll lateral) y "Todo" muestra el menú completo */}
-          <div className="flex flex-wrap items-center gap-1.5" data-pos-categories>
+          <div className="flex flex-wrap items-center gap-1" data-pos-categories>
             {!hasGelato && <button
               onClick={() => { setCatalogTab('all'); setFirstFlavor(null); }}
               data-cat-all
@@ -804,7 +816,7 @@ export const POSPage: React.FC = () => {
                 key={cat.id}
                 onClick={() => { setCatalogTab(cat.id); setFirstFlavor(null); }}
                 className={cn(
-                  'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
+                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
                   catalogTab === cat.id
                     ? 'bg-brand-button text-brand-on-button shadow-md scale-[1.01]'
                     : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
@@ -815,18 +827,7 @@ export const POSPage: React.FC = () => {
               </button>
             ))}
 
-            <button
-              onClick={() => setCatalogTab('custom')}
-              className={cn(
-                'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
-                catalogTab === 'custom'
-                  ? 'bg-brand-button text-brand-on-button shadow-md'
-                  : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
-              )}
-            >
-              <Plus size={14} />
-              <span>Personalizado</span>
-            </button>
+
           </div>
 
           {/* Size & Container Formats Selector (5 presentations) */}
