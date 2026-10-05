@@ -272,6 +272,9 @@ export const POSPage: React.FC = () => {
 
   // POS State
   const [catalogTab, setCatalogTab] = useState<'gelato' | number | 'custom'>('gelato');
+  const hasGelato = categories.some(c => [1, 2, 3].includes(c.id));
+  const defaultTab: 'gelato' | number = hasGelato ? 'gelato' : (categories.find(c => ![1, 2, 3].includes(c.id))?.id ?? 'gelato');
+  useEffect(() => { if (!hasGelato && catalogTab === 'gelato' && typeof defaultTab === 'number') setCatalogTab(defaultTab); }, [hasGelato, catalogTab, defaultTab]);
   const [selectedFormat, setSelectedFormat] = useState<GelatoFormat>(GELATO_FORMATS[0]);
   const [firstFlavor, setFirstFlavor] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -609,7 +612,7 @@ export const POSPage: React.FC = () => {
       notes: 'Ítem personalizado',
     });
     setCustomItem({ name: '', price: '' });
-    setCatalogTab('gelato');
+    setCatalogTab(defaultTab);
     toast.success('Ítem agregado al carrito');
   };
 
@@ -752,7 +755,7 @@ export const POSPage: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar sabor o producto..."
+                placeholder="Buscar producto..."
                 className="w-full pl-7 pr-3 py-1 rounded-xl text-xs bg-gray-50 border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans"
               />
               {searchQuery && (
@@ -765,7 +768,7 @@ export const POSPage: React.FC = () => {
 
           {/* Category Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            <button
+            {hasGelato && <button
               onClick={() => { setCatalogTab('gelato'); setFirstFlavor(null); }}
               className={cn(
                 'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm font-sans',
@@ -776,7 +779,7 @@ export const POSPage: React.FC = () => {
             >
               <span>🍨</span>
               <span>Gelatos Artesanales</span>
-            </button>
+            </button>}
 
             {/* Las demás categorías (bebidas, toppings, affogatos y cualquier categoría nueva: hamburguesas, combos, etc.) */}
             {categories.filter(c => ![1, 2, 3].includes(c.id)).map(cat => (

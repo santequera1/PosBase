@@ -331,6 +331,10 @@ function backfillOrderCashier(db) {
 // y este bloque fallaría por claves foráneas, dejando la base sin usuarios ni productos.
 function syncSpecialProducts() {
   try {
+    // Negocios con menú propio (setting catalogTemplate = custom) o sin las categorías de helado: no se tocan sus productos
+    const tpl = db.prepare("SELECT value FROM settings WHERE key = 'catalogTemplate'").get();
+    if (tpl && tpl.value === 'custom') return;
+    if (!db.prepare('SELECT id FROM categories WHERE id IN (1, 2, 3) LIMIT 1').get()) return;
     const existingCat = db.prepare('SELECT id FROM categories WHERE id = 6').get();
     if (!existingCat) {
       db.prepare("INSERT OR REPLACE INTO categories (id, name, emoji, color) VALUES (6, 'Affogatos', '☕', '#7C8455')").run();

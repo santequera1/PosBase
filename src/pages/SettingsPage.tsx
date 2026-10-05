@@ -39,6 +39,7 @@ const SettingsPage = () => {
 
   const [businessName, setBusinessName] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
+  const [businessHours, setBusinessHours] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
   const [businessSlogan, setBusinessSlogan] = useState('');
   const [businessNit, setBusinessNit] = useState('');
@@ -78,6 +79,7 @@ const SettingsPage = () => {
       setBusinessName(s.businessName || 'Mi Heladería');
       setBusinessSlogan(s.businessSlogan ? String(s.businessSlogan) : '');
       setBusinessPhone(s.businessPhone ? String(s.businessPhone) : '');
+      setBusinessHours(s.businessHours ? String(s.businessHours) : '');
       setBusinessAddress(s.businessAddress ? String(s.businessAddress) : '');
       setBusinessNit(s.businessNit ? String(s.businessNit) : '');
       setInvoicePrefix(s.invoicePrefix ? String(s.invoicePrefix) : 'POS');
@@ -100,6 +102,7 @@ const SettingsPage = () => {
         businessName,
         businessSlogan,
         businessPhone,
+        businessHours,
         businessAddress,
         businessNit,
         invoicePrefix: invoicePrefix.trim().toUpperCase() || 'POS',
@@ -190,6 +193,11 @@ const SettingsPage = () => {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Teléfono</label>
               <input value={businessPhone} onChange={e => setBusinessPhone(e.target.value)} className={INPUT} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Horario de atención</label>
+              <input value={businessHours} onChange={e => setBusinessHours(e.target.value)} placeholder="Ej: Lun a Vie 5–10:30 p.m. · Sáb y Dom 5–11 p.m." className={INPUT} />
+              <p className="text-[10px] text-muted-foreground mt-1 font-sans">Sale al pie de los recibos</p>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Dirección</label>

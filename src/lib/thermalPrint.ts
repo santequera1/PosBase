@@ -86,7 +86,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div class="text-center">
         <p class="font-bold" style="font-size: 10px; letter-spacing: 0.2px;">${biz.name}</p>
         <p class="font-bold" style="font-size: 9.5px;">${biz.slogan.toUpperCase()}</p>
-        <p style="font-size: 7.5px;">NIT: ${biz.nit} • ${biz.address}</p>
+        <p style="font-size: 7.5px;">${[biz.nit ? 'NIT: ' + biz.nit : '', biz.address].filter(Boolean).join(' • ')}</p>
         <p style="font-size: 7.5px;">Tel: ${biz.phone}</p>
       </div>
 
@@ -162,6 +162,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
 
       <div class="text-center" style="font-size: 7.5px; margin-top: 3px; line-height: 1.3;">
         <p class="font-bold">¡Gracias por su visita a ${biz.name}!</p>
+        ${biz.hours ? `<p style="font-size: 7px; white-space: pre-line;">Horario: ${biz.hours}</p>` : ''}
         <p>${biz.slogan}</p>
         ${biz.dianResolution ? `<p style="font-size: 6.5px; margin-top: 2px;">${biz.dianResolution}</p>` : ''}
       </div>
@@ -198,7 +199,7 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
       <div class="text-center">
         <p class="font-bold" style="font-size: 10px; letter-spacing: 0.2px;">${biz.name}</p>
         <p class="font-bold" style="font-size: 9.5px;">${biz.slogan.toUpperCase()}</p>
-        <p style="font-size: 7.5px;">NIT: ${biz.nit} • ${biz.address}</p>
+        <p style="font-size: 7.5px;">${[biz.nit ? 'NIT: ' + biz.nit : '', biz.address].filter(Boolean).join(' • ')}</p>
         <p class="font-bold" style="font-size: 8.5px; margin-top: 2px; border: 1px solid #000; padding: 1px 3px; display: inline-block;">
           ${reportTitle}
         </p>

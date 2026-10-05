@@ -584,7 +584,7 @@ const CustomerDetailPage = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-gray-700 mb-1 block">Notas / Sabores Preferidos</label>
+                  <label className="font-semibold text-gray-700 mb-1 block">Notas / preferencias del cliente</label>
                   <input
                     value={formNotes}
                     onChange={e => setFormNotes(e.target.value)}

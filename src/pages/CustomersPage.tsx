@@ -720,11 +720,11 @@ const CustomersPage = () => {
 
                 {/* Preferences / Notes */}
                 <div>
-                  <label className="font-semibold text-gray-700 mb-1 block">Notas / Sabores Preferidos de Gelato</label>
+                  <label className="font-semibold text-gray-700 mb-1 block">Notas / preferencias del cliente</label>
                   <input
                     value={formNotes}
                     onChange={e => setFormNotes(e.target.value)}
-                    placeholder="Ej: Amante del pistacho y avellana, pide siempre sin azúcar..."
+                    placeholder="Ej: prefiere la carne término medio, sin cebolla..."
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs"
                   />
                 </div>

@@ -246,6 +246,7 @@ interface AppState {
   businessName: string;
   businessSlogan: string;
   businessAddress: string;
+  businessHours: string;
   businessPhone: string;
   businessNit: string;
   invoicePrefix: string;
@@ -338,9 +339,10 @@ export const useStore = create<AppState>((set, get) => ({
   currentShift: null,
   deliveryFee: 5000,
   tableCount: 8,
-  businessName: 'Mi Heladería',
-  businessSlogan: 'Helado artesanal',
+  businessName: 'Mi Negocio',
+  businessSlogan: '',
   businessAddress: '',
+  businessHours: '',
   businessPhone: '',
   businessNit: '',
   invoicePrefix: 'POS',
@@ -441,8 +443,9 @@ export const useStore = create<AppState>((set, get) => ({
         currentShift: shift,
         deliveryFee: settings.deliveryFee ? Number(settings.deliveryFee) : 5000,
         tableCount: settings.tableCount ? Number(settings.tableCount) : 8,
-        businessName: settings.businessName || 'Mi Heladería',
-        businessSlogan: settings.businessSlogan || 'Helado artesanal',
+        businessName: settings.businessName || 'Mi Negocio',
+        businessHours: settings.businessHours ? String(settings.businessHours) : '',
+        businessSlogan: settings.businessSlogan || '',
         businessAddress: settings.businessAddress ? String(settings.businessAddress) : '',
         businessPhone: settings.businessPhone ? String(settings.businessPhone) : '',
         businessNit: settings.businessNit ? String(settings.businessNit) : '',

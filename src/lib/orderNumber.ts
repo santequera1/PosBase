@@ -10,7 +10,8 @@ export function orderNumber(id: number | string | undefined | null): string {
 export function getBusinessInfo() {
   const s = useStore.getState();
   return {
-    name: s.businessName || 'Mi Heladería',
+    name: s.businessName || 'Mi Negocio',
+    hours: s.businessHours || '',
     slogan: s.businessSlogan || '',
     address: s.businessAddress || '',
     phone: s.businessPhone || '',
