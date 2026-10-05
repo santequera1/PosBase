@@ -28,7 +28,7 @@ interface Scope { period: Period; date: string; from: string; to: string; shiftI
 const scopeParams = (s: Scope) => (s.shiftId ? { shiftId: s.shiftId } : s.period === 'custom' ? { period: 'custom', from: s.from, to: s.to } : { period: s.period, date: s.date });
 
 const Kpi = ({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) => (
-  <div className={cn('px-4 py-3 border-r border-border last:border-r-0 min-w-[130px]', tone)}>
+  <div className={cn('px-4 py-3 border-r border-b sm:border-b-0 border-border last:border-r-0 sm:min-w-[130px]', tone)}>
     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
     <p className="font-display font-bold text-xl text-brand-dark leading-tight">{value}</p>
     {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
@@ -117,7 +117,7 @@ const VentasTab = ({ scope }: { scope: Scope }) => {
         </div>
         {s && (
           <div className="bg-card rounded-xl border border-border overflow-hidden" data-ventas-summary>
-            <div className="flex flex-wrap">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap">
               <div className="px-4 py-3 border-r border-border text-[11px] text-muted-foreground italic min-w-[120px]">{data.scope.label}<br />{data.orders.length} registros</div>
               <Kpi label="Ventas" value={String(s.count)} sub={s.cancelled ? `${s.cancelled} anulada(s)` : undefined} />
               <Kpi label="Promedio por venta" value={formatPrice(s.avgTicket)} />

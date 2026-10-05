@@ -730,7 +730,7 @@ export const POSPage: React.FC = () => {
             mobileView === 'catalog' ? 'bg-brand-card text-brand-dark shadow-sm' : 'text-brand-on-dark/80 hover:text-white'
           )}
         >
-          <span>🍨 Sabores & Productos</span>
+          <span>🍨 Productos</span>
         </button>
         <button
           onClick={() => setMobileView('cart')}
@@ -788,7 +788,7 @@ export const POSPage: React.FC = () => {
           </div>
 
           {/* Categorías: se acomodan en varias líneas (sin scroll lateral) y "Todo" muestra el menú completo */}
-          <div className="flex flex-wrap items-center gap-1" data-pos-categories>
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap sm:overflow-visible" data-pos-categories>
             {!hasGelato && <button
               onClick={() => { setCatalogTab('all'); setFirstFlavor(null); }}
               data-cat-all
