@@ -24,7 +24,7 @@ const SUP_SELECT = `SELECT id, name, nit, phone, email, address, category, notes
 const RUT_REQUIRED = ['nit', 'address', 'city', 'phone', 'email', 'ciiu'];
 const supplierComplete = s => RUT_REQUIRED.every(k => String(s[k] || '').trim() !== '') && (s.docType || '') !== '' && (s.personType || '') !== '';
 const EXP_SELECT = `
-  SELECT e.id, e.date, e.category_id AS categoryId, c.name AS categoryName, c.emoji AS categoryEmoji, c.kind AS categoryKind,
+  SELECT e.id, e.number, e.date, e.category_id AS categoryId, c.name AS categoryName, c.emoji AS categoryEmoji, c.kind AS categoryKind,
          e.supplier_id AS supplierId, s.name AS supplierName, e.description, e.amount, e.payment_method AS paymentMethod,
          e.status, e.due_date AS dueDate, e.paid_at AS paidAt, e.invoice_number AS invoiceNumber, e.notes,
          e.from_cash_register AS fromCashRegister, e.cash_movement_id AS cashMovementId, e.source, e.reference_id AS referenceId,
@@ -250,7 +250,7 @@ router.get('/expenses', STAFF, (req, res) => {
   if (categoryId) { sql += ' AND e.category_id = ?'; params.push(Number(categoryId)); }
   if (supplierId) { sql += ' AND e.supplier_id = ?'; params.push(Number(supplierId)); }
   if (status === 'paid' || status === 'pending') { sql += ' AND e.status = ?'; params.push(status); }
-  if (search) { sql += ' AND (LOWER(e.description) LIKE ? OR LOWER(COALESCE(s.name, \'\')) LIKE ? OR e.invoice_number LIKE ?)'; const s = `%${String(search).toLowerCase()}%`; params.push(s, s, s); }
+  if (search) { sql += ' AND (LOWER(e.description) LIKE ? OR LOWER(COALESCE(s.name, \'\')) LIKE ? OR e.invoice_number LIKE ? OR CAST(e.number AS TEXT) = ?)'; const s = `%${String(search).toLowerCase()}%`; params.push(s, s, s, String(Number(String(search).replace(/\D/g, '')) || '')); }
   sql += ' ORDER BY e.date DESC, e.id DESC LIMIT ?';
   params.push(limit);
   const rows = db.prepare(sql).all(...params).map(mapExpense);
@@ -381,7 +381,9 @@ router.get('/expenses/:id/payments', STAFF, (req, res) => {
   const db = getDb();
   const cur = db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(Number(req.params.id));
   if (!cur) return res.status(404).json({ error: 'Gasto no encontrado' });
-  res.json({ expense: mapExpense(cur), payments: db.prepare(`${EXP_PAY_SELECT} WHERE expense_id = ? ORDER BY date, id`).all(cur.id) });
+  const supplier = cur.supplierId ? db.prepare("SELECT name, nit, COALESCE(dv, '') AS dv, COALESCE(doc_type, '') AS docType, address, COALESCE(city, '') AS city, phone, email FROM suppliers WHERE id = ?").get(cur.supplierId) : null;
+  const cat = db.prepare('SELECT c.account_code AS code, a.name FROM expense_categories c LEFT JOIN accounts a ON a.code = c.account_code WHERE c.id = ?').get(cur.categoryId) || {};
+  res.json({ expense: mapExpense(cur), supplier, account: cat, payments: db.prepare(`${EXP_PAY_SELECT} WHERE expense_id = ? ORDER BY date, id`).all(cur.id) });
 });
 
 router.delete('/expenses/:id/payments/:pid', ADMIN, (req, res) => {

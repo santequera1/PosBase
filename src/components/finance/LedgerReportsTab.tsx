@@ -240,38 +240,51 @@ const IncomeView = () => {
 };
 
 /* ---------- Libro auxiliar por cuenta ---------- */
+const SHORTCUTS: Array<[string, string, string]> = [['Caja y bancos', '11', '11'], ['Clientes', '13', '13'], ['Proveedores', '22', '22'], ['Impuestos', '24', '24'], ['Ingresos', '4', '4'], ['Gastos', '5', '5'], ['Costos', '6', '6'], ['Todas', '1', '9']];
 const LedgerView = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [code, setCode] = useState('110505');
+  const [codeFrom, setCodeFrom] = useState('110505');
+  const [codeTo, setCodeTo] = useState('110505');
   const [third, setThird] = useState('');
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(getColombiaTodayStr());
   const [data, setData] = useState<any>(null);
   useEffect(() => { api.getAccounts().then(setAccounts).catch(() => {}); }, []);
-  useEffect(() => { if (code) api.getLedgerAccount({ code, from, to, third }).then(setData).catch(() => setData(null)); }, [code, from, to, third]);
-  const exportXlsx = () => data && downloadXlsx(`auxiliar_${code}_${from}_${to}`, [{ name: `Auxiliar ${code}`, headers: ['Fecha', 'Comprobante', 'Descripción', 'Cuenta', 'Tercero', 'Detalle', 'Débito', 'Crédito', 'Saldo'], rows: [['', '', 'Saldo inicial', '', '', '', '', '', data.opening], ...data.rows.map((r: any) => [r.date, r.number, r.entryDescription, r.code, r.thirdName || '', r.description, r.debit, r.credit, r.balance])], widths: [11, 12, 40, 10, 28, 30, 14, 14, 16] }]);
+  useEffect(() => { if (codeFrom) api.getLedgerAccount({ code: codeFrom, codeTo: codeTo || codeFrom, from, to, third }).then(setData).catch(() => setData(null)); }, [codeFrom, codeTo, from, to, third]);
+  const label = (c: string) => { const a = accounts.find(x => x.code === c); return a ? `${c} ${a.name}` : c; };
+  const title = codeFrom === codeTo ? label(codeFrom) : `${label(codeFrom)} a ${label(codeTo)}`;
+  const exportXlsx = () => data && downloadXlsx(`auxiliar_${codeFrom}-${codeTo}_${from}_${to}`, [{ name: 'Libro auxiliar', headers: ['Cuenta', 'Nombre cuenta', 'Fecha', 'Comprobante', 'Descripción', 'Tercero', 'Detalle', 'Débito', 'Crédito', 'Saldo'],
+    rows: data.accounts.flatMap((a: any) => [[a.code, a.name, '', '', 'Saldo inicial', '', '', '', '', a.opening], ...a.rows.map((r: any) => [a.code, a.name, r.date, r.number, r.entryDescription, r.thirdName || '', r.description, r.debit, r.credit, r.balance]), [a.code, a.name, '', '', 'Totales y saldo final', '', '', a.debits, a.credits, a.closing]]), widths: [10, 30, 11, 12, 40, 28, 30, 14, 14, 16] }]);
+  const opts = accounts.map(a => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>);
   return (
     <div className="space-y-3">
       <RangeBar from={from} to={to} setFrom={setFrom} setTo={setTo}>
-        <div className="min-w-[260px]"><label className={LABEL}>Cuenta</label><select value={code} onChange={e => setCode(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs font-mono')}>{accounts.filter(a => a.level >= 4).map(a => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</select></div>
+        <div className="min-w-[230px]"><label className={LABEL}>Cuenta desde</label><select value={codeFrom} onChange={e => { setCodeFrom(e.target.value); if (e.target.value > codeTo) setCodeTo(e.target.value); }} className={cn(INPUT, 'py-1.5 text-xs font-mono')} data-ledger-from>{opts}</select></div>
+        <div className="min-w-[230px]"><label className={LABEL}>Cuenta hasta</label><select value={codeTo} onChange={e => setCodeTo(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs font-mono')} data-ledger-to>{opts}</select></div>
         <div><label className={LABEL}>Tercero (NIT/CC)</label><input value={third} onChange={e => setThird(e.target.value)} placeholder="Todos" className={cn(INPUT, 'py-1.5 text-xs w-32')} /></div>
       </RangeBar>
+      <div className="flex flex-wrap gap-1 print:hidden">{SHORTCUTS.map(([l, a, b]) => <Chip key={l} active={codeFrom === a && codeTo === b} onClick={() => { setCodeFrom(a); setCodeTo(b); }}>{l}</Chip>)}</div>
       {data && (
         <div className="bg-card rounded-xl border border-border shadow-card p-4 space-y-3">
-          <Head title={`Libro auxiliar · ${data.code} ${data.name}`} subtitle={`Del ${fmtDate(from)} al ${fmtDate(to)}${third ? ` · tercero ${third}` : ''}`} onExport={exportXlsx} />
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
-              <thead><tr className="text-muted-foreground bg-muted/30"><th className="px-2 py-1.5 text-left font-semibold">Fecha</th><th className="px-2 py-1.5 text-left font-semibold">Comprobante</th><th className="px-2 py-1.5 text-left font-semibold">Descripción</th><th className="px-2 py-1.5 text-left font-semibold">Tercero</th><th className="px-2 py-1.5 text-right font-semibold">Débito</th><th className="px-2 py-1.5 text-right font-semibold">Crédito</th><th className="px-2 py-1.5 text-right font-semibold">Saldo</th></tr></thead>
-              <tbody>
-                <tr className="border-t border-border bg-brand-card/40 font-semibold"><td colSpan={6} className="px-2 py-1.5">Saldo inicial</td><td className="px-2 py-1.5 text-right">{money(data.opening)}</td></tr>
-                {data.rows.map((r: any, i: number) => (
-                  <tr key={i} className="border-t border-border"><td className="px-2 py-1 whitespace-nowrap">{fmtDate(r.date)}</td><td className="px-2 py-1 font-mono whitespace-nowrap">{r.number}{code.length < r.code.length ? <span className="text-muted-foreground"> · {r.code}</span> : ''}</td><td className="px-2 py-1">{r.entryDescription}{r.description ? <span className="text-muted-foreground"> · {r.description}</span> : ''}</td><td className="px-2 py-1">{r.thirdName || ''}</td><td className="px-2 py-1 text-right">{r.debit ? formatPrice(r.debit) : ''}</td><td className="px-2 py-1 text-right">{r.credit ? formatPrice(r.credit) : ''}</td><td className="px-2 py-1 text-right font-semibold">{money(r.balance)}</td></tr>
-                ))}
-                {data.rows.length === 0 && <tr><td colSpan={7} className="px-2 py-3 text-center text-muted-foreground">Sin movimientos en el período.</td></tr>}
-              </tbody>
-              <tfoot><tr className="border-t-2 border-brand-primary/30 font-bold bg-brand-card"><td colSpan={4} className="px-2 py-1.5">Totales y saldo final</td><td className="px-2 py-1.5 text-right">{formatPrice(data.debits)}</td><td className="px-2 py-1.5 text-right">{formatPrice(data.credits)}</td><td className="px-2 py-1.5 text-right">{money(data.closing)}</td></tr></tfoot>
-            </table>
-          </div>
+          <Head title={`Libro auxiliar · ${title}`} subtitle={`Del ${fmtDate(from)} al ${fmtDate(to)}${third ? ` · tercero ${third}` : ''} · ${data.accounts.length} cuenta(s)`} onExport={exportXlsx} />
+          {data.accounts.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Sin movimientos en el rango y período.</p>}
+          {data.accounts.map((a: any) => (
+            <div key={a.code} className="overflow-x-auto" data-ledger-account={a.code}>
+              <p className="text-xs font-bold text-brand-dark mb-1"><span className="font-mono">{a.code}</span> · {a.name}</p>
+              <table className="w-full text-[11px]">
+                <thead><tr className="text-muted-foreground bg-muted/30"><th className="px-2 py-1.5 text-left font-semibold">Fecha</th><th className="px-2 py-1.5 text-left font-semibold">Comprobante</th><th className="px-2 py-1.5 text-left font-semibold">Descripción</th><th className="px-2 py-1.5 text-left font-semibold">Tercero</th><th className="px-2 py-1.5 text-right font-semibold">Débito</th><th className="px-2 py-1.5 text-right font-semibold">Crédito</th><th className="px-2 py-1.5 text-right font-semibold">Saldo</th></tr></thead>
+                <tbody>
+                  <tr className="border-t border-border bg-brand-card/40 font-semibold"><td colSpan={6} className="px-2 py-1.5">Saldo inicial</td><td className="px-2 py-1.5 text-right">{money(a.opening)}</td></tr>
+                  {a.rows.map((r: any, i: number) => (
+                    <tr key={i} className="border-t border-border"><td className="px-2 py-1 whitespace-nowrap">{fmtDate(r.date)}</td><td className="px-2 py-1 font-mono whitespace-nowrap">{r.number}</td><td className="px-2 py-1">{r.entryDescription}{r.description ? <span className="text-muted-foreground"> · {r.description}</span> : ''}</td><td className="px-2 py-1">{r.thirdName || ''}</td><td className="px-2 py-1 text-right">{r.debit ? formatPrice(r.debit) : ''}</td><td className="px-2 py-1 text-right">{r.credit ? formatPrice(r.credit) : ''}</td><td className="px-2 py-1 text-right font-semibold">{money(r.balance)}</td></tr>
+                  ))}
+                  {a.rows.length === 0 && <tr><td colSpan={7} className="px-2 py-2 text-center text-muted-foreground">Sin movimientos en el período (solo saldo inicial).</td></tr>}
+                </tbody>
+                <tfoot><tr className="border-t-2 border-brand-primary/30 font-bold bg-brand-card"><td colSpan={4} className="px-2 py-1.5">Totales y saldo final</td><td className="px-2 py-1.5 text-right">{formatPrice(a.debits)}</td><td className="px-2 py-1.5 text-right">{formatPrice(a.credits)}</td><td className="px-2 py-1.5 text-right">{money(a.closing)}</td></tr></tfoot>
+              </table>
+            </div>
+          ))}
+          {data.accounts.length > 1 && <div className="rounded-lg bg-brand-card px-3 py-2 text-xs font-bold text-brand-dark flex flex-wrap justify-between gap-2"><span>Total del rango</span><span>Inicial {money(data.totals.opening)} · Débitos {formatPrice(data.totals.debits)} · Créditos {formatPrice(data.totals.credits)} · Final {money(data.totals.closing)}</span></div>}
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ const VIEWS = [
   { key: 'counter', label: 'Para llevar', group: 'Ventas' },
   { key: 'delivery', label: 'Domicilios', group: 'Ventas' },
   { key: 'kitchen', label: 'Cocina (monitor)', group: 'Ventas' },
+  { key: 'courier', label: 'Mis domicilios (repartidor)', group: 'Ventas' },
   { key: 'shift', label: 'Cierre de caja', group: 'Caja y pedidos' },
   { key: 'orders', label: 'Historial de pedidos', group: 'Caja y pedidos' },
   { key: 'reports', label: 'Ventas e ingresos', group: 'Caja y pedidos' },
@@ -33,6 +34,7 @@ const PROFILES = {
   cashier: { label: 'Cajero', role: 'cashier', views: ['pos', 'tables', 'counter', 'delivery', 'kitchen', 'shift', 'orders', 'reports', 'menu', 'customers', 'finance', 'settings'], actions: ['cancel_orders', 'discounts', 'edit_menu', 'cash_withdrawals'] },
   waiter: { label: 'Mesero', role: 'cashier', views: ['tables', 'counter', 'delivery', 'kitchen', 'orders'], actions: [] },
   kitchen: { label: 'Cocina', role: 'kitchen', views: ['kitchen'], actions: [] },
+  courier: { label: 'Domiciliario', role: 'cashier', views: ['courier'], actions: [] },
   custom: { label: 'Personalizado', role: 'cashier', views: [], actions: [] },
 };
 const PROFILE_KEYS = Object.keys(PROFILES);
@@ -73,7 +75,35 @@ function normalizeUserPerms(body, current = {}) {
   return { role, profile, permissions };
 }
 
+/**
+ * Un usuario repartidor (vista "courier") necesita un colaborador en Personal para que se le puedan asignar pedidos
+ * y para el cuadre por repartidor. Si no existe, se crea con cargo "Domiciliario"; si existe con otro cargo, se ajusta.
+ */
+function ensureCourierEmployee(db, userId) {
+  const u = db.prepare('SELECT id, username, name, role, profile, permissions, COALESCE(active, 1) AS active FROM users WHERE id = ?').get(userId);
+  if (!u || !resolvePerms(u).views.includes('courier') || u.role === 'admin') return null;
+  let emp = db.prepare('SELECT id, position, active FROM employees WHERE user_id = ? ORDER BY id LIMIT 1').get(u.id);
+  // Si ya existe en Personal un colaborador sin usuario con el mismo nombre (p. ej. el domiciliario creado antes), se vincula en vez de duplicarlo
+  if (!emp) {
+    const same = db.prepare('SELECT id, position, active FROM employees WHERE user_id IS NULL AND LOWER(TRIM(name)) = LOWER(TRIM(?)) ORDER BY active DESC, id DESC LIMIT 1').get(u.name);
+    if (same) { db.prepare('UPDATE employees SET user_id = ? WHERE id = ?').run(u.id, same.id); emp = same; }
+  }
+  if (!emp) {
+    const info = db.prepare("INSERT INTO employees (user_id, name, position, pay_mode, base_amount, active, notes) VALUES (?, ?, 'Domiciliario', 'per_day', 0, ?, 'Creado al darle el perfil Domiciliario al usuario')").run(u.id, u.name, u.active ? 1 : 0);
+    return Number(info.lastInsertRowid);
+  }
+  if (!/domicil|repart|mensaj|motoriz/i.test(emp.position || '')) db.prepare("UPDATE employees SET position = 'Domiciliario' WHERE id = ?").run(emp.id);
+  if (u.active && !emp.active) db.prepare('UPDATE employees SET active = 1 WHERE id = ?').run(emp.id);
+  return emp.id;
+}
+/** Vincula todos los usuarios repartidores que aún no tengan colaborador (usuarios creados antes de esta función). */
+function ensureAllCouriers(db) {
+  try {
+    for (const u of db.prepare("SELECT id FROM users WHERE role != 'admin' AND COALESCE(active, 1) = 1 AND (profile = 'courier' OR permissions LIKE '%courier%')").all()) ensureCourierEmployee(db, u.id);
+  } catch { /* tablas en migración */ }
+}
+
 const hasView = (user, key) => Boolean(user && (user.role === 'admin' || (user.perms && user.perms.views.includes(key))));
 const hasAction = (user, key) => Boolean(user && (user.role === 'admin' || (user.perms && user.perms.actions.includes(key))));
 
-module.exports = { VIEWS, ACTIONS, PROFILES, VIEW_KEYS, ACTION_KEYS, PROFILE_KEYS, resolvePerms, normalizeUserPerms, profileOf, hasView, hasAction };
+module.exports = { VIEWS, ACTIONS, PROFILES, VIEW_KEYS, ACTION_KEYS, PROFILE_KEYS, resolvePerms, normalizeUserPerms, profileOf, hasView, hasAction, ensureCourierEmployee, ensureAllCouriers };

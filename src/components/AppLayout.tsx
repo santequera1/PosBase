@@ -29,6 +29,7 @@ import { can, type ViewKey, type PermUser } from '@/lib/permissions';
 type NavItem = { path: string; label: string; icon: any; view?: ViewKey };
 
 const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: boolean; kitchen?: boolean } | null): NavItem[] => [
+  { path: '/mis-domicilios', label: 'Mis domicilios', icon: Bike, view: 'courier' },
   { path: '/pos', label: 'Punto de Venta', icon: Store, view: 'pos' },
   ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid, view: 'tables' as ViewKey }] : []),
   ...(modules?.counter ? [{ path: '/counter', label: 'Para llevar', icon: ShoppingBag, view: 'counter' as ViewKey }] : []),
@@ -44,7 +45,7 @@ const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: bool
   { path: '/settings', label: 'Configuración', icon: Settings, view: 'settings' },
 ];
 
-const visibleFor = (items: NavItem[], user?: PermUser | null) => items.filter(i => !i.view || can(user, i.view));
+const visibleFor = (items: NavItem[], user?: PermUser | null) => items.filter(i => !i.view || (can(user, i.view) && !(i.view === 'courier' && user?.role === 'admin')));
 
 export const AppLayout = () => {
   const location = useLocation();
@@ -278,6 +279,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
   const modules = useStore(s => s.restaurant?.modules);
   const user = useStore(s => s.user);
   const mainItems = visibleFor([
+    { path: '/mis-domicilios', label: 'Mis pedidos', icon: Bike, view: 'courier' },
     { path: '/pos', label: 'POS Caja', icon: Store, view: 'pos' },
     ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid, view: 'tables' as ViewKey }] : []),
     ...(modules?.counter ? [{ path: '/counter', label: 'Llevar', icon: ShoppingBag, view: 'counter' as ViewKey }] : []),

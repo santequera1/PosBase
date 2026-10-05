@@ -27,6 +27,7 @@ import DeliveryPage from "@/pages/DeliveryPage";
 import OpenOrderPage from "@/pages/OpenOrderPage";
 import NotFound from "@/pages/NotFound";
 import NoAccess from "@/pages/NoAccess";
+import CourierPage from "@/pages/CourierPage";
 import { can, homePath, type ViewKey } from "@/lib/permissions";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -117,6 +118,7 @@ const App = () => (
             <Route path="/orders/new" element={<Guard view={['orders', 'pos']}><NewOrderPage /></Guard>} />
             <Route path="/orders/:id" element={<Guard view="orders"><OrderDetailPage /></Guard>} />
             <Route path="/kitchen" element={<Guard view="kitchen"><KitchenPage /></Guard>} />
+            <Route path="/mis-domicilios" element={<Guard view="courier"><CourierPage /></Guard>} />
             <Route path="/tables" element={<Guard view="tables"><TablesPage /></Guard>} />
             <Route path="/counter" element={<Guard view="counter"><CounterPage /></Guard>} />
             <Route path="/delivery" element={<Guard view="delivery"><DeliveryPage /></Guard>} />

@@ -324,6 +324,26 @@ function trialBalance(db, { from, to, level = 6, byThird = false }) {
   return { from, to, level: lvl, byThird, rows, totals, balanced: totals.debits === totals.credits && totals.closing === 0 };
 }
 
+/** Libro auxiliar de un rango de cuentas (desde – hasta): una sección por cuenta con saldo inicial, movimientos y saldo final. */
+function ledgerRange(db, { codeFrom, codeTo, from, to, thirdDoc }) {
+  const lo = String(codeFrom), hi = String(codeTo) + '99999999';
+  const t = thirdDoc ? " AND COALESCE(l.third_doc, '') = ?" : '';
+  const tp = thirdDoc ? [thirdDoc] : [];
+  const codes = db.prepare(`SELECT DISTINCT l.account_code AS code FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id WHERE e.status = 'posted' AND l.account_code >= ? AND l.account_code <= ? AND e.date <= ?${t} ORDER BY l.account_code`).all(lo, hi, to, ...tp).map(r => r.code);
+  const accountsOut = [];
+  for (const c of codes) {
+    const opening = db.prepare(`SELECT COALESCE(SUM(l.debit - l.credit), 0) AS s FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id WHERE e.status = 'posted' AND l.account_code = ? AND e.date < ?${t}`).get(c, from, ...tp).s;
+    const lines = db.prepare(`SELECT e.id AS entryId, e.number, e.date, e.source, e.description AS entryDescription, l.account_code AS code, l.debit, l.credit, l.third_doc AS thirdDoc, l.third_name AS thirdName, l.description, l.doc_ref AS docRef
+      FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id WHERE e.status = 'posted' AND l.account_code = ? AND e.date >= ? AND e.date <= ?${t} ORDER BY e.date, e.id, l.id`).all(c, from, to, ...tp);
+    if (!opening && !lines.length) continue;
+    let bal = opening;
+    const rows = lines.map(l => { bal += l.debit - l.credit; return { ...l, balance: bal }; });
+    accountsOut.push({ code: c, name: accountName(db, c), opening, rows, closing: bal, debits: rows.reduce((a, r) => a + r.debit, 0), credits: rows.reduce((a, r) => a + r.credit, 0) });
+  }
+  const totals = accountsOut.reduce((a, x) => ({ opening: a.opening + x.opening, debits: a.debits + x.debits, credits: a.credits + x.credits, closing: a.closing + x.closing }), { opening: 0, debits: 0, credits: 0, closing: 0 });
+  return { codeFrom: lo, codeTo: String(codeTo), from, to, accounts: accountsOut, totals };
+}
+
 function ledgerAccount(db, { code, from, to, thirdDoc }) {
   const like = `${code}%`;
   const params = [like, from];
@@ -462,4 +482,4 @@ function thirdPartiesReport(db, { from, to }) {
   };
 }
 
-module.exports = { postEntry, voidEntry, postedEntry, syncLedger, syncOnWrite, rebuildLedger, accounts, trialBalance, ledgerAccount, balanceSheet, incomeStatementLedger, agingReceivables, agingPayables, thirdPartiesReport, SOURCE_LABEL, PREFIX };
+module.exports = { postEntry, voidEntry, postedEntry, syncLedger, syncOnWrite, rebuildLedger, accounts, trialBalance, ledgerAccount, ledgerRange, balanceSheet, incomeStatementLedger, agingReceivables, agingPayables, thirdPartiesReport, SOURCE_LABEL, PREFIX };

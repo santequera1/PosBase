@@ -207,6 +207,7 @@ function saveRestaurantConfig(db, body) {
 
 /** Meseros (todo el personal activo que no es repartidor) y repartidores (cargo de domicilios). */
 function staffLists(db) {
+  require('./permissions').ensureAllCouriers(db);
   const rows = db.prepare('SELECT id, name, position FROM employees WHERE active = 1 ORDER BY name').all();
   const isCourier = e => /domicil|repart|mensaj|motoriz/i.test(e.position || '');
   return { waiters: rows.filter(e => !isCourier(e)), couriers: rows.filter(isCourier) };

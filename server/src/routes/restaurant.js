@@ -4,7 +4,7 @@
  */
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole, hasAction } = require('../auth');
+const { requireRole, requirePerm, hasAction } = require('../auth');
 const { formatOrder } = require('../orderFormat');
 const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, getProduct, emitProduct } = require('../stock');
 const { getOpenShift, now, today, isDate } = require('../cashHelpers');
@@ -328,6 +328,48 @@ router.patch('/orders/:id', (req, res) => {
   }
   if (sets.length) { vals.push(order.id); db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals); }
   if (b.deliveryFee !== undefined) recomputeTotals(db, order.id);
+  const formatted = fmt(db, order.id);
+  emit(req, 'order:updated', formatted);
+  res.json(formatted);
+});
+
+/* ---------- Mis domicilios: lo que ve el repartidor en su celular ---------- */
+const courierEmployee = (db, userId) => db.prepare('SELECT id, name, phone FROM employees WHERE user_id = ? AND COALESCE(active, 1) = 1 ORDER BY id LIMIT 1').get(userId);
+router.get('/my-deliveries', requirePerm('courier'), (req, res) => {
+  const db = getDb();
+  const emp = courierEmployee(db, req.user.id);
+  if (!emp) return res.json({ linked: false, courier: null, active: [], delivered: [], cashToCollect: 0, cashCollected: 0 });
+  const t = today(db);
+  const active = db.prepare(`SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status IN (${ACTIVE_SQL}) ORDER BY created_at`).all(emp.id).map(r => fmt(db, r.id));
+  const delivered = db.prepare("SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND date(COALESCE(delivered_at, created_at)) = ? ORDER BY delivered_at DESC").all(emp.id, t).map(r => fmt(db, r.id));
+  const due = o => (o.paymentStatus === 'paid' || o.paymentMethod === 'platform' ? 0 : (o.amountDue ?? o.total));
+  const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(COALESCE(delivered_at, created_at)) = ?").get(emp.id, t).s;
+  res.json({ linked: true, courier: emp, active, delivered, cashToCollect: active.reduce((a, o) => a + due(o), 0), cashCollected: collected });
+});
+// El repartidor marca "voy en camino" o "entregado"; al entregar un pedido que se paga contra entrega, queda cobrado con el medio que indique
+router.post('/my-deliveries/:id/:action', requirePerm('courier'), (req, res) => {
+  const db = getDb();
+  const order = getOrder(db, req.params.id);
+  if (!order || order.type !== 'delivery') return res.status(404).json({ error: 'Pedido no encontrado' });
+  const emp = courierEmployee(db, req.user.id);
+  if (req.user.role !== 'admin' && (!emp || order.driver_id !== emp.id)) return res.status(403).json({ error: 'Este pedido no está asignado a ti' });
+  if (order.status === 'cancelled') return res.status(400).json({ error: 'El pedido fue anulado' });
+  if (order.status === 'delivered') return res.status(400).json({ error: 'El pedido ya fue entregado' });
+  const ts = now(db);
+  if (req.params.action === 'shipped') {
+    sendUnsent(db, req.app.io, order, req.user?.name);
+    db.prepare("UPDATE orders SET status = 'shipped', shipped_at = COALESCE(shipped_at, ?) WHERE id = ?").run(ts, order.id);
+  } else if (req.params.action === 'delivered') {
+    sendUnsent(db, req.app.io, order, req.user?.name);
+    if (order.payment_status !== 'paid' && order.payment_method !== 'platform') {
+      const method = ['cash', 'transfer', 'card'].includes(req.body.method) ? req.body.method : 'cash';
+      const received = Math.max(0, Math.round(Number(req.body.cashReceived) || 0));
+      const due = (order.total || 0) + (order.tip || 0);
+      db.prepare("UPDATE orders SET payment_status = 'paid', payment_method = ?, payment_split = NULL, cash_received = ?, cash_change = ? WHERE id = ?")
+        .run(method, method === 'cash' ? (received || due) : 0, method === 'cash' && received > due ? received - due : 0, order.id);
+    }
+    db.prepare("UPDATE orders SET status = 'delivered', shipped_at = COALESCE(shipped_at, ?), delivered_at = ?, closed_at = ?, closed_by = ? WHERE id = ?").run(ts, ts, ts, req.user?.name || null, order.id);
+  } else return res.status(400).json({ error: 'Acción inválida' });
   const formatted = fmt(db, order.id);
   emit(req, 'order:updated', formatted);
   res.json(formatted);

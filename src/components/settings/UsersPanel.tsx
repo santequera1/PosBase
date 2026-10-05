@@ -16,7 +16,7 @@ interface AppUser {
 }
 
 const INPUT = 'w-full px-3.5 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
-const PROFILE_CLASS: Record<string, string> = { admin: 'bg-brand-button/10 text-brand-primary', cashier: 'bg-brand-accent/25 text-brand-dark', waiter: 'bg-sky-100 text-sky-800', kitchen: 'bg-emerald-100 text-emerald-800', custom: 'bg-violet-100 text-violet-800' };
+const PROFILE_CLASS: Record<string, string> = { admin: 'bg-brand-button/10 text-brand-primary', cashier: 'bg-brand-accent/25 text-brand-dark', waiter: 'bg-sky-100 text-sky-800', kitchen: 'bg-emerald-100 text-emerald-800', courier: 'bg-orange-100 text-orange-800', custom: 'bg-violet-100 text-violet-800' };
 const GROUPS = [...new Set(VIEWS.map(v => v.group))];
 
 /** Casilla grande con ícono, título y descripción: se marca con un chulo relleno. */
@@ -113,7 +113,7 @@ const UsersPanel = () => {
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="font-bold text-sm">👥 Usuarios y permisos</h3>
-            <p className="text-xs text-muted-foreground">Cada persona entra con su usuario. Tú decides qué secciones ve y qué puede hacer (anular, descuentos, menú, retiros de caja).</p>
+            <p className="text-xs text-muted-foreground">Cada persona entra con su usuario. Tú decides qué secciones ve y qué puede hacer (anular, descuentos, menú, retiros de caja). Los usuarios con perfil Domiciliario aparecen solos como repartidores para asignarles pedidos.</p>
           </div>
           <button onClick={openCreate} className="px-3 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1 shadow-fab hover:opacity-90 whitespace-nowrap">
             <Plus size={14} /> Nuevo usuario
@@ -176,7 +176,7 @@ const UsersPanel = () => {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Perfil (plantilla de permisos)</label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                 {PROFILES.map(p => {
                   const Icon = p.icon;
                   const active = form.profile === p.key;

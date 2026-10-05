@@ -267,6 +267,8 @@ export const api = {
   mergeOrders: (id: number, intoOrderId: number) => request<any>(`/restaurant/orders/${id}/merge`, { method: 'POST', body: JSON.stringify({ intoOrderId }) }),
   getKitchen: (station?: string) => request<any[]>(`/restaurant/kitchen${station ? '?station=' + station : ''}`),
   kitchenAction: (orderId: number, batch: number, action: 'start' | 'ready' | 'undo', station?: string) => request<any>(`/restaurant/kitchen/${orderId}/${batch}`, { method: 'POST', body: JSON.stringify({ action, station }) }),
+  getMyDeliveries: () => request<any>('/restaurant/my-deliveries'),
+  courierAction: (id: number, action: 'shipped' | 'delivered', body?: any) => request<any>(`/restaurant/my-deliveries/${id}/${action}`, { method: 'POST', body: JSON.stringify(body || {}) }),
   getRestaurantStats: (from: string, to: string) => request<any>(`/restaurant/stats?from=${from}&to=${to}`),
   getCourierReport: (driverId: number, from: string, to: string) => request<any>(`/restaurant/couriers/${driverId}?from=${from}&to=${to}`),
   getStaffSummary: () => request<any>('/staff/summary'),

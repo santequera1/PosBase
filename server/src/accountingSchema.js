@@ -121,6 +121,16 @@ function initAccountingSchema(db) {
 
   // Gastos: abonos parciales, retención en la fuente y documento soporte
   addCol(db, 'journal_entries', 'doc_hash', 'TEXT');
+  addCol(db, 'expenses', 'number', 'INTEGER');
+  {
+    const pending = db.prepare('SELECT id FROM expenses WHERE number IS NULL ORDER BY date, id').all();
+    if (pending.length) {
+      let n = db.prepare('SELECT COALESCE(MAX(number), 0) AS m FROM expenses').get().m;
+      const up = db.prepare('UPDATE expenses SET number = ? WHERE id = ?');
+      db.transaction(() => { for (const r of pending) up.run(++n, r.id); })();
+    }
+    db.exec("CREATE TRIGGER IF NOT EXISTS trg_expense_number AFTER INSERT ON expenses WHEN NEW.number IS NULL BEGIN UPDATE expenses SET number = (SELECT COALESCE(MAX(number), 0) + 1 FROM expenses) WHERE id = NEW.id; END;");
+  }
   addCol(db, 'expenses', 'paid_amount', 'INTEGER DEFAULT 0');
   addCol(db, 'expenses', 'retention', 'INTEGER DEFAULT 0');
   addCol(db, 'expenses', 'retention_pct', 'REAL DEFAULT 0');

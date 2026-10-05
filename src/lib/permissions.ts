@@ -1,9 +1,9 @@
 /** Permisos por usuario (vistas y acciones). El administrador siempre tiene todo; el resto depende de su perfil o de su lista personalizada. */
 import { Store, LayoutGrid, ShoppingBag, Bike, ChefHat, Wallet, ClipboardList, BarChart3, Package, Users, Landmark, UsersRound, Settings, Ban, Percent, Pencil, HandCoins, ShieldCheck, ConciergeBell } from 'lucide-react';
 
-export type ViewKey = 'pos' | 'tables' | 'counter' | 'delivery' | 'kitchen' | 'shift' | 'orders' | 'reports' | 'menu' | 'customers' | 'finance' | 'staff' | 'settings';
+export type ViewKey = 'pos' | 'tables' | 'counter' | 'delivery' | 'kitchen' | 'courier' | 'shift' | 'orders' | 'reports' | 'menu' | 'customers' | 'finance' | 'staff' | 'settings';
 export type ActionKey = 'cancel_orders' | 'discounts' | 'edit_menu' | 'cash_withdrawals';
-export type ProfileKey = 'admin' | 'cashier' | 'waiter' | 'kitchen' | 'custom';
+export type ProfileKey = 'admin' | 'cashier' | 'waiter' | 'kitchen' | 'courier' | 'custom';
 export interface Perms { views: string[]; actions: string[] }
 export interface PermUser { name: string; role: string; profile?: string; perms?: Perms }
 
@@ -13,6 +13,7 @@ export const VIEWS: Array<{ key: ViewKey; label: string; description: string; pa
   { key: 'counter', label: 'Para llevar', description: 'Pedidos a nombre del cliente en mostrador.', path: '/counter', group: 'Ventas', icon: ShoppingBag },
   { key: 'delivery', label: 'Domicilios', description: 'Pedidos a domicilio y repartidores.', path: '/delivery', group: 'Ventas', icon: Bike },
   { key: 'kitchen', label: 'Cocina (monitor)', description: 'Pantalla de comandas de cocina y barra.', path: '/kitchen', group: 'Ventas', icon: ChefHat },
+  { key: 'courier', label: 'Mis domicilios (repartidor)', description: 'El repartidor ve sus pedidos asignados, cliente, dirección y cuánto cobrar.', path: '/mis-domicilios', group: 'Ventas', icon: Bike },
   { key: 'shift', label: 'Cierre de caja', description: 'Abrir y cerrar turnos, arqueo y reporte Z.', path: '/shift', group: 'Caja y pedidos', icon: Wallet },
   { key: 'orders', label: 'Historial de pedidos', description: 'Ver pedidos, reimprimir y cambiar estados.', path: '/orders', group: 'Caja y pedidos', icon: ClipboardList },
   { key: 'reports', label: 'Ventas e ingresos', description: 'Estadísticas de ventas, productos y horas.', path: '/reports', group: 'Caja y pedidos', icon: BarChart3 },
@@ -33,6 +34,7 @@ export const PROFILES: Array<{ key: ProfileKey; label: string; description: stri
   { key: 'cashier', label: 'Cajero', description: 'Vende, cobra, cierra caja y registra gastos.', icon: Store, views: ['pos', 'tables', 'counter', 'delivery', 'kitchen', 'shift', 'orders', 'reports', 'menu', 'customers', 'finance', 'settings'], actions: ['cancel_orders', 'discounts', 'edit_menu', 'cash_withdrawals'] },
   { key: 'waiter', label: 'Mesero', description: 'Toma pedidos en mesas, para llevar y domicilios.', icon: ConciergeBell, views: ['tables', 'counter', 'delivery', 'kitchen', 'orders'], actions: [] },
   { key: 'kitchen', label: 'Cocina', description: 'Solo la pantalla de comandas.', icon: ChefHat, views: ['kitchen'], actions: [] },
+  { key: 'courier', label: 'Domiciliario', description: 'Ve sus pedidos asignados y los marca entregados.', icon: Bike, views: ['courier'], actions: [] },
   { key: 'custom', label: 'Personalizado', description: 'Elige a mano qué ve y qué puede hacer.', icon: Settings, views: [], actions: [] },
 ];
 export const PROFILE_LABEL: Record<string, string> = Object.fromEntries(PROFILES.map(p => [p.key, p.label]));

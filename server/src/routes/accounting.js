@@ -160,6 +160,12 @@ router.get('/ledger', (req, res) => {
   const { from, to } = range(req);
   const code = String(req.query.code || '').trim();
   if (!/^\d{1,8}$/.test(code)) return res.status(400).json({ error: 'Indica el código de la cuenta' });
+  const codeTo = String(req.query.codeTo || '').trim();
+  if (codeTo) {
+    if (!/^\d{1,8}$/.test(codeTo)) return res.status(400).json({ error: 'Cuenta final inválida' });
+    const [a, b] = code <= codeTo ? [code, codeTo] : [codeTo, code];
+    return res.json(L.ledgerRange(db, { codeFrom: a, codeTo: b, from, to, thirdDoc: req.query.third ? String(req.query.third) : undefined }));
+  }
   res.json(L.ledgerAccount(db, { code, from, to, thirdDoc: req.query.third ? String(req.query.third) : undefined }));
 });
 router.get('/balance-sheet', (req, res) => { const db = getDb(); L.syncLedger(db); const { t } = range(req); const date = isDate(req.query.date) ? req.query.date : t; res.json(L.balanceSheet(db, { date, fiscalYearStart: isDate(req.query.fiscalYearStart) ? req.query.fiscalYearStart : undefined })); });

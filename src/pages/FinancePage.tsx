@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import {
   Plus, Edit2, Trash2, X, Search, Landmark, Receipt, CalendarClock, Truck, FolderOpen, TrendingUp, TrendingDown,
-  Wallet, AlertTriangle, CheckCircle2, Banknote, CreditCard, ArrowLeftRight, Clock, Filter, BookOpen, Scale, BookMarked, HandCoins, ListTree, FileCheck2,
+  Wallet, AlertTriangle, CheckCircle2, Banknote, CreditCard, ArrowLeftRight, Clock, Filter, BookOpen, Printer, Scale, BookMarked, HandCoins, ListTree, FileCheck2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/theme';
+import { printDocument, escHtml, expenseNumber } from '@/lib/printDoc';
 import AccountingTab from '@/components/finance/AccountingTab';
 import AccountsTab from '@/components/finance/AccountsTab';
 import JournalTab from '@/components/finance/JournalTab';
@@ -31,7 +32,7 @@ interface Supplier {
   docType?: string; dv?: string; legalName?: string; personType?: string; city?: string; state?: string; country?: string; postalCode?: string; ciiu?: string; ivaResponsible?: boolean; regime?: string; creditDays?: number; retentionPct?: number; rutComplete?: boolean;
 }
 interface Expense {
-  id: number; date: string; categoryId: number; categoryName: string; categoryEmoji: string; categoryKind: Kind;
+  id: number; number?: number | null; date: string; categoryId: number; categoryName: string; categoryEmoji: string; categoryKind: Kind;
   supplierId: number | null; supplierName: string | null; description: string; amount: number; paymentMethod: string;
   status: 'paid' | 'pending'; dueDate: string | null; paidAt: string | null; invoiceNumber: string; notes: string;
   fromCashRegister: boolean; source: string; overdue?: boolean; dueSoon?: boolean; taxAmount?: number;
@@ -484,6 +485,41 @@ const SummaryTab = ({ goTo }: { goTo: (t: Tab) => void }) => {
 /* ------------------------------------------------------------------ */
 /* Pestaña Gastos                                                       */
 /* ------------------------------------------------------------------ */
+/** Comprobante de gasto imprimible (hoja carta): consecutivo, proveedor con NIT, cuenta contable, IVA, retención, pagos y firmas. */
+async function printExpenseVoucher(e: Expense) {
+  try {
+    const d = await api.getExpensePayments(e.id);
+    const x = d.expense, s = d.supplier, acc = d.account || {};
+    const st = useStore.getState();
+    const PM: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', credit: 'Crédito' };
+    const base = x.amount - (x.taxAmount || 0);
+    const rows = [
+      ['Valor antes de IVA', base], ...(x.taxAmount ? [['IVA', x.taxAmount]] : []), ['Total de la factura / soporte', x.amount],
+      ...(x.retention ? [[`Retención en la fuente (${x.retentionPct || 0}%)`, -x.retention]] : []), ['Neto a pagar', x.amount - (x.retention || 0)],
+    ] as Array<[string, number]>;
+    const pays = (d.payments || []) as any[];
+    const html = `
+      <div class="head">
+        <div><h1>${escHtml(st.businessName)}</h1><div class="muted">NIT ${escHtml(st.businessNit || '—')} · ${escHtml(st.businessAddress || '')} ${st.businessPhone ? '· Tel. ' + escHtml(st.businessPhone) : ''}</div></div>
+        <div class="num"><div class="lbl">Comprobante de gasto</div><div class="big">N.º ${expenseNumber(x.number)}</div><div class="muted">Fecha ${fmtDate(x.date)}</div></div>
+      </div>
+      <div class="grid">
+        <div class="box"><div class="lbl">Pagado a</div><b>${escHtml(s ? s.name : 'Sin proveedor')}</b><br>${s ? `${escHtml(s.docType || 'NIT')} ${escHtml(s.nit || '—')}${s.dv ? '-' + escHtml(s.dv) : ''}<br>${escHtml([s.address, s.city].filter(Boolean).join(', '))}${s.phone ? ' · ' + escHtml(s.phone) : ''}` : ''}</div>
+        <div class="box"><div class="lbl">Concepto</div><b>${escHtml(x.description)}</b><br>Categoría: ${escHtml(x.categoryName)}<br>Cuenta contable: ${escHtml(acc.code || '')} ${escHtml(acc.name || '')}</div>
+        <div class="box"><div class="lbl">Soporte</div>${x.invoiceNumber ? 'Factura N.º ' + escHtml(x.invoiceNumber) : 'Sin factura'}${x.invoiceDate ? ' del ' + fmtDate(x.invoiceDate) : ''}${x.supportDocNumber ? '<br>Documento soporte ' + escHtml(x.supportDocNumber) : ''}</div>
+        <div class="box"><div class="lbl">Estado</div>${x.status === 'paid' ? 'Pagado' : 'Pendiente por pagar'}${x.dueDate && x.status !== 'paid' ? ' · vence ' + fmtDate(x.dueDate) : ''}<br>Medio: ${PM[x.paymentMethod] || x.paymentMethod}${x.fromCashRegister ? ' · salió de la caja' : ''}</div>
+      </div>
+      <table><thead><tr><th>Detalle</th><th class="r">Valor</th></tr></thead><tbody>
+        ${rows.map((r, i) => `<tr class="${i === rows.length - 1 ? 'tot' : ''}"><td>${escHtml(r[0])}</td><td class="r">${formatPrice(r[1])}</td></tr>`).join('')}
+      </tbody></table>
+      ${pays.length ? `<table><thead><tr><th>Pagos / abonos</th><th>Medio</th><th>Nota</th><th class="r">Valor</th></tr></thead><tbody>${pays.map(p => `<tr><td>${fmtDate(p.date)}</td><td>${PM[p.method] || p.method}</td><td>${escHtml(p.notes || '')}</td><td class="r">${formatPrice(p.amount)}</td></tr>`).join('')}<tr class="tot"><td colspan="3">Saldo pendiente</td><td class="r">${formatPrice(x.balance || 0)}</td></tr></tbody></table>` : ''}
+      ${x.notes ? `<p><b>Notas:</b> ${escHtml(x.notes)}</p>` : ''}
+      <div class="sign"><div>Elaboró: ${escHtml(x.createdBy || '')}</div><div>Recibí conforme (firma y documento)</div></div>
+      <div class="foot">Comprobante generado por el POS · ${escHtml(st.businessName)}</div>`;
+    printDocument(html, `Gasto-${expenseNumber(x.number)}`);
+  } catch (err: any) { alert(err.message || 'No se pudo imprimir'); }
+}
+
 const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCategory[]; suppliers: Supplier[]; isAdmin: boolean }) => {
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(getColombiaTodayStr());
@@ -522,7 +558,7 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
             <option value="">Todos</option><option value="paid">Pagados</option><option value="pending">Pendientes</option>
           </select></div>
         <div className="flex-1 min-w-[160px]"><label className={LABEL}>Buscar</label>
-          <div className="relative"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Descripción, proveedor o factura" className={cn(INPUT, 'py-1.5 text-xs pl-8')} /></div></div>
+          <div className="relative"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="N.º, descripción, proveedor o factura" className={cn(INPUT, 'py-1.5 text-xs pl-8')} /></div></div>
         <button onClick={() => setModal({ open: true, expense: null })} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab hover:opacity-90">
           <Plus size={14} /> Nuevo gasto
         </button>
@@ -543,7 +579,7 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
                 <li key={e.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20">
                   <div className="w-9 h-9 rounded-lg bg-brand-card border border-border flex items-center justify-center text-lg shrink-0">{e.categoryEmoji}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-brand-dark truncate">{e.description}</p>
+                    <p className="text-sm font-semibold text-brand-dark truncate"><span className="font-mono text-[11px] text-muted-foreground mr-1.5" data-expense-number>N.º {expenseNumber(e.number)}</span>{e.description}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
                       {fmtDate(e.date)} · {e.categoryName}{e.supplierName ? ` · ${e.supplierName}` : ''}{e.invoiceNumber ? ` · Fac. ${e.invoiceNumber}` : ''}{e.fromCashRegister ? ' · desde caja' : ''}{e.retention ? ` · ret. ${formatPrice(e.retention)}` : ''}{e.supportDocNumber ? ` · DS ${e.supportDocNumber}` : ''}
                     </p>
@@ -551,6 +587,7 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
                   <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground"><PM size={12} /> {PAYMENT_META[e.paymentMethod]?.label}</span>
                   <StatusPill e={e} />
                   <p className="text-sm font-bold text-brand-primary w-24 text-right">{formatPrice(e.amount)}</p>
+                  <button onClick={() => printExpenseVoucher(e)} title="Imprimir comprobante" data-print-expense className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Printer size={14} /></button>
                   {isAdmin && e.source === 'manual' && (
                     <div className="flex items-center">
                       <button onClick={() => setModal({ open: true, expense: e })} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Edit2 size={14} /></button>
@@ -594,7 +631,7 @@ const PayablesTab = () => {
               <li key={e.id} className={cn('flex items-center gap-3 px-4 py-3', e.overdue && 'bg-red-50/60')}>
                 <div className="w-9 h-9 rounded-lg bg-brand-card border border-border flex items-center justify-center text-lg shrink-0">{e.categoryEmoji}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-brand-dark truncate">{e.description}</p>
+                  <p className="text-sm font-semibold text-brand-dark truncate"><span className="font-mono text-[11px] text-muted-foreground mr-1.5">N.º {expenseNumber(e.number)}</span>{e.description}</p>
                   <p className="text-[11px] text-muted-foreground truncate">{e.supplierName || 'Sin proveedor'} · registrado {fmtDate(e.date)}{e.invoiceNumber ? ` · Fac. ${e.invoiceNumber}` : ''}</p>
                 </div>
                 <div className="text-right">
@@ -602,6 +639,7 @@ const PayablesTab = () => {
                   <StatusPill e={e} />
                 </div>
                 <div className="w-28 text-right"><p className="text-sm font-bold text-brand-primary">{formatPrice(e.balance ?? e.amount)}</p>{(e.paidAmount || 0) > 0 && <p className="text-[10px] text-muted-foreground">abonado {formatPrice(e.paidAmount || 0)}</p>}</div>
+                <button onClick={() => printExpenseVoucher(e)} title="Imprimir comprobante" className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary"><Printer size={14} /></button>
                 <button onClick={() => setPaying(e)} className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold whitespace-nowrap">{(e.paidAmount || 0) > 0 ? 'Abonar' : 'Pagar'}</button>
               </li>
             ))}

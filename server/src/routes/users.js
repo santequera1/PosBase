@@ -2,7 +2,7 @@ const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
 const { requireRole } = require('../auth');
-const { VIEWS, ACTIONS, PROFILES, resolvePerms, normalizeUserPerms, profileOf } = require('../permissions');
+const { VIEWS, ACTIONS, PROFILES, resolvePerms, normalizeUserPerms, profileOf, ensureCourierEmployee } = require('../permissions');
 
 const router = Router();
 
@@ -46,6 +46,7 @@ router.post('/', requireRole('admin'), (req, res) => {
 
   const info = db.prepare('INSERT INTO users (username, password, name, role, active, profile, permissions) VALUES (?, ?, ?, ?, 1, ?, ?)')
     .run(username, bcrypt.hashSync(password, 10), name, role, profile, permissions);
+  ensureCourierEmployee(db, Number(info.lastInsertRowid));
   res.status(201).json(mapUser(db.prepare(`${SELECT} WHERE id = ?`).get(info.lastInsertRowid)));
 });
 
@@ -79,6 +80,7 @@ router.put('/:id', requireRole('admin'), (req, res) => {
   } else {
     db.prepare('UPDATE users SET name = ?, role = ?, active = ?, profile = ?, permissions = ? WHERE id = ?').run(name, role, active, profile, permissions, id);
   }
+  ensureCourierEmployee(db, id);
   res.json(mapUser(db.prepare(`${SELECT} WHERE id = ?`).get(id)));
 });
 
@@ -99,6 +101,8 @@ router.delete('/:id', requireRole('admin'), (req, res) => {
     db.prepare('UPDATE users SET active = 0 WHERE id = ?').run(id);
     return res.json({ success: true, deactivated: true, message: 'El usuario tiene turnos de caja registrados; se desactivó en lugar de eliminarse' });
   }
+  // El colaborador vinculado (p. ej. repartidor) se conserva en Personal con su historial; solo se desvincula del usuario
+  db.prepare('UPDATE employees SET user_id = NULL WHERE user_id = ?').run(id);
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
   res.json({ success: true, deleted: true });
 });
