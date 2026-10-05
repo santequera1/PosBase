@@ -1334,7 +1334,7 @@ export const POSPage: React.FC = () => {
               </div>
               <p className="font-sans font-bold text-sm text-brand-primary">Cuenta sin ítems</p>
               <p className="text-xs text-brand-muted max-w-xs mt-1 font-sans">
-                Selecciona sabores o productos en el catálogo para agregarlos a {currentTab.name}.
+                Selecciona productos del catálogo para agregarlos a {currentTab.name}.
               </p>
             </div>
           ) : (

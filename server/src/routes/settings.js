@@ -9,7 +9,7 @@ router.get('/', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const settings = {};
   for (const row of rows) {
-    settings[row.key] = isNaN(row.value) ? row.value : Number(row.value);
+    settings[row.key] = row.value === '' || row.value === null || isNaN(row.value) ? row.value : Number(row.value);
   }
   res.json(settings);
 });
@@ -34,7 +34,7 @@ router.put('/', requireRole('admin'), (req, res) => {
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const settings = {};
   for (const row of rows) {
-    settings[row.key] = isNaN(row.value) ? row.value : Number(row.value);
+    settings[row.key] = row.value === '' || row.value === null || isNaN(row.value) ? row.value : Number(row.value);
   }
   res.json(settings);
 });
