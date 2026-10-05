@@ -14,7 +14,7 @@ export const VIEWS: Array<{ key: ViewKey; label: string; description: string; pa
   { key: 'delivery', label: 'Domicilios', description: 'Pedidos a domicilio y repartidores.', path: '/delivery', group: 'Ventas', icon: Bike },
   { key: 'kitchen', label: 'Cocina (monitor)', description: 'Pantalla de comandas de cocina y barra.', path: '/kitchen', group: 'Ventas', icon: ChefHat },
   { key: 'courier', label: 'Mis domicilios (repartidor)', description: 'El repartidor ve sus pedidos asignados, cliente, dirección y cuánto cobrar.', path: '/mis-domicilios', group: 'Ventas', icon: Bike },
-  { key: 'shift', label: 'Cierre de caja', description: 'Abrir y cerrar turnos, arqueo y reporte Z.', path: '/shift', group: 'Caja y pedidos', icon: Wallet },
+  { key: 'shift', label: 'Caja', description: 'Ventas, movimientos, arqueos (abrir y cerrar caja), propinas y descuentos.', path: '/shift', group: 'Caja y pedidos', icon: Wallet },
   { key: 'orders', label: 'Historial de pedidos', description: 'Ver pedidos, reimprimir y cambiar estados.', path: '/orders', group: 'Caja y pedidos', icon: ClipboardList },
   { key: 'reports', label: 'Ventas e ingresos', description: 'Estadísticas de ventas, productos y horas.', path: '/reports', group: 'Caja y pedidos', icon: BarChart3 },
   { key: 'menu', label: 'Menú', description: 'Ver el catálogo y la disponibilidad.', path: '/products', group: 'Catálogo y clientes', icon: Package },
@@ -51,10 +51,10 @@ export const canDo = (user: PermUser | null | undefined, action: ActionKey): boo
   return (user.perms?.actions || []).includes(action);
 };
 /** Primera sección permitida: a dónde entra la persona al iniciar sesión o cuando una URL no le corresponde. */
-export const homePath = (user: PermUser | null | undefined, modules?: { tables?: boolean; counter?: boolean; delivery?: boolean; kitchen?: boolean } | null): string => {
+export const homePath = (user: PermUser | null | undefined, modules?: { tables?: boolean; counter?: boolean; delivery?: boolean; kitchen?: boolean } | null, hidden: string[] = []): string => {
   if (!user) return '/login';
   const enabled = (k: ViewKey) => !modules || !(['tables', 'counter', 'delivery', 'kitchen'] as ViewKey[]).includes(k) || Boolean(modules[k as keyof typeof modules]);
-  const first = VIEWS.find(v => can(user, v.key) && enabled(v.key));
+  const first = VIEWS.find(v => can(user, v.key) && enabled(v.key) && !hidden.includes(v.key)) || VIEWS.find(v => can(user, v.key) && enabled(v.key));
   return first ? first.path : '/pos';
 };
 /** Vista que corresponde a una ruta (para la protección por URL). */

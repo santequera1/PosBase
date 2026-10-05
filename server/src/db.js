@@ -275,6 +275,9 @@ function migrateSchema() {
   addCol('products', 'min_stock', "INTEGER DEFAULT 0");
   addCol('users', 'profile', 'TEXT');
   addCol('users', 'permissions', 'TEXT');
+  addCol('cash_shifts', 'counted_detail', 'TEXT');
+  addCol('cash_shifts', 'expected_detail', 'TEXT');
+  addCol('cash_shifts', 'total_tips', 'INTEGER DEFAULT 0');
   addCol('orders', 'fe_number', 'TEXT');
   addCol('orders', 'fe_cufe', 'TEXT');
   addCol('orders', 'fe_status', 'TEXT');

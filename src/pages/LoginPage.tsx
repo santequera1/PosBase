@@ -22,7 +22,7 @@ const LoginPage = () => {
     try {
       await loginWithCredentials(username.trim().toLowerCase(), password.trim());
       const s = useStore.getState();
-      navigate(homePath(s.user, s.restaurant?.modules));
+      navigate(homePath(s.user, s.restaurant?.modules, s.hiddenViews));
     } catch (err: any) {
       setError(err.message || 'Usuario o contraseña incorrectos');
     }

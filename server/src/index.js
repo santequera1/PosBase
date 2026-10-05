@@ -59,6 +59,7 @@ app.use('/api/staff', authMiddleware, require('./routes/staff'));
 app.use('/api/restaurant', authMiddleware, require('./routes/restaurant'));
 app.use('/api/accounting', authMiddleware, require('./routes/accounting'));
 app.use('/api/einvoicing', authMiddleware, require('./routes/einvoicing'));
+app.use('/api/caja', authMiddleware, require('./routes/caja'));
 
 // WhatsApp AI Integration (API Key authenticated)
 app.use('/api/whatsapp-ai', require('./routes/whatsappAi'));

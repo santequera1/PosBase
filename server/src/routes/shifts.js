@@ -13,7 +13,7 @@ function getShiftLiveStats(db, shift) {
 
   // Sales totals strictly for this shift
   const orders = db.prepare(`
-    SELECT payment_method, total, payment_split, payment_status, status
+    SELECT payment_method, total, COALESCE(tip, 0) AS tip, payment_split, payment_status, status
     FROM orders
     WHERE status NOT IN ('cancelled', 'open') AND shift_id = ?
   `).all(shift.id);
@@ -26,11 +26,15 @@ function getShiftLiveStats(db, shift) {
   let pendingSales = 0;
   let totalOrders = orders.length;
   let totalSales = 0;
+  // Propinas (se cobran junto con la venta y entran al mismo medio de pago, pero se muestran aparte)
+  const tips = { cash: 0, transfer: 0, card: 0, platform: 0 };
+  const tipKey = m => (m === 'cash' ? 'cash' : m === 'transfer' ? 'transfer' : m === 'platform' ? 'platform' : 'card');
 
   for (const o of orders) {
     totalSales += o.total;
     // Sin pagar (a crédito, domicilio por cobrar, cuenta en curso): no entra a ningún medio de pago todavía
     if (o.payment_status !== 'paid') { pendingSales += o.total; continue; }
+    if (o.tip > 0) { let m = o.payment_method; try { const sp = o.payment_split ? (typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split) : null; if (sp && sp.method1) m = sp.method1; } catch { /* medio principal */ } tips[tipKey(m)] += o.tip; }
     if (o.payment_split) {
       try {
         const split = typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split;
@@ -82,7 +86,11 @@ function getShiftLiveStats(db, shift) {
   `).all(shift.id);
 
   const initialCash = shift.initial_cash !== undefined ? shift.initial_cash : (shift.initialCash || 0);
-  const expectedCash = initialCash + cashSales + totalDeposits - totalWithdrawals;
+  const totalTips = tips.cash + tips.transfer + tips.card + tips.platform;
+  // Efectivo esperado: base + ventas en efectivo + propinas en efectivo + ingresos − retiros
+  const expectedCash = initialCash + cashSales + tips.cash + totalDeposits - totalWithdrawals;
+  // Arqueo por medio de pago (lo que el sistema dice que debe haber en cada medio)
+  const expectedByMethod = { cash: expectedCash, transfer: transferSales + tips.transfer, card: debitSales + creditSales + tips.card };
 
   return {
     ...shift,
@@ -99,6 +107,9 @@ function getShiftLiveStats(db, shift) {
     totalWithdrawals,
     totalDeposits,
     expectedCash,
+    tips,
+    totalTips,
+    expectedByMethod,
     movements,
     flavorStats,
   };
@@ -179,7 +190,9 @@ router.post('/open', requirePerm('shift'), (req, res) => {
 
 // Close shift (Arqueo / Cierre Z)
 router.post('/close', requirePerm('shift'), (req, res) => {
-  const { shiftId, actualCash = 0, notes = '' } = req.body;
+  const { shiftId, notes = '' } = req.body;
+  const counted = req.body.counted && typeof req.body.counted === 'object' ? req.body.counted : null;
+  const actualCash = counted && counted.cash !== undefined && counted.cash !== null && counted.cash !== '' ? counted.cash : (req.body.actualCash ?? 0);
   const db = getDb();
 
   let shift = shiftId
@@ -223,6 +236,9 @@ router.post('/close', requirePerm('shift'), (req, res) => {
     shift.id
   );
 
+  const countedDetail = { cash: countedCash };
+  if (counted) for (const k of ['transfer', 'card']) if (counted[k] !== undefined && counted[k] !== null && counted[k] !== '') countedDetail[k] = Math.round(Number(counted[k]) || 0);
+  db.prepare('UPDATE cash_shifts SET counted_detail = ?, expected_detail = ?, total_tips = ? WHERE id = ?').run(JSON.stringify(countedDetail), JSON.stringify(stats.expectedByMethod), stats.totalTips, shift.id);
   closeAttendanceForShift(db, shift.id);
   const closed = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(shift.id);
   res.json({
@@ -257,6 +273,8 @@ router.get('/:id/report', (req, res) => {
     expectedCash: closed ? (shift.expected_cash || 0) : live.expectedCash,
     actualCash: shift.actual_cash || 0,
     difference: closed ? (shift.difference || 0) : 0,
+    countedDetail: (() => { try { return shift.counted_detail ? JSON.parse(shift.counted_detail) : null; } catch { return null; } })(),
+    expectedByMethod: closed && shift.expected_detail ? (() => { try { return JSON.parse(shift.expected_detail); } catch { return live.expectedByMethod; } })() : live.expectedByMethod,
     notes: shift.notes || '',
     openedAt: shift.opened_at,
     closedAt: shift.closed_at,

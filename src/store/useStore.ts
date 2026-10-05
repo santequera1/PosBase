@@ -256,6 +256,8 @@ interface AppState {
   modeOverride: ThemeMode | null;
   initialized: boolean;
   sidebarCollapsed: boolean;
+  hiddenViews: string[];
+  setHiddenViews: (v: string[]) => void;
 
   // Auth
   loginWithCredentials: (username: string, password: string) => Promise<void>;
@@ -349,6 +351,8 @@ export const useStore = create<AppState>((set, get) => ({
   modeOverride: readModeOverride(),
   initialized: false,
   sidebarCollapsed: false,
+  hiddenViews: [],
+  setHiddenViews: (v) => set({ hiddenViews: v }),
 
   loginWithCredentials: async (username, password) => {
     const { token, user } = await api.login(username, password);
@@ -447,6 +451,7 @@ export const useStore = create<AppState>((set, get) => ({
         taxRate: Number(settings.taxRate) || 0,
         dianResolution: settings.dianResolution ? String(settings.dianResolution) : '',
         branding: brandingFromSettings(settings),
+        hiddenViews: (() => { try { const h = JSON.parse(String(settings.hiddenViews || '[]')); return Array.isArray(h) ? h.filter((x: any) => typeof x === 'string' && x !== 'settings') : []; } catch { return []; } })(),
         initialized: true,
       });
       applyBranding(get().branding, get().businessName);

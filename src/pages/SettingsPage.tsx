@@ -7,8 +7,9 @@ import BrandingPanel from '@/components/settings/BrandingPanel';
 import UsersPanel from '@/components/settings/UsersPanel';
 import RestaurantPanel from '@/components/settings/RestaurantPanel';
 import EinvoicingPanel from '@/components/settings/EinvoicingPanel';
+import SectionsPanel from '@/components/settings/SectionsPanel';
 
-type Tab = 'negocio' | 'marca' | 'usuarios' | 'categorias' | 'restaurante' | 'facturacion' | 'integracion';
+type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'facturacion' | 'integracion';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -155,6 +156,7 @@ const SettingsPage = () => {
     { id: 'usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
     { id: 'categorias', label: 'Categorías', icon: FolderOpen },
     { id: 'restaurante', label: 'Restaurante', icon: UtensilsCrossed, adminOnly: true },
+    { id: 'secciones', label: 'Secciones', icon: ListChecks, adminOnly: true },
     { id: 'facturacion', label: 'Factura electrónica', icon: FileCheck2, adminOnly: true },
     { id: 'integracion', label: 'IA WhatsApp', icon: Bot, adminOnly: true },
   ];
@@ -321,6 +323,7 @@ const SettingsPage = () => {
       {/* ---------- Integración IA WhatsApp ---------- */}
       {tab === 'restaurante' && isAdmin && <RestaurantPanel />}
       {tab === 'facturacion' && isAdmin && <EinvoicingPanel />}
+      {tab === 'secciones' && isAdmin && <SectionsPanel />}
 
       {tab === 'integracion' && isAdmin && (
         <section className="max-w-xl bg-white rounded-2xl border border-brand-primary/15 p-5 shadow-sm space-y-4 font-sans text-left">

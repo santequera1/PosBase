@@ -35,7 +35,7 @@ const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: bool
   ...(modules?.counter ? [{ path: '/counter', label: 'Para llevar', icon: ShoppingBag, view: 'counter' as ViewKey }] : []),
   ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike, view: 'delivery' as ViewKey }] : []),
   ...(modules?.kitchen ? [{ path: '/kitchen', label: 'Cocina', icon: ChefHat, view: 'kitchen' as ViewKey }] : []),
-  { path: '/shift', label: 'Cierre de Caja', icon: Wallet, view: 'shift' },
+  { path: '/shift', label: 'Caja', icon: Wallet, view: 'shift' },
   { path: '/reports', label: 'Ventas e Ingresos', icon: BarChart3, view: 'reports' },
   { path: '/orders', label: 'Historial Pedidos', icon: ClipboardList, view: 'orders' },
   { path: '/products', label: 'Menú', icon: Package, view: 'menu' },
@@ -45,12 +45,16 @@ const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: bool
   { path: '/settings', label: 'Configuración', icon: Settings, view: 'settings' },
 ];
 
-const visibleFor = (items: NavItem[], user?: PermUser | null) => items.filter(i => !i.view || (can(user, i.view) && !(i.view === 'courier' && user?.role === 'admin')));
+const visibleFor = (items: NavItem[], user?: PermUser | null) => {
+  const hidden = useStore.getState().hiddenViews || [];
+  return items.filter(i => !i.view || (can(user, i.view) && !hidden.includes(i.view) && !(i.view === 'courier' && user?.role === 'admin')));
+};
 
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride, restaurant } = useStore();
+  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride, restaurant, hiddenViews } = useStore();
+  void hiddenViews; // re-render del menú al cambiar las secciones visibles
   const isDark = (modeOverride ?? branding.theme?.mode ?? 'light') === 'dark';
   // El personal de cocina solo ve el monitor de cocina
   const visibleNav = visibleFor(navFor(restaurant?.modules), user);
@@ -285,7 +289,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
     ...(modules?.counter ? [{ path: '/counter', label: 'Llevar', icon: ShoppingBag, view: 'counter' as ViewKey }] : []),
     ...(modules?.delivery ? [{ path: '/delivery', label: 'Domicilios', icon: Bike, view: 'delivery' as ViewKey }] : []),
     ...(modules?.kitchen ? [{ path: '/kitchen', label: 'Cocina', icon: ChefHat, view: 'kitchen' as ViewKey }] : []),
-    { path: '/shift', label: 'Turno', icon: Wallet, view: 'shift' },
+    { path: '/shift', label: 'Caja', icon: Wallet, view: 'shift' },
     { path: '/orders', label: 'Pedidos', icon: ClipboardList, view: 'orders' },
     ...(!modules?.tables && !modules?.delivery ? [{ path: '/reports', label: 'Reportes', icon: BarChart3, view: 'reports' as ViewKey }] : []),
   ], user).slice(0, 5);

@@ -233,6 +233,8 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
         <p class="font-bold" style="font-size: 8px; text-decoration: underline; margin-bottom: 2px;">ARQUEO Y CUADRE DE GAVETA:</p>
         <div class="row"><span>Base Inicial en Caja:</span><span style="white-space: nowrap;">${formatPrice(initial)}</span></div>
         <div class="row"><span>+ Efectivo por Ventas:</span><span style="white-space: nowrap;">${formatPrice(cash)}</span></div>
+        ${shiftData.tips && shiftData.tips.cash > 0 ? `<div class="row"><span>+ Propinas en efectivo:</span><span style="white-space: nowrap;">${formatPrice(shiftData.tips.cash)}</span></div>` : ''}
+        ${shiftData.totalDeposits > 0 ? `<div class="row"><span>+ Ingresos de efectivo:</span><span style="white-space: nowrap;">${formatPrice(shiftData.totalDeposits)}</span></div>` : ''}
         ${withdrawals > 0 ? `<div class="row font-bold" style="color: #000;"><span>- Retiros / Gastos:</span><span style="white-space: nowrap;">-${formatPrice(withdrawals)}</span></div>` : ''}
         <div class="row font-bold" style="font-size: 8.5px; border-top: 1px dashed #666; padding-top: 2px;">
           <span>= Efectivo Esperado:</span>
@@ -246,6 +248,8 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
           <span>DIFERENCIA CAJA:</span>
           <span style="white-space: nowrap;">${diff === 0 ? 'Exacto ($0)' : diff > 0 ? '+' + formatPrice(diff) + ' (Sobrante)' : formatPrice(diff) + ' (Faltante)'}</span>
         </div>
+        ${shiftData.totalTips > 0 ? `<div class="row" style="margin-top: 3px;"><span>PROPINAS DEL TURNO:</span><span style="white-space: nowrap;">${formatPrice(shiftData.totalTips)}</span></div>` : ''}
+        ${shiftData.countedDetail && shiftData.expectedByMethod ? `<div style="margin-top: 4px; border-top: 1px dashed #666; padding-top: 2px;"><p class="font-bold" style="font-size: 8px;">ARQUEO POR MEDIO (SISTEMA / CONTADO):</p>${[['cash', 'Efectivo'], ['transfer', 'Transferencias'], ['card', 'Datáfono']].map(([k, l]) => { const e = shiftData.expectedByMethod[k] || 0; const c = shiftData.countedDetail[k] ?? e; const d = c - e; return `<div class="row"><span>${l}: ${formatPrice(e)} / ${formatPrice(c)}</span><span style="white-space: nowrap;">${d === 0 ? 'OK' : (d > 0 ? '+' : '') + formatPrice(d)}</span></div>`; }).join('')}</div>` : ''}
         ${closingNotes ? `<div style="margin-top: 4px; padding: 3px 4px; border: 1px dashed #666; font-size: 7.5px; text-align: left; white-space: normal;"><b>OBSERVACIONES DEL CIERRE:</b><br/>${closingNotes}</div>` : ''}
       </div>
 

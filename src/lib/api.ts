@@ -119,9 +119,14 @@ export const api = {
   openShift: (data: { initialCash: number; cashierName?: string; notes?: string }) =>
     request<any>('/shifts/open', { method: 'POST', body: JSON.stringify(data) }),
   getShiftReport: (id: number) => request<any>(`/shifts/${id}/report`),
-  closeShift: (data: { shiftId?: number; actualCash: number; notes?: string }) =>
+  closeShift: (data: { shiftId?: number; actualCash?: number; counted?: { cash: number; transfer: number; card: number }; notes?: string }) =>
     request<any>('/shifts/close', { method: 'POST', body: JSON.stringify(data) }),
   getShiftsHistory: () => request<any[]>('/shifts/history'),
+  getCajaSales: (params: Record<string, any> = {}) => request<any>(`/caja/sales${qstr(params)}`),
+  getCajaTips: (params: Record<string, any> = {}) => request<any>(`/caja/tips${qstr(params)}`),
+  getCajaDiscounts: (params: Record<string, any> = {}) => request<any>(`/caja/discounts${qstr(params)}`),
+  getCajaMovements: (params: Record<string, any> = {}) => request<any>(`/caja/movements${qstr(params)}`),
+  getCajaShifts: () => request<any[]>('/caja/shifts'),
   addCashMovement: (data: { shiftId?: number; amount: number; reason: string; type?: 'withdrawal' | 'deposit'; cashierName?: string }) =>
     request<any>('/shifts/movement', { method: 'POST', body: JSON.stringify(data) }),
   getCashMovements: (shiftId?: number) =>

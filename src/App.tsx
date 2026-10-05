@@ -28,6 +28,7 @@ import OpenOrderPage from "@/pages/OpenOrderPage";
 import NotFound from "@/pages/NotFound";
 import NoAccess from "@/pages/NoAccess";
 import CourierPage from "@/pages/CourierPage";
+import CajaPage from "@/pages/CajaPage";
 import { can, homePath, type ViewKey } from "@/lib/permissions";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -42,12 +43,16 @@ const Guard = ({ view, children }: { view: ViewKey | ViewKey[]; children: any })
   const refreshMe = useStore(s => s.refreshMe);
   const location = useLocation();
   useEffect(() => { refreshMe(); }, [location.pathname, refreshMe]);
+  const hidden = useStore(s => s.hiddenViews);
+  const views = Array.isArray(view) ? view : [view];
+  if (views.every(v => hidden.includes(v))) return <NoAccess view={view} hidden />;
   return can(user, view) ? children : <NoAccess view={view} />;
 };
 const Home = () => {
   const user = useStore(s => s.user);
   const modules = useStore(s => s.restaurant?.modules);
-  return <Navigate to={homePath(user, modules)} replace />;
+  const hidden = useStore(s => s.hiddenViews);
+  return <Navigate to={homePath(user, modules, hidden)} replace />;
 };
 
 const ProtectedRoutes = () => {
@@ -112,7 +117,8 @@ const App = () => (
           <Route element={<ProtectedRoutes />}>
             <Route path="/" element={<Home />} />
             <Route path="/pos" element={<Guard view="pos"><POSPage /></Guard>} />
-            <Route path="/shift" element={<Guard view="shift"><CashShiftPage /></Guard>} />
+            <Route path="/shift" element={<Guard view="shift"><CajaPage /></Guard>} />
+            <Route path="/shift/classic" element={<Guard view="shift"><CashShiftPage /></Guard>} />
             <Route path="/dashboard" element={<Guard view="reports"><DashboardPage /></Guard>} />
             <Route path="/orders" element={<Guard view="orders"><OrdersPage /></Guard>} />
             <Route path="/orders/new" element={<Guard view={['orders', 'pos']}><NewOrderPage /></Guard>} />

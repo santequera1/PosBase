@@ -1,12 +1,18 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole, requirePerm } = require('../auth');
+const { requireRole, requirePerm, hasView } = require('../auth');
 const { registerCashWithdrawal, removeCashMovementIfOpen, today, now, isDate } = require('../cashHelpers');
 const payroll = require('../payroll');
 const L = require('../ledger');
 
 const router = Router();
-router.use(requirePerm('staff'));
+// Personal completo exige la sección 'Personal'; quien maneja la caja puede registrar propinas, anticipos y asistencia y consultar la lista de colaboradores
+const CASH_OPS = ['GET /employees', 'GET /tips', 'POST /tips', 'GET /advances', 'POST /advances', 'GET /attendance', 'POST /attendance'];
+router.use((req, res, next) => {
+  if (hasView(req.user, 'staff')) return next();
+  if (hasView(req.user, 'shift') && CASH_OPS.includes(req.method + ' ' + req.path.replace(/[/]+$/, ''))) return next();
+  return res.status(403).json({ error: 'No tienes permiso para esta sección o acción. Pídele acceso al administrador.', permission: 'staff' });
+});
 router.use(L.syncOnWrite(getDb));
 const ADMIN = requireRole('admin');
 const STAFF = requireRole('admin', 'cashier');
