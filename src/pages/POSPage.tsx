@@ -1,4 +1,5 @@
 import { Receipt as ReceiptIcon, Printer as PrinterIcon } from 'lucide-react';
+import { staffDiscountFor } from '@/lib/restaurant';
 import { formatTime } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
 import { BRAND } from '@/lib/theme';
@@ -75,6 +76,7 @@ interface TabOrder {
   cashReceived: string;
   discountType?: 'percent' | 'fixed';
   discountValue?: number;
+  staffEmployeeId?: number;
 }
 
 const DEFAULT_CUSTOMER = {
@@ -295,13 +297,17 @@ export const POSPage: React.FC = () => {
   // Totals Calculation with Discount
   const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.price * item.quantity, 0), [cart]);
 
+  const restaurantCfg = useStore(s => s.restaurant);
+  const staffEmployeeId = currentTab.staffEmployeeId || 0;
+  const staffDisc = useMemo(() => staffDiscountFor(cart, products, restaurantCfg), [cart, products, restaurantCfg]);
   const discountAmount = useMemo(() => {
+    if (staffEmployeeId) return staffDisc.amount;
     if (discountValue <= 0) return 0;
     if (discountType === 'percent') {
       return Math.round((subtotal * Math.min(100, discountValue)) / 100);
     }
     return Math.min(subtotal, discountValue);
-  }, [subtotal, discountType, discountValue]);
+  }, [subtotal, discountType, discountValue, staffEmployeeId, staffDisc.amount]);
 
   const total = Math.max(0, subtotal - discountAmount);
   const numericCash = Number(cashReceived) || 0;
@@ -670,6 +676,7 @@ export const POSPage: React.FC = () => {
         subtotal,
         deliveryFee: 0,
         discount: discountAmount,
+        ...(staffEmployeeId ? { staffDiscountEmployeeId: staffEmployeeId } : {}),
         total,
         paymentMethod,
         paymentSplit: finalSplit,
@@ -1492,6 +1499,8 @@ export const POSPage: React.FC = () => {
         discountAmount={discountAmount}
         discountType={discountType}
         discountValue={discountValue}
+        staffEmployeeId={staffEmployeeId}
+        staffDiscount={staffDisc}
         total={total}
         paymentMethod={paymentMethod}
         paymentSplit={paymentSplit}

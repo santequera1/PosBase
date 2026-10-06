@@ -10,8 +10,7 @@ import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { NewOrderModal } from '@/components/restaurant/NewOrderModal';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { elapsedLabel, minutesSince, type Room, type RestaurantTable } from '@/lib/restaurant';
-import { printThermal } from '@/lib/thermalPrint';
-import { generatePreBillHtml } from '@/lib/restaurantPrint';
+import { printPreBill } from '@/lib/netPrint';
 
 const STATE_STYLE: Record<string, string> = {
   free: 'bg-emerald-500/90 text-white border-emerald-600 hover:bg-emerald-500',
@@ -105,7 +104,7 @@ const TablesPage = () => {
     if (!t.order) return;
     try {
       const o = await api.setRestaurantStatus(t.order.id, 'billing');
-      printThermal(generatePreBillHtml(o, restaurant?.tipDineIn ? restaurant.tipPercent : 0), `Precuenta-${o.id}`);
+      printPreBill(o, restaurant?.tipDineIn ? restaurant.tipPercent : 0);
       load();
     } catch (e: any) { toast.error(e.message); }
   };

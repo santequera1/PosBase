@@ -11,7 +11,7 @@ import { NewOrderModal } from '@/components/restaurant/NewOrderModal';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle, PAYMENT_LABEL } from '@/lib/restaurant';
-import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
+import { printReceipt } from '@/lib/netPrint';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
   { key: 'pending', title: 'Pendientes', match: s => s === 'open' || s === 'pending', cls: 'border-amber-200 bg-amber-50/50' },
@@ -43,7 +43,7 @@ const DeliveryPage = () => {
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
   const actionsFor = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
-    const print: CardAction = { label: 'Ticket', icon: Printer, onClick: () => printThermal(generateSalesTicketHtml(o), `Domicilio-${o.id}`) };
+    const print: CardAction = { label: 'Ticket', icon: Printer, onClick: () => printReceipt(o) };
     if (o.status === 'open') return [view];
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
     if (o.status === 'shipped') return [{ label: 'Entregado', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view, print];
@@ -104,7 +104,7 @@ const DeliveryPage = () => {
                       <td className="px-3 py-1.5">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
                       <td className="px-3 py-1.5 text-right">{formatPrice(o.deliveryFee || 0)}</td>
                       <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
-                      <td className="px-3 py-1.5 text-right">{o.paymentStatus !== 'paid' ? <button onClick={() => setClosing(o)} className="text-brand-primary font-semibold hover:underline">Cobrar</button> : <button onClick={() => printThermal(generateSalesTicketHtml(o), `Domicilio-${o.id}`)} className="text-brand-primary hover:underline flex items-center gap-1 ml-auto"><Printer size={12} /> Ticket</button>}</td>
+                      <td className="px-3 py-1.5 text-right">{o.paymentStatus !== 'paid' ? <button onClick={() => setClosing(o)} className="text-brand-primary font-semibold hover:underline">Cobrar</button> : <button onClick={() => printReceipt(o)} className="text-brand-primary hover:underline flex items-center gap-1 ml-auto"><Printer size={12} /> Ticket</button>}</td>
                     </tr>
                   ))}
                 </tbody></table></div>

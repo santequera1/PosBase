@@ -137,6 +137,9 @@ export interface Order {
   closedAt?: string;
   closedBy?: string;
   discountReason?: string;
+  discountKind?: 'staff' | 'manual';
+  discountEmployeeId?: number;
+  discountEmployeeName?: string;
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;

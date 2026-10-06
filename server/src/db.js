@@ -3,9 +3,11 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const { initModulesSchema } = require('./modules');
 const { initRestaurantSchema } = require('./restaurantSchema');
+const { initPayrollExtras } = require('./payrollExtras');
+const { initPrintingSchema } = require('./printing');
 const { initAccountingSchema } = require('./accountingSchema');
 
-const DB_PATH = path.join(__dirname, '..', 'data.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data.db');
 
 let db;
 
@@ -17,6 +19,8 @@ function getDb() {
     initSchema();
     migrateSchema();
     initModulesSchema(db);
+    initPayrollExtras(db);
+    initPrintingSchema(db);
     initRestaurantSchema(db);
     initAccountingSchema(db);
     seedIfEmpty();

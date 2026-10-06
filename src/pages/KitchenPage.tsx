@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { elapsedLabel, minutesSince, TYPE_LABEL, CHANNEL_LABEL, STATION_LABEL, type KitchenTicket, type Channel } from '@/lib/restaurant';
 import { kitchenTicketFromKds } from '@/lib/restaurantPrint';
 import { printThermal } from '@/lib/thermalPrint';
+import { printKitchenBatch, netPrintOn } from '@/lib/netPrint';
 
 const AUTOPRINT_KEY = 'kds-autoprint';
 
@@ -26,7 +27,7 @@ const KitchenPage = () => {
   const seen = useRef<Set<string> | null>(null);
   const printing = useRef(false);
   const printTicket = useCallback(async (t: KitchenTicket) => {
-    await printThermal(kitchenTicketFromKds(t, station || undefined), `Comanda-${t.orderId}-${t.batch}`);
+    await printKitchenBatch(t.orderId, t.batch, () => printThermal(kitchenTicketFromKds(t, station || undefined), `Comanda-${t.orderId}-${t.batch}`));
   }, [station]);
   const toggleAutoPrint = () => { const v = !autoPrint; setAutoPrint(v); try { localStorage.setItem(AUTOPRINT_KEY, v ? '1' : '0'); } catch { /* sin almacenamiento */ } toast.success(v ? `Las comandas nuevas${station ? ' de ' + STATION_LABEL[station] : ''} se imprimirán solas en este equipo` : 'Impresión automática desactivada en este equipo'); };
   const chooseStation = (id: string) => { setStation(id); seen.current = null; try { localStorage.setItem('kds-station', id); } catch { /* sin almacenamiento */ } };
@@ -40,7 +41,7 @@ const KitchenPage = () => {
       else {
         const fresh = list.filter(t => t.kitchenStatus === 'new' && !seen.current!.has(t.key));
         fresh.forEach(t => seen.current!.add(t.key));
-        if (autoPrint && fresh.length && !printing.current) { printing.current = true; try { for (const t of fresh) await printTicket(t); } finally { printing.current = false; } }
+        if (autoPrint && !netPrintOn() && fresh.length && !printing.current) { printing.current = true; try { for (const t of fresh) await printTicket(t); } finally { printing.current = false; } }
       }
     } catch (e: any) { toast.error(e.message); }
     setLoading(false);

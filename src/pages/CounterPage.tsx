@@ -11,7 +11,7 @@ import { NewOrderModal } from '@/components/restaurant/NewOrderModal';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle } from '@/lib/restaurant';
-import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
+import { printReceipt } from '@/lib/netPrint';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
   { key: 'pending', title: 'Pendientes', match: s => s === 'open' || s === 'pending', cls: 'border-amber-200 bg-amber-50/50' },
@@ -82,7 +82,7 @@ const CounterPage = () => {
                   <td className="px-3 py-1.5">{(o.deliveredAt || o.createdAt).slice(11, 16)}</td>
                   <td className="px-3 py-1.5 truncate max-w-[280px]">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</td>
                   <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
-                  <td className="px-3 py-1.5 text-right"><button onClick={() => printThermal(generateSalesTicketHtml(o), `Factura-${o.id}`)} className="text-brand-primary hover:underline flex items-center gap-1 ml-auto"><Printer size={12} /> Ticket</button></td>
+                  <td className="px-3 py-1.5 text-right"><button onClick={() => printReceipt(o)} className="text-brand-primary hover:underline flex items-center gap-1 ml-auto"><Printer size={12} /> Ticket</button></td>
                 </tr>
               ))}
             </tbody>

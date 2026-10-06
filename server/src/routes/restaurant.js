@@ -8,7 +8,7 @@ const { requireRole, requirePerm, hasAction } = require('../auth');
 const { formatOrder } = require('../orderFormat');
 const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, getProduct, emitProduct } = require('../stock');
 const { getOpenShift, now, today, isDate } = require('../cashHelpers');
-const { readRestaurantConfig, saveRestaurantConfig, staffLists, CHANNELS, STATIONS } = require('../restaurantSchema');
+const { readRestaurantConfig, saveRestaurantConfig, staffLists, computeStaffDiscount, staffDiscountEmployee, CHANNELS, STATIONS } = require('../restaurantSchema');
 
 const L = require('../ledger');
 
@@ -46,6 +46,7 @@ function sendUnsent(db, io, order, userName) {
   }
   applySaleStock(db, io, order.id, unsent.map(i => ({ productId: i.product_id, quantity: i.quantity })), userName);
   if (order.status === 'open' && order.type !== 'dine-in') db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('pending', order.id);
+  require('../printing').autoKitchen(db, order.id, batch, userName);
   return batch;
 }
 
@@ -419,10 +420,27 @@ router.post('/orders/:id/close', (req, res) => {
   if (!itemsCount) return res.status(400).json({ error: 'La cuenta no tiene productos' });
 
   sendUnsent(db, req.app.io, order, req.user?.name);
-  const discount = Math.max(0, Math.round(Number(b.discount ?? order.discount) || 0));
+  let discount = Math.max(0, Math.round(Number(b.discount ?? order.discount) || 0));
+  let discountReason = discount > 0 ? String(b.discountReason || order.discount_reason || '').trim() : null;
+  // Descuento de trabajador: el servidor calcula el porcentaje sobre los productos que no son bebidas
+  let staffEmp = null;
+  if (b.staffDiscountEmployeeId) {
+    if (!cfg.staffDiscountEnabled) return res.status(400).json({ error: 'El descuento de trabajador está desactivado' });
+    staffEmp = staffDiscountEmployee(db, b.staffDiscountEmployeeId);
+    if (!staffEmp) return res.status(400).json({ error: 'Trabajador no encontrado o inactivo' });
+    const items = db.prepare('SELECT product_id AS productId, price, quantity FROM order_items WHERE order_id = ?').all(order.id);
+    const sd = computeStaffDiscount(db, items, cfg);
+    discount = sd.amount;
+    discountReason = `Descuento de trabajador ${sd.pct}%: ${staffEmp.name}`;
+  }
   if (discount > 0 && discount !== (order.discount || 0) && !hasAction(req.user, 'discounts')) return res.status(403).json({ error: 'No tienes permiso para aplicar descuentos. Pídele a un administrador.' });
   const tip = Math.max(0, Math.round(Number(b.tip ?? order.tip) || 0));
-  db.prepare('UPDATE orders SET discount = ?, discount_reason = ?, tip = ?, tip_to = ? WHERE id = ?').run(discount, discount > 0 ? String(b.discountReason || order.discount_reason || '').trim() : null, tip, tip > 0 ? (b.tipTo === 'waiter' ? 'waiter' : 'common') : null, order.id);
+  db.prepare('UPDATE orders SET discount = ?, discount_reason = ?, tip = ?, tip_to = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ? WHERE id = ?')
+    .run(discount, discount > 0 ? discountReason : null, tip, tip > 0 ? (b.tipTo === 'waiter' ? 'waiter' : 'common') : null,
+      staffEmp && discount > 0 ? 'staff' : (discount > 0 ? (b.staffDiscountEmployeeId === undefined && order.discount_kind === 'staff' && discount === order.discount ? 'staff' : 'manual') : null),
+      staffEmp && discount > 0 ? staffEmp.id : (discount > 0 && b.staffDiscountEmployeeId === undefined && order.discount_kind === 'staff' && discount === order.discount ? order.discount_employee_id : null),
+      staffEmp && discount > 0 ? staffEmp.name : (discount > 0 && b.staffDiscountEmployeeId === undefined && order.discount_kind === 'staff' && discount === order.discount ? order.discount_employee_name : null),
+      order.id);
   recomputeTotals(db, order.id);
   const fresh = getOrder(db, order.id);
   const due = fresh.total + tip;

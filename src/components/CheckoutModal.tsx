@@ -11,7 +11,10 @@ import {
   ArrowLeft,
   Sparkles,
   ShoppingBag,
+  BadgePercent,
 } from 'lucide-react';
+import { useStore } from '@/store/useStore';
+import { allStaff } from '@/lib/restaurant';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -29,6 +32,8 @@ interface CheckoutModalProps {
   discountAmount: number;
   discountType: 'percent' | 'fixed';
   discountValue: number;
+  staffEmployeeId?: number;
+  staffDiscount?: { pct: number; eligible: number; excludedTotal: number; amount: number };
   total: number;
   paymentMethod: PaymentMethod;
   paymentSplit: PaymentSplit;
@@ -49,6 +54,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   discountAmount,
   discountType,
   discountValue,
+  staffEmployeeId = 0,
+  staffDiscount,
   total,
   paymentMethod,
   paymentSplit,
@@ -59,6 +66,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onConfirmCheckout,
 }) => {
   const [showDiscountInput, setShowDiscountInput] = useState(false);
+  const [pickStaff, setPickStaff] = useState(false);
+  const restaurant = useStore(s => s.restaurant);
+  const staffList = allStaff(restaurant);
+  const staffName = staffList.find(s => s.id === staffEmployeeId)?.name || '';
 
   if (!isOpen) return null;
 
@@ -446,8 +457,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             )}
 
+            {/* Descuento de trabajador: % en todo menos bebidas */}
+            {restaurant?.staffDiscountEnabled !== false && staffList.length > 0 && (
+              <div className="pt-2" data-staff-discount>
+                {staffEmployeeId ? (
+                  <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-emerald-800 flex items-center gap-1.5"><BadgePercent size={14} /> Trabajador: {staffName}</span>
+                      <button type="button" onClick={() => onUpdateTab({ staffEmployeeId: 0 } as any)} className="text-xs text-red-600 hover:underline flex items-center gap-0.5"><X size={12} /> Quitar</button>
+                    </div>
+                    {staffDiscount && <p className="text-emerald-800 mt-1">{staffDiscount.pct}% sobre {formatPrice(staffDiscount.eligible)} = <b>− {formatPrice(staffDiscount.amount)}</b>{staffDiscount.excludedTotal > 0 ? ` · bebidas sin descuento: ${formatPrice(staffDiscount.excludedTotal)}` : ''}</p>}
+                  </div>
+                ) : pickStaff ? (
+                  <div className="rounded-xl border border-brand-accent/50 bg-white p-2.5 space-y-1.5">
+                    <select autoFocus defaultValue="" onChange={e => { const id = Number(e.target.value); if (id) { onUpdateTab({ staffEmployeeId: id, discountValue: 0 } as any); setPickStaff(false); } }} className="w-full p-2 text-xs font-semibold rounded-xl border border-gray-200 bg-white" data-staff-select>
+                      <option value="" disabled>¿A qué trabajador?</option>
+                      {staffList.map(s => <option key={s.id} value={s.id}>{s.name}{s.position ? ` · ${s.position}` : ''}</option>)}
+                    </select>
+                    <button type="button" onClick={() => setPickStaff(false)} className="text-[11px] font-semibold text-gray-500 underline">Cancelar</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setPickStaff(true)} className="text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-dashed border-emerald-400 hover:bg-emerald-100">
+                    <BadgePercent size={13} /> Descuento de trabajador ({restaurant?.staffDiscountPct ?? 50}% sin bebidas)
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Discount Section */}
-            <div className="pt-2">
+            {!staffEmployeeId && <div className="pt-2">
               <div className="flex items-center justify-between">
                 <button
                   type="button"
@@ -527,7 +565,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* Notes */}
             <div>

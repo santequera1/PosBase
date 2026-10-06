@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Plus, Edit2, Trash2, UsersRound, CalendarCheck, HandCoins, PiggyBank, FileSpreadsheet, Search, Banknote, ArrowLeftRight, CreditCard,
-  CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2,
+  CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2, ClipboardList, Upload,
 } from 'lucide-react';
+import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal } from '@/components/staff/StaffExtras';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
@@ -12,14 +13,14 @@ import { Modal, Chip, KpiCard, INPUT, LABEL, fmtDate, fmtTime, periodPresets } f
 /* ------------------------------------------------------------------ */
 /* Tipos y constantes                                                   */
 /* ------------------------------------------------------------------ */
-type Tab = 'colaboradores' | 'asistencia' | 'propinas' | 'anticipos' | 'liquidaciones';
+type Tab = 'colaboradores' | 'asistencia' | 'propinas' | 'anticipos' | 'novedades' | 'liquidaciones';
 type PayMode = 'monthly' | 'biweekly' | 'per_shift' | 'per_day' | 'hourly';
 
 interface Employee {
   id: number; userId: number | null; name: string; document: string; phone: string; email: string; position: string;
   payMode: PayMode; payModeLabel: string; baseAmount: number; startDate: string | null; active: boolean; notes: string;
   monthAttendance: number; monthHours: number; unsettledAdvances: number;
-  hoursPerDay: number; overtime: boolean; legalDeductions: boolean; transportAllowance: boolean;
+  hoursPerDay: number; overtime: boolean; legalDeductions: boolean; transportAllowance: boolean; tipPoints: number;
 }
 
 const PAY_MODES: Array<{ id: PayMode; label: string; hint: string }> = [
@@ -29,7 +30,7 @@ const PAY_MODES: Array<{ id: PayMode; label: string; hint: string }> = [
   { id: 'biweekly', label: 'Quincenal fijo', hint: 'Sueldo fijo por quincena' },
   { id: 'monthly', label: 'Mensual fijo', hint: 'Sueldo fijo por mes' },
 ];
-const POSITIONS = ['Cajero', 'Heladero', 'Administrador', 'Ayudante', 'Cocina', 'Domiciliario', 'Otro'];
+const POSITIONS = ['Mesero', 'Cajero', 'Cocina', 'Auxiliar de cocina', 'Bartender', 'Administrador', 'Domiciliario', 'Oficios varios', 'Heladero', 'Ayudante', 'Otro'];
 const METHOD_META: Record<string, { label: string; icon: any }> = {
   cash: { label: 'Efectivo', icon: Banknote },
   transfer: { label: 'Transferencia', icon: ArrowLeftRight },
@@ -48,6 +49,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
     startDate: employee?.startDate || '', userId: employee?.userId || 0, notes: employee?.notes || '', active: employee ? employee.active : true,
     hoursPerDay: employee ? String(employee.hoursPerDay || 8) : '8', overtime: employee ? employee.overtime : true,
     legalDeductions: employee ? employee.legalDeductions : false, transportAllowance: employee ? employee.transportAllowance : false,
+    tipPoints: employee ? String(employee.tipPoints ?? 1) : '1',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +57,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
   const save = async () => {
     setSaving(true); setError('');
     try {
-      const payload = { ...form, baseAmount: Number(form.baseAmount) || 0, userId: form.userId || null, startDate: form.startDate || null, hoursPerDay: Number(form.hoursPerDay) || 8 };
+      const payload = { ...form, baseAmount: Number(form.baseAmount) || 0, userId: form.userId || null, startDate: form.startDate || null, hoursPerDay: Number(form.hoursPerDay) || 8, tipPoints: form.tipPoints === '' ? 1 : Number(form.tipPoints) };
       if (employee) await api.updateEmployee(employee.id, payload); else await api.addEmployee(payload);
       onSaved();
     } catch (e: any) { setError(e.message); }
@@ -68,7 +70,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
         <div><label className={LABEL}>Documento</label><input value={form.document} onChange={e => set({ document: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Teléfono</label><input value={form.phone} onChange={e => set({ phone: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Cargo</label>
-          <select value={form.position} onChange={e => set({ position: e.target.value })} className={INPUT}>{POSITIONS.map(p => <option key={p}>{p}</option>)}</select></div>
+          <select value={form.position} onChange={e => set({ position: e.target.value })} className={INPUT}>{[...new Set([...POSITIONS, form.position].filter(Boolean))].map(p => <option key={p}>{p}</option>)}</select></div>
         <div><label className={LABEL}>Fecha de ingreso</label><input type="date" value={form.startDate} onChange={e => set({ startDate: e.target.value })} className={INPUT} /></div>
         <div className="sm:col-span-2">
           <label className={LABEL}>Modalidad de pago</label>
@@ -96,6 +98,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
           <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.legalDeductions ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.legalDeductions} onChange={e => set({ legalDeductions: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Salud y pensión</span><span className="text-muted-foreground">Descuenta el aporte del trabajador (4% + 4%) sobre sueldo y extras.</span></span></label>
           <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.transportAllowance ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.transportAllowance} onChange={e => set({ transportAllowance: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Auxilio de transporte</span><span className="text-muted-foreground">Se suma si gana hasta 2 salarios mínimos.</span></span></label>
         </div>
+        <div><label className={LABEL}>Puntos para la propina común</label><input type="number" min={0} max={100} step={0.5} value={form.tipPoints} onChange={e => set({ tipPoints: e.target.value })} className={cn(INPUT, 'font-mono')} data-tip-points /><p className="text-[10px] text-muted-foreground mt-1">Solo si la propina se reparte por puntos (Personal → Propinas). 0 = no participa.</p></div>
         <div className="sm:col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} /></div>
         {employee && (
           <label className="sm:col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={form.active} onChange={e => set({ active: e.target.checked })} /> Colaborador activo</label>
@@ -113,6 +116,7 @@ const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: ()
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [importing, setImporting] = useState(false);
   useEffect(() => { api.getUsers().then(setUsers).catch(() => {}); }, []);
   const remove = async (e: Employee) => {
     if (confirmDelete !== e.id) { setConfirmDelete(e.id); setTimeout(() => setConfirmDelete(null), 3000); return; }
@@ -123,7 +127,10 @@ const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: ()
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <label className="text-xs text-muted-foreground flex items-center gap-1"><input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} /> Mostrar inactivos</label>
-        <button onClick={() => setModal({ open: true, employee: null })} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Nuevo colaborador</button>
+        <div className="flex gap-2">
+          <button onClick={() => setImporting(true)} data-import-employees className="px-3 py-2 rounded-lg border border-border bg-white text-xs font-semibold flex items-center gap-1.5"><Upload size={14} /> Importar desde Excel</button>
+          <button onClick={() => setModal({ open: true, employee: null })} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Nuevo colaborador</button>
+        </div>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -133,7 +140,7 @@ const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: ()
               <div className="w-11 h-11 rounded-full bg-brand-accent/30 text-brand-dark flex items-center justify-center text-base font-bold shrink-0">{e.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-brand-dark truncate">{e.name}</p>
-                <p className="text-[11px] text-muted-foreground">{e.position}{e.userId ? ' · vinculado al sistema' : ''}</p>
+                <p className="text-[11px] text-muted-foreground">{e.position}{e.userId ? ' · vinculado al sistema' : ''}{e.tipPoints !== 1 ? ` · ${e.tipPoints} pts propina` : ''}</p>
                 <p className="text-[11px] text-brand-primary font-semibold">{e.payModeLabel}: {formatPrice(e.baseAmount)}</p>
               </div>
               <div className="flex">
@@ -150,6 +157,7 @@ const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: ()
         {list.length === 0 && <p className="text-xs text-muted-foreground">Aún no hay colaboradores registrados.</p>}
       </div>
       {modal.open && <EmployeeModal employee={modal.employee} users={users} onClose={() => setModal({ open: false, employee: null })} onSaved={() => { setModal({ open: false, employee: null }); reload(); }} />}
+      {importing && <ImportEmployeesModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
     </div>
   );
 };
@@ -465,7 +473,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
     try { setPreview(await api.previewSettlement(employeeId, from, to)); } catch (e: any) { setError(e.message); }
     setCalculating(false);
   };
-  const total = preview ? preview.baseTotal + (preview.extrasTotal || 0) + (preview.allowanceTotal || 0) + preview.tipsTotal + (Number(bonuses) || 0) - preview.advancesTotal - (preview.legalDeductionsTotal || 0) - (Number(deductions) || 0) : 0;
+  const total = preview ? preview.subtotal + (Number(bonuses) || 0) - (Number(deductions) || 0) : 0;
   const save = async () => {
     setError('');
     try {
@@ -510,8 +518,15 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                 {preview.extras && !preview.extras.disabled && preview.extras.lines.length === 0 && preview.extras.hoursSummary.total > 0 && <p className="text-[11px] text-muted-foreground py-1">Sin horas extra ni recargos: las {preview.extras.hoursSummary.total} h del período fueron ordinarias diurnas.</p>}
                 {preview.extras?.disabled && preview.attendance.length > 0 && <p className="text-[11px] text-muted-foreground py-1">Este colaborador no tiene activadas las extras y recargos (edítalo para activarlas).</p>}
                 {preview.allowanceTotal > 0 && <div className="flex justify-between py-1.5"><span>Auxilio de transporte <span className="text-[11px] text-muted-foreground">· {preview.allowance.reason}</span></span><span className="font-semibold">+ {formatPrice(preview.allowanceTotal)}</span></div>}
-                <div className="flex justify-between py-1.5"><span>Propinas directas</span><span>{formatPrice(preview.tipsDirect)}</span></div>
-                <div className="flex justify-between py-1.5"><span>Propinas comunes (su parte)</span><span>{formatPrice(preview.tipsShared)}</span></div>
+                {(preview.novelties || []).map((n: any) => <div key={n.id} className={cn('flex justify-between py-1.5', n.sign < 0 && 'text-red-700')}><span>{n.label}{n.unit !== 'valor' && n.quantity ? <span className="text-[11px] text-muted-foreground"> · {n.quantity} {n.unit}</span> : null}<span className="text-[11px] text-muted-foreground"> · {fmtDate(n.date)}{n.notes ? ` · ${n.notes}` : ''}</span></span><span className={cn('font-semibold', n.sign > 0 && 'text-emerald-700')}>{n.sign > 0 ? '+' : '−'} {formatPrice(n.amount)}</span></div>)}
+                {preview.tipsSeparate ? (
+                  <div className="flex justify-between py-1.5 text-muted-foreground"><span>Propinas del período <span className="text-[11px]">(se pagan aparte en Personal → Propinas)</span></span><span>{formatPrice(preview.tipsAccrued)}</span></div>
+                ) : (
+                  <>
+                    <div className="flex justify-between py-1.5"><span>Propinas directas</span><span>{formatPrice(preview.tipsDirect)}</span></div>
+                    <div className="flex justify-between py-1.5"><span>Propinas comunes (su parte)</span><span>{formatPrice(preview.tipsShared)}</span></div>
+                  </>
+                )}
                 {preview.advances.length > 0 && (
                   <div className="py-1.5">
                     <div className="flex justify-between text-red-700"><span>Anticipos por descontar ({preview.advances.length})</span><span>− {formatPrice(preview.advancesTotal)}</span></div>
@@ -519,6 +534,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                   </div>
                 )}
                 {(preview.legalDeductions?.lines || []).map((l: any) => <div key={l.key} className="flex justify-between py-1.5 text-red-700"><span>{l.label} <span className="text-[11px] text-muted-foreground">· sobre {formatPrice(preview.salaryBase)}</span></span><span>− {formatPrice(l.amount)}</span></div>)}
+                {!(preview.novelties || []).length && <p className="text-[11px] text-muted-foreground py-1 flex items-center gap-1"><ClipboardList size={11} /> Sin novedades en el período (festivos, faltas, bonos, préstamos se registran en la pestaña Novedades).</p>}
                 <div className="grid grid-cols-2 gap-2 py-2">
                   <div><label className={LABEL}>Bonificaciones (+)</label><input type="number" min={0} value={bonuses} onChange={e => setBonuses(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
                   <div><label className={LABEL}>Descuentos (−)</label><input type="number" min={0} value={deductions} onChange={e => setDeductions(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
@@ -551,7 +567,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     <p className="text-sm font-semibold text-brand-dark truncate">{s.employeeName}</p>
                     {s.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1"><CheckCircle2 size={10} /> Pagada</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold flex items-center gap-1"><Clock size={10} /> Pendiente</span>}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)}{s.extrasTotal ? ` + extras ${formatPrice(s.extrasTotal)}` : ''}{s.allowanceTotal ? ` + auxilio ${formatPrice(s.allowanceTotal)}` : ''} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}{s.legalDeductionsTotal ? ` − salud/pensión ${formatPrice(s.legalDeductionsTotal)}` : ''}{s.deductions ? ` − descuentos ${formatPrice(s.deductions)}` : ''}{s.bonuses ? ` + bonos ${formatPrice(s.bonuses)}` : ''}</p>
+                  <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)}{s.extrasTotal ? ` + extras ${formatPrice(s.extrasTotal)}` : ''}{s.allowanceTotal ? ` + auxilio ${formatPrice(s.allowanceTotal)}` : ''} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}{s.legalDeductionsTotal ? ` − salud/pensión ${formatPrice(s.legalDeductionsTotal)}` : ''}{s.deductions ? ` − descuentos ${formatPrice(s.deductions)}` : ''}{s.bonuses ? ` + bonos ${formatPrice(s.bonuses)}` : ''}{(s.noveltiesExtras || 0) + (s.noveltiesBonus || 0) ? ` + novedades ${formatPrice((s.noveltiesExtras || 0) + (s.noveltiesBonus || 0))}` : ''}{(s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0) ? ` − novedades ${formatPrice((s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0))}` : ''}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-brand-primary">{formatPrice(s.total)}</p>
                     <div className="flex gap-1">
@@ -609,6 +625,7 @@ const StaffPage = () => {
     { id: 'asistencia', label: 'Asistencia', icon: CalendarCheck },
     { id: 'propinas', label: 'Propinas', icon: HandCoins },
     { id: 'anticipos', label: 'Anticipos', icon: PiggyBank },
+    { id: 'novedades', label: 'Novedades', icon: ClipboardList, admin: true },
     { id: 'liquidaciones', label: 'Liquidaciones', icon: FileSpreadsheet, admin: true },
   ];
 
@@ -649,8 +666,18 @@ const StaffPage = () => {
         </>
       )}
       {tab === 'asistencia' && <AttendanceTab employees={active} />}
-      {tab === 'propinas' && <TipsTab employees={active} isAdmin={isAdmin} />}
+      {tab === 'propinas' && (
+        <div className="space-y-5">
+          <TipsAccountPanel isAdmin={isAdmin} />
+          <div className="space-y-2">
+            <h3 className="text-sm font-bold text-brand-dark flex items-center gap-1.5"><HandCoins size={15} /> Registro de propinas recibidas</h3>
+            <p className="text-[11px] text-muted-foreground">Las propinas de las cuentas cobradas entran solas. Aquí se anotan además las del bote o las que llegan por fuera.</p>
+            <TipsTab employees={active} isAdmin={isAdmin} />
+          </div>
+        </div>
+      )}
       {tab === 'anticipos' && <AdvancesTab employees={active} isAdmin={isAdmin} />}
+      {tab === 'novedades' && isAdmin && <NoveltiesTab employees={active} />}
       {tab === 'liquidaciones' && isAdmin && <SettlementsTab employees={active} onChanged={reloadAll} />}
     </div>
   );

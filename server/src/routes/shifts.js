@@ -283,3 +283,4 @@ router.get('/:id/report', (req, res) => {
 });
 
 module.exports = router;
+module.exports.getShiftLiveStats = getShiftLiveStats;

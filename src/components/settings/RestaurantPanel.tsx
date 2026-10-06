@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LayoutGrid, ShoppingBag, Bike, ChefHat, Percent, Wallet, Printer, Info } from 'lucide-react';
+import { LayoutGrid, ShoppingBag, Bike, ChefHat, Percent, Wallet, Printer, Info, BadgePercent } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ const MODULES = [
 /** Ajustes → Restaurante: qué módulos se usan, propinas, domicilios y caja obligatoria. */
 export const RestaurantPanel = () => {
   const loadRestaurantConfig = useStore(s => s.loadRestaurantConfig);
+  const categories = useStore(s => s.categories);
   const [cfg, setCfg] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -26,7 +27,7 @@ export const RestaurantPanel = () => {
   const save = async () => {
     setSaving(true); setMsg('');
     try {
-      const saved = await api.updateRestaurantConfig({ modules: cfg.modules, tipPercent: cfg.tipPercent, tipDineIn: cfg.tipDineIn, tipCounter: cfg.tipCounter, tipDelivery: cfg.tipDelivery, deliveryFee: cfg.deliveryFee, deliveryTimes: times, requireOpenShift: cfg.requireOpenShift, autoPrintKitchen: cfg.autoPrintKitchen, kitchenPrintMode: cfg.kitchenPrintMode, stationPrinters: cfg.stationPrinters });
+      const saved = await api.updateRestaurantConfig({ modules: cfg.modules, tipPercent: cfg.tipPercent, tipDineIn: cfg.tipDineIn, tipCounter: cfg.tipCounter, tipDelivery: cfg.tipDelivery, deliveryFee: cfg.deliveryFee, deliveryTimes: times, requireOpenShift: cfg.requireOpenShift, autoPrintKitchen: cfg.autoPrintKitchen, kitchenPrintMode: cfg.kitchenPrintMode, stationPrinters: cfg.stationPrinters, staffDiscountEnabled: cfg.staffDiscountEnabled, staffDiscountPct: cfg.staffDiscountPct, staffDiscountExcluded: cfg.staffDiscountExcluded });
       setCfg(saved); setTimes(saved.deliveryTimes.join(', ')); setMsg('Guardado. El menú lateral se actualiza con los módulos activos.');
       loadRestaurantConfig();
     } catch (e: any) { setMsg(e.message); }
@@ -56,6 +57,23 @@ export const RestaurantPanel = () => {
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!cfg.tipDelivery} onChange={e => set({ tipDelivery: e.target.checked })} /> Domicilios</label>
         </div>
         <p className="text-[11px] text-muted-foreground">Sale como sugerencia en la precuenta y al cobrar; el cliente puede aceptarla, cambiarla o no dejar. Se registra en Personal → Propinas (directa al mesero o común).</p>
+      </section>
+
+      <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3" data-staff-discount-settings>
+        <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><BadgePercent size={14} /> Descuento de trabajador</h3>
+        <div className="grid sm:grid-cols-4 gap-3 items-end">
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={cfg.staffDiscountEnabled !== false} onChange={e => set({ staffDiscountEnabled: e.target.checked })} /> Activo</label>
+          <div><label className={LABEL}>Porcentaje</label><input type="number" min={0} max={100} value={cfg.staffDiscountPct ?? 50} onChange={e => set({ staffDiscountPct: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
+        </div>
+        <div>
+          <label className={LABEL}>Categorías SIN descuento (bebidas)</label>
+          <div className="flex flex-wrap gap-1.5">
+            {categories.map(c => { const on = (cfg.staffDiscountExcluded || []).includes(c.id); return (
+              <Chip key={c.id} active={on} onClick={() => set({ staffDiscountExcluded: on ? cfg.staffDiscountExcluded.filter((x: number) => x !== c.id) : [...(cfg.staffDiscountExcluded || []), c.id] })}>{c.name}</Chip>
+            ); })}
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Al cobrar (mesas, para llevar, domicilios y punto de venta) aparece el botón "Descuento de trabajador": se elige el trabajador y el sistema descuenta el porcentaje en todo menos las categorías marcadas. Queda registrado a quién se le aplicó y se puede filtrar en Ventas e ingresos.</p>
       </section>
 
       <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3">
@@ -99,6 +117,7 @@ export const RestaurantPanel = () => {
         )}
         <div className="text-[11px] text-muted-foreground space-y-1 rounded-lg bg-muted/30 p-3">
           <p className="font-semibold text-brand-dark flex items-center gap-1"><Info size={12} /> Cómo sacar cocina y barra en impresoras distintas</p>
+          <p className="text-brand-dark"><b>Impresoras con IP (red):</b> configúralas en <b>Configuración → Impresoras</b>. Con el agente instalado, las comandas salen solas en cada estación aunque el mesero las envíe desde el celular, sin diálogos. Lo de abajo aplica a la impresión desde el navegador.</p>
           <p>Cada producto tiene su estación (Menú → producto → "Se prepara en"). Con el modo separado, al enviar una comanda salen dos tickets: uno solo con lo de cocina y otro solo con lo de barra.</p>
           <p><b>Opción recomendada:</b> una pantalla de cocina en cada estación (tablet o PC con su impresora conectada), filtrada por su estación y con el botón <b>Imprimir → Auto</b> activado: cada comanda nueva sale sola en la impresora de esa estación, sin pasar por la caja.</p>
           <p><b>Desde la caja:</b> cada ticket abre su propio diálogo de impresión y ahí se elige la impresora indicada arriba. Si el navegador está en modo quiosco (impresión sin diálogo), todo sale en la impresora predeterminada de ese equipo.</p>

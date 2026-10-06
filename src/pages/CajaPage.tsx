@@ -9,6 +9,7 @@ import { downloadXlsx } from '@/lib/xlsx';
 import { canDo } from '@/lib/permissions';
 import { ZReportModal } from '@/components/ZReportModal';
 import { printThermal, generateZReportHtml } from '@/lib/thermalPrint';
+import { printShiftReport } from '@/lib/netPrint';
 
 type Tab = 'ventas' | 'movimientos' | 'arqueos' | 'propinas' | 'descuentos';
 type Period = 'day' | 'week' | 'month' | 'custom';
@@ -277,7 +278,7 @@ const ArqueosTab = ({ shifts, reload }: { shifts: any[]; reload: () => void }) =
     setClosing(false);
   };
   const open = async () => { try { await openShift(Math.round(Number(base) || 0), cashier || user?.name || 'Caja', 'Apertura de turno'); reload(); loadLive(); toast.success('Caja abierta'); } catch (e: any) { toast.error(e.message); } };
-  const printX = async () => { if (live) await printThermal(generateZReportHtml({ ...live, countedDetail: null }, { paperSize: '80mm', isReportX: true }), `Reporte-X-${live.id}`); };
+  const printX = async () => { if (live) await printShiftReport(live.id, 'X', () => printThermal(generateZReportHtml({ ...live, countedDetail: null }, { paperSize: '80mm', isReportX: true }), `Reporte-X-${live.id}`)); };
 
   return (
     <div className="grid lg:grid-cols-[420px_1fr] gap-4 items-start">

@@ -21,7 +21,27 @@ export interface RestaurantConfig {
   channels: Array<{ id: Channel; label: string }>;
   stations: string[];
   staff: { waiters: StaffMember[]; couriers: StaffMember[] };
+  staffDiscountEnabled?: boolean;
+  staffDiscountPct?: number;
+  staffDiscountExcluded?: number[];
+  printMode?: 'browser' | 'agent';
 }
+
+/** Descuento de trabajador: porcentaje sobre los productos fuera de las categorías excluidas (bebidas). Mismo cálculo que el servidor. */
+export function staffDiscountFor(items: Array<{ productId: number; price: number; quantity: number }>, products: Array<{ id: number; categoryId: number }>, cfg: RestaurantConfig | null) {
+  const pct = Math.min(100, Math.max(0, Number(cfg?.staffDiscountPct ?? 50)));
+  const excluded = new Set((cfg?.staffDiscountExcluded || []).map(Number));
+  const catOf = new Map(products.map(p => [p.id, p.categoryId]));
+  let eligible = 0, excludedTotal = 0;
+  for (const it of items) {
+    const line = Math.round((Number(it.price) || 0) * (Number(it.quantity) || 0));
+    const c = catOf.get(it.productId);
+    if (c !== undefined && excluded.has(Number(c))) excludedTotal += line; else eligible += line;
+  }
+  return { pct, eligible, excludedTotal, amount: Math.round((eligible * pct) / 100) };
+}
+/** Todo el personal activo (meseros y domiciliarios) para elegir a quién se le aplica el descuento. */
+export const allStaff = (cfg: RestaurantConfig | null): StaffMember[] => [...(cfg?.staff.waiters || []), ...(cfg?.staff.couriers || [])].sort((a, b) => a.name.localeCompare(b.name));
 export interface StaffMember { id: number; name: string; position: string }
 export interface StationPrinter { enabled: boolean; label: string; copies: number }
 export const PRINT_STATIONS = ['cocina', 'barra'];

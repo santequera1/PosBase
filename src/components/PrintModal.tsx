@@ -3,6 +3,7 @@ import { X, Printer, FileCheck2 } from 'lucide-react';
 import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { formatPrice } from '@/lib/format';
 import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
+import { printReceipt, netPrintOn } from '@/lib/netPrint';
 import { useStore } from '@/store/useStore';
 import { orderNumber } from '@/lib/orderNumber';
 
@@ -42,8 +43,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
   const handlePrint = async () => {
     setIsPrinting(true);
     try {
-      const html = generateSalesTicketHtml(order, { paperSize });
-      await printThermal(html, `Factura-${docNumber}`);
+      if (netPrintOn()) await printReceipt(order);
+      else await printThermal(generateSalesTicketHtml(order, { paperSize }), `Factura-${docNumber}`);
     } catch (e) {
       console.error('Print error:', e);
     } finally {

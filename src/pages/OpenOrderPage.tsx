@@ -10,8 +10,8 @@ import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { ProductPicker } from '@/components/restaurant/ProductPicker';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { orderTitle, statusLabel, STATUS_CLASS, elapsedLabel, CHANNEL_LABEL, TYPE_LABEL, type Channel, isActive } from '@/lib/restaurant';
-import { printThermal } from '@/lib/thermalPrint';
-import { printKitchenTickets, generatePreBillHtml } from '@/lib/restaurantPrint';
+import { printKitchenTickets } from '@/lib/restaurantPrint';
+import { printPreBill, printKitchen, netPrintOn } from '@/lib/netPrint';
 import { canDo } from '@/lib/permissions';
 
 const backPath = (o: Order) => (o.type === 'dine-in' ? '/tables' : o.type === 'pickup' ? '/counter' : '/delivery');
@@ -91,13 +91,13 @@ const OpenOrderPage = () => {
       if (r.batch) {
         lastBatch.current = { batch: r.batch, items: r.items };
         toast.success(`Comanda #${r.batch} enviada a cocina (${r.items.length} producto${r.items.length === 1 ? '' : 's'})`);
-        if (restaurant?.autoPrintKitchen) await printKitchenTickets(r.order, r.items, r.batch, restaurant);
+        if (restaurant?.autoPrintKitchen && !netPrintOn()) await printKitchenTickets(r.order, r.items, r.batch, restaurant);
       } else toast.info('No hay productos nuevos para enviar');
       if (order.type !== 'dine-in') navigate(backPath(order));
     } catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
-  const printLastBatch = () => { if (order && lastBatch.current) printKitchenTickets(order, lastBatch.current.items, lastBatch.current.batch, restaurant); };
+  const printLastBatch = () => { if (order && lastBatch.current) printKitchen(order, lastBatch.current.items, lastBatch.current.batch, restaurant); };
   const prebill = async () => {
     if (!order) return;
     setBusy(true);
@@ -106,7 +106,7 @@ const OpenOrderPage = () => {
       if (draftRef.current.length) { const r = await api.sendToKitchen(orderId); setDraft([]); draftRef.current = []; setOrder(r.order); }
       const o = order.type === 'dine-in' ? await api.setRestaurantStatus(orderId, 'billing') : await api.getOrder(orderId);
       setOrder(o);
-      printThermal(generatePreBillHtml(o, restaurant?.tipDineIn && o.type === 'dine-in' ? restaurant.tipPercent : 0), `Precuenta-${orderId}`);
+      printPreBill(o, restaurant?.tipDineIn && o.type === 'dine-in' ? restaurant.tipPercent : 0);
     } catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };

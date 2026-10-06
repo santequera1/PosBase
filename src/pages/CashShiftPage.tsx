@@ -28,6 +28,7 @@ import { canDo } from '@/lib/permissions';
 import { api } from '@/lib/api';
 import { formatPrice, formatFullDate, formatTime } from '@/lib/format';
 import { printThermal, generateZReportHtml } from '@/lib/thermalPrint';
+import { printShiftReport } from '@/lib/netPrint';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -83,7 +84,7 @@ export const CashShiftPage: React.FC = () => {
     if (!shiftData) return;
     try {
       const html = generateZReportHtml(shiftData, { paperSize: "80mm", isReportX });
-      await printThermal(html, `Reporte-${isReportX ? "X" : "Z"}-Turno-${shiftData.id || 1}`);
+      await printShiftReport(shiftData.id, isReportX ? "X" : "Z", () => printThermal(html, `Reporte-${isReportX ? "X" : "Z"}-Turno-${shiftData.id || 1}`));
     } catch (err) {
       console.error("Error printing report:", err);
       toast.error("Error al imprimir el reporte térmico");

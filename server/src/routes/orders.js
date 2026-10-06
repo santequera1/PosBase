@@ -4,7 +4,7 @@ const { applySaleStock, restoreOrderStock } = require('../stock');
 const { issueElectronicInvoice } = require('../einvoice');
 const L = require('../ledger');
 const { formatOrder } = require('../orderFormat');
-const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
+const { readRestaurantConfig, computeStaffDiscount, staffDiscountEmployee, CHANNELS } = require('../restaurantSchema');
 const { getOpenShift, now } = require('../cashHelpers');
 const CHANNEL_IDS = CHANNELS.map(c => c.id);
 const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
@@ -69,6 +69,8 @@ router.post('/', async (req, res) => {
     channel = 'local',
     label,
     tip = 0,
+    discountReason = '',
+    staffDiscountEmployeeId,
   } = req.body;
 
   if (!items || !items.length || !paymentMethod) {
@@ -85,7 +87,19 @@ router.post('/', async (req, res) => {
 
   const db = getDb();
   if (!METHODS.includes(paymentMethod)) return res.status(400).json({ error: 'Medio de pago inválido' });
-  if (readRestaurantConfig(db).requireOpenShift && !getOpenShift(db)) return res.status(400).json({ error: 'Abre la caja antes de registrar ventas' });
+  const rcfg = readRestaurantConfig(db);
+  if (rcfg.requireOpenShift && !getOpenShift(db)) return res.status(400).json({ error: 'Abre la caja antes de registrar ventas' });
+  // Descuento de trabajador: se valida contra el cálculo del servidor (porcentaje sobre productos que no son bebidas)
+  let staffEmp = null;
+  let reason = String(discountReason || '').trim().slice(0, 160);
+  if (staffDiscountEmployeeId) {
+    if (!rcfg.staffDiscountEnabled) return res.status(400).json({ error: 'El descuento de trabajador está desactivado' });
+    staffEmp = staffDiscountEmployee(db, staffDiscountEmployeeId);
+    if (!staffEmp) return res.status(400).json({ error: 'Trabajador no encontrado o inactivo' });
+    const sd = computeStaffDiscount(db, items, rcfg);
+    if (Math.abs(sd.amount - Math.round(Number(discount) || 0)) > 1) return res.status(400).json({ error: `El descuento de trabajador debe ser ${sd.amount}` });
+    reason = `Descuento de trabajador ${sd.pct}%: ${staffEmp.name}`;
+  }
 
   // Guardar o actualizar el cliente en el directorio cuando trae documento (F.E.) o teléfono
   let customerId = null;
@@ -149,6 +163,8 @@ router.post('/', async (req, res) => {
   );
 
   const orderId = result.lastInsertRowid;
+  if (Number(discount) > 0) db.prepare('UPDATE orders SET discount_reason = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ? WHERE id = ?')
+    .run(reason || null, staffEmp ? 'staff' : 'manual', staffEmp ? staffEmp.id : null, staffEmp ? staffEmp.name : null, orderId);
   const insertItem = db.prepare(`
     INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -169,7 +185,10 @@ router.post('/', async (req, res) => {
 
   applySaleStock(db, req.app.io, orderId, items, req.user?.name);
   // Pedidos que no se entregan de inmediato: todos sus productos salen como primera comanda a cocina
-  if (status !== 'delivered' && status !== 'cancelled') db.prepare("UPDATE order_items SET batch = 1, sent_at = datetime('now', '-5 hours'), kitchen_status = 'pending' WHERE order_id = ?").run(orderId);
+  if (status !== 'delivered' && status !== 'cancelled') {
+    db.prepare("UPDATE order_items SET batch = 1, sent_at = datetime('now', '-5 hours'), kitchen_status = 'pending' WHERE order_id = ?").run(orderId);
+    require('../printing').autoKitchen(db, orderId, 1, req.user?.name);
+  }
   if (isElectronicInvoice) { try { await issueElectronicInvoice(db, orderId); } catch (e) { console.warn('Factura electrónica:', e.message); } }
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   const formatted = formatOrder(db, order);

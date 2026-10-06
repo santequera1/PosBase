@@ -10,8 +10,8 @@ const { readAcctMap, readAcctOptions } = require('./accountingSchema');
 const { taxConfig, splitTax } = require('./accounting');
 const { now, today } = require('./cashHelpers');
 
-const PREFIX = { sale: 'V', payment_in: 'RC', expense: 'G', payment_out: 'CE', payroll: 'N', advance: 'A', shift: 'C', cash: 'C', manual: 'M' };
-const SOURCE_LABEL = { sale: 'Venta', payment_in: 'Recibo de caja', expense: 'Compra / gasto', payment_out: 'Comprobante de egreso', payroll: 'Nómina', advance: 'Anticipo', shift: 'Cierre de caja', cash: 'Movimiento de caja', manual: 'Comprobante de contabilidad' };
+const PREFIX = { sale: 'V', payment_in: 'RC', expense: 'G', payment_out: 'CE', payroll: 'N', advance: 'A', shift: 'C', cash: 'C', manual: 'M', tip_payout: 'P', tip_in: 'PR' };
+const SOURCE_LABEL = { sale: 'Venta', payment_in: 'Recibo de caja', expense: 'Compra / gasto', payment_out: 'Comprobante de egreso', payroll: 'Nómina', advance: 'Anticipo', shift: 'Cierre de caja', cash: 'Movimiento de caja', manual: 'Comprobante de contabilidad', tip_payout: 'Pago de propinas', tip_in: 'Propina recibida' };
 const PLATFORM_NAME = { rappi: 'Rappi', didi: 'DiDi Food' };
 
 /* =================== utilidades =================== */
@@ -167,12 +167,14 @@ function postPayroll(db, e, ctx, third, payable) {
   const legalOther = (s.legal_deductions_total || 0) - health - pension;
   const lines = [
     { account: map.payrollExpense, debit: (s.base_total || 0) + (s.bonuses || 0), third: t, description: 'Sueldo y bonificaciones', docRef },
-    { account: map.payrollExtras, debit: s.extras_total || 0, third: t, description: 'Horas extras y recargos', docRef },
+    { account: map.payrollExtras, debit: (s.extras_total || 0) + (s.novelties_extras || 0), third: t, description: 'Horas extras y recargos', docRef },
+    { account: ensureAccount(db, map.payrollBonus, map.payrollExpense), debit: s.novelties_bonus || 0, third: t, description: 'Bonificaciones, comisiones y otros pagos', docRef },
+    { account: map.payrollExpense, credit: s.novelties_absence || 0, third: t, description: 'Faltas y licencias no remuneradas', docRef },
     { account: map.payrollAllowance, debit: s.allowance_total || 0, third: t, description: 'Auxilio de transporte', docRef },
     { account: map.tipsPayable, debit: s.tips_total || 0, third: t, description: 'Propinas entregadas', docRef },
     { account: map.payrollHealth, credit: health + legalOther, third: t, description: 'Salud (aporte del trabajador)', docRef },
     { account: map.payrollPension, credit: pension, third: t, description: 'Pensión (aporte del trabajador)', docRef },
-    { account: map.employeeAdvances, credit: (s.advances_total || 0) + (s.deductions || 0), third: t, description: 'Anticipos y descuentos', docRef },
+    { account: map.employeeAdvances, credit: (s.advances_total || 0) + (s.deductions || 0) + (s.novelties_deductions || 0), third: t, description: 'Anticipos, préstamos y descuentos', docRef },
     { account: map.payrollPayable, credit: s.total || 0, third: t, description: 'Neto a pagar', docRef },
   ];
   return postEntry(db, { date: e.date, source: 'payroll', sourceId: e.id, description: `Nómina: ${t.name} (${s.period_start} a ${s.period_end})`, lines });
@@ -197,6 +199,25 @@ function postAdvance(db, a, ctx) {
   return postEntry(db, { date: a.date, source: 'advance', sourceId: a.id, description: `Anticipo a ${third ? third.name : 'colaborador'}`, lines: [
     { account: ctx.map.employeeAdvances, debit: a.amount, third, description: 'Anticipo de nómina', docRef: `Anticipo #${a.id}` },
     { account: a.from_cash_register ? ctx.map.cash : ctx.map.bank, credit: a.amount, third, description: 'Entrega del anticipo', docRef: `Anticipo #${a.id}` },
+  ] });
+}
+
+/** Propina registrada a mano en Personal (no viene de una venta): entra el dinero y queda por pagar al personal. */
+function postManualTip(db, t, ctx) {
+  const third = t.employee_id ? thirdEmployee(db, t.employee_id) : { type: 'employee', id: null, doc: '', name: 'Propina común' };
+  const docRef = `Propina #${t.id}`;
+  return postEntry(db, { date: t.date, source: 'tip_in', sourceId: t.id, description: `Propina recibida${third && third.name ? ' · ' + third.name : ''}`, lines: [
+    { account: methodAccount(ctx.map, t.method || 'cash'), debit: t.amount, third, description: 'Propina recibida', docRef },
+    { account: ctx.map.tipsPayable, credit: t.amount, third, description: 'Propinas por pagar al personal', docRef },
+  ] });
+}
+
+function postTipPayout(db, p, ctx) {
+  const third = thirdEmployee(db, p.employee_id);
+  const docRef = `Propinas #${p.id}`;
+  return postEntry(db, { date: p.date, source: 'tip_payout', sourceId: p.id, description: `Pago de propinas a ${third ? third.name : 'colaborador'}${p.period_start ? ` (${p.period_start} a ${p.period_end})` : ''}`, lines: [
+    { account: ctx.map.tipsPayable, debit: p.amount, third, description: p.kind === 'liquidacion' ? 'Liquidación de propinas' : 'Abono de propinas', docRef },
+    { account: p.from_cash_register || p.method === 'cash' ? ctx.map.cash : ctx.map.bank, credit: p.amount, third, description: 'Entrega de propinas', docRef },
   ] });
 }
 
@@ -253,13 +274,20 @@ function syncLedger(db) {
     // Anticipos a empleados
     for (const a of db.prepare("SELECT a.* FROM advances a LEFT JOIN journal_entries j ON j.source = 'advance' AND j.source_id = a.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY a.id").all()) safe(`anticipo #${a.id}`, () => postAdvance(db, a, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN advances a ON a.id = j.source_id WHERE j.source = 'advance' AND j.status = 'posted' AND a.id IS NULL").all()) voidEntry(db, j.id, 'Anticipo eliminado');
+    // Propinas anotadas a mano (las de los pedidos ya entran con la venta)
+    for (const t of db.prepare("SELECT t.* FROM tips t LEFT JOIN journal_entries j ON j.source = 'tip_in' AND j.source_id = t.id AND j.status = 'posted' WHERE j.id IS NULL AND COALESCE(t.notes, '') NOT LIKE 'Propina pedido #%' ORDER BY t.id").all()) safe(`propina #${t.id}`, () => postManualTip(db, t, ctx));
+    for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN tips t ON t.id = j.source_id WHERE j.source = 'tip_in' AND j.status = 'posted' AND t.id IS NULL").all()) voidEntry(db, j.id, 'Propina eliminada');
+    // Pagos de propinas (abonos y liquidaciones)
+    for (const p of db.prepare("SELECT p.* FROM tip_payouts p LEFT JOIN journal_entries j ON j.source = 'tip_payout' AND j.source_id = p.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY p.id").all()) safe(`propinas #${p.id}`, () => postTipPayout(db, p, ctx));
+    for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN tip_payouts p ON p.id = j.source_id WHERE j.source = 'tip_payout' AND j.status = 'posted' AND p.id IS NULL").all()) voidEntry(db, j.id, 'Pago de propinas eliminado');
     // Diferencias de caja al cierre
     for (const s of db.prepare("SELECT s.* FROM cash_shifts s LEFT JOIN journal_entries j ON j.source = 'shift' AND j.source_id = s.id AND j.status = 'posted' WHERE j.id IS NULL AND s.status = 'closed' AND COALESCE(s.difference, 0) != 0").all()) safe(`cierre #${s.id}`, () => postShiftDifference(db, s, ctx));
     // Movimientos de caja sin gasto, anticipo ni pago asociado
     for (const m of db.prepare(`SELECT m.* FROM cash_movements m LEFT JOIN journal_entries j ON j.source = 'cash' AND j.source_id = m.id AND j.status = 'posted'
       WHERE j.id IS NULL AND m.id NOT IN (SELECT cash_movement_id FROM expenses WHERE cash_movement_id IS NOT NULL)
         AND m.id NOT IN (SELECT cash_movement_id FROM advances WHERE cash_movement_id IS NOT NULL)
-        AND m.id NOT IN (SELECT cash_movement_id FROM expense_payments WHERE cash_movement_id IS NOT NULL) ORDER BY m.id`).all()) safe(`movimiento caja #${m.id}`, () => postCashMovement(db, m, ctx));
+        AND m.id NOT IN (SELECT cash_movement_id FROM expense_payments WHERE cash_movement_id IS NOT NULL)
+        AND m.id NOT IN (SELECT cash_movement_id FROM tip_payouts WHERE cash_movement_id IS NOT NULL) ORDER BY m.id`).all()) safe(`movimiento caja #${m.id}`, () => postCashMovement(db, m, ctx));
   });
   tx();
   return { errors };

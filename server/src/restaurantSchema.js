@@ -26,7 +26,11 @@ const DEFAULT_CONFIG = {
   autoPrintKitchen: false,
   kitchenPrintMode: 'single', // 'single' = una comanda con todo · 'station' = una comanda por estación (cocina, barra)
   stationPrinters: { cocina: { enabled: true, label: '', copies: 1 }, barra: { enabled: true, label: '', copies: 1 } },
+  staffDiscountEnabled: true,
+  staffDiscountPct: 50,
+  staffDiscountExcluded: null, // ids de categorías sin descuento de trabajador; null = se detectan las bebidas por nombre
 };
+const DRINK_RE = /bebida|soda|gaseosa|jugo|limonada|cerveza|licor|coctel|cóctel|agua|drink|refresco|vino/i;
 const PRINT_STATIONS = ['cocina', 'barra'];
 
 /* ---------- utilidades ---------- */
@@ -93,6 +97,10 @@ function initRestaurantSchema(db) {
   addCol(db, 'orders', 'delivered_at', 'TEXT');
   addCol(db, 'orders', 'closed_at', 'TEXT');
   addCol(db, 'orders', 'closed_by', 'TEXT');
+  // Descuento de trabajador: a quién se le aplicó (para reportes y control)
+  addCol(db, 'orders', 'discount_kind', 'TEXT');
+  addCol(db, 'orders', 'discount_employee_id', 'INTEGER');
+  addCol(db, 'orders', 'discount_employee_name', 'TEXT');
 
   // Ítems: comandas (tanda enviada a cocina) y estado en cocina
   addCol(db, 'order_items', 'batch', 'INTEGER');
@@ -169,7 +177,38 @@ function readRestaurantConfig(db) {
   cfg.kitchenPrintMode = readSetting(db, 'kitchenPrintMode') === 'station' ? 'station' : 'single';
   cfg.stationPrinters = { cocina: { ...DEFAULT_CONFIG.stationPrinters.cocina }, barra: { ...DEFAULT_CONFIG.stationPrinters.barra } };
   try { const sp = readSetting(db, 'stationPrinters'); if (sp) { const j = JSON.parse(sp); for (const st of PRINT_STATIONS) if (j[st]) cfg.stationPrinters[st] = { ...cfg.stationPrinters[st], ...j[st] }; } } catch { /* valor por defecto */ }
+  cfg.staffDiscountEnabled = bool('staffDiscountEnabled', cfg.staffDiscountEnabled);
+  cfg.staffDiscountPct = num('staffDiscountPct', cfg.staffDiscountPct);
+  let excluded = null;
+  try { const v = readSetting(db, 'staffDiscountExcluded'); if (v) { const arr = JSON.parse(v); if (Array.isArray(arr)) excluded = arr.map(Number).filter(n => n > 0); } } catch { excluded = null; }
+  if (excluded === null) excluded = db.prepare('SELECT id, name FROM categories').all().filter(c => DRINK_RE.test(c.name || '')).map(c => c.id);
+  cfg.staffDiscountExcluded = excluded;
+  cfg.printMode = readSetting(db, 'printMode') === 'agent' ? 'agent' : 'browser';
   return cfg;
+}
+
+/**
+ * Descuento de trabajador: porcentaje sobre los productos que no están en las categorías excluidas (bebidas).
+ * items: [{ productId, price, quantity }]. Devuelve { eligible, amount, pct }.
+ */
+function computeStaffDiscount(db, items, cfg = readRestaurantConfig(db)) {
+  const pct = Math.min(100, Math.max(0, Number(cfg.staffDiscountPct) || 0));
+  const excluded = new Set((cfg.staffDiscountExcluded || []).map(Number));
+  const catOf = db.prepare('SELECT category_id AS c FROM products WHERE id = ?');
+  let eligible = 0;
+  for (const it of items || []) {
+    const row = it.productId ? catOf.get(Number(it.productId)) : null;
+    if (row && excluded.has(Number(row.c))) continue;
+    eligible += Math.round((Number(it.price) || 0) * (Number(it.quantity) || 0));
+  }
+  return { eligible, pct, amount: Math.round((eligible * pct) / 100) };
+}
+
+/** Valida el trabajador al que se aplica el descuento (colaborador activo). */
+function staffDiscountEmployee(db, employeeId) {
+  const id = Number(employeeId);
+  if (!id) return null;
+  return db.prepare('SELECT id, name FROM employees WHERE id = ? AND active = 1').get(id) || null;
 }
 
 function saveRestaurantConfig(db, body) {
@@ -196,6 +235,9 @@ function saveRestaurantConfig(db, body) {
     }
     up.run('stationPrinters', JSON.stringify(next));
   }
+  if (body.staffDiscountEnabled !== undefined) up.run('staffDiscountEnabled', body.staffDiscountEnabled ? '1' : '0');
+  if (body.staffDiscountPct !== undefined) { const n = Number(body.staffDiscountPct); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('El descuento de trabajador debe estar entre 0 y 100 %'); up.run('staffDiscountPct', String(n)); }
+  if (body.staffDiscountExcluded !== undefined && Array.isArray(body.staffDiscountExcluded)) up.run('staffDiscountExcluded', JSON.stringify(body.staffDiscountExcluded.map(Number).filter(n => n > 0)));
   if (body.deliveryFee !== undefined) { const n = Math.round(Number(body.deliveryFee)); if (!Number.isFinite(n) || n < 0) throw new Error('Costo de envío inválido'); up.run('deliveryFee', String(n)); }
   if (body.deliveryTimes !== undefined) {
     const arr = (Array.isArray(body.deliveryTimes) ? body.deliveryTimes : String(body.deliveryTimes).split(',')).map(v => Math.round(Number(v))).filter(n => n > 0 && n <= 2880);
@@ -213,4 +255,4 @@ function staffLists(db) {
   return { waiters: rows.filter(e => !isCourier(e)), couriers: rows.filter(isCourier) };
 }
 
-module.exports = { initRestaurantSchema, readRestaurantConfig, saveRestaurantConfig, staffLists, CHANNELS, STATIONS, DEFAULT_CONFIG };
+module.exports = { initRestaurantSchema, readRestaurantConfig, saveRestaurantConfig, staffLists, computeStaffDiscount, staffDiscountEmployee, CHANNELS, STATIONS, DEFAULT_CONFIG };
