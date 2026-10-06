@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2, BadgePercent, X } from 'lucide-react';
+import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2 } from 'lucide-react';
+import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
 import type { Order } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
-import { PAYMENT_LABEL, staffDiscountFor, allStaff } from '@/lib/restaurant';
+import { PAYMENT_LABEL } from '@/lib/restaurant';
 import { canDo } from '@/lib/permissions';
 import { printReceipt } from '@/lib/netPrint';
 
@@ -24,16 +25,12 @@ const METHODS = [
 export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; onClose: () => void; onClosed: (o: Order) => void }) => {
   const restaurant = useStore(s => s.restaurant);
   const user = useStore(s => s.user);
-  const products = useStore(s => s.products);
   const tipEnabled = restaurant ? (order.type === 'dine-in' ? restaurant.tipDineIn : order.type === 'pickup' ? restaurant.tipCounter : restaurant.tipDelivery) : false;
   const tipPct = restaurant?.tipPercent ?? 10;
   const [discount, setDiscount] = useState(String(order.discount || ''));
   const [discountReason, setDiscountReason] = useState(order.discountReason || '');
-  const [staffId, setStaffId] = useState<number>(order.discountKind === 'staff' ? order.discountEmployeeId || 0 : 0);
-  const [pickStaff, setPickStaff] = useState(false);
-  const staffDisc = useMemo(() => staffDiscountFor(order.items, products, restaurant), [order.items, products, restaurant]);
-  const staffList = allStaff(restaurant);
-  const staffName = staffList.find(s => s.id === staffId)?.name || order.discountEmployeeName || '';
+  // Descuento del catálogo (Empleados, Clientes...) que ya traía la cuenta
+  const [cat, setCat] = useState<DiscountSel | null>(order.discountId && order.discount ? { discountId: order.discountId, name: order.discountName || 'Descuento', amount: order.discount, employeeId: order.discountEmployeeId, employeeName: order.discountEmployeeName } : null);
   const [tipMode, setTipMode] = useState<'none' | 'suggested' | 'custom'>(order.tip ? 'custom' : tipEnabled ? 'suggested' : 'none');
   const [tipCustom, setTipCustom] = useState(String(order.tip || ''));
   const [tipTo, setTipTo] = useState<'common' | 'waiter'>(order.waiterId ? 'waiter' : 'common');
@@ -47,7 +44,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const [done, setDone] = useState<Order | null>(null);
 
   const base = order.subtotal + (order.deliveryFee || 0);
-  const disc = staffId ? staffDisc.amount : Math.min(base, Math.max(0, Math.round(Number(discount) || 0)));
+  const disc = cat ? Math.min(base, cat.amount) : Math.min(base, Math.max(0, Math.round(Number(discount) || 0)));
   const total = base - disc;
   const tip = tipMode === 'none' ? 0 : tipMode === 'suggested' ? Math.round((total * tipPct) / 100) : Math.max(0, Math.round(Number(tipCustom) || 0));
   const due = total + tip;
@@ -62,7 +59,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
     try {
       const closed = await api.closeRestaurantOrder(order.id, {
         paymentMethod: method, discount: disc, discountReason, tip, tipTo, markDelivered,
-        ...(staffId ? { staffDiscountEmployeeId: staffId } : {}),
+        ...(cat ? { discountId: cat.discountId, discountValue: cat.value, discountEmployeeId: cat.employeeId } : {}),
         cashReceived: method === 'cash' ? (received || due) : undefined,
         paymentSplit: method === 'mixed' ? { method1: m1, amount1: Math.round(Number(a1) || 0), method2: m2, amount2: Math.round(Number(a2) || 0) } : undefined,
       });
@@ -97,45 +94,21 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           <div className="rounded-xl bg-brand-card border border-brand-accent/40 p-3 space-y-1 text-xs">
             <div className="flex justify-between"><span>Productos</span><span>{formatPrice(order.subtotal)}</span></div>
             {order.deliveryFee ? <div className="flex justify-between"><span>Envío</span><span>{formatPrice(order.deliveryFee)}</span></div> : null}
-            {disc > 0 && <div className="flex justify-between text-red-700"><span>{staffId ? `Desc. trabajador ${staffDisc.pct}%` : 'Descuento'}</span><span>− {formatPrice(disc)}</span></div>}
+            {disc > 0 && <div className="flex justify-between text-red-700"><span>{cat ? cat.name : 'Descuento'}</span><span>− {formatPrice(disc)}</span></div>}
             <div className="flex justify-between font-semibold border-t border-border pt-1"><span>Total</span><span>{formatPrice(total)}</span></div>
             {tip > 0 && <div className="flex justify-between"><span>Propina</span><span>+ {formatPrice(tip)}</span></div>}
             <div className="flex justify-between text-base font-bold text-brand-dark border-t border-border pt-1"><span>A pagar</span><span>{formatPrice(due)}</span></div>
           </div>
-          {canDo(user, 'discounts') && restaurant?.staffDiscountEnabled !== false && (
-            <div data-staff-discount>
-              {staffId ? (
-                <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-emerald-800 flex items-center gap-1.5"><BadgePercent size={14} /> Trabajador: {staffName}</span>
-                    <button onClick={() => setStaffId(0)} className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-800" title="Quitar descuento de trabajador"><X size={14} /></button>
-                  </div>
-                  <p className="text-emerald-800 mt-1">{staffDisc.pct}% sobre {formatPrice(staffDisc.eligible)} = <b>− {formatPrice(staffDisc.amount)}</b>{staffDisc.excludedTotal > 0 ? ` · bebidas sin descuento: ${formatPrice(staffDisc.excludedTotal)}` : ''}</p>
+          {canDo(user, 'discounts') && (
+            <div className="space-y-1.5">
+              <label className={LABEL}>Descuento</label>
+              <DiscountPicker items={order.items} value={cat} onChange={v => { setCat(v); if (v) { setDiscount(''); setDiscountReason(''); } }} />
+              {!cat && (
+                <div className="flex gap-2">
+                  <input type="number" min={0} value={discount} onChange={e => setDiscount(e.target.value)} placeholder="Otro valor" className={cn(INPUT, 'font-mono w-28')} />
+                  <input value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="Motivo (obligatorio si hay descuento)" className={INPUT} />
                 </div>
-              ) : pickStaff ? (
-                <div className="rounded-xl border border-border p-2.5 space-y-1.5">
-                  <label className={LABEL}>¿A qué trabajador?</label>
-                  <select autoFocus defaultValue="" onChange={e => { const id = Number(e.target.value); if (id) { setStaffId(id); setPickStaff(false); setDiscount(''); setDiscountReason(''); } }} className={INPUT} data-staff-select>
-                    <option value="" disabled>Elige el trabajador...</option>
-                    {staffList.map(s => <option key={s.id} value={s.id}>{s.name}{s.position ? ` · ${s.position}` : ''}</option>)}
-                  </select>
-                  <p className="text-[11px] text-muted-foreground">{staffDisc.pct}% en todo menos bebidas: − {formatPrice(staffDisc.amount)}</p>
-                  <button onClick={() => setPickStaff(false)} className="text-[11px] font-semibold text-muted-foreground underline">Cancelar</button>
-                </div>
-              ) : (
-                <button onClick={() => setPickStaff(true)} className="w-full py-2 rounded-xl border border-dashed border-emerald-400 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 text-xs font-bold flex items-center justify-center gap-1.5">
-                  <BadgePercent size={14} /> Descuento de trabajador ({restaurant?.staffDiscountPct ?? 50}% sin bebidas)
-                </button>
               )}
-            </div>
-          )}
-          {canDo(user, 'discounts') && !staffId && (
-            <div>
-              <label className={LABEL}>Otro descuento</label>
-              <div className="flex gap-2">
-                <input type="number" min={0} value={discount} onChange={e => setDiscount(e.target.value)} placeholder="0" className={cn(INPUT, 'font-mono w-28')} />
-                <input value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="Motivo (obligatorio si hay descuento)" className={INPUT} />
-              </div>
             </div>
           )}
           {tipEnabled && (
@@ -186,7 +159,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={markDelivered} onChange={e => setMarkDelivered(e.target.checked)} /> Marcar también como entregado</label>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
-          <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !staffId && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
+          <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !cat && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
             {saving ? 'Registrando...' : `Cobrar ${formatPrice(due)}`}
           </button>
         </div>

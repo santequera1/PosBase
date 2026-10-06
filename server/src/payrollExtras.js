@@ -56,6 +56,88 @@ function initPayrollExtras(db) {
   addCol(db, 'payroll_settlements', 'novelties_bonus', 'INTEGER DEFAULT 0');
   addCol(db, 'payroll_settlements', 'novelties_absence', 'INTEGER DEFAULT 0');
   addCol(db, 'payroll_settlements', 'novelties_deductions', 'INTEGER DEFAULT 0');
+  addCol(db, 'payroll_settlements', 'loans_total', 'INTEGER DEFAULT 0');
+  addCol(db, 'employees', 'bank_account', "TEXT DEFAULT ''");
+  addCol(db, 'payroll_novelties', 'label', 'TEXT');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS employee_loans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL REFERENCES employees(id),
+      date TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      installments INTEGER NOT NULL DEFAULT 1,
+      installment_amount INTEGER NOT NULL,
+      paid_total INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      from_cash_register INTEGER DEFAULT 0,
+      cash_movement_id INTEGER,
+      notes TEXT DEFAULT '',
+      created_by TEXT DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
+    );
+    CREATE TABLE IF NOT EXISTS loan_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      loan_id INTEGER NOT NULL REFERENCES employee_loans(id),
+      employee_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      settlement_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_loans_emp ON employee_loans(employee_id, status);
+    CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id);
+  `);
+  // Adicionales pagados por vez (armado de carne, lavado de campana...): tarifas editables en Personal → Novedades
+  if (!db.prepare("SELECT 1 FROM settings WHERE key = 'payrollTasks'").get()) {
+    db.prepare("INSERT INTO settings (key, value) VALUES ('payrollTasks', ?)").run(JSON.stringify([{ id: 'armado_carne', name: 'Armado de carne', amount: 0 }, { id: 'lavado_campana', name: 'Lavado de campana', amount: 0 }]));
+  }
+}
+
+/* ======================= Adicionales (tarifas) ======================= */
+function readTasks(db) {
+  try { const r = db.prepare("SELECT value FROM settings WHERE key = 'payrollTasks'").get(); const a = r && r.value ? JSON.parse(r.value) : []; return Array.isArray(a) ? a : []; } catch { return []; }
+}
+function saveTasks(db, list) {
+  const seen = new Set();
+  const clean = (Array.isArray(list) ? list : []).map((t, i) => {
+    const name = String(t.name || '').trim().slice(0, 60);
+    let id = String(t.id || '').trim() || name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'adicional_' + i;
+    while (seen.has(id)) id += '_';
+    seen.add(id);
+    return { id, name, amount: Math.max(0, Math.round(Number(t.amount) || 0)) };
+  }).filter(t => t.name);
+  db.prepare("INSERT INTO settings (key, value) VALUES ('payrollTasks', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(clean));
+  return clean;
+}
+
+/* ======================= Préstamos a empleados (libranza sin intereses) ======================= */
+/**
+ * Cuotas que se descuentan en la liquidación del período. skip = préstamos cuya cuota no se cobra este período;
+ * payoff = préstamos que se cobran completos (por ejemplo en la liquidación final).
+ */
+function loanPlan(db, empId, to, { skip = [], payoff = [] } = {}) {
+  const lines = [];
+  for (const l of db.prepare("SELECT * FROM employee_loans WHERE employee_id = ? AND status = 'active' AND date <= ? ORDER BY date, id").all(empId, to)) {
+    const balance = l.amount - l.paid_total;
+    if (balance <= 0) continue;
+    const number = db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ?').get(l.id).c + 1;
+    const isPayoff = payoff.includes(l.id);
+    const amount = isPayoff ? balance : Math.min(l.installment_amount, balance);
+    lines.push({ id: l.id, date: l.date, notes: l.notes, total: l.amount, installments: l.installments, number, balance, amount, payoff: isPayoff, skipped: !isPayoff && skip.includes(l.id) });
+  }
+  return { lines, total: lines.filter(x => !x.skipped).reduce((a, x) => a + x.amount, 0) };
+}
+function applyLoanPlan(db, empId, to, settlementId, plan) {
+  for (const x of plan.lines.filter(l => !l.skipped)) {
+    db.prepare('INSERT INTO loan_payments (loan_id, employee_id, date, amount, settlement_id) VALUES (?, ?, ?, ?, ?)').run(x.id, empId, to, x.amount, settlementId);
+    db.prepare("UPDATE employee_loans SET paid_total = paid_total + ?, status = CASE WHEN paid_total + ? >= amount THEN 'paid' ELSE 'active' END WHERE id = ?").run(x.amount, x.amount, x.id);
+  }
+}
+function revertLoanPayments(db, settlementId) {
+  for (const p of db.prepare('SELECT loan_id AS id, SUM(amount) AS t FROM loan_payments WHERE settlement_id = ? GROUP BY loan_id').all(settlementId)) {
+    db.prepare("UPDATE employee_loans SET paid_total = MAX(0, paid_total - ?), status = 'active' WHERE id = ?").run(p.t, p.id);
+  }
+  db.prepare('DELETE FROM loan_payments WHERE settlement_id = ?').run(settlementId);
 }
 
 /* ======================= Propinas ======================= */
@@ -157,6 +239,7 @@ const NOVELTY_TYPES = {
   incapacity: { label: 'Incapacidad (lo que paga la empresa)', group: 'bonus', unit: 'días', auto: true, help: '2/3 del valor del día (los dos primeros días los paga el empleador).' },
   vacation: { label: 'Vacaciones pagadas', group: 'bonus', unit: 'días', auto: true, help: 'Valor del día por cada día de vacaciones.' },
   other_income: { label: 'Otro pago', group: 'bonus', unit: 'valor' },
+  task: { label: 'Adicional (armado de carne, lavado de campana...)', group: 'bonus', unit: 'veces', auto: true, help: 'Se paga la tarifa del adicional por cada vez que se hace.' },
   absence: { label: 'Falta / ausencia no pagada', group: 'absence', unit: 'días', auto: true, help: 'Descuenta el valor del día.' },
   unpaid_leave: { label: 'Licencia no remunerada', group: 'absence', unit: 'días', auto: true, help: 'Descuenta el valor del día.' },
   loan: { label: 'Cuota de préstamo', group: 'deduction', unit: 'valor' },
@@ -197,9 +280,9 @@ function noveltyAmount(emp, type, quantity, date, cfg) {
   }
 }
 
-const NOV_SELECT = `SELECT n.id, n.employee_id AS employeeId, e.name AS employeeName, n.date, n.type, n.quantity, n.amount, n.pct, n.notes, n.settlement_id AS settlementId, n.created_by AS createdBy, n.created_at AS createdAt
+const NOV_SELECT = `SELECT n.id, n.employee_id AS employeeId, e.name AS employeeName, n.label AS taskLabel, n.date, n.type, n.quantity, n.amount, n.pct, n.notes, n.settlement_id AS settlementId, n.created_by AS createdBy, n.created_at AS createdAt
   FROM payroll_novelties n JOIN employees e ON e.id = n.employee_id`;
-const mapNovelty = r => { const t = NOVELTY_TYPES[r.type] || { label: r.type, group: 'bonus', unit: 'valor' }; return { ...r, label: t.label, group: t.group, unit: t.unit, sign: SIGN[t.group] || 1, signedAmount: (SIGN[t.group] || 1) * r.amount }; };
+const mapNovelty = r => { const t = NOVELTY_TYPES[r.type] || { label: r.type, group: 'bonus', unit: 'valor' }; return { ...r, label: r.taskLabel ? `${t.label.split(' (')[0]}: ${r.taskLabel}` : t.label, group: t.group, unit: t.unit, sign: SIGN[t.group] || 1, signedAmount: (SIGN[t.group] || 1) * r.amount }; };
 
 /** Novedades pendientes (sin liquidar) del período, agrupadas para la liquidación. */
 function noveltiesFor(db, empId, from, to, settlementId = null) {
@@ -213,4 +296,5 @@ function noveltiesFor(db, empId, from, to, settlementId = null) {
 module.exports = {
   initPayrollExtras, readTipsConfig, saveTipsConfig, shareCommonDay, tipAccrual, tipsPaid, tipBalance, tipStatement,
   NOVELTY_TYPES, noveltyAmount, noveltiesFor, mapNovelty, NOV_SELECT, dayValue,
+  readTasks, saveTasks, loanPlan, applyLoanPlan, revertLoanPayments,
 };

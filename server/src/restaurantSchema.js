@@ -101,6 +101,29 @@ function initRestaurantSchema(db) {
   addCol(db, 'orders', 'discount_kind', 'TEXT');
   addCol(db, 'orders', 'discount_employee_id', 'INTEGER');
   addCol(db, 'orders', 'discount_employee_name', 'TEXT');
+  addCol(db, 'orders', 'discount_id', 'INTEGER');
+  addCol(db, 'orders', 'discount_name', 'TEXT');
+  addCol(db, 'orders', 'cancel_reason', 'TEXT');
+  addCol(db, 'orders', 'created_by', 'TEXT');
+  // Conciliación de arqueos (la hace un supervisor)
+  addCol(db, 'cash_shifts', 'reconciled_at', 'TEXT');
+  addCol(db, 'cash_shifts', 'reconciled_by', 'TEXT');
+  addCol(db, 'cash_shifts', 'reconciled_amount', 'INTEGER');
+  addCol(db, 'cash_shifts', 'reconcile_reason', 'TEXT');
+  addCol(db, 'cash_shifts', 'reconcile_comment', 'TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS order_item_cancellations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER,
+    name TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    price INTEGER NOT NULL,
+    was_sent INTEGER DEFAULT 0,
+    reason TEXT,
+    cancelled_by TEXT,
+    cancelled_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
+  );`);
+  require('./discounts').initDiscounts(db);
 
   // Ítems: comandas (tanda enviada a cocina) y estado en cocina
   addCol(db, 'order_items', 'batch', 'INTEGER');
@@ -184,6 +207,8 @@ function readRestaurantConfig(db) {
   if (excluded === null) excluded = db.prepare('SELECT id, name FROM categories').all().filter(c => DRINK_RE.test(c.name || '')).map(c => c.id);
   cfg.staffDiscountExcluded = excluded;
   cfg.printMode = readSetting(db, 'printMode') === 'agent' ? 'agent' : 'browser';
+  try { const s = readSetting(db, 'serviceShifts'); cfg.serviceShifts = s ? JSON.parse(s) : []; } catch { cfg.serviceShifts = []; }
+  cfg.mobileNav = readSetting(db, 'mobileNav') === 'top' ? 'top' : 'bottom';
   return cfg;
 }
 
@@ -235,6 +260,8 @@ function saveRestaurantConfig(db, body) {
     }
     up.run('stationPrinters', JSON.stringify(next));
   }
+  if (Array.isArray(body.serviceShifts)) up.run('serviceShifts', JSON.stringify(body.serviceShifts.map(s => ({ name: String(s.name || '').trim().slice(0, 30), from: /^\d{2}:\d{2}$/.test(s.from) ? s.from : '00:00', to: /^\d{2}:\d{2}$/.test(s.to) ? s.to : '23:59' })).filter(s => s.name)));
+  if (body.mobileNav !== undefined) up.run('mobileNav', body.mobileNav === 'top' ? 'top' : 'bottom');
   if (body.staffDiscountEnabled !== undefined) up.run('staffDiscountEnabled', body.staffDiscountEnabled ? '1' : '0');
   if (body.staffDiscountPct !== undefined) { const n = Number(body.staffDiscountPct); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('El descuento de trabajador debe estar entre 0 y 100 %'); up.run('staffDiscountPct', String(n)); }
   if (body.staffDiscountExcluded !== undefined && Array.isArray(body.staffDiscountExcluded)) up.run('staffDiscountExcluded', JSON.stringify(body.staffDiscountExcluded.map(Number).filter(n => n > 0)));
@@ -252,7 +279,11 @@ function staffLists(db) {
   require('./permissions').ensureAllCouriers(db);
   const rows = db.prepare('SELECT id, name, position FROM employees WHERE active = 1 ORDER BY name').all();
   const isCourier = e => /domicil|repart|mensaj|motoriz/i.test(e.position || '');
-  return { waiters: rows.filter(e => !isCourier(e)), couriers: rows.filter(isCourier) };
+  // La lista de meseros deja por fuera la cocina (auxiliar de cocina, planchero, cocinero...); si no queda nadie, van todos
+  const isKitchen = e => /cocin|planch|parrill|chef|lavaplat|oficios|steward|bodeg/i.test(e.position || '');
+  const others = rows.filter(e => !isCourier(e));
+  const servers = others.filter(e => !isKitchen(e));
+  return { waiters: servers.length ? servers : others, couriers: rows.filter(isCourier), all: rows };
 }
 
 module.exports = { initRestaurantSchema, readRestaurantConfig, saveRestaurantConfig, staffLists, computeStaffDiscount, staffDiscountEmployee, CHANNELS, STATIONS, DEFAULT_CONFIG };

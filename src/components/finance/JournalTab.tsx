@@ -7,7 +7,7 @@ import { Chip, Modal, INPUT, LABEL, fmtDate } from '@/components/common/Primitiv
 import { downloadXlsx } from '@/lib/xlsx';
 
 const monthStart = () => `${getColombiaTodayStr().slice(0, 7)}-01`;
-const SOURCES: Array<[string, string]> = [['', 'Todos'], ['sale', 'Ventas'], ['payment_in', 'Recibos de caja'], ['expense', 'Compras y gastos'], ['payment_out', 'Egresos'], ['payroll', 'Nómina'], ['advance', 'Anticipos'], ['shift', 'Cierres de caja'], ['cash', 'Movimientos de caja'], ['manual', 'Manuales']];
+const SOURCES: Array<[string, string]> = [['', 'Todos'], ['sale', 'Ventas'], ['payment_in', 'Recibos de caja'], ['expense', 'Compras y gastos'], ['payment_out', 'Egresos'], ['payroll', 'Nómina'], ['advance', 'Anticipos'], ['loan', 'Préstamos a empleados'], ['tip_in', 'Propinas recibidas'], ['tip_payout', 'Pagos de propinas'], ['shift', 'Cierres de caja'], ['cash', 'Movimientos de caja'], ['manual', 'Manuales']];
 
 interface Line { id?: number; account: string; accountName?: string; debit: number; credit: number; thirdDoc?: string; thirdName?: string; description?: string; docRef?: string }
 interface Entry { id: number; number: string; date: string; source: string; sourceLabel: string; sourceId: number | null; description: string; status: 'posted' | 'void'; voidReason?: string; createdBy?: string; lines: Line[]; total: number }

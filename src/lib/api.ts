@@ -126,7 +126,17 @@ export const api = {
   getCajaTips: (params: Record<string, any> = {}) => request<any>(`/caja/tips${qstr(params)}`),
   getCajaDiscounts: (params: Record<string, any> = {}) => request<any>(`/caja/discounts${qstr(params)}`),
   getCajaMovements: (params: Record<string, any> = {}) => request<any>(`/caja/movements${qstr(params)}`),
-  getCajaShifts: () => request<any[]>('/caja/shifts'),
+  getCajaShifts: (params: Record<string, any> = {}) => request<any[]>(`/caja/shifts${qstr(params)}`),
+  getCajaSale: (id: number) => request<any>(`/caja/sales/${id}`),
+  editSalePayment: (id: number, data: any) => request<any>(`/caja/sales/${id}/payment`, { method: 'POST', body: JSON.stringify(data) }),
+  editSaleTip: (id: number, data: any) => request<any>(`/caja/sales/${id}/tip`, { method: 'POST', body: JSON.stringify(data) }),
+  getDiscountCatalog: (params: Record<string, any> = {}) => request<any>(`/caja/discounts-catalog${qstr(params)}`),
+  saveDiscount: (data: any, id?: number) => request<any>(id ? `/caja/discounts-catalog/${id}` : '/caja/discounts-catalog', { method: id ? 'PUT' : 'POST', body: JSON.stringify(data) }),
+  deleteDiscount: (id: number) => request<any>(`/caja/discounts-catalog/${id}`, { method: 'DELETE' }),
+  reconcileShift: (id: number, data: any) => request<any>(`/caja/shifts/${id}/reconcile`, { method: 'POST', body: JSON.stringify(data) }),
+  undoReconcile: (id: number) => request<any>(`/caja/shifts/${id}/reconcile`, { method: 'DELETE' }),
+  cancelSale: (id: number, reason: string) => request<any>(`/restaurant/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'cancelled', reason }) }),
+  cancelItem: (id: number, itemId: number, reason: string) => request<any>(`/restaurant/orders/${id}/items/${itemId}?reason=${encodeURIComponent(reason)}`, { method: 'DELETE' }),
   addCashMovement: (data: { shiftId?: number; amount: number; reason: string; type?: 'withdrawal' | 'deposit'; cashierName?: string }) =>
     request<any>('/shifts/movement', { method: 'POST', body: JSON.stringify(data) }),
   getCashMovements: (shiftId?: number) =>
@@ -310,7 +320,14 @@ export const api = {
   },
   addAdvance: (data: any) => request<any>('/staff/advances', { method: 'POST', body: JSON.stringify(data) }),
   deleteAdvance: (id: number) => request<any>(`/staff/advances/${id}`, { method: 'DELETE' }),
-  previewSettlement: (employeeId: number, from: string, to: string) => request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}`),
+  previewSettlement: (employeeId: number, from: string, to: string, loans: { skipLoans?: number[]; payoffLoans?: number[] } = {}) =>
+    request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}&skipLoans=${(loans.skipLoans || []).join(',')}&payoffLoans=${(loans.payoffLoans || []).join(',')}`),
+  getLoans: (params: Record<string, any> = {}) => request<any>(`/staff/loans${qstr(params)}`),
+  addLoan: (data: any) => request<any>('/staff/loans', { method: 'POST', body: JSON.stringify(data) }),
+  deleteLoan: (id: number) => request<any>(`/staff/loans/${id}`, { method: 'DELETE' }),
+  getLoanPayments: (id: number) => request<any[]>(`/staff/loans/${id}/payments`),
+  getNoveltyTasks: () => request<any[]>('/staff/novelties/tasks'),
+  saveNoveltyTasks: (tasks: any[]) => request<any[]>('/staff/novelties/tasks', { method: 'PUT', body: JSON.stringify({ tasks }) }),
   getSettlements: (params: { employeeId?: number; status?: string } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, String(v)); });

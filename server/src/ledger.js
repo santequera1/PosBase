@@ -10,8 +10,8 @@ const { readAcctMap, readAcctOptions } = require('./accountingSchema');
 const { taxConfig, splitTax } = require('./accounting');
 const { now, today } = require('./cashHelpers');
 
-const PREFIX = { sale: 'V', payment_in: 'RC', expense: 'G', payment_out: 'CE', payroll: 'N', advance: 'A', shift: 'C', cash: 'C', manual: 'M', tip_payout: 'P', tip_in: 'PR' };
-const SOURCE_LABEL = { sale: 'Venta', payment_in: 'Recibo de caja', expense: 'Compra / gasto', payment_out: 'Comprobante de egreso', payroll: 'Nómina', advance: 'Anticipo', shift: 'Cierre de caja', cash: 'Movimiento de caja', manual: 'Comprobante de contabilidad', tip_payout: 'Pago de propinas', tip_in: 'Propina recibida' };
+const PREFIX = { sale: 'V', payment_in: 'RC', expense: 'G', payment_out: 'CE', payroll: 'N', advance: 'A', shift: 'C', cash: 'C', manual: 'M', tip_payout: 'P', tip_in: 'PR', loan: 'L' };
+const SOURCE_LABEL = { sale: 'Venta', payment_in: 'Recibo de caja', expense: 'Compra / gasto', payment_out: 'Comprobante de egreso', payroll: 'Nómina', advance: 'Anticipo', shift: 'Cierre de caja', cash: 'Movimiento de caja', manual: 'Comprobante de contabilidad', tip_payout: 'Pago de propinas', tip_in: 'Propina recibida', loan: 'Préstamo a empleado' };
 const PLATFORM_NAME = { rappi: 'Rappi', didi: 'DiDi Food' };
 
 /* =================== utilidades =================== */
@@ -174,7 +174,7 @@ function postPayroll(db, e, ctx, third, payable) {
     { account: map.tipsPayable, debit: s.tips_total || 0, third: t, description: 'Propinas entregadas', docRef },
     { account: map.payrollHealth, credit: health + legalOther, third: t, description: 'Salud (aporte del trabajador)', docRef },
     { account: map.payrollPension, credit: pension, third: t, description: 'Pensión (aporte del trabajador)', docRef },
-    { account: map.employeeAdvances, credit: (s.advances_total || 0) + (s.deductions || 0) + (s.novelties_deductions || 0), third: t, description: 'Anticipos, préstamos y descuentos', docRef },
+    { account: map.employeeAdvances, credit: (s.advances_total || 0) + (s.deductions || 0) + (s.novelties_deductions || 0) + (s.loans_total || 0), third: t, description: 'Anticipos, préstamos y descuentos', docRef },
     { account: map.payrollPayable, credit: s.total || 0, third: t, description: 'Neto a pagar', docRef },
   ];
   return postEntry(db, { date: e.date, source: 'payroll', sourceId: e.id, description: `Nómina: ${t.name} (${s.period_start} a ${s.period_end})`, lines });
@@ -209,6 +209,15 @@ function postManualTip(db, t, ctx) {
   return postEntry(db, { date: t.date, source: 'tip_in', sourceId: t.id, description: `Propina recibida${third && third.name ? ' · ' + third.name : ''}`, lines: [
     { account: methodAccount(ctx.map, t.method || 'cash'), debit: t.amount, third, description: 'Propina recibida', docRef },
     { account: ctx.map.tipsPayable, credit: t.amount, third, description: 'Propinas por pagar al personal', docRef },
+  ] });
+}
+
+function postLoan(db, l, ctx) {
+  const third = thirdEmployee(db, l.employee_id);
+  const docRef = `Préstamo #${l.id}`;
+  return postEntry(db, { date: l.date, source: 'loan', sourceId: l.id, description: `Préstamo a ${third ? third.name : 'colaborador'} (${l.installments} cuota(s), sin intereses)`, lines: [
+    { account: ctx.map.employeeAdvances, debit: l.amount, third, description: 'Préstamo a empleado', docRef },
+    { account: l.from_cash_register ? ctx.map.cash : ctx.map.bank, credit: l.amount, third, description: 'Entrega del préstamo', docRef },
   ] });
 }
 
@@ -274,6 +283,9 @@ function syncLedger(db) {
     // Anticipos a empleados
     for (const a of db.prepare("SELECT a.* FROM advances a LEFT JOIN journal_entries j ON j.source = 'advance' AND j.source_id = a.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY a.id").all()) safe(`anticipo #${a.id}`, () => postAdvance(db, a, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN advances a ON a.id = j.source_id WHERE j.source = 'advance' AND j.status = 'posted' AND a.id IS NULL").all()) voidEntry(db, j.id, 'Anticipo eliminado');
+    // Préstamos a empleados
+    for (const l of db.prepare("SELECT l.* FROM employee_loans l LEFT JOIN journal_entries j ON j.source = 'loan' AND j.source_id = l.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY l.id").all()) safe(`préstamo #${l.id}`, () => postLoan(db, l, ctx));
+    for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN employee_loans l ON l.id = j.source_id WHERE j.source = 'loan' AND j.status = 'posted' AND l.id IS NULL").all()) voidEntry(db, j.id, 'Préstamo eliminado');
     // Propinas anotadas a mano (las de los pedidos ya entran con la venta)
     for (const t of db.prepare("SELECT t.* FROM tips t LEFT JOIN journal_entries j ON j.source = 'tip_in' AND j.source_id = t.id AND j.status = 'posted' WHERE j.id IS NULL AND COALESCE(t.notes, '') NOT LIKE 'Propina pedido #%' ORDER BY t.id").all()) safe(`propina #${t.id}`, () => postManualTip(db, t, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN tips t ON t.id = j.source_id WHERE j.source = 'tip_in' AND j.status = 'posted' AND t.id IS NULL").all()) voidEntry(db, j.id, 'Propina eliminada');
@@ -287,7 +299,8 @@ function syncLedger(db) {
       WHERE j.id IS NULL AND m.id NOT IN (SELECT cash_movement_id FROM expenses WHERE cash_movement_id IS NOT NULL)
         AND m.id NOT IN (SELECT cash_movement_id FROM advances WHERE cash_movement_id IS NOT NULL)
         AND m.id NOT IN (SELECT cash_movement_id FROM expense_payments WHERE cash_movement_id IS NOT NULL)
-        AND m.id NOT IN (SELECT cash_movement_id FROM tip_payouts WHERE cash_movement_id IS NOT NULL) ORDER BY m.id`).all()) safe(`movimiento caja #${m.id}`, () => postCashMovement(db, m, ctx));
+        AND m.id NOT IN (SELECT cash_movement_id FROM tip_payouts WHERE cash_movement_id IS NOT NULL)
+        AND m.id NOT IN (SELECT cash_movement_id FROM employee_loans WHERE cash_movement_id IS NOT NULL) ORDER BY m.id`).all()) safe(`movimiento caja #${m.id}`, () => postCashMovement(db, m, ctx));
   });
   tx();
   return { errors };

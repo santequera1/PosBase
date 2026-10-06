@@ -19,7 +19,7 @@ import {
   Landmark,
   Sun,
   Moon,
-  LayoutGrid, ShoppingBag, Bike, ChefHat,
+  LayoutGrid, ShoppingBag, Bike, ChefHat, ChevronDown,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice, formatTime } from '@/lib/format';
@@ -61,6 +61,11 @@ export const AppLayout = () => {
   const pendingCount = orders.filter(o => o.status === 'pending').length;
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showModules, setShowModules] = useState(false);
+  // Celular: menú arriba con selector de módulo (como Fudo) o barra inferior; se elige en Configuración → Secciones
+  const topNav = restaurant?.mobileNav === 'top';
+  const currentModule = visibleNav.find(i => location.pathname.startsWith(i.path));
+  useEffect(() => { setShowModules(false); }, [location.pathname]);
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -188,11 +193,34 @@ export const AppLayout = () => {
       </aside>
 
       {/* Topbar (Hidden on POS to avoid double header) */}
-      {!isPOS && (
-        <header className={cn('fixed top-0 right-0 left-0 h-14 bg-white/90 backdrop-blur border-b border-brand-primary/10 z-30 flex items-center px-4 gap-3', 'md:left-16', headerML)}>
+      {(!isPOS || topNav) && (
+        <header className={cn('fixed top-0 right-0 left-0 h-14 bg-white/90 backdrop-blur border-b border-brand-primary/10 z-30 flex items-center px-4 gap-3', 'md:left-16', headerML, isPOS && 'md:hidden')}>
+          {topNav ? (
+            <div className="flex-1 md:hidden flex items-center gap-2 min-w-0" data-top-nav>
+              <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain shrink-0" />
+              <div className="relative min-w-0">
+                <button onClick={() => setShowModules(v => !v)} className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-xl bg-orange-500 text-white text-sm font-bold max-w-[190px]" data-module-switch>
+                  {currentModule ? <currentModule.icon size={16} className="shrink-0" /> : null}<span className="truncate">{currentModule ? currentModule.label : 'Menú'}</span><ChevronDown size={15} className={cn('shrink-0 transition-transform', showModules && 'rotate-180')} />
+                </button>
+                {showModules && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowModules(false)} />
+                    <div className="absolute left-0 top-full mt-1 w-64 max-h-[75vh] overflow-y-auto bg-white rounded-2xl border border-border shadow-elevated z-50 py-1" data-module-menu>
+                      {visibleNav.filter(i => i !== currentModule).map(i => (
+                        <button key={i.path} onClick={() => navigate(i.path)} className="w-full px-3 py-2.5 flex items-center gap-3 text-sm font-semibold text-brand-dark hover:bg-brand-card text-left">
+                          <i.icon size={18} className="text-brand-primary" /> {i.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
           <button onClick={() => navigate('/pos')} className="font-serif font-bold text-base tracking-wide flex-1 md:hidden flex items-center gap-2 text-brand-primary">
             <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
           </button>
+          )}
           {/* En escritorio el encabezado muestra el nombre del negocio; el título de cada sección lo pone la propia página */}
           <div className="flex-1 hidden md:flex items-center min-w-0">
             <span className="font-serif font-bold text-lg text-brand-primary truncate" data-testid="header-business-name">{businessName}</span>
@@ -263,7 +291,7 @@ export const AppLayout = () => {
       )}
 
       {/* Main content */}
-      <main className={cn(isPOS ? 'pt-0 pb-16 md:pb-0 h-[100dvh] overflow-hidden' : 'pt-14 pb-20 md:pb-4 min-h-screen', 'md:ml-16 transition-all duration-300', mainML)}>
+      <main className={cn(isPOS ? (topNav ? 'pt-14 md:pt-0 pb-0 h-[100dvh] overflow-hidden' : 'pt-0 pb-16 md:pb-0 h-[100dvh] overflow-hidden') : (topNav ? 'pt-14 pb-4 min-h-screen' : 'pt-14 pb-20 md:pb-4 min-h-screen'), 'md:ml-16 transition-all duration-300', mainML)}>
         <div className={cn('max-w-full h-full', isPOS ? 'p-0' : 'p-4 lg:p-6')}>
           <Outlet />
         </div>
@@ -271,7 +299,7 @@ export const AppLayout = () => {
 
       {/* Mobile bottom nav */}
       {/* En la cuenta abierta la página tiene su propia barra inferior (Productos / Cuenta): no se superpone la navegación general */}
-      {!location.pathname.startsWith('/cuenta/') && <MobileNav navigate={navigate} location={location} pendingCount={pendingCount} logout={logout} />}
+      {!topNav && !location.pathname.startsWith('/cuenta/') && <MobileNav navigate={navigate} location={location} pendingCount={pendingCount} logout={logout} />}
     </div>
   );
 };

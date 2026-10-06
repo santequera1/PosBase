@@ -140,6 +140,10 @@ export interface Order {
   discountKind?: 'staff' | 'manual';
   discountEmployeeId?: number;
   discountEmployeeName?: string;
+  discountId?: number;
+  discountName?: string;
+  cancelReason?: string;
+  createdBy?: string;
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;

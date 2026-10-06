@@ -1,5 +1,5 @@
 import { Receipt as ReceiptIcon, Printer as PrinterIcon } from 'lucide-react';
-import { staffDiscountFor } from '@/lib/restaurant';
+import { catalogAmount } from '@/components/DiscountPicker';
 import { formatTime } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
 import { BRAND } from '@/lib/theme';
@@ -77,6 +77,7 @@ interface TabOrder {
   discountType?: 'percent' | 'fixed';
   discountValue?: number;
   staffEmployeeId?: number;
+  catDiscount?: import('@/components/DiscountPicker').DiscountSel | null;
 }
 
 const DEFAULT_CUSTOMER = {
@@ -298,16 +299,21 @@ export const POSPage: React.FC = () => {
   const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.price * item.quantity, 0), [cart]);
 
   const restaurantCfg = useStore(s => s.restaurant);
-  const staffEmployeeId = currentTab.staffEmployeeId || 0;
-  const staffDisc = useMemo(() => staffDiscountFor(cart, products, restaurantCfg), [cart, products, restaurantCfg]);
+  const catDiscount = currentTab.catDiscount || null;
+  // El descuento del catálogo se recalcula si cambia el carrito
+  const catLive = useMemo(() => {
+    if (!catDiscount) return null;
+    const d = (restaurantCfg?.discounts || []).find(x => x.id === catDiscount.discountId);
+    return d ? { ...catDiscount, amount: catalogAmount(d, cart, products, restaurantCfg?.staffDiscountExcluded || [], catDiscount.value).amount } : catDiscount;
+  }, [catDiscount, cart, products, restaurantCfg]);
   const discountAmount = useMemo(() => {
-    if (staffEmployeeId) return staffDisc.amount;
+    if (catLive) return catLive.amount;
     if (discountValue <= 0) return 0;
     if (discountType === 'percent') {
       return Math.round((subtotal * Math.min(100, discountValue)) / 100);
     }
     return Math.min(subtotal, discountValue);
-  }, [subtotal, discountType, discountValue, staffEmployeeId, staffDisc.amount]);
+  }, [subtotal, discountType, discountValue, catLive]);
 
   const total = Math.max(0, subtotal - discountAmount);
   const numericCash = Number(cashReceived) || 0;
@@ -676,7 +682,7 @@ export const POSPage: React.FC = () => {
         subtotal,
         deliveryFee: 0,
         discount: discountAmount,
-        ...(staffEmployeeId ? { staffDiscountEmployeeId: staffEmployeeId } : {}),
+        ...(catLive ? { discountId: catLive.discountId, discountValue: catLive.value, discountEmployeeId: catLive.employeeId } : {}),
         total,
         paymentMethod,
         paymentSplit: finalSplit,
@@ -1499,8 +1505,7 @@ export const POSPage: React.FC = () => {
         discountAmount={discountAmount}
         discountType={discountType}
         discountValue={discountValue}
-        staffEmployeeId={staffEmployeeId}
-        staffDiscount={staffDisc}
+        catDiscount={catLive}
         total={total}
         paymentMethod={paymentMethod}
         paymentSplit={paymentSplit}

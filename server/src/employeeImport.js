@@ -41,7 +41,7 @@ function normalizeRow(raw) {
   const r = raw || {};
   const body = {};
   body.name = String(r.name ?? '').trim();
-  for (const k of ['document', 'phone', 'email', 'position', 'notes']) if (present(r[k])) body[k] = String(r[k]).replace(/\.0$/, '').trim();
+  for (const k of ['document', 'phone', 'email', 'position', 'notes', 'bankAccount']) if (present(r[k])) body[k] = String(r[k]).replace(/\.0$/, '').trim();
   if (present(r.payMode)) {
     body.payMode = parsePayMode(r.payMode);
     if (!body.payMode) return { body, error: `Forma de pago no reconocida: "${r.payMode}" (usa mensual, quincenal, por día, por turno o por hora)` };

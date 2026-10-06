@@ -4,7 +4,8 @@ const { applySaleStock, restoreOrderStock } = require('../stock');
 const { issueElectronicInvoice } = require('../einvoice');
 const L = require('../ledger');
 const { formatOrder } = require('../orderFormat');
-const { readRestaurantConfig, computeStaffDiscount, staffDiscountEmployee, CHANNELS } = require('../restaurantSchema');
+const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
+const D = require('../discounts');
 const { getOpenShift, now } = require('../cashHelpers');
 const CHANNEL_IDS = CHANNELS.map(c => c.id);
 const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
@@ -71,6 +72,9 @@ router.post('/', async (req, res) => {
     tip = 0,
     discountReason = '',
     staffDiscountEmployeeId,
+    discountId,
+    discountValue,
+    discountEmployeeId,
   } = req.body;
 
   if (!items || !items.length || !paymentMethod) {
@@ -90,15 +94,14 @@ router.post('/', async (req, res) => {
   const rcfg = readRestaurantConfig(db);
   if (rcfg.requireOpenShift && !getOpenShift(db)) return res.status(400).json({ error: 'Abre la caja antes de registrar ventas' });
   // Descuento de trabajador: se valida contra el cálculo del servidor (porcentaje sobre productos que no son bebidas)
-  let staffEmp = null;
+  let cat = null;
   let reason = String(discountReason || '').trim().slice(0, 160);
-  if (staffDiscountEmployeeId) {
-    if (!rcfg.staffDiscountEnabled) return res.status(400).json({ error: 'El descuento de trabajador está desactivado' });
-    staffEmp = staffDiscountEmployee(db, staffDiscountEmployeeId);
-    if (!staffEmp) return res.status(400).json({ error: 'Trabajador no encontrado o inactivo' });
-    const sd = computeStaffDiscount(db, items, rcfg);
-    if (Math.abs(sd.amount - Math.round(Number(discount) || 0)) > 1) return res.status(400).json({ error: `El descuento de trabajador debe ser ${sd.amount}` });
-    reason = `Descuento de trabajador ${sd.pct}%: ${staffEmp.name}`;
+  const catId = discountId ? Number(discountId) : (staffDiscountEmployeeId ? D.staffDiscountId(db) : null);
+  if (catId) {
+    cat = D.computeDiscount(db, catId, items, { value: discountValue, employeeId: discountEmployeeId || staffDiscountEmployeeId });
+    if (cat.error) return res.status(400).json({ error: cat.error });
+    if (Math.abs(cat.amount - Math.round(Number(discount) || 0)) > 1) return res.status(400).json({ error: `${cat.kind === 'staff' ? 'El descuento de trabajador' : 'El descuento'} debe ser ${cat.amount}` });
+    reason = cat.reason;
   }
 
   // Guardar o actualizar el cliente en el directorio cuando trae documento (F.E.) o teléfono
@@ -163,8 +166,9 @@ router.post('/', async (req, res) => {
   );
 
   const orderId = result.lastInsertRowid;
-  if (Number(discount) > 0) db.prepare('UPDATE orders SET discount_reason = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ? WHERE id = ?')
-    .run(reason || null, staffEmp ? 'staff' : 'manual', staffEmp ? staffEmp.id : null, staffEmp ? staffEmp.name : null, orderId);
+  if (Number(discount) > 0) db.prepare('UPDATE orders SET discount_reason = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ?, discount_id = ?, discount_name = ? WHERE id = ?')
+    .run(reason || null, cat ? cat.kind : 'manual', cat && cat.employee ? cat.employee.id : null, cat && cat.employee ? cat.employee.name : null, cat ? cat.discount.id : null, cat ? cat.discount.name : null, orderId);
+  db.prepare('UPDATE orders SET created_by = ? WHERE id = ?').run(req.user?.name || null, orderId);
   const insertItem = db.prepare(`
     INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)

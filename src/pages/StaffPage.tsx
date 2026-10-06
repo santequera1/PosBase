@@ -3,7 +3,8 @@ import {
   Plus, Edit2, Trash2, UsersRound, CalendarCheck, HandCoins, PiggyBank, FileSpreadsheet, Search, Banknote, ArrowLeftRight, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2, ClipboardList, Upload,
 } from 'lucide-react';
-import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal } from '@/components/staff/StaffExtras';
+import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal, LoansPanel } from '@/components/staff/StaffExtras';
+import { downloadXlsx } from '@/lib/xlsx';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
@@ -20,7 +21,7 @@ interface Employee {
   id: number; userId: number | null; name: string; document: string; phone: string; email: string; position: string;
   payMode: PayMode; payModeLabel: string; baseAmount: number; startDate: string | null; active: boolean; notes: string;
   monthAttendance: number; monthHours: number; unsettledAdvances: number;
-  hoursPerDay: number; overtime: boolean; legalDeductions: boolean; transportAllowance: boolean; tipPoints: number;
+  hoursPerDay: number; overtime: boolean; legalDeductions: boolean; transportAllowance: boolean; tipPoints: number; bankAccount?: string;
 }
 
 const PAY_MODES: Array<{ id: PayMode; label: string; hint: string }> = [
@@ -50,6 +51,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
     hoursPerDay: employee ? String(employee.hoursPerDay || 8) : '8', overtime: employee ? employee.overtime : true,
     legalDeductions: employee ? employee.legalDeductions : false, transportAllowance: employee ? employee.transportAllowance : false,
     tipPoints: employee ? String(employee.tipPoints ?? 1) : '1',
+    bankAccount: employee?.bankAccount || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -98,6 +100,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
           <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.legalDeductions ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.legalDeductions} onChange={e => set({ legalDeductions: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Salud y pensión</span><span className="text-muted-foreground">Descuenta el aporte del trabajador (4% + 4%) sobre sueldo y extras.</span></span></label>
           <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer', form.transportAllowance ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')}><input type="checkbox" checked={!!form.transportAllowance} onChange={e => set({ transportAllowance: e.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-brand-dark">Auxilio de transporte</span><span className="text-muted-foreground">Se suma si gana hasta 2 salarios mínimos.</span></span></label>
         </div>
+        <div><label className={LABEL}>Número de cuenta (pago de nómina)</label><input value={form.bankAccount} onChange={e => set({ bankAccount: e.target.value })} className={cn(INPUT, 'font-mono')} data-bank-account /></div>
         <div><label className={LABEL}>Puntos para la propina común</label><input type="number" min={0} max={100} step={0.5} value={form.tipPoints} onChange={e => set({ tipPoints: e.target.value })} className={cn(INPUT, 'font-mono')} data-tip-points /><p className="text-[10px] text-muted-foreground mt-1">Solo si la propina se reparte por puntos (Personal → Propinas). 0 = no participa.</p></div>
         <div className="sm:col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} /></div>
         {employee && (
@@ -453,6 +456,8 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
   const [from, setFrom] = useState(presets[0].from);
   const [to, setTo] = useState(presets[0].to);
   const [preview, setPreview] = useState<any>(null);
+  const [skipLoans, setSkipLoans] = useState<number[]>([]);
+  const [payoffLoans, setPayoffLoans] = useState<number[]>([]);
   const [bonuses, setBonuses] = useState('');
   const [deductions, setDeductions] = useState('');
   const [notes, setNotes] = useState('');
@@ -469,15 +474,19 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
 
   const calculate = async () => {
     if (!employeeId) return;
-    setCalculating(true); setError(''); setPreview(null);
+    setCalculating(true); setError(''); setPreview(null); setSkipLoans([]); setPayoffLoans([]);
     try { setPreview(await api.previewSettlement(employeeId, from, to)); } catch (e: any) { setError(e.message); }
     setCalculating(false);
+  };
+  const setLoanOpts = async (skip: number[], payoff: number[]) => {
+    setSkipLoans(skip); setPayoffLoans(payoff);
+    try { setPreview(await api.previewSettlement(employeeId, from, to, { skipLoans: skip, payoffLoans: payoff })); } catch (e: any) { setError(e.message); }
   };
   const total = preview ? preview.subtotal + (Number(bonuses) || 0) - (Number(deductions) || 0) : 0;
   const save = async () => {
     setError('');
     try {
-      await api.createSettlement({ employeeId, from, to, bonuses: Number(bonuses) || 0, deductions: Number(deductions) || 0, notes });
+      await api.createSettlement({ employeeId, from, to, bonuses: Number(bonuses) || 0, deductions: Number(deductions) || 0, notes, skipLoans, payoffLoans });
       setPreview(null); setBonuses(''); setDeductions(''); setNotes(''); loadList(); onChanged();
     } catch (e: any) { setError(e.message); }
   };
@@ -527,6 +536,16 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     <div className="flex justify-between py-1.5"><span>Propinas comunes (su parte)</span><span>{formatPrice(preview.tipsShared)}</span></div>
                   </>
                 )}
+                {(preview.loans || []).map((l: any) => (
+                  <div key={l.id} className="py-1.5" data-loan-line>
+                    <div className={cn('flex justify-between', l.skipped ? 'text-muted-foreground line-through' : 'text-red-700')}><span>Préstamo: cuota {l.payoff ? 'final (saldo completo)' : `${l.number} de ${l.installments}`}{l.notes ? ` · ${l.notes}` : ''}</span><span>− {formatPrice(l.amount)}</span></div>
+                    <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground mt-0.5">
+                      <span>Saldo antes: {formatPrice(l.balance)}</span>
+                      <label className="flex items-center gap-1"><input type="checkbox" checked={l.skipped} onChange={e => setLoanOpts(e.target.checked ? [...skipLoans, l.id] : skipLoans.filter(x => x !== l.id), payoffLoans.filter(x => x !== l.id))} /> No descontar esta vez</label>
+                      <label className="flex items-center gap-1"><input type="checkbox" checked={l.payoff} onChange={e => setLoanOpts(skipLoans.filter(x => x !== l.id), e.target.checked ? [...payoffLoans, l.id] : payoffLoans.filter(x => x !== l.id))} /> Cobrar el saldo completo</label>
+                    </div>
+                  </div>
+                ))}
                 {preview.advances.length > 0 && (
                   <div className="py-1.5">
                     <div className="flex justify-between text-red-700"><span>Anticipos por descontar ({preview.advances.length})</span><span>− {formatPrice(preview.advancesTotal)}</span></div>
@@ -558,7 +577,8 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
 
       <div className="lg:col-span-2 space-y-3">
         <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-border bg-brand-card"><p className="text-xs font-bold text-brand-dark">Liquidaciones</p></div>
+          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between gap-2"><p className="text-xs font-bold text-brand-dark">Liquidaciones</p>
+            <button onClick={() => { const acc = Object.fromEntries(employees.map(e => [e.id, e])); const pend = list.filter(s => s.status === 'pending'); downloadXlsx('pagos_nomina', [{ name: 'Pagos pendientes', headers: ['Colaborador', 'Cédula', 'Número de cuenta', 'Período', 'Neto a pagar'], rows: pend.map(s => [s.employeeName, acc[s.employeeId]?.document || '', acc[s.employeeId]?.bankAccount || '', `${s.periodStart} a ${s.periodEnd}`, s.total]), widths: [30, 14, 18, 24, 14] }]); }} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] font-semibold" title="Excel con cuentas bancarias para hacer las transferencias">Excel de pagos</button></div>
           {list.length === 0 ? <p className="p-6 text-center text-xs text-muted-foreground">Aún no hay liquidaciones.</p> : (
             <ul className="divide-y divide-border max-h-[560px] overflow-y-auto">
               {list.map(s => (
@@ -567,7 +587,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     <p className="text-sm font-semibold text-brand-dark truncate">{s.employeeName}</p>
                     {s.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1"><CheckCircle2 size={10} /> Pagada</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold flex items-center gap-1"><Clock size={10} /> Pendiente</span>}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)}{s.extrasTotal ? ` + extras ${formatPrice(s.extrasTotal)}` : ''}{s.allowanceTotal ? ` + auxilio ${formatPrice(s.allowanceTotal)}` : ''} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}{s.legalDeductionsTotal ? ` − salud/pensión ${formatPrice(s.legalDeductionsTotal)}` : ''}{s.deductions ? ` − descuentos ${formatPrice(s.deductions)}` : ''}{s.bonuses ? ` + bonos ${formatPrice(s.bonuses)}` : ''}{(s.noveltiesExtras || 0) + (s.noveltiesBonus || 0) ? ` + novedades ${formatPrice((s.noveltiesExtras || 0) + (s.noveltiesBonus || 0))}` : ''}{(s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0) ? ` − novedades ${formatPrice((s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0))}` : ''}</p>
+                  <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)}{s.extrasTotal ? ` + extras ${formatPrice(s.extrasTotal)}` : ''}{s.allowanceTotal ? ` + auxilio ${formatPrice(s.allowanceTotal)}` : ''} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}{s.legalDeductionsTotal ? ` − salud/pensión ${formatPrice(s.legalDeductionsTotal)}` : ''}{s.deductions ? ` − descuentos ${formatPrice(s.deductions)}` : ''}{s.bonuses ? ` + bonos ${formatPrice(s.bonuses)}` : ''}{(s.noveltiesExtras || 0) + (s.noveltiesBonus || 0) ? ` + novedades ${formatPrice((s.noveltiesExtras || 0) + (s.noveltiesBonus || 0))}` : ''}{(s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0) ? ` − novedades ${formatPrice((s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0))}` : ''}{s.loansTotal ? ` − préstamos ${formatPrice(s.loansTotal)}` : ''}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-brand-primary">{formatPrice(s.total)}</p>
                     <div className="flex gap-1">
@@ -624,7 +644,7 @@ const StaffPage = () => {
     { id: 'colaboradores', label: 'Colaboradores', icon: UsersRound },
     { id: 'asistencia', label: 'Asistencia', icon: CalendarCheck },
     { id: 'propinas', label: 'Propinas', icon: HandCoins },
-    { id: 'anticipos', label: 'Anticipos', icon: PiggyBank },
+    { id: 'anticipos', label: 'Anticipos y préstamos', icon: PiggyBank },
     { id: 'novedades', label: 'Novedades', icon: ClipboardList, admin: true },
     { id: 'liquidaciones', label: 'Liquidaciones', icon: FileSpreadsheet, admin: true },
   ];
@@ -676,7 +696,12 @@ const StaffPage = () => {
           </div>
         </div>
       )}
-      {tab === 'anticipos' && <AdvancesTab employees={active} isAdmin={isAdmin} />}
+      {tab === 'anticipos' && (
+        <div className="space-y-6">
+          <AdvancesTab employees={active} isAdmin={isAdmin} />
+          {isAdmin && <LoansPanel employees={active} />}
+        </div>
+      )}
       {tab === 'novedades' && isAdmin && <NoveltiesTab employees={active} />}
       {tab === 'liquidaciones' && isAdmin && <SettlementsTab employees={active} onChanged={reloadAll} />}
     </div>

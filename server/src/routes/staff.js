@@ -25,7 +25,7 @@ const UNIT_LABEL = { monthly: 'mes', biweekly: 'quincena', per_shift: 'turnos', 
 
 const EMP_SELECT = `SELECT id, user_id AS userId, name, document, phone, email, position, pay_mode AS payMode, base_amount AS baseAmount,
   start_date AS startDate, active, notes, created_at AS createdAt, hours_per_day AS hoursPerDay, overtime, legal_deductions AS legalDeductions,
-  transport_allowance AS transportAllowance, COALESCE(tip_points, 1) AS tipPoints FROM employees`;
+  transport_allowance AS transportAllowance, COALESCE(tip_points, 1) AS tipPoints, COALESCE(bank_account, '') AS bankAccount FROM employees`;
 const ATT_SELECT = `SELECT a.id, a.employee_id AS employeeId, e.name AS employeeName, a.date, a.check_in AS checkIn, a.check_out AS checkOut,
   a.hours, a.shift_id AS shiftId, a.source, a.notes FROM attendance a JOIN employees e ON e.id = a.employee_id`;
 const TIP_SELECT = `SELECT t.id, t.date, t.employee_id AS employeeId, e.name AS employeeName, t.amount, t.method, t.shift_id AS shiftId, t.notes, t.created_at AS createdAt
@@ -37,7 +37,7 @@ const SET_SELECT = `SELECT s.id, s.employee_id AS employeeId, e.name AS employee
   s.pay_mode AS payMode, s.units, s.unit_amount AS unitAmount, s.base_total AS baseTotal, s.tips_total AS tipsTotal, s.advances_total AS advancesTotal,
   s.bonuses, s.deductions, s.total, s.status, s.paid_at AS paidAt, s.payment_method AS paymentMethod, s.expense_id AS expenseId, s.notes, s.created_at AS createdAt,
   s.extras_total AS extrasTotal, s.allowance_total AS allowanceTotal, s.legal_deductions_total AS legalDeductionsTotal, s.details,
-  s.novelties_extras AS noveltiesExtras, s.novelties_bonus AS noveltiesBonus, s.novelties_absence AS noveltiesAbsence, s.novelties_deductions AS noveltiesDeductions
+  s.novelties_extras AS noveltiesExtras, s.novelties_bonus AS noveltiesBonus, s.novelties_absence AS noveltiesAbsence, s.novelties_deductions AS noveltiesDeductions, COALESCE(s.loans_total, 0) AS loansTotal
   FROM payroll_settlements s JOIN employees e ON e.id = s.employee_id`;
 
 const mapEmp = r => ({ ...r, active: Boolean(r.active), payModeLabel: PAY_MODE_LABEL[r.payMode] || r.payMode, hoursPerDay: Number(r.hoursPerDay) > 0 ? Number(r.hoursPerDay) : 8,
@@ -69,6 +69,7 @@ function employeePayload(body, cur = {}) {
     position: body.position !== undefined ? String(body.position).trim() : (cur.position || 'Cajero'),
     payMode,
     baseAmount: body.baseAmount !== undefined ? Math.round(Number(body.baseAmount) || 0) : (cur.baseAmount || 0),
+    bankAccount: body.bankAccount !== undefined ? String(body.bankAccount).replace(/[^0-9A-Za-z-]/g, '').slice(0, 30) : (cur.bankAccount || ''),
     startDate: body.startDate !== undefined ? (isDate(body.startDate) ? body.startDate : null) : (cur.startDate || null),
     active: body.active !== undefined ? (body.active ? 1 : 0) : (cur.active === undefined ? 1 : (cur.active ? 1 : 0)),
     notes: body.notes !== undefined ? String(body.notes).trim() : (cur.notes || ''),
@@ -81,8 +82,8 @@ function employeePayload(body, cur = {}) {
 }
 
 function insertEmployee(db, p) {
-  return db.prepare(`INSERT INTO employees (user_id, name, document, phone, email, position, pay_mode, base_amount, start_date, active, notes, hours_per_day, overtime, legal_deductions, transport_allowance, tip_points)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints);
+  return db.prepare(`INSERT INTO employees (user_id, name, document, phone, email, position, pay_mode, base_amount, start_date, active, notes, hours_per_day, overtime, legal_deductions, transport_allowance, tip_points, bank_account)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints, p.bankAccount);
 }
 
 /* ------------------------------------------------------------------ */
@@ -111,8 +112,8 @@ router.post('/employees/import', ADMIN, (req, res) => {
       if (dryRun) { if (cur) result.updated++; else result.created++; return; }
       if (cur) {
         db.prepare(`UPDATE employees SET name = ?, document = ?, phone = ?, email = ?, position = ?, pay_mode = ?, base_amount = ?, start_date = ?, active = 1, notes = ?,
-          hours_per_day = ?, overtime = ?, legal_deductions = ?, transport_allowance = ?, tip_points = ? WHERE id = ?`)
-          .run(p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints, cur.id);
+          hours_per_day = ?, overtime = ?, legal_deductions = ?, transport_allowance = ?, tip_points = ?, bank_account = ? WHERE id = ?`)
+          .run(p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints, p.bankAccount, cur.id);
         result.updated++;
       } else { insertEmployee(db, p); result.created++; }
     });
@@ -140,8 +141,8 @@ router.put('/employees/:id', ADMIN, (req, res) => {
   if (p.name.length < 2) return res.status(400).json({ error: 'El nombre es requerido' });
   if (!PAY_MODES.includes(p.payMode)) return res.status(400).json({ error: 'Modalidad de pago inválida' });
   db.prepare(`UPDATE employees SET user_id = ?, name = ?, document = ?, phone = ?, email = ?, position = ?, pay_mode = ?, base_amount = ?, start_date = ?, active = ?, notes = ?,
-    hours_per_day = ?, overtime = ?, legal_deductions = ?, transport_allowance = ?, tip_points = ? WHERE id = ?`)
-    .run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints, id);
+    hours_per_day = ?, overtime = ?, legal_deductions = ?, transport_allowance = ?, tip_points = ?, bank_account = ? WHERE id = ?`)
+    .run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints, p.bankAccount, id);
   res.json(mapEmp(db.prepare(`${EMP_SELECT} WHERE id = ?`).get(id)));
 });
 
@@ -277,7 +278,7 @@ router.delete('/advances/:id', ADMIN, (req, res) => {
 /* ------------------------------------------------------------------ */
 /* Liquidaciones                                                        */
 /* ------------------------------------------------------------------ */
-function computeSettlement(db, emp, from, to) {
+function computeSettlement(db, emp, from, to, loanOpts = {}) {
   const attendance = db.prepare('SELECT date, check_in AS checkIn, check_out AS checkOut, hours, source FROM attendance WHERE employee_id = ? AND date BETWEEN ? AND ? ORDER BY date').all(emp.id, from, to);
   let units, unitAmount = emp.baseAmount, baseTotal;
   switch (emp.payMode) {
@@ -301,6 +302,8 @@ function computeSettlement(db, emp, from, to) {
   const tipsTotal = tipsSeparate ? 0 : acc.total;
   // Novedades del período (festivos, extras manuales, bonificaciones, faltas, préstamos...)
   const novelties = PX.noveltiesFor(db, emp.id, from, to);
+  // Préstamos (libranza sin intereses): la cuota se descuenta sola en cada liquidación
+  const loans = PX.loanPlan(db, emp.id, to, loanOpts);
   const advances = db.prepare(`${ADV_SELECT} WHERE a.employee_id = ? AND a.settled = 0 AND a.date <= ? ORDER BY a.date`).all(emp.id, to).map(mapAdv);
   const advancesTotal = advances.reduce((a, r) => a + r.amount, 0);
 
@@ -317,9 +320,13 @@ function computeSettlement(db, emp, from, to) {
     units, unitAmount, baseTotal, attendance, tipsDirect, tipsShared, sharedDetail, tipsTotal, tipsSeparate, tipsAccrued: acc.total, advances, advancesTotal,
     extras, extrasTotal, allowance, allowanceTotal: allowance.amount, salaryBase, legalDeductions, legalDeductionsTotal: legalDeductions.total, config: cfg,
     novelties: novelties.rows, noveltiesExtras: novelties.extras, noveltiesBonus: novelties.bonus, noveltiesAbsence: novelties.absence, noveltiesDeductions: novelties.deductions,
-    subtotal: baseTotal + extrasTotal + allowance.amount + tipsTotal + novelties.extras + novelties.bonus - novelties.absence - novelties.deductions - advancesTotal - legalDeductions.total,
+    loans: loans.lines, loansTotal: loans.total, loanPlan: loans,
+    subtotal: baseTotal + extrasTotal + allowance.amount + tipsTotal + novelties.extras + novelties.bonus - novelties.absence - novelties.deductions - advancesTotal - loans.total - legalDeductions.total,
   };
 }
+
+const idList = v => (Array.isArray(v) ? v : String(v || '').split(',')).map(Number).filter(n => n > 0);
+const loanOptsFrom = q => ({ skip: idList(q.skipLoans), payoff: idList(q.payoffLoans) });
 
 router.get('/settlements/preview', ADMIN, (req, res) => {
   const db = getDb();
@@ -327,7 +334,7 @@ router.get('/settlements/preview', ADMIN, (req, res) => {
   if (!emp) return res.status(404).json({ error: 'Colaborador no encontrado' });
   const { from, to } = req.query;
   if (!isDate(from) || !isDate(to) || from > to) return res.status(400).json({ error: 'Período inválido' });
-  res.json(computeSettlement(db, emp, from, to));
+  res.json(computeSettlement(db, emp, from, to, loanOptsFrom(req.query)));
 });
 
 router.get('/settlements', ADMIN, (req, res) => {
@@ -348,21 +355,23 @@ router.post('/settlements', ADMIN, (req, res) => {
   if (!isDate(from) || !isDate(to) || from > to) return res.status(400).json({ error: 'Período inválido' });
   const overlap = db.prepare("SELECT id FROM payroll_settlements WHERE employee_id = ? AND NOT (period_end < ? OR period_start > ?)").get(emp.id, from, to);
   if (overlap) return res.status(409).json({ error: 'Ya existe una liquidación que se cruza con ese período para este colaborador' });
-  const c = computeSettlement(db, emp, from, to);
+  const c = computeSettlement(db, emp, from, to, loanOptsFrom(req.body));
   const bonuses = Math.max(0, Math.round(Number(req.body.bonuses) || 0));
   const deductions = Math.max(0, Math.round(Number(req.body.deductions) || 0));
-  const total = c.baseTotal + c.extrasTotal + c.allowanceTotal + c.tipsTotal + bonuses + c.noveltiesExtras + c.noveltiesBonus - c.noveltiesAbsence - c.noveltiesDeductions - c.advancesTotal - c.legalDeductionsTotal - deductions;
+  const total = c.baseTotal + c.extrasTotal + c.allowanceTotal + c.tipsTotal + bonuses + c.noveltiesExtras + c.noveltiesBonus - c.noveltiesAbsence - c.noveltiesDeductions - c.advancesTotal - c.loansTotal - c.legalDeductionsTotal - deductions;
   const details = JSON.stringify({
     extras: c.extras.lines, hours: c.extras.hoursSummary, hourlyValue: c.extras.hourlyValue, hoursPerDay: c.extras.hoursPerDay, sundayPct: c.extras.sundayPct,
     allowance: c.allowance, legalDeductions: c.legalDeductions.lines, salaryBase: c.salaryBase, tipsDirect: c.tipsDirect, tipsShared: c.tipsShared, tipsSeparate: c.tipsSeparate,
     novelties: c.novelties.map(n => ({ id: n.id, date: n.date, type: n.type, label: n.label, group: n.group, quantity: n.quantity, amount: n.amount, notes: n.notes })),
+    loans: c.loans.filter(l => !l.skipped).map(l => ({ id: l.id, number: l.number, installments: l.installments, amount: l.amount, balance: l.balance - l.amount, payoff: l.payoff, notes: l.notes })),
   });
   const info = db.prepare(`INSERT INTO payroll_settlements (employee_id, period_start, period_end, pay_mode, units, unit_amount, base_total, tips_total, advances_total, bonuses, deductions, total, status, notes,
-    extras_total, allowance_total, legal_deductions_total, details, novelties_extras, novelties_bonus, novelties_absence, novelties_deductions)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    extras_total, allowance_total, legal_deductions_total, details, novelties_extras, novelties_bonus, novelties_absence, novelties_deductions, loans_total)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(emp.id, from, to, emp.payMode, c.units, c.unitAmount, c.baseTotal, c.tipsTotal, c.advancesTotal, bonuses, deductions, total, String(req.body.notes || '').trim(),
-      c.extrasTotal, c.allowanceTotal, c.legalDeductionsTotal, details, c.noveltiesExtras, c.noveltiesBonus, c.noveltiesAbsence, c.noveltiesDeductions);
+      c.extrasTotal, c.allowanceTotal, c.legalDeductionsTotal, details, c.noveltiesExtras, c.noveltiesBonus, c.noveltiesAbsence, c.noveltiesDeductions, c.loansTotal);
   const id = Number(info.lastInsertRowid);
+  PX.applyLoanPlan(db, emp.id, to, id, c.loanPlan);
   if (c.novelties.length) db.prepare(`UPDATE payroll_novelties SET settlement_id = ? WHERE id IN (${c.novelties.map(() => '?').join(',')})`).run(id, ...c.novelties.map(n => n.id));
   if (c.advances.length) db.prepare(`UPDATE advances SET settled = 1, settlement_id = ? WHERE id IN (${c.advances.map(() => '?').join(',')})`).run(id, ...c.advances.map(a => a.id));
   res.status(201).json(mapSet(db.prepare(`${SET_SELECT} WHERE s.id = ?`).get(id)));
@@ -404,6 +413,7 @@ router.delete('/settlements/:id', ADMIN, (req, res) => {
   }
   db.prepare('UPDATE advances SET settled = 0, settlement_id = NULL WHERE settlement_id = ?').run(cur.id);
   db.prepare('UPDATE payroll_novelties SET settlement_id = NULL WHERE settlement_id = ?').run(cur.id);
+  PX.revertLoanPayments(db, cur.id);
   db.prepare('DELETE FROM payroll_settlements WHERE id = ?').run(cur.id);
   res.json({ success: true });
 });
@@ -504,6 +514,65 @@ router.delete('/tips/payouts/:id', ADMIN, (req, res) => {
 /* ------------------------------------------------------------------ */
 /* Novedades de nómina (incidencias)                                    */
 /* ------------------------------------------------------------------ */
+router.get('/novelties/tasks', ADMIN, (req, res) => res.json(PX.readTasks(getDb())));
+router.put('/novelties/tasks', ADMIN, (req, res) => res.json(PX.saveTasks(getDb(), req.body && req.body.tasks)));
+
+/* ------------------------------------------------------------------ */
+/* Préstamos a empleados (libranza sin intereses)                       */
+/* ------------------------------------------------------------------ */
+const LOAN_SELECT = `SELECT l.id, l.employee_id AS employeeId, e.name AS employeeName, e.document, l.date, l.amount, l.installments, l.installment_amount AS installmentAmount, l.paid_total AS paidTotal,
+  l.amount - l.paid_total AS balance, l.status, l.from_cash_register AS fromCashRegister, l.notes, l.created_by AS createdBy, l.created_at AS createdAt,
+  (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id) AS paymentsCount FROM employee_loans l JOIN employees e ON e.id = l.employee_id`;
+const mapLoan = r => ({ ...r, fromCashRegister: Boolean(r.fromCashRegister) });
+
+router.get('/loans', ADMIN, (req, res) => {
+  const db = getDb();
+  let sql = `${LOAN_SELECT} WHERE 1=1`;
+  const params = [];
+  if (req.query.employeeId) { sql += ' AND l.employee_id = ?'; params.push(Number(req.query.employeeId)); }
+  if (req.query.status === 'active' || req.query.status === 'paid') { sql += ' AND l.status = ?'; params.push(req.query.status); }
+  sql += ' ORDER BY (l.status = \'active\') DESC, l.date DESC, l.id DESC LIMIT 300';
+  const rows = db.prepare(sql).all(...params).map(mapLoan);
+  res.json({ loans: rows, lent: rows.reduce((a, r) => a + r.amount, 0), balance: rows.filter(r => r.status === 'active').reduce((a, r) => a + r.balance, 0) });
+});
+
+router.get('/loans/:id/payments', ADMIN, (req, res) => {
+  res.json(getDb().prepare('SELECT p.id, p.date, p.amount, p.settlement_id AS settlementId FROM loan_payments p WHERE p.loan_id = ? ORDER BY p.id').all(Number(req.params.id)));
+});
+
+router.post('/loans', ADMIN, (req, res) => {
+  const db = getDb();
+  const emp = db.prepare(`${EMP_SELECT} WHERE id = ?`).get(Number(req.body.employeeId));
+  if (!emp) return res.status(400).json({ error: 'Colaborador no encontrado' });
+  const amount = Math.round(Number(req.body.amount));
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'El valor del préstamo debe ser mayor a cero' });
+  const installments = Math.min(120, Math.max(1, Math.round(Number(req.body.installments) || 1)));
+  let installmentAmount = Math.round(Number(req.body.installmentAmount));
+  if (!Number.isFinite(installmentAmount) || installmentAmount <= 0) installmentAmount = Math.ceil(amount / installments);
+  if (installmentAmount > amount) return res.status(400).json({ error: 'La cuota no puede ser mayor al préstamo' });
+  const date = isDate(req.body.date) ? req.body.date : today(db);
+  const fromCash = Boolean(req.body.fromCashRegister);
+  let cashMovementId = null;
+  if (fromCash) {
+    const r = registerCashWithdrawal(db, amount, `Préstamo a ${emp.name}`, req.user?.name);
+    if (r.error) return res.status(400).json({ error: r.error });
+    cashMovementId = r.id;
+  }
+  const info = db.prepare('INSERT INTO employee_loans (employee_id, date, amount, installments, installment_amount, from_cash_register, cash_movement_id, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(emp.id, date, amount, installments, installmentAmount, fromCash ? 1 : 0, cashMovementId, String(req.body.notes || '').trim(), req.user?.name || '');
+  res.status(201).json(mapLoan(db.prepare(`${LOAN_SELECT} WHERE l.id = ?`).get(info.lastInsertRowid)));
+});
+
+router.delete('/loans/:id', ADMIN, (req, res) => {
+  const db = getDb();
+  const cur = db.prepare('SELECT * FROM employee_loans WHERE id = ?').get(Number(req.params.id));
+  if (!cur) return res.status(404).json({ error: 'Préstamo no encontrado' });
+  if (db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ?').get(cur.id).c > 0) return res.status(400).json({ error: 'Este préstamo ya tiene cuotas descontadas en nómina; no se puede eliminar' });
+  removeCashMovementIfOpen(db, cur.cash_movement_id);
+  db.prepare('DELETE FROM employee_loans WHERE id = ?').run(cur.id);
+  res.json({ success: true });
+});
+
 router.get('/novelties/types', STAFF, (req, res) => res.json(Object.entries(PX.NOVELTY_TYPES).map(([id, t]) => ({ id, ...t }))));
 
 router.get('/novelties', ADMIN, (req, res) => {
@@ -527,7 +596,13 @@ function noveltyInput(db, body, preview = false) {
   const date = isDate(body.date) ? body.date : today(db);
   const quantity = Math.max(0, Number(body.quantity) || 0);
   const cfg = payroll.readConfig(db);
-  const auto = PX.noveltyAmount(mapEmp(emp), type, quantity, date, cfg);
+  let task = null;
+  if (type === 'task') {
+    task = PX.readTasks(db).find(x => x.id === String(body.taskId || ''));
+    if (!task) return { error: 'Elige el adicional (armado de carne, lavado de campana...)' };
+  }
+  const auto = task ? { amount: Math.round(quantity * task.amount), pct: null } : PX.noveltyAmount(mapEmp(emp), type, quantity, date, cfg);
+  if (task && !(task.amount > 0) && (body.amount === undefined || body.amount === '' || body.amount === null) && !preview) return { error: `Define la tarifa de "${task.name}" en Novedades → Adicionales y tarifas, o escribe el valor` };
   const manual = body.amount !== undefined && body.amount !== null && body.amount !== '' ? Math.round(Number(body.amount)) : null;
   const amount = manual !== null && Number.isFinite(manual) ? manual : auto.amount;
   if (preview && t.auto && amount === 0) return { emp, type, t, date, quantity, amount: 0, pct: auto.pct, suggested: 0, warnings: ['Este colaborador no tiene valor base (sueldo o valor por día) en su ficha; edítalo o escribe el valor a mano.'] };
@@ -537,7 +612,7 @@ function noveltyInput(db, body, preview = false) {
   const warnings = [];
   if (type === 'holiday_worked' && emp.overtime && db.prepare('SELECT id FROM attendance WHERE employee_id = ? AND date = ?').get(emp.id, date) && payroll.isSundayOrHoliday(date))
     warnings.push('Ese día tiene asistencia y el colaborador tiene activos los recargos automáticos: el recargo festivo ya se calcula solo en la liquidación. Revisa que no se pague dos veces.');
-  return { emp, type, t, date, quantity, amount, pct: manual === null ? auto.pct : null, suggested: auto.amount, warnings };
+  return { emp, type, t, date, quantity, amount, pct: manual === null ? auto.pct : null, suggested: auto.amount, warnings, label: task ? task.name : null };
 }
 
 router.post('/novelties/preview', ADMIN, (req, res) => {
@@ -550,8 +625,8 @@ router.post('/novelties', ADMIN, (req, res) => {
   const db = getDb();
   const r = noveltyInput(db, req.body || {});
   if (r.error) return res.status(400).json({ error: r.error });
-  const info = db.prepare('INSERT INTO payroll_novelties (employee_id, date, type, quantity, amount, pct, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(r.emp.id, r.date, r.type, r.quantity, r.amount, r.pct, String(req.body.notes || '').trim(), req.user?.name || '');
+  const info = db.prepare('INSERT INTO payroll_novelties (employee_id, date, type, quantity, amount, pct, notes, created_by, label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(r.emp.id, r.date, r.type, r.quantity, r.amount, r.pct, String(req.body.notes || '').trim(), req.user?.name || '', r.label);
   res.status(201).json({ ...PX.mapNovelty(db.prepare(`${PX.NOV_SELECT} WHERE n.id = ?`).get(info.lastInsertRowid)), warnings: r.warnings });
 });
 

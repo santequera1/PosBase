@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  HandCoins, Wallet, Printer, Trash2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, Info, Plus, Settings2, CalendarClock, ClipboardList,
+  HandCoins, Wallet, Printer, Trash2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, Info, Plus, Settings2, CalendarClock, ClipboardList, Landmark,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -264,6 +264,7 @@ export const NoveltiesTab = ({ employees }: { employees: Array<{ id: number; nam
   const [rows, setRows] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
   const [show, setShow] = useState(false);
+  const [tasksVersion, setTasksVersion] = useState(0);
   const [error, setError] = useState('');
   const load = () => api.getNovelties({ from, to, employeeId: employeeId || undefined, pending: onlyPending ? 1 : undefined }).then(setRows).catch(e => setError(e.message));
   useEffect(() => { load(); }, [from, to, employeeId, onlyPending]);
@@ -281,6 +282,7 @@ export const NoveltiesTab = ({ employees }: { employees: Array<{ id: number; nam
         <label className="text-xs text-muted-foreground flex items-center gap-1"><input type="checkbox" checked={onlyPending} onChange={e => setOnlyPending(e.target.checked)} /> Solo sin liquidar</label>
         <button onClick={() => setShow(true)} data-novelty-new className="ml-auto px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Nueva novedad</button>
       </div>
+      <TasksManager onChanged={() => setTasksVersion(v => v + 1)} />
       <p className="text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> Las novedades del período se suman o restan solas al calcular la liquidación del colaborador: festivos y dominicales trabajados (recargo de ley: 90 % desde julio de 2026), horas extra, bonificaciones, comisiones, incapacidades, vacaciones, faltas, licencias, préstamos y descuentos autorizados.</p>
       <div className="grid grid-cols-2 gap-3">
         <KpiCard label="Suman al pago" value={formatPrice(totalPlus)} />
@@ -305,14 +307,16 @@ export const NoveltiesTab = ({ employees }: { employees: Array<{ id: number; nam
           </ul>
         )}
       </div>
-      {show && <NoveltyModal employees={employees} types={types} onClose={() => setShow(false)} onSaved={() => { setShow(false); load(); }} />}
+      {show && <NoveltyModal key={tasksVersion} employees={employees} types={types} onClose={() => setShow(false)} onSaved={() => { setShow(false); load(); }} />}
     </div>
   );
 };
 
 const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array<{ id: number; name: string; payModeLabel?: string }>; types: any[]; onClose: () => void; onSaved: () => void }) => {
-  const [form, setForm] = useState({ employeeId: employees[0]?.id || 0, type: 'holiday_worked', date: getColombiaTodayStr(), quantity: '1', amount: '', notes: '' });
+  const [form, setForm] = useState({ employeeId: employees[0]?.id || 0, type: 'holiday_worked', date: getColombiaTodayStr(), quantity: '1', amount: '', notes: '', taskId: '' });
   const [pv, setPv] = useState<any>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
+  useEffect(() => { api.getNoveltyTasks().then(ts => { setTasks(ts); if (ts[0]) setForm(f => ({ ...f, taskId: f.taskId || ts[0].id })); }).catch(() => {}); }, []);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const t = types.find(x => x.id === form.type);
@@ -324,7 +328,7 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
     if (!form.employeeId || !t?.auto) return;
     timer.current = setTimeout(() => { api.previewNovelty({ ...form, amount: '' }).then(setPv).catch((e: any) => setPv({ error: e.message })); }, 250);
     return () => clearTimeout(timer.current);
-  }, [form.employeeId, form.type, form.date, form.quantity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [form.employeeId, form.type, form.date, form.quantity, form.taskId]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = async () => {
     setSaving(true); setError('');
     try { const r = await api.addNovelty({ ...form, amount: form.amount === '' ? undefined : Number(form.amount) }); if (r.warnings?.length) window.alert(r.warnings.join('\n')); onSaved(); }
@@ -343,6 +347,14 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
           </select>
           {t?.help && <p className="text-[10px] text-muted-foreground mt-1">{t.help}</p>}
         </div>
+        {form.type === 'task' && (
+          <div className="col-span-2"><label className={LABEL}>Adicional</label>
+            <select value={form.taskId} onChange={e => set({ taskId: e.target.value, amount: '' })} className={INPUT} data-novelty-task>
+              {tasks.map(x => <option key={x.id} value={x.id}>{x.name}{x.amount ? ` · ${formatPrice(x.amount)} por vez` : ' · sin tarifa'}</option>)}
+            </select>
+            {!tasks.length && <p className="text-[11px] text-amber-700 mt-1">Crea los adicionales en "Adicionales y tarifas".</p>}
+          </div>
+        )}
         <div><label className={LABEL}>Fecha</label><input type="date" value={form.date} onChange={e => set({ date: e.target.value })} className={INPUT} /></div>
         {t && t.unit !== 'valor'
           ? <div><label className={LABEL}>Cantidad ({t.unit})</label><input type="number" min={0} step={0.5} value={form.quantity} onChange={e => set({ quantity: e.target.value })} className={cn(INPUT, 'font-mono')} data-novelty-qty /></div>
@@ -362,6 +374,143 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
   );
 };
 
+
+/* ================================================================== */
+/* Préstamos a empleados (libranza sin intereses)                       */
+/* ================================================================== */
+export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name: string }> }) => {
+  const currentShift = useStore(s => s.currentShift);
+  const refreshCurrentShift = useStore(s => s.refreshCurrentShift);
+  const [data, setData] = useState<any>({ loans: [], lent: 0, balance: 0 });
+  const [onlyActive, setOnlyActive] = useState(true);
+  const [show, setShow] = useState(false);
+  const [detail, setDetail] = useState<any>(null);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [error, setError] = useState('');
+  const load = () => api.getLoans({ status: onlyActive ? 'active' : undefined }).then(setData).catch(e => setError(e.message));
+  useEffect(() => { load(); }, [onlyActive]);
+  useEffect(() => { if (detail) api.getLoanPayments(detail.id).then(setPayments).catch(() => setPayments([])); }, [detail?.id]);
+  const remove = async (l: any) => {
+    if (!window.confirm(`¿Eliminar el préstamo de ${formatPrice(l.amount)} a ${l.employeeName}?${l.fromCashRegister ? ' Si salió de una caja abierta, se revierte el retiro.' : ''}`)) return;
+    try { await api.deleteLoan(l.id); refreshCurrentShift(); load(); } catch (e: any) { setError(e.message); }
+  };
+  return (
+    <div className="space-y-3" data-loans>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-bold text-brand-dark flex items-center gap-1.5"><Landmark size={15} /> Préstamos (libranza sin intereses)</h3>
+        <label className="text-xs text-muted-foreground flex items-center gap-1"><input type="checkbox" checked={onlyActive} onChange={e => setOnlyActive(e.target.checked)} /> Solo con saldo</label>
+        <button onClick={() => setShow(true)} data-loan-new className="ml-auto px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Nuevo préstamo</button>
+      </div>
+      <p className="text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> La cuota se descuenta sola en cada liquidación de nómina hasta pagar el préstamo, sin intereses. En la liquidación se puede saltar una cuota o cobrar el saldo completo (por ejemplo, si el trabajador se retira).</p>
+      <div className="grid grid-cols-2 gap-3">
+        <KpiCard label="Prestado (listado)" value={formatPrice(data.lent)} />
+        <KpiCard label="Saldo por descontar" value={formatPrice(data.balance)} className={data.balance > 0 ? 'bg-amber-50 border-amber-200' : ''} />
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+        {data.loans.length === 0 ? <p className="p-6 text-center text-xs text-muted-foreground">Sin préstamos{onlyActive ? ' con saldo' : ''}.</p> : (
+          <ul className="divide-y divide-border">
+            {data.loans.map((l: any) => {
+              const pct = l.amount ? Math.round((l.paidTotal / l.amount) * 100) : 0;
+              return (
+                <li key={l.id} className="px-4 py-2.5 space-y-1.5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-brand-dark">{l.employeeName} <span className="font-normal text-muted-foreground">· {formatPrice(l.amount)} en {l.installments} cuota(s) de {formatPrice(l.installmentAmount)}</span></p>
+                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · {l.paymentsCount} cuota(s) descontada(s)</p>
+                    </div>
+                    {l.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Pagado</span> : <span className="text-sm font-bold text-amber-700">{formatPrice(l.balance)}</span>}
+                    <button onClick={() => setDetail(l)} className="px-2 py-1 rounded-lg border border-border text-[11px] font-semibold">Ver</button>
+                    {l.paymentsCount === 0 && <button onClick={() => remove(l)} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={14} /></button>}
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+      {show && <LoanModal employees={employees} hasShift={!!currentShift} onClose={() => setShow(false)} onSaved={l => { setShow(false); if (l.fromCashRegister) refreshCurrentShift(); load(); }} />}
+      {detail && (
+        <Modal title={`Préstamo de ${detail.employeeName}`} onClose={() => setDetail(null)}>
+          <p className="text-xs text-muted-foreground">{formatPrice(detail.amount)} el {fmtDate(detail.date)} · {detail.installments} cuota(s) de {formatPrice(detail.installmentAmount)} · sin intereses</p>
+          <table className="w-full text-xs"><thead><tr className="text-muted-foreground"><th className="text-left py-1">Cuota</th><th className="text-left">Fecha</th><th className="text-left">Liquidación</th><th className="text-right">Valor</th></tr></thead>
+            <tbody>{payments.map((p, i) => <tr key={p.id} className="border-t border-border"><td className="py-1">{i + 1}</td><td>{fmtDate(p.date)}</td><td>#{p.settlementId}</td><td className="text-right font-semibold">{formatPrice(p.amount)}</td></tr>)}
+              {payments.length === 0 && <tr><td colSpan={4} className="py-3 text-center text-muted-foreground">Aún no se ha descontado ninguna cuota.</td></tr>}
+              <tr className="border-t border-border font-bold"><td colSpan={3} className="py-1">Saldo</td><td className="text-right">{formatPrice(detail.balance)}</td></tr></tbody></table>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: Array<{ id: number; name: string }>; hasShift: boolean; onClose: () => void; onSaved: (l: any) => void }) => {
+  const [f, setF] = useState({ employeeId: employees[0]?.id || 0, date: getColombiaTodayStr(), amount: '', installments: '2', installmentAmount: '', fromCashRegister: false, notes: '' });
+  const [error, setError] = useState('');
+  const set = (p: any) => setF(x => ({ ...x, ...p }));
+  const auto = Number(f.amount) > 0 ? Math.ceil(Number(f.amount) / Math.max(1, Number(f.installments) || 1)) : 0;
+  const save = async () => {
+    setError('');
+    try { onSaved(await api.addLoan({ ...f, amount: Number(f.amount), installments: Number(f.installments) || 1, installmentAmount: f.installmentAmount === '' ? undefined : Number(f.installmentAmount), fromCashRegister: f.fromCashRegister && hasShift })); }
+    catch (e: any) { setError(e.message); }
+  };
+  return (
+    <Modal title="Nuevo préstamo (libranza)" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2"><label className={LABEL}>Colaborador</label><select value={f.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+        <div><label className={LABEL}>Fecha</label><input type="date" value={f.date} onChange={e => set({ date: e.target.value })} className={INPUT} /></div>
+        <div><label className={LABEL}>Valor prestado</label><input type="number" min={0} value={f.amount} onChange={e => set({ amount: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-amount /></div>
+        <div><label className={LABEL}>Número de cuotas</label><input type="number" min={1} max={120} value={f.installments} onChange={e => set({ installments: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-installments /></div>
+        <div><label className={LABEL}>Valor de la cuota</label><input type="number" min={0} value={f.installmentAmount} placeholder={auto ? String(auto) : ''} onChange={e => set({ installmentAmount: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
+        <p className="col-span-2 text-[11px] text-muted-foreground">Sin intereses: se descuenta {formatPrice(Number(f.installmentAmount) || auto)} en cada liquidación hasta completar {formatPrice(Number(f.amount) || 0)}.</p>
+        <div className="col-span-2"><label className={LABEL}>Notas</label><input value={f.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} placeholder="Ej. para matrícula, firmó libranza" /></div>
+        <label className={cn('col-span-2 flex items-start gap-2 p-3 rounded-lg border text-xs', hasShift ? 'border-brand-accent/40 bg-brand-card cursor-pointer' : 'border-border bg-muted/30 opacity-70')}>
+          <input type="checkbox" disabled={!hasShift} checked={f.fromCashRegister && hasShift} onChange={e => set({ fromCashRegister: e.target.checked })} className="mt-0.5" />
+          <span><span className="font-semibold text-brand-dark block">Sale de la caja abierta</span><span className="text-muted-foreground">{hasShift ? 'Queda como retiro en el turno actual. Si no, se registra como entregado por transferencia.' : 'No hay turno abierto: se registra como entregado por transferencia.'}</span></span>
+        </label>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <button onClick={save} disabled={!f.employeeId || !(Number(f.amount) > 0)} data-loan-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">Registrar préstamo</button>
+    </Modal>
+  );
+};
+
+/* ================================================================== */
+/* Adicionales y tarifas (armado de carne, lavado de campana...)        */
+/* ================================================================== */
+const TasksManager = ({ onChanged }: { onChanged: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [msg, setMsg] = useState('');
+  useEffect(() => { if (open) api.getNoveltyTasks().then(setTasks).catch(() => {}); }, [open]);
+  const save = async () => { try { setTasks(await api.saveNoveltyTasks(tasks)); setMsg('Guardado'); onChanged(); setTimeout(() => setMsg(''), 2000); } catch (e: any) { setMsg(e.message); } };
+  return (
+    <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden" data-tasks>
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-2.5 text-left">
+        <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Settings2 size={14} /> Adicionales y tarifas (armado de carne, lavado de campana...)</span>
+        <span className="text-[11px] text-muted-foreground">{open ? 'Ocultar' : 'Ver y editar'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
+          <p className="text-[11px] text-muted-foreground">Trabajos que se pagan aparte por cada vez. Luego se registran como novedad "Adicional" y entran a la liquidación.</p>
+          {tasks.map((t, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <input value={t.name} onChange={e => setTasks(ts => ts.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} className={cn(INPUT, 'py-1.5')} placeholder="Nombre" />
+              <input type="number" min={0} value={t.amount} onChange={e => setTasks(ts => ts.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} className={cn(INPUT, 'py-1.5 w-36 font-mono')} placeholder="Valor por vez" data-task-amount={i} />
+              <button onClick={() => setTasks(ts => ts.filter((_, j) => j !== i))} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={14} /></button>
+            </div>
+          ))}
+          <div className="flex gap-2 items-center">
+            <button onClick={() => setTasks(ts => [...ts, { name: '', amount: 0 }])} className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold flex items-center gap-1"><Plus size={12} /> Agregar adicional</button>
+            <button onClick={save} data-tasks-save className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold">Guardar tarifas</button>
+            {msg && <span className="text-[11px] text-muted-foreground">{msg}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ================================================================== */
 /* Importar personal desde Excel                                        */
 /* ================================================================== */
@@ -371,7 +520,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   document: ['documento', 'cedula', 'cc', 'numerodedocumento', 'numerodocumento', 'identificacion', 'nodocumento', 'nit'],
   phone: ['telefono', 'celular', 'movil', 'whatsapp', 'tel'],
   email: ['correo', 'email', 'correoelectronico', 'mail'],
-  position: ['cargo', 'puesto', 'rol', 'oficio'],
+  position: ['cargo', 'puesto', 'rol', 'oficio', 'funcion', 'funciones'],
+  bankAccount: ['numerodecuenta', 'numerocuenta', 'cuenta', 'cuentabancaria', 'nocuenta', 'cuentadeahorros', 'cuentadenomina'],
   payMode: ['formadepago', 'modalidad', 'modalidaddepago', 'tipodepago', 'periodicidad'],
   baseAmount: ['valor', 'valorbase', 'salario', 'sueldo', 'salariobase', 'sueldobase', 'basico', 'valorturno', 'valorporturno', 'valorpordia', 'valordia', 'valorhora', 'pago'],
   startDate: ['fechadeingreso', 'fechaingreso', 'ingreso', 'fechainicio', 'fechadeinicio'],
@@ -382,7 +532,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   tipPoints: ['puntospropina', 'puntosdepropina', 'puntos', 'propinapuntos'],
   notes: ['notas', 'observaciones', 'nota'],
 };
-const TEMPLATE_HEADERS = ['Nombre', 'Documento', 'Teléfono', 'Correo', 'Cargo', 'Forma de pago', 'Valor', 'Fecha de ingreso', 'Horas por día', 'Extras y recargos', 'Salud y pensión', 'Auxilio de transporte', 'Puntos propina', 'Notas'];
+const TEMPLATE_HEADERS = ['Nombre', 'Documento', 'Teléfono', 'Correo', 'Cargo', 'Forma de pago', 'Valor', 'Fecha de ingreso', 'Horas por día', 'Extras y recargos', 'Salud y pensión', 'Auxilio de transporte', 'Puntos propina', 'Notas', 'Número de cuenta'];
 
 export function downloadStaffTemplate() {
   downloadXlsx('plantilla_personal', [{
@@ -462,7 +612,7 @@ export const ImportEmployeesModal = ({ onClose, onDone }: { onClose: () => void;
         <button onClick={downloadStaffTemplate} className="px-3 py-2 rounded-lg border border-border text-xs font-semibold flex items-center gap-1.5"><Download size={14} /> Descargar plantilla</button>
         {fileName && <span className="text-xs text-muted-foreground flex items-center gap-1"><FileSpreadsheet size={13} /> {fileName}</span>}
       </div>
-      <p className="text-[11px] text-muted-foreground">Columnas que entiende: Nombre, Documento, Teléfono, Correo, Cargo, Forma de pago, Valor, Fecha de ingreso, Horas por día, Extras y recargos, Salud y pensión, Auxilio de transporte, Puntos propina y Notas. Si el documento (o el nombre) ya existe, se actualiza.</p>
+      <p className="text-[11px] text-muted-foreground">Columnas que entiende: Nombre, Documento, Teléfono, Correo, Cargo, Forma de pago, Valor, Fecha de ingreso, Horas por día, Extras y recargos, Salud y pensión, Auxilio de transporte, Puntos propina, Número de cuenta y Notas. Si el documento (o el nombre) ya existe, se actualiza.</p>
       {busy && <p className="text-xs text-muted-foreground">Leyendo...</p>}
       {error && <p className="text-xs text-red-600">{error}</p>}
       {info && info.unknown.length > 0 && <p className="text-[11px] text-amber-700">Columnas ignoradas: {info.unknown.join(', ')}</p>}

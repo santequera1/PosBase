@@ -27,7 +27,7 @@ export const RestaurantPanel = () => {
   const save = async () => {
     setSaving(true); setMsg('');
     try {
-      const saved = await api.updateRestaurantConfig({ modules: cfg.modules, tipPercent: cfg.tipPercent, tipDineIn: cfg.tipDineIn, tipCounter: cfg.tipCounter, tipDelivery: cfg.tipDelivery, deliveryFee: cfg.deliveryFee, deliveryTimes: times, requireOpenShift: cfg.requireOpenShift, autoPrintKitchen: cfg.autoPrintKitchen, kitchenPrintMode: cfg.kitchenPrintMode, stationPrinters: cfg.stationPrinters, staffDiscountEnabled: cfg.staffDiscountEnabled, staffDiscountPct: cfg.staffDiscountPct, staffDiscountExcluded: cfg.staffDiscountExcluded });
+      const saved = await api.updateRestaurantConfig({ modules: cfg.modules, tipPercent: cfg.tipPercent, tipDineIn: cfg.tipDineIn, tipCounter: cfg.tipCounter, tipDelivery: cfg.tipDelivery, deliveryFee: cfg.deliveryFee, deliveryTimes: times, requireOpenShift: cfg.requireOpenShift, autoPrintKitchen: cfg.autoPrintKitchen, kitchenPrintMode: cfg.kitchenPrintMode, stationPrinters: cfg.stationPrinters, staffDiscountEnabled: cfg.staffDiscountEnabled, staffDiscountPct: cfg.staffDiscountPct, staffDiscountExcluded: cfg.staffDiscountExcluded, serviceShifts: (cfg.serviceShifts || []).filter((s: any) => s.name && s.name.trim()) });
       setCfg(saved); setTimes(saved.deliveryTimes.join(', ')); setMsg('Guardado. El menú lateral se actualiza con los módulos activos.');
       loadRestaurantConfig();
     } catch (e: any) { setMsg(e.message); }
@@ -57,6 +57,20 @@ export const RestaurantPanel = () => {
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!cfg.tipDelivery} onChange={e => set({ tipDelivery: e.target.checked })} /> Domicilios</label>
         </div>
         <p className="text-[11px] text-muted-foreground">Sale como sugerencia en la precuenta y al cobrar; el cliente puede aceptarla, cambiarla o no dejar. Se registra en Personal → Propinas (directa al mesero o común).</p>
+      </section>
+
+      <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3" data-service-shifts>
+        <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Info size={14} /> Turnos de servicio (filtro "Turno" en Caja)</h3>
+        <p className="text-[11px] text-muted-foreground">Ej. Almuerzo de 11:00 a 16:00 y Cena de 17:00 a 23:59. En Caja se filtran las ventas por la hora en que se hicieron. Si no hay turnos, el filtro no aparece.</p>
+        {(cfg.serviceShifts || []).map((t: any, i: number) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input value={t.name} onChange={e => set({ serviceShifts: cfg.serviceShifts.map((x: any, j: number) => j === i ? { ...x, name: e.target.value } : x) })} placeholder="Nombre" className={cn(INPUT, 'py-1.5')} />
+            <input type="time" value={t.from} onChange={e => set({ serviceShifts: cfg.serviceShifts.map((x: any, j: number) => j === i ? { ...x, from: e.target.value } : x) })} className={cn(INPUT, 'py-1.5 w-32')} />
+            <input type="time" value={t.to} onChange={e => set({ serviceShifts: cfg.serviceShifts.map((x: any, j: number) => j === i ? { ...x, to: e.target.value } : x) })} className={cn(INPUT, 'py-1.5 w-32')} />
+            <button onClick={() => set({ serviceShifts: cfg.serviceShifts.filter((_: any, j: number) => j !== i) })} className="px-2 text-red-600 text-xs font-semibold">Quitar</button>
+          </div>
+        ))}
+        <button onClick={() => set({ serviceShifts: [...(cfg.serviceShifts || []), { name: '', from: '17:00', to: '23:59' }] })} className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold">+ Agregar turno</button>
       </section>
 
       <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3" data-staff-discount-settings>

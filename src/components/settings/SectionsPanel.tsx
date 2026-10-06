@@ -8,6 +8,9 @@ import { VIEWS } from '@/lib/permissions';
 
 /** Configuración → Secciones: el administrador oculta o muestra secciones del sistema sin eliminarlas (los datos se conservan). */
 const SectionsPanel = () => {
+  const restaurant = useStore(s => s.restaurant);
+  const loadRestaurantConfig = useStore(s => s.loadRestaurantConfig);
+  const setMobileNav = async (v: 'top' | 'bottom') => { try { await api.updateRestaurantConfig({ mobileNav: v }); await loadRestaurantConfig(); toast.success(v === 'top' ? 'Menú del celular arriba' : 'Menú del celular abajo'); } catch (e: any) { toast.error(e.message); } };
   const hiddenViews = useStore(s => s.hiddenViews);
   const setHiddenViews = useStore(s => s.setHiddenViews);
   const [hidden, setHidden] = useState<string[]>(hiddenViews);
@@ -20,6 +23,18 @@ const SectionsPanel = () => {
     setSaving(false);
   };
   return (
+    <div className="space-y-4">
+    <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3 font-sans" data-mobile-nav-setting>
+      <div>
+        <h3 className="font-bold text-sm text-brand-dark">Menú en el celular</h3>
+        <p className="text-xs text-muted-foreground">Arriba: un botón con el módulo actual que despliega todos los demás (como Fudo). Abajo: barra de íconos en la parte inferior.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {([['top', 'Arriba (como Fudo)'], ['bottom', 'Abajo (barra inferior)']] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setMobileNav(k)} data-mobile-nav={k} className={cn('p-3 rounded-xl border text-sm font-semibold text-left', (restaurant?.mobileNav || 'bottom') === k ? 'border-brand-primary bg-brand-button/5 text-brand-dark' : 'border-border text-muted-foreground')}>{(restaurant?.mobileNav || 'bottom') === k ? '✓ ' : ''}{l}</button>
+        ))}
+      </div>
+    </section>
     <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-4 font-sans">
       <div>
         <h3 className="font-bold text-sm text-brand-dark">Secciones visibles del sistema</h3>
@@ -51,6 +66,7 @@ const SectionsPanel = () => {
       <p className="text-[11px] text-muted-foreground flex items-start gap-1.5"><Info size={12} className="mt-0.5 shrink-0" /> Mesas, Para llevar, Domicilios y Cocina además dependen de que el módulo esté activo en Configuración → Restaurante.</p>
       <button onClick={save} disabled={saving} className="px-5 py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold flex items-center gap-1.5 disabled:opacity-40" data-save-sections><Save size={15} /> {saving ? 'Guardando...' : 'Guardar secciones'}</button>
     </section>
+    </div>
   );
 };
 
