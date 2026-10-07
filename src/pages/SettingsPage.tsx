@@ -170,9 +170,9 @@ const SettingsPage = () => {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4 font-sans">
+    <div className="max-w-5xl mx-auto space-y-4 font-sans">
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-1.5 overflow-x-auto sm:overflow-visible sm:flex-wrap pb-1 -mx-1 px-1">
         {tabs.filter(t => !t.adminOnly || isAdmin).map(t => {
           const Icon = t.icon;
           return (
