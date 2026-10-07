@@ -34,6 +34,8 @@ class Ticket {
   }
   align(a) { return this.raw(ESC, 0x61, a === 'center' ? 1 : a === 'right' ? 2 : 0); }
   bold(on = true) { return this.raw(ESC, 0x45, on ? 1 : 0); }
+  /** Texto blanco sobre negro (GS B n): para avisos que deben verse de lejos. */
+  invert(on = true) { return this.raw(GS, 0x42, on ? 1 : 0); }
   /** size: 1 normal · 2 doble alto y ancho · 'tall' doble alto · 'wide' doble ancho */
   size(sz = 1) {
     const n = sz === 2 ? 0x11 : sz === 'tall' ? 0x01 : sz === 'wide' ? 0x10 : 0x00;

@@ -590,7 +590,7 @@ export const CashShiftPage: React.FC = () => {
       {/* Register Cash Withdrawal / Expense Modal */}
       <AnimatePresence>
         {showWithdrawalModal && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 !m-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -682,7 +682,7 @@ export const CashShiftPage: React.FC = () => {
       {/* Open New Shift Modal */}
       <AnimatePresence>
         {showOpenModal && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 !m-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -766,7 +766,7 @@ export const CashShiftPage: React.FC = () => {
       {/* Closed Shift Ticket Modal (Thermal Report Z) */}
       <AnimatePresence>
         {closedTicket && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 !m-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}

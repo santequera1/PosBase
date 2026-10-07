@@ -1519,7 +1519,7 @@ export const POSPage: React.FC = () => {
       {/* Customer Modal */}
       <AnimatePresence>
         {showCustomerModal && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+          <div className="fixed inset-0 !m-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1658,7 +1658,7 @@ export const POSPage: React.FC = () => {
       {/* Quick Rename Tab / Precuenta Modal */}
       <AnimatePresence>
         {renameModalTab && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 !m-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1740,7 +1740,7 @@ export const POSPage: React.FC = () => {
       {/* Affogato Flavor Selection Modal */}
       <AnimatePresence>
         {sizingProd && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSizingProd(null)}>
+          <div className="fixed inset-0 !m-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSizingProd(null)}>
             <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-3" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-sm text-brand-dark">{sizingProd.name} · elige la opción</h4>
@@ -1758,7 +1758,7 @@ export const POSPage: React.FC = () => {
           </div>
         )}
         {affogatoModalProd && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+          <div className="fixed inset-0 !m-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

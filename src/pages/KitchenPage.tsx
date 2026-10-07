@@ -17,7 +17,9 @@ const STATIONS: Array<[string, string]> = [['', 'Todas'], ['cocina', 'Cocina'], 
 /** Monitor de cocina (KDS): comandas por tanda con tiempo, notas y estaciones. Pantalla completa, letra grande. */
 const KitchenPage = () => {
   const navigate = useNavigate();
-  const { orders, user, logout } = useStore();
+  const { orders, user, logout, restaurant } = useStore();
+  // Volver: a Mesas si el restaurante las usa (el POS puede estar oculto)
+  const backTo = restaurant?.modules?.tables ? '/tables' : restaurant?.modules?.counter ? '/counter' : '/pos';
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [station, setStation] = useState(() => { try { return localStorage.getItem('kds-station') || ''; } catch { return ''; } });
   const [, setTick] = useState(0);
@@ -60,7 +62,7 @@ const KitchenPage = () => {
     <div className="min-h-screen bg-brand-surface text-brand-on-dark p-3 sm:p-4 font-sans">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
-          {user?.role !== 'kitchen' && <button onClick={() => navigate('/pos')} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Volver"><ArrowLeft size={18} /></button>}
+          {user?.role !== 'kitchen' && <button onClick={() => navigate(backTo)} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Volver" data-kitchen-back><ArrowLeft size={18} /></button>}
           <div>
             <h1 className="font-display font-bold text-xl flex items-center gap-2"><ChefHat size={22} /> Cocina</h1>
             <p className="text-xs opacity-70">{tickets.filter(t => t.kitchenStatus !== 'ready').length} comanda(s) en curso · se actualiza sola</p>

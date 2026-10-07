@@ -163,6 +163,9 @@ function kitchenTicket(printer, order, items, { station, batch, now }) {
   if (printer.beep) t.beep(2);
   t.align('center').size(2).bold().line(station ? STATION_TITLE[station] || station.toUpperCase() : 'COMANDA').size(1).bold(false);
   t.size(2).bold().line(orderLabel(order)).size(1).bold(false);
+  // Para llevar y domicilio: aviso en negro para que en cocina lo empaquen
+  const pack = packBanner(order);
+  if (pack) t.size(2).bold().invert().line(` ${pack} `).invert(false).size(1).bold(false);
   const info = [`Pedido #${order.id}`, batch ? `tanda ${batch}` : '', order.people ? `${order.people} pers.` : ''].filter(Boolean).join(' · ');
   t.line(info);
   if (order.waiter_name) t.line(`Mesero: ${order.waiter_name}`);
@@ -178,6 +181,9 @@ function kitchenTicket(printer, order, items, { station, batch, now }) {
   if (order.notes) t.bold().line(`NOTA: ${order.notes}`).bold(false);
   return t.cut().buffer();
 }
+
+/** Aviso de empaque según el tipo de pedido (null en mesa). */
+const packBanner = o => o.type === 'pickup' ? 'PARA LLEVAR' : o.type === 'delivery' ? 'DOMICILIO' : null;
 
 function itemsBlock(t, items) {
   for (const it of items) {
@@ -200,6 +206,7 @@ function preBillTicket(printer, b, order, items, tipPct) {
   const t = ticketFor(printer);
   headerBlock(t, b);
   t.nl().size(2).bold().line('PRECUENTA').size(1).bold(false).line(orderLabel(order));
+  if (packBanner(order)) t.size(2).bold().invert().line(` ${packBanner(order)} `).invert(false).size(1).bold(false);
   if (order.waiter_name) t.line(`Atiende: ${order.waiter_name}${order.people ? ` · ${order.people} personas` : ''}`);
   t.line(fmtDateTime(order.now)).align('left').sep();
   itemsBlock(t, items);
@@ -222,11 +229,13 @@ function receiptTicket(printer, b, order, items) {
   if (printer.drawer && (order.payment_method === 'cash' || /"cash"/.test(order.payment_split || ''))) t.drawer();
   headerBlock(t, b);
   t.nl().bold().line(`RECIBO DE VENTA ${b.prefix}-${order.id}`).bold(false).line(fmtDateTime(order.closed_at || order.created_at));
+  if (packBanner(order)) t.size(2).bold().invert().line(` ${packBanner(order)} `).invert(false).size(1).bold(false);
   t.align('left');
   t.line(`Cliente: ${order.customer_name || 'Consumidor Final'}`);
   if (order.customer_doc && order.customer_doc !== '222222222222') t.line(`C.C./NIT: ${order.customer_doc}`);
   if (order.type === 'dine-in') t.line(`${orderLabel(order)}${order.waiter_name ? ' · Atiende: ' + order.waiter_name : ''}`);
   if (order.type === 'delivery') t.line(`Domicilio: ${[order.customer_address, order.customer_neighborhood].filter(Boolean).join(' · ')}`);
+  if (order.type === 'pickup') t.line(`Para llevar${order.sale_label ? ': ' + order.sale_label : ''}`);
   t.sep();
   itemsBlock(t, items);
   t.sep();

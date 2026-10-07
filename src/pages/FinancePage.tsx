@@ -75,7 +75,7 @@ const Modal = ({ title, onClose, children, wide }: { title: string; onClose: () 
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 !m-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className={cn('bg-white rounded-t-3xl sm:rounded-2xl w-full p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto', wide ? 'max-w-2xl' : 'max-w-md')} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h4 className="font-bold text-sm text-brand-dark">{title}</h4>

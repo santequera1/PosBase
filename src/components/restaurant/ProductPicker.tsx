@@ -75,7 +75,7 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
       </div>
 
       {sizing && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSizing(null)}>
+        <div className="fixed inset-0 !m-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSizing(null)}>
           <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sm text-brand-dark">{sizing.name} · tamaño</h4>

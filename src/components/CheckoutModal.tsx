@@ -72,7 +72,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const isCashInvalid = paymentMethod === 'cash' && numericCash > 0 && numericCash < total;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 font-sans">
+    <div className="fixed inset-0 !m-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 font-sans">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

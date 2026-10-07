@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,8 +20,9 @@ export const Modal = ({ title, onClose, children, wide }: { title: string; onClo
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+  // Se dibuja directamente en <body>: así ningún contenedor (márgenes, transformaciones) lo desplaza
+  return createPortal(
+    <div className="fixed inset-0 !m-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className={cn('bg-white rounded-t-3xl sm:rounded-2xl w-full p-5 shadow-2xl space-y-3 max-h-[92dvh] overflow-y-auto overscroll-contain', wide ? 'max-w-2xl' : 'max-w-md')} onClick={e => e.stopPropagation()}
         onFocusCapture={e => { const t = e.target as HTMLElement; if (t.matches('input:not([type=checkbox]):not([type=radio]), textarea')) setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350); }}>
         <div className="flex items-center justify-between">
@@ -29,7 +31,8 @@ export const Modal = ({ title, onClose, children, wide }: { title: string; onClo
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
