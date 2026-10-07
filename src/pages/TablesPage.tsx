@@ -30,6 +30,9 @@ const TablesPage = () => {
   const [selected, setSelected] = useState<RestaurantTable | null>(null);
   const [opening, setOpening] = useState<RestaurantTable | null>(null);
   const detailRef = useRef<HTMLDivElement>(null);
+  // Celular: cuadrícula grande (por defecto) o el plano del salón; se recuerda en este equipo
+  const [mobileView, setMobileViewState] = useState<'grid' | 'plan'>(() => { try { return localStorage.getItem('tables-mobile-view') === 'plan' ? 'plan' : 'grid'; } catch { return 'grid'; } });
+  const setMobileView = (v: 'grid' | 'plan') => { setMobileViewState(v); try { localStorage.setItem('tables-mobile-view', v); } catch { /* sin almacenamiento */ } };
   // En el celular la información de la mesa queda debajo de la cuadrícula: se baja hasta ella al tocar una mesa ocupada
   useEffect(() => { if (selected && window.innerWidth < 768) setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }, [selected?.id]);
   const [closing, setClosing] = useState<Order | null>(null);
@@ -154,6 +157,14 @@ const TablesPage = () => {
         <div className="lg:col-span-3">
           {/* En el celular el plano queda muy pequeño: cuadrícula de mesas grandes (el plano sigue en tablet y PC) */}
           {!editMode && room && (
+            <div className="md:hidden flex justify-end mb-2">
+              <div className="inline-flex rounded-xl border border-border bg-white p-0.5 text-xs font-semibold" data-tables-view>
+                <button onClick={() => setMobileView('grid')} className={cn('px-3 py-1.5 rounded-lg', mobileView === 'grid' ? 'bg-brand-button text-brand-on-button' : 'text-brand-dark')}>Mesas grandes</button>
+                <button onClick={() => setMobileView('plan')} className={cn('px-3 py-1.5 rounded-lg', mobileView === 'plan' ? 'bg-brand-button text-brand-on-button' : 'text-brand-dark')} data-view-plan>Plano</button>
+              </div>
+            </div>
+          )}
+          {!editMode && room && mobileView === 'grid' && (
             <div className="md:hidden grid grid-cols-3 gap-2.5" data-tables-grid>
               {[...room.tables].sort((a, b) => String(a.label).localeCompare(String(b.label), 'es', { numeric: true })).map(t => {
                 const st = t.state || 'free';
@@ -175,7 +186,7 @@ const TablesPage = () => {
             </div>
           )}
           <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-            className={cn('relative w-full aspect-[16/10] rounded-2xl border bg-brand-card/70 overflow-hidden select-none', editMode ? 'border-dashed border-brand-primary/40' : 'border-brand-primary/10 hidden md:block')}
+            className={cn('relative w-full aspect-[16/10] rounded-2xl border bg-brand-card/70 overflow-hidden select-none', editMode ? 'border-dashed border-brand-primary/40' : cn('border-brand-primary/10', mobileView === 'grid' && 'hidden md:block'))}
             style={{ backgroundImage: 'radial-gradient(hsl(var(--brand-primary) / 0.08) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
             {room?.tables.map(t => {
               const st = t.state || 'free';

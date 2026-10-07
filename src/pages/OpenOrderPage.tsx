@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils } from 'lucide-react';
+import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order, type OrderItem } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -34,6 +34,12 @@ const OpenOrderPage = () => {
   const [showMove, setShowMove] = useState<'move' | 'merge' | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [noteEdit, setNoteEdit] = useState<number | null>(null);
+  // Escribiendo una nota en el celular: se ocultan totales y botones para que el teclado no tape el campo
+  const [typing, setTyping] = useState(false);
+  // Cuentas separadas: elegir productos → cobrar esa parte aparte
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitChild, setSplitChild] = useState<Order | null>(null);
+  const splitPaid = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef<OrderItem[]>([]);
   const lastBatch = useRef<{ batch: number; items: OrderItem[] } | null>(null);
@@ -127,6 +133,17 @@ const OpenOrderPage = () => {
     try { await api.setRestaurantStatus(orderId, 'cancelled'); toast.success('Cuenta anulada'); navigate(backPath(order)); } catch (e: any) { toast.error(e.message); }
   };
   const openClose = async () => { await flush(); setShowClose(true); };
+  const openSplit = async () => {
+    try { await flush(); const o = await api.getOrder(orderId); const unsent = o.items.filter((i: OrderItem) => !i.batch); setOrder(o); setDraft(unsent); draftRef.current = unsent; setSplitOpen(true); }
+    catch (e: any) { toast.error(e.message); }
+  };
+  const afterSplit = async () => {
+    const child = splitChild;
+    setSplitChild(null);
+    if (child && !splitPaid.current) { try { await api.unsplitOrder(child.id); toast.info('Cuenta separada sin cobrar: los productos volvieron a la mesa'); } catch (e: any) { toast.error(e.message); } }
+    splitPaid.current = false;
+    load();
+  };
 
   const sentGroups = useMemo(() => {
     if (!order) return [] as Array<{ batch: number; items: OrderItem[] }>;
@@ -171,6 +188,7 @@ const OpenOrderPage = () => {
                 <button onClick={() => { setShowMenu(false); setShowEdit(true); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Pencil size={14} /> Editar datos del pedido</button>
                 {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); setShowMove('move'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><ArrowLeftRight size={14} /> Cambiar de mesa</button>}
                 {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); setShowMove('merge'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Merge size={14} /> Unir con otra mesa</button>}
+                {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); openSplit(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-split-menu><Split size={14} /> Cuentas separadas</button>}
                 {lastBatch.current && <button onClick={() => { setShowMenu(false); printLastBatch(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Printer size={14} /> Reimprimir última comanda</button>}
                 {canDo(user, 'cancel_orders') && <button onClick={() => { setShowMenu(false); cancel(); }} className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"><Ban size={14} /> Anular cuenta</button>}
               </div>
@@ -178,7 +196,9 @@ const OpenOrderPage = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3"
+          onFocus={e => { if ((e.target as HTMLElement).tagName === 'INPUT') { setTyping(true); const t = e.target as HTMLElement; setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300); } }}
+          onBlur={e => { if ((e.target as HTMLElement).tagName === 'INPUT') setTimeout(() => setTyping(false), 150); }}>
           {sentGroups.map(g => (
             <div key={g.batch} className="rounded-xl border border-border bg-brand-card/60">
               <div className="px-3 py-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-brand-muted"><span className="flex items-center gap-1"><ChefHat size={11} /> Comanda #{g.batch}</span><span>{g.items.every(i => i.kitchenStatus === 'ready') ? '✓ lista' : g.items.some(i => i.kitchenStatus === 'preparing') ? 'en preparación' : 'en cocina'}</span></div>
@@ -218,7 +238,7 @@ const OpenOrderPage = () => {
           )}
         </div>
 
-        <div className="border-t border-brand-primary/10 p-3 space-y-2 bg-white">
+        <div className={cn('border-t border-brand-primary/10 p-3 space-y-2 bg-white', typing && 'hidden lg:block')}>
           <div className="text-xs space-y-0.5">
             <div className="flex justify-between text-brand-muted"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
             {order.deliveryFee ? <div className="flex justify-between text-brand-muted"><span>Envío</span><span>{formatPrice(order.deliveryFee)}</span></div> : null}
@@ -232,19 +252,24 @@ const OpenOrderPage = () => {
               <button onClick={prebill} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl bg-white border border-brand-primary/20 text-brand-primary text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Imprimir precuenta"><Receipt size={16} />Precuenta</button>
               <button onClick={openClose} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl gradient-primary text-primary-foreground text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Cobrar y cerrar"><Wallet size={16} />Cobrar</button>
             </div>
-            <button onClick={leave} className="w-full py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card" data-leave-bottom><ArrowLeft size={13} /> Guardar y salir sin cobrar</button>
+            <div className="grid grid-cols-2 gap-2">
+              {order.type === 'dine-in' ? <button onClick={openSplit} disabled={busy || order.items.length + draft.length < 2} className="py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card disabled:opacity-40" data-split><Split size={13} /> Cuentas separadas</button> : <span />}
+              <button onClick={leave} className="py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card" data-leave-bottom><ArrowLeft size={13} /> Salir sin cobrar</button>
+            </div>
             </>
           )}
         </div>
       </div>
 
       {/* Alternar catálogo / cuenta en móvil */}
-      <div className="lg:hidden shrink-0 grid grid-cols-2 bg-brand-surface text-brand-on-dark pb-[env(safe-area-inset-bottom)]">
+      <div className={cn('lg:hidden shrink-0 grid grid-cols-2 bg-brand-surface text-brand-on-dark pb-[env(safe-area-inset-bottom)]', typing && 'hidden')}>
         <button onClick={() => setMobileView('catalog')} className={cn('py-3 text-xs font-bold flex items-center justify-center gap-1.5', mobileView === 'catalog' && 'bg-white/15')}><Utensils size={15} /> Productos</button>
         <button onClick={() => setMobileView('account')} className={cn('py-3 text-xs font-bold flex items-center justify-center gap-1.5', mobileView === 'account' && 'bg-white/15')}><ShoppingBag size={15} /> Cuenta · {formatPrice(total)}</button>
       </div>
 
       {showClose && <CloseOrderModal order={{ ...order, subtotal, total }} onClose={() => { setShowClose(false); if (!isActive(order)) navigate(backPath(order)); }} onClosed={o => { setOrder(o); setDraft([]); draftRef.current = []; }} />}
+      {splitOpen && <SplitModal order={order} onClose={() => setSplitOpen(false)} onSplit={child => { setSplitOpen(false); splitPaid.current = false; setSplitChild(child); }} />}
+      {splitChild && <CloseOrderModal order={splitChild} onClose={afterSplit} onClosed={() => { splitPaid.current = true; }} />}
       {showEdit && <EditHeaderModal order={order} onClose={() => setShowEdit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowEdit(false); }} />}
       {showMove && <MoveTableModal mode={showMove} order={order} onClose={() => setShowMove(null)} onDone={(o, merged) => { setShowMove(null); if (merged) navigate(`/cuenta/${o.id}`); else setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); }} />}
     </div>
@@ -332,3 +357,51 @@ const MoveTableModal = ({ mode, order, onClose, onDone }: { mode: 'move' | 'merg
 };
 
 export default OpenOrderPage;
+
+/** Cuentas separadas: se elige qué productos (y cuántos) paga esta persona; esa parte se cobra aparte con su recibo. */
+const SplitModal = ({ order, onClose, onSplit }: { order: Order; onClose: () => void; onSplit: (child: Order) => void }) => {
+  const lines = order.items.filter(i => i.id);
+  const [qty, setQty] = useState<Record<number, number>>({});
+  const [people, setPeople] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const picked = lines.reduce((s, i) => s + (qty[i.id as number] || 0) * i.price, 0);
+  const totalQty = lines.reduce((s, i) => s + i.quantity, 0);
+  const pickedQty = Object.values(qty).reduce((a, b) => a + b, 0);
+  const set = (id: number, max: number, d: number) => setQty(q => ({ ...q, [id]: Math.max(0, Math.min(max, (q[id] || 0) + d)) }));
+  const go = async () => {
+    setBusy(true);
+    try {
+      const r = await api.splitOrder(order.id, Object.entries(qty).filter(([, n]) => n > 0).map(([id, n]) => ({ itemId: Number(id), quantity: n })), people);
+      onSplit(r.split);
+    } catch (e: any) { toast.error(e.message); }
+    setBusy(false);
+  };
+  return (
+    <Modal title={`Cuentas separadas · ${orderTitle(order)}`} onClose={onClose}>
+      <p className="text-xs text-muted-foreground">Marca lo que paga <b>esta persona</b>. Esa parte se cobra aparte con su propio recibo o factura y la mesa sigue abierta con el resto. Repite para cada persona; la última paga con <b>Cobrar</b>.</p>
+      <ul className="divide-y divide-border border border-border rounded-xl max-h-[45dvh] overflow-y-auto" data-split-list>
+        {lines.map(i => {
+          const n = qty[i.id as number] || 0;
+          return (
+            <li key={i.id} className={cn('flex items-center gap-2 px-3 py-2 text-xs', n > 0 && 'bg-brand-card/60')}>
+              <span className="flex-1 min-w-0"><span className="font-semibold text-brand-dark block truncate">{i.name}</span><span className="text-muted-foreground">{i.quantity} × {formatPrice(i.price)}</span></span>
+              <div className="flex items-center rounded-lg border border-border bg-white">
+                <button onClick={() => set(i.id as number, i.quantity, -1)} className="w-8 h-8 flex items-center justify-center" aria-label="Menos"><Minus size={13} /></button>
+                <span className="w-7 text-center font-bold" data-split-qty>{n}</span>
+                <button onClick={() => set(i.id as number, i.quantity, 1)} className="w-8 h-8 flex items-center justify-center" aria-label="Más" data-split-plus><Plus size={13} /></button>
+              </div>
+              <button onClick={() => setQty(q => ({ ...q, [i.id as number]: n === i.quantity ? 0 : i.quantity }))} className="text-[10px] font-semibold text-brand-primary w-10">{n === i.quantity ? 'Quitar' : 'Todo'}</button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex items-center justify-between text-xs">
+        <label className="flex items-center gap-2">Personas en esta cuenta
+          <input type="number" min={1} value={people} onChange={e => setPeople(Math.max(1, Number(e.target.value) || 1))} className={cn(INPUT, 'w-16 font-mono text-center py-1')} /></label>
+        <span className="text-sm">Esta cuenta: <b className="text-brand-dark">{formatPrice(picked)}</b></span>
+      </div>
+      {pickedQty >= totalQty && <p className="text-xs text-amber-700">Elegiste todo: para cobrar la mesa completa usa Cobrar.</p>}
+      <button onClick={go} disabled={busy || pickedQty === 0 || pickedQty >= totalQty} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-split-go>{busy ? 'Separando...' : `Cobrar esta cuenta · ${formatPrice(picked)}`}</button>
+    </Modal>
+  );
+};

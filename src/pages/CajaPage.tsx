@@ -36,7 +36,7 @@ const CajaPage = () => {
   const serviceShifts = restaurant?.serviceShifts || [];
   return (
     <div className="-m-4 lg:-m-6 min-h-full font-sans" data-testid="caja-page">
-      <div className="bg-brand-surface text-brand-on-dark px-2 sm:px-4 flex items-stretch overflow-x-auto no-scrollbar sticky top-0 z-20" data-caja-tabs>
+      <div className="bg-brand-surface text-brand-on-dark px-2 sm:px-4 flex items-stretch overflow-x-auto no-scrollbar sticky top-14 z-20" data-caja-tabs>
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => go(k)} data-caja-tab={k} className={cn('px-4 py-3 text-sm whitespace-nowrap flex items-center gap-2 transition-colors border-b-2', tab === k ? 'bg-white/15 font-bold border-brand-accent' : 'opacity-80 hover:opacity-100 border-transparent')}>
             {l}

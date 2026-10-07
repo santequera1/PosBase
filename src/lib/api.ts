@@ -281,6 +281,8 @@ export const api = {
   setRestaurantStatus: (id: number, status: string, driverId?: number) => request<any>(`/restaurant/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status, driverId }) }),
   closeRestaurantOrder: (id: number, data: any) => request<any>(`/restaurant/orders/${id}/close`, { method: 'POST', body: JSON.stringify(data) }),
   moveTable: (id: number, tableId: number) => request<any>(`/restaurant/orders/${id}/move`, { method: 'POST', body: JSON.stringify({ tableId }) }),
+  splitOrder: (id: number, items: Array<{ itemId: number; quantity: number }>, people = 1) => request<{ split: any; parent: any }>(`/restaurant/orders/${id}/split`, { method: 'POST', body: JSON.stringify({ items, people }) }),
+  unsplitOrder: (id: number) => request<any>(`/restaurant/orders/${id}/unsplit`, { method: 'POST' }),
   mergeOrders: (id: number, intoOrderId: number) => request<any>(`/restaurant/orders/${id}/merge`, { method: 'POST', body: JSON.stringify({ intoOrderId }) }),
   getKitchen: (station?: string) => request<any[]>(`/restaurant/kitchen${station ? '?station=' + station : ''}`),
   kitchenAction: (orderId: number, batch: number, action: 'start' | 'ready' | 'undo', station?: string) => request<any>(`/restaurant/kitchen/${orderId}/${batch}`, { method: 'POST', body: JSON.stringify({ action, station }) }),

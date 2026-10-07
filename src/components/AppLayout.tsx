@@ -293,7 +293,7 @@ export const AppLayout = () => {
       )}
 
       {/* Main content */}
-      <main className={cn(isPOS ? (topNav ? 'pt-14 md:pt-0 pb-0 h-[100dvh] overflow-hidden' : cn('pt-0 md:pb-0 h-[100dvh] overflow-hidden', location.pathname.startsWith('/cuenta/') ? 'pb-0' : 'pb-16')) : (topNav ? 'pt-14 pb-4 min-h-screen' : 'pt-14 pb-20 md:pb-4 min-h-screen'), 'md:ml-16 transition-all duration-300', mainML)}>
+      <main className={cn(isPOS ? (topNav ? 'fixed inset-x-0 top-14 bottom-0 overflow-hidden md:static md:h-[100dvh]' : cn('pt-0 md:pb-0 h-[100dvh] overflow-hidden', location.pathname.startsWith('/cuenta/') ? 'pb-0' : 'pb-16')) : (topNav ? 'pt-14 pb-4 min-h-screen' : 'pt-14 pb-20 md:pb-4 min-h-screen'), 'md:ml-16 transition-all duration-300', mainML)}>
         <div className={cn('max-w-full h-full', isPOS ? 'p-0' : 'p-4 lg:p-6')}>
           <Outlet />
         </div>

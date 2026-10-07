@@ -25,7 +25,8 @@ const CHANNEL_IDS = CHANNELS.map(c => c.id);
 const emit = (req, event, payload) => { if (req.app.io) req.app.io.emit(event, payload); };
 const getOrder = (db, id) => db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(id));
 const fmt = (db, id) => formatOrder(db, getOrder(db, id));
-const activeOrderForTable = (db, tableId) => db.prepare(`SELECT * FROM orders WHERE table_id = ? AND status IN (${ACTIVE_SQL}) ORDER BY id DESC LIMIT 1`).get(tableId);
+// La cuenta principal de la mesa (las cuentas separadas que se están cobrando no cuentan)
+const activeOrderForTable = (db, tableId) => db.prepare(`SELECT * FROM orders WHERE table_id = ? AND split_from IS NULL AND status IN (${ACTIVE_SQL}) ORDER BY id DESC LIMIT 1`).get(tableId);
 
 function recomputeTotals(db, orderId) {
   const o = getOrder(db, orderId);
@@ -95,7 +96,7 @@ function roomsWithTables(db) {
 }
 function tablesState(db) {
   const rooms = roomsWithTables(db);
-  const active = db.prepare(`SELECT id, table_id, status, people, waiter_name, total, tip, created_at, sale_label, customer_name, notes FROM orders WHERE table_id IS NOT NULL AND status IN (${ACTIVE_SQL})`).all();
+  const active = db.prepare(`SELECT id, table_id, status, people, waiter_name, total, tip, created_at, sale_label, customer_name, notes FROM orders WHERE table_id IS NOT NULL AND split_from IS NULL AND status IN (${ACTIVE_SQL})`).all();
   const counts = db.prepare(`SELECT order_id, SUM(CASE WHEN batch IS NULL THEN 1 ELSE 0 END) AS unsent, COUNT(*) AS items FROM order_items GROUP BY order_id`).all();
   const countMap = Object.fromEntries(counts.map(c => [c.order_id, c]));
   const lineRows = active.length ? db.prepare(`SELECT order_id, name, quantity, batch FROM order_items WHERE order_id IN (${active.map(() => '?').join(',')}) ORDER BY id`).all(...active.map(a => a.id)) : [];
@@ -524,6 +525,74 @@ router.post('/orders/:id/merge', (req, res) => {
   res.json(formatted);
 });
 
+/**
+ * Cuenta separada: pasa los productos elegidos (con cantidad, se puede partir una línea) a una cuenta nueva de la misma
+ * mesa para cobrarla aparte con su propio recibo/factura. La cuenta de la mesa sigue abierta con el resto.
+ * Body: { items: [{ itemId, quantity }], people? }
+ */
+router.post('/orders/:id/split', (req, res) => {
+  const db = getDb();
+  const parent = getOrder(db, req.params.id);
+  if (!parent) return res.status(404).json({ error: 'Cuenta no encontrada' });
+  if (!ACTIVE.includes(parent.status)) return res.status(400).json({ error: 'La cuenta ya está cerrada' });
+  if (parent.split_from) return res.status(400).json({ error: 'Esta ya es una cuenta separada' });
+  const wanted = (Array.isArray(req.body.items) ? req.body.items : []).map(i => ({ itemId: Number(i.itemId), quantity: Math.round(Number(i.quantity) || 0) })).filter(i => i.itemId && i.quantity > 0);
+  if (!wanted.length) return res.status(400).json({ error: 'Elige los productos de esta cuenta' });
+  const rows = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(parent.id);
+  const totalQty = rows.reduce((s, r) => s + r.quantity, 0);
+  let moving = 0;
+  for (const w of wanted) {
+    const r = rows.find(x => x.id === w.itemId);
+    if (!r) return res.status(400).json({ error: 'Un producto ya no está en la cuenta: recarga la página' });
+    if (w.quantity > r.quantity) return res.status(400).json({ error: `"${r.name}": solo hay ${r.quantity}` });
+    moving += w.quantity;
+  }
+  if (moving >= totalQty) return res.status(400).json({ error: 'Para cobrar todo, usa Cobrar en la cuenta de la mesa' });
+  let childId;
+  const tx = db.transaction(() => {
+    const info = db.prepare(`INSERT INTO orders (type, status, customer_name, customer_doc, table_id, table_label, table_number, people, waiter_id, waiter_name, channel, sale_label,
+        subtotal, delivery_fee, discount, total, payment_method, payment_status, notes, shift_id, cashier_name, user_id, created_by, branch_id, split_from)
+      VALUES (?, ?, 'Consumidor Final', '222222222222', ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 'cash', 'pending', '', ?, ?, ?, ?, ?, ?)`)
+      .run(parent.type, parent.status === 'billing' ? 'open' : parent.status, parent.table_id, parent.table_label, parent.table_number, Math.max(0, Math.round(Number(req.body.people) || 1)),
+        parent.waiter_id, parent.waiter_name, parent.channel || 'local', `Cuenta separada de #${parent.id}`, parent.shift_id, parent.cashier_name, req.user?.id || null, req.user?.name || null, parent.branch_id || 1, parent.id);
+    childId = Number(info.lastInsertRowid);
+    const copy = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, batch, sent_at, kitchen_status, kitchen_ready_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const w of wanted) {
+      const r = rows.find(x => x.id === w.itemId);
+      if (w.quantity === r.quantity) db.prepare('UPDATE order_items SET order_id = ? WHERE id = ?').run(childId, r.id);
+      else {
+        db.prepare('UPDATE order_items SET quantity = quantity - ? WHERE id = ?').run(w.quantity, r.id);
+        copy.run(childId, r.product_id, r.name, r.size, r.flavors, w.quantity, r.price, r.notes, r.batch, r.sent_at, r.kitchen_status, r.kitchen_ready_at);
+      }
+    }
+    recomputeTotals(db, parent.id);
+    recomputeTotals(db, childId);
+  });
+  tx();
+  emit(req, 'order:updated', fmt(db, parent.id));
+  res.status(201).json({ split: fmt(db, childId), parent: fmt(db, parent.id) });
+});
+
+// Deshacer una cuenta separada que no se cobró: los productos vuelven a la cuenta de la mesa
+router.post('/orders/:id/unsplit', (req, res) => {
+  const db = getDb();
+  const child = getOrder(db, req.params.id);
+  if (!child || !child.split_from) return res.status(404).json({ error: 'Cuenta separada no encontrada' });
+  if (!ACTIVE.includes(child.status) || child.payment_status === 'paid') return res.status(400).json({ error: 'Esa cuenta ya se cobró' });
+  const parent = getOrder(db, child.split_from);
+  const tx = db.transaction(() => {
+    if (parent && ACTIVE.includes(parent.status)) {
+      db.prepare('UPDATE order_items SET order_id = ? WHERE order_id = ?').run(parent.id, child.id);
+      recomputeTotals(db, parent.id);
+      db.prepare('DELETE FROM orders WHERE id = ?').run(child.id);
+    }
+  });
+  tx();
+  const formatted = parent ? fmt(db, parent.id) : null;
+  if (formatted) emit(req, 'order:updated', formatted);
+  res.json(formatted || { success: true });
+});
+
 /* =================== Cocina (comandas) =================== */
 router.get('/kitchen', (req, res) => {
   const db = getDb();
@@ -533,7 +602,7 @@ router.get('/kitchen', (req, res) => {
            oi.id AS itemId, oi.batch, oi.sent_at AS sentAt, COALESCE(oi.kitchen_status, 'pending') AS kitchenStatus, oi.kitchen_ready_at AS readyAt, oi.name, oi.size, oi.flavors, oi.quantity, oi.notes,
            COALESCE(p.station, 'cocina') AS station
     FROM order_items oi JOIN orders o ON o.id = oi.order_id LEFT JOIN products p ON p.id = oi.product_id
-    WHERE oi.batch IS NOT NULL AND o.status IN (${ACTIVE_SQL}) AND COALESCE(o.branch_id, 1) = ${Number(currentBranch())}
+    WHERE oi.batch IS NOT NULL AND (o.status IN (${ACTIVE_SQL}) OR (o.split_from IS NOT NULL AND o.status != 'cancelled' AND o.created_at >= datetime('now', '-5 hours', '-12 hours'))) AND COALESCE(o.branch_id, 1) = ${Number(currentBranch())}
       AND (COALESCE(oi.kitchen_status, 'pending') != 'ready' OR oi.kitchen_ready_at >= datetime('now', '-5 hours', '-45 minutes'))
       AND COALESCE(p.station, 'cocina') != 'none'
     ORDER BY oi.sent_at, o.id, oi.batch, oi.id
