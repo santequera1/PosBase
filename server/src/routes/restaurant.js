@@ -95,13 +95,14 @@ function roomsWithTables(db) {
 }
 function tablesState(db) {
   const rooms = roomsWithTables(db);
-  const active = db.prepare(`SELECT id, table_id, status, people, waiter_name, total, tip, created_at, sale_label, customer_name FROM orders WHERE table_id IS NOT NULL AND status IN (${ACTIVE_SQL})`).all();
+  const active = db.prepare(`SELECT id, table_id, status, people, waiter_name, total, tip, created_at, sale_label, customer_name, notes FROM orders WHERE table_id IS NOT NULL AND status IN (${ACTIVE_SQL})`).all();
   const counts = db.prepare(`SELECT order_id, SUM(CASE WHEN batch IS NULL THEN 1 ELSE 0 END) AS unsent, COUNT(*) AS items FROM order_items GROUP BY order_id`).all();
   const countMap = Object.fromEntries(counts.map(c => [c.order_id, c]));
+  const lineRows = active.length ? db.prepare(`SELECT order_id, name, quantity, batch FROM order_items WHERE order_id IN (${active.map(() => '?').join(',')}) ORDER BY id`).all(...active.map(a => a.id)) : [];
   for (const r of rooms) {
     for (const t of r.tables) {
       const o = active.find(a => a.table_id === t.id);
-      t.order = o ? { id: o.id, status: o.status, people: o.people || 0, waiterName: o.waiter_name || '', total: o.total || 0, since: o.created_at, items: countMap[o.id]?.items || 0, unsent: countMap[o.id]?.unsent || 0, label: o.sale_label || o.customer_name } : null;
+      t.order = o ? { id: o.id, status: o.status, people: o.people || 0, waiterName: o.waiter_name || '', total: o.total || 0, since: o.created_at, items: countMap[o.id]?.items || 0, unsent: countMap[o.id]?.unsent || 0, label: o.sale_label || o.customer_name, notes: o.notes || '', lines: lineRows.filter(l => l.order_id === o.id).map(l => ({ name: l.name, qty: l.quantity, sent: l.batch !== null })) } : null;
       t.state = !o ? 'free' : o.status === 'billing' ? 'billing' : 'occupied';
     }
   }

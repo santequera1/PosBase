@@ -51,7 +51,7 @@ export const PRINT_STATIONS = ['cocina', 'barra'];
 export interface RestaurantTable {
   id: number; roomId: number; label: string; shape: TableShape; seats: number; x: number; y: number; w: number; h: number;
   state?: TableState;
-  order?: { id: number; status: OrderStatus; people: number; waiterName: string; total: number; since: string; items: number; unsent: number; label?: string } | null;
+  order?: { id: number; status: OrderStatus; people: number; waiterName: string; total: number; since: string; items: number; unsent: number; label?: string; notes?: string; lines?: Array<{ name: string; qty: number; sent: boolean }> } | null;
 }
 export interface Room { id: number; name: string; sortOrder: number; tables: RestaurantTable[] }
 export interface KitchenTicket {

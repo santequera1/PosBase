@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Printer, Wifi, WifiOff, Plus, Edit2, Trash2, Download, Search, RotateCcw, CheckCircle2, AlertTriangle, Clock, Monitor, Copy, Info, Zap } from 'lucide-react';
+import { Printer, Wifi, WifiOff, Plus, Edit2, Trash2, Download, Search, RotateCcw, CheckCircle2, AlertTriangle, Clock, Monitor, Copy, Info, Zap, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -113,6 +113,7 @@ export const PrintersPanel = () => {
   };
   const removeAgent = async (a: any) => { if (!window.confirm(`¿Quitar el agente "${a.name}"? Dejará de imprimir hasta que instales uno nuevo.`)) return; await api.deletePrintAgent(a.id); load(); };
   const removePrinter = async (p: any) => { if (!window.confirm(`¿Eliminar la impresora ${p.name}?`)) return; await api.deletePrinter(p.id); load(); };
+  const samples = async (p: any) => { try { const r = await api.samplePrinter(p.id); toast.success(`${r.queued} impresión(es) de ejemplo enviadas a ${p.name}`); setTimeout(load, 1500); } catch (e: any) { toast.error(e.message); } };
   const test = async (p: any) => { try { await api.testPrinter(p.id); toast.success(`Página de prueba enviada a ${p.name}`); setTimeout(load, 1500); } catch (e: any) { toast.error(e.message); } };
   const scan = async (a: any) => { await api.scanPrinters(a.id); toast.info('Buscando impresoras en la red del restaurante (unos segundos)...'); setTimeout(load, 4000); };
   const anyOnline = cfg.agents.some((a: any) => a.online);
@@ -211,6 +212,7 @@ export const PrintersPanel = () => {
                 <div className="flex flex-wrap gap-1">{p.roles.length ? p.roles.map((r: string) => <span key={r} className="text-[10px] px-2 py-0.5 rounded-full bg-brand-card border border-brand-accent/40 font-semibold">{cfg.roles[r] || r}</span>) : <span className="text-[10px] text-amber-700">Sin función asignada</span>}</div>
                 <p className="text-[10px] text-muted-foreground">{p.online === false ? 'No responde: revisa que esté encendida y conectada' : p.online ? `Responde · ${ago(p.checkedAt)}` : 'El agente aún no la ha revisado'}</p>
                 <button onClick={() => test(p)} disabled={!anyOnline} data-printer-test className="w-full py-1.5 rounded-lg border border-border text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40"><Zap size={12} /> Imprimir prueba</button>
+                <button onClick={() => samples(p)} disabled={!anyOnline} data-printer-samples className="w-full py-1.5 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40" title="Comanda, precuenta y recibo de ejemplo según la función de la impresora (no crea ventas)"><Receipt size={12} /> Imprimir ejemplos</button>
               </div>
             ))}
           </div>

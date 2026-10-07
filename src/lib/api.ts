@@ -159,7 +159,7 @@ export const api = {
   getTopDrivers: (period?: string) => request<any[]>(`/reports/top-drivers${period ? '?period=' + period : ''}`),
 
   // Settings
-  me: () => request<{ id: number; name: string; role: string; profile: string; perms: { views: string[]; actions: string[] } }>('/auth/me'),
+  me: () => request<{ id: number; name: string; role: string; profile: string; perms: { views: string[]; actions: string[] }; token?: string }>('/auth/me'),
   getSettings: () => request<any>('/settings'),
   getIntegration: () => request<any>('/settings/integration'),
   updateSettings: (data: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
@@ -360,6 +360,7 @@ export const api = {
   updatePrinter: (id: number, data: any) => request<any>(`/printing/printers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deletePrinter: (id: number) => request<any>(`/printing/printers/${id}`, { method: 'DELETE' }),
   testPrinter: (id: number) => request<any>(`/printing/printers/${id}/test`, { method: 'POST' }),
+  samplePrinter: (id: number) => request<{ queued: number }>(`/printing/printers/${id}/samples`, { method: 'POST' }),
   createPrintAgent: (name: string) => request<{ id: number; token: string }>('/printing/agents', { method: 'POST', body: JSON.stringify({ name }) }),
   deletePrintAgent: (id: number) => request<any>(`/printing/agents/${id}`, { method: 'DELETE' }),
   scanPrinters: (agentId: number) => request<any>(`/printing/agents/${agentId}/scan`, { method: 'POST' }),

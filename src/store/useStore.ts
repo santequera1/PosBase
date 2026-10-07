@@ -423,7 +423,9 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
     try {
-      const b64 = token.split('.')[1];
+      // El JWT viene en base64url (- y _ sin relleno): atob solo entiende base64 normal
+      let b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
       const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
       const payload = JSON.parse(new TextDecoder().decode(bytes));
       if (payload.exp && payload.exp * 1000 < Date.now()) {
@@ -446,6 +448,7 @@ export const useStore = create<AppState>((set, get) => ({
     lastMeRefresh = now;
     try {
       const u = await api.me();
+      if (u && u.token) setToken(u.token);
       if (u && u.role) set(s => ({ user: { ...(s.user || { name: u.name }), id: u.id, name: u.name, role: u.role as UserRole, profile: u.profile, perms: u.perms } }));
     } catch { /* sin conexión: se conservan los permisos conocidos */ }
   },

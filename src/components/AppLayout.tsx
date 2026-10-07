@@ -144,8 +144,8 @@ export const AppLayout = () => {
 
         {/* Sidebar Footer User Info */}
         <div className="p-3 border-t border-white/10 bg-brand-surface">
-          <div className={cn('flex items-center gap-3 px-2 py-1', sidebarCollapsed && 'justify-center px-0')}>
-            <div className="w-9 h-9 rounded-2xl bg-brand-accent text-brand-on-accent flex items-center justify-center text-sm font-bold shrink-0 shadow-sm">
+          <div className={cn('flex items-center gap-3 px-2 py-1', sidebarCollapsed && 'flex-col gap-2 px-0')}>
+            <div className="w-9 h-9 rounded-2xl bg-brand-accent text-brand-on-accent flex items-center justify-center text-sm font-bold shrink-0 shadow-sm" title={sidebarCollapsed ? `${user?.name || ''} · ${user?.role || ''}` : undefined}>
               {user?.name?.[0] || 'G'}
             </div>
             {!sidebarCollapsed && (

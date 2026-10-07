@@ -92,6 +92,11 @@ router.post('/printers/:id/test', ADMIN, (req, res) => {
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+router.post('/printers/:id/samples', ADMIN, (req, res) => {
+  try { res.json({ queued: P.enqueueSamples(getDb(), req.params.id, req.user?.name) }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 // Imprimir una hoja de identificación en una IP (para saber qué impresora física es antes de registrarla)
 router.post('/identify', ADMIN, (req, res) => {
   const db = getDb();

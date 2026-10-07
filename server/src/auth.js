@@ -7,7 +7,7 @@ function generateToken(user) {
   return jwt.sign(
     { id: user.id, username: user.username, name: user.name, role: user.role, profile: profileOf(user), perms: resolvePerms(user) },
     JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: process.env.SESSION_TTL || '7d' }
   );
 }
 

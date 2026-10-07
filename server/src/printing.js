@@ -351,6 +351,42 @@ function enqueueTest(db, printerId, user) {
   return enqueue(db, { ...p, copies: 1 }, 'prueba', `Prueba ${p.name}`, testTicket(p, biz(db)), { user });
 }
 
+/**
+ * Impresiones de ejemplo para probar una impresora sin hacer ventas reales: según su función imprime una comanda de cocina,
+ * una de barra, una precuenta y un recibo con productos del menú. Todo sale marcado como EJEMPLO.
+ */
+function enqueueSamples(db, printerId, user) {
+  const p = listPrinters(db).find(x => x.id === Number(printerId));
+  if (!p) throw new Error('Impresora no encontrada');
+  const prods = db.prepare("SELECT p.name, p.price, COALESCE(p.station, 'cocina') AS station FROM products p WHERE COALESCE(p.available, 1) = 1 AND p.price > 0 ORDER BY p.id").all();
+  const food = prods.filter(x => x.station !== 'barra').slice(0, 3);
+  const drinks = prods.filter(x => x.station === 'barra').slice(0, 2);
+  const pick = food.length || drinks.length ? [...food, ...drinks] : [{ name: 'Hamburguesa clasica', price: 25000, station: 'cocina' }, { name: 'Papas fritas', price: 8000, station: 'cocina' }, { name: 'Gaseosa', price: 5000, station: 'barra' }];
+  const items = pick.map((x, i) => ({ name: x.name, quantity: i === 0 ? 2 : 1, price: x.price, station: x.station, notes: i === 0 ? 'sin cebolla (ejemplo)' : '' }));
+  const now = db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d;
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const order = { id: 0, type: 'dine-in', table_label: '5 (EJEMPLO)', people: 3, waiter_name: 'Mesero de prueba', customer_name: 'Consumidor Final', created_at: now, closed_at: now, now,
+    subtotal, discount: 0, delivery_fee: 0, tip: Math.round(subtotal * 0.1), total: subtotal + Math.round(subtotal * 0.1), payment_method: 'cash', cash_received: Math.ceil((subtotal * 1.1) / 10000) * 10000, notes: 'Pedido de ejemplo para probar la impresora' };
+  order.cash_change = order.cash_received - order.total;
+  const b = { ...bizFor(db, p.branchId || 1), prefix: 'EJEMPLO' };
+  const one = { ...p, copies: 1, drawer: false };
+  let n = 0;
+  if (p.roles.includes('cocina')) {
+    const list = items.filter(i => i.station !== 'barra');
+    n += enqueue(db, one, 'prueba', 'Ejemplo comanda cocina', kitchenTicket(one, order, list.length ? list : items, { station: p.roles.includes('barra') ? null : 'cocina', batch: 1, now }), { user }).length;
+  }
+  if (p.roles.includes('barra')) {
+    const list = items.filter(i => i.station === 'barra');
+    n += enqueue(db, one, 'prueba', 'Ejemplo comanda barra', kitchenTicket(one, order, list.length ? list : items, { station: 'barra', batch: 1, now }), { user }).length;
+  }
+  if (p.roles.includes('caja')) {
+    n += enqueue(db, one, 'prueba', 'Ejemplo precuenta', preBillTicket(one, b, order, items, 10), { user }).length;
+    n += enqueue(db, one, 'prueba', 'Ejemplo recibo', receiptTicket(one, b, order, items), { user }).length;
+  }
+  if (!n) n += enqueue(db, one, 'prueba', `Prueba ${p.name}`, testTicket(p, biz(db)), { user }).length;
+  return n;
+}
+
 /** Al enviar una tanda a cocina: si está activa la impresión en red y la impresión automática, sale sola. */
 function autoKitchen(db, orderId, batch, user) {
   try {
@@ -361,6 +397,6 @@ function autoKitchen(db, orderId, batch, user) {
 
 module.exports = {
   initPrintingSchema, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
-  createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, autoKitchen,
+  createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, enqueueSamples, autoKitchen,
   kitchenTicket, receiptTicket, preBillTicket, testTicket, shiftReportTicket, biz,
 };

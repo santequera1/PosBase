@@ -62,6 +62,10 @@ router.post('/change-password', (req, res) => {
 });
 
 // Usuario actual con sus permisos vigentes (se consulta al entrar y al cambiar de sección)
-router.get('/me', authMiddleware, (req, res) => res.json({ id: req.user.id, name: req.user.name, role: req.user.role, profile: req.user.profile, perms: req.user.perms }));
+// Además de los permisos vigentes entrega un token renovado: mientras se use la app, la sesión no vence.
+router.get('/me', authMiddleware, (req, res) => {
+  const row = getDb().prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  res.json({ id: req.user.id, name: req.user.name, role: req.user.role, profile: req.user.profile, perms: req.user.perms, token: row ? generateToken(row) : undefined });
+});
 
 module.exports = router;

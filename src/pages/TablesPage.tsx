@@ -166,7 +166,7 @@ const TablesPage = () => {
                   ) : (
                     <span className="text-[10px] mt-0.5 opacity-80 flex items-center gap-0.5"><Icon size={9} /> {t.seats}</span>
                   )}
-                  {t.order?.unsent ? <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-400 text-amber-900 text-[10px] font-bold flex items-center justify-center" title="Productos sin enviar a cocina">{t.order.unsent}</span> : null}
+                  {t.order?.unsent ? <span className="absolute top-1 right-1 z-10 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-amber-900 text-[10px] font-bold flex items-center justify-center shadow" title="Productos sin enviar a cocina">{t.order.unsent}</span> : null}
                 </button>
               );
             })}
@@ -186,9 +186,26 @@ const TablesPage = () => {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-brand-card rounded-lg p-2"><p className="text-muted-foreground flex items-center gap-1"><Users size={11} /> Personas</p><p className="font-bold text-brand-dark">{selected.order.people}</p></div>
                 <div className="bg-brand-card rounded-lg p-2"><p className="text-muted-foreground flex items-center gap-1"><Clock size={11} /> Tiempo</p><p className={cn('font-bold', minutesSince(selected.order.since) > 90 ? 'text-red-600' : 'text-brand-dark')}>{elapsedLabel(selected.order.since)}</p></div>
-                <div className="bg-brand-card rounded-lg p-2 col-span-2"><p className="text-muted-foreground">Mesero</p><p className="font-bold text-brand-dark">{selected.order.waiterName || 'Sin asignar'}</p></div>
+                <div className="bg-brand-card rounded-lg p-2"><p className="text-muted-foreground">Mesero</p><p className="font-bold text-brand-dark truncate">{selected.order.waiterName || 'Sin asignar'}</p></div>
+                <div className="bg-brand-card rounded-lg p-2"><p className="text-muted-foreground">Abierta</p><p className="font-bold text-brand-dark">{(selected.order.since || '').slice(11, 16) || '—'}</p></div>
+                {selected.order.people > 0 && selected.order.total > 0 && <div className="bg-brand-card rounded-lg p-2 col-span-2 flex justify-between"><span className="text-muted-foreground">Promedio por persona</span><span className="font-bold text-brand-dark">{formatPrice(Math.round(selected.order.total / selected.order.people))}</span></div>}
                 <div className="bg-brand-card rounded-lg p-2 col-span-2 flex items-center justify-between"><span className="text-muted-foreground">{selected.order.items} producto(s){selected.order.unsent ? ` · ${selected.order.unsent} sin enviar` : ''}</span><span className="text-base font-bold text-brand-primary">{formatPrice(selected.order.total)}</span></div>
               </div>
+              {selected.order.lines && selected.order.lines.length > 0 && (
+                <div className="text-xs" data-table-lines>
+                  <p className="text-muted-foreground mb-1">En la cuenta</p>
+                  <ul className="max-h-40 overflow-y-auto divide-y divide-border border border-border rounded-lg">
+                    {selected.order.lines.map((l, i) => (
+                      <li key={i} className="flex items-center gap-2 px-2 py-1">
+                        <span className="font-bold text-brand-dark w-6 text-right">{l.qty}</span>
+                        <span className="flex-1 truncate">{l.name}</span>
+                        <span className={cn('text-[10px] px-1.5 rounded-full font-semibold', l.sent ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-100 text-amber-800')}>{l.sent ? 'en cocina' : 'sin enviar'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {selected.order.notes ? <p className="text-xs bg-amber-50 border border-amber-200 rounded-lg p-2"><b>Nota:</b> {selected.order.notes}</p> : null}
               <div className="grid gap-2">
                 <button onClick={() => openAccount(selected)} className="py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5"><ArrowRight size={15} /> Abrir la cuenta</button>
                 <div className="grid grid-cols-2 gap-2">
