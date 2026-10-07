@@ -20,10 +20,15 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
   }, [categories, category]);
   const [sizing, setSizing] = useState<Product | null>(null);
 
+  // Al escribir se busca en TODO el menú (la categoría elegida no limita), sin importar tildes ni mayúsculas
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const searching = search.trim().length > 0;
+  const catName = useMemo(() => Object.fromEntries(categories.map(c => [c.id, c.name])), [categories]);
   const list = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return products.filter(p => (!category || p.categoryId === category) && (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)));
-  }, [products, category, search]);
+    const words = norm(search.trim()).split(/\s+/).filter(Boolean);
+    if (!words.length) return products.filter(p => !category || p.categoryId === category);
+    return products.filter(p => { const hay = norm(`${p.name} ${p.description || ''} ${catName[p.categoryId] || ''}`); return words.every(w => hay.includes(w)); });
+  }, [products, category, search, catName]);
 
   const add = (p: Product, size?: { name: string; price: number }) => {
     onAdd({ productId: p.id, name: size ? `${p.name} - ${size.name}` : p.name, size: size?.name, quantity: 1, price: size ? size.price : p.price, notes: '' });
@@ -39,18 +44,20 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
       <div className="p-3 space-y-2 border-b border-brand-primary/10 bg-white/60">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar producto..." className="w-full pl-9 pr-3 py-2 rounded-xl border border-brand-primary/15 bg-white text-sm outline-none focus:ring-2 focus:ring-brand-primary/20" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en todo el menú..." className="w-full pl-9 pr-9 py-2 rounded-xl border border-brand-primary/15 bg-white text-sm outline-none focus:ring-2 focus:ring-brand-primary/20" data-product-search />
+          {searching && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-brand-muted" title="Borrar búsqueda" data-clear-search><X size={13} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          <button onClick={() => setCategory(null)} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border', !category ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>Todo</button>
+          <button onClick={() => { setSearch(''); setCategory(null); }} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border', !category || searching ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>Todo</button>
           {categories.map(c => (
-            <button key={c.id} onClick={() => setCategory(category === c.id ? null : c.id)} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border flex items-center gap-1', category === c.id ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>
+            <button key={c.id} onClick={() => { if (searching) { setSearch(''); setCategory(c.id); } else setCategory(category === c.id ? null : c.id); }} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border flex items-center gap-1', category === c.id && !searching ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>
               <span>{c.emoji}</span>{c.name}
             </button>
           ))}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
+        {searching && list.length > 0 && <p className="text-[11px] text-brand-muted mb-2">Buscando en todo el menú · {list.length} resultado{list.length === 1 ? '' : 's'}</p>}
         {list.length === 0 && <p className="text-xs text-brand-muted text-center py-10">Ningún producto coincide.</p>}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
           {list.map(p => (
@@ -63,6 +70,7 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
               ) : null}
               <div className="p-2.5 h-full flex flex-col justify-between min-h-[64px]">
                 <p className="text-xs font-bold text-brand-dark leading-tight line-clamp-2">{p.name}</p>
+                {searching && catName[p.categoryId] && <p className="text-[10px] text-brand-muted truncate">{catName[p.categoryId]}</p>}
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[11px] font-semibold text-brand-primary">{p.sizes && p.sizes.length ? `Desde ${formatPrice(Math.min(...p.sizes.map(s => s.price)))}` : formatPrice(p.price)}</span>
                   <span className="w-6 h-6 rounded-full bg-brand-button text-brand-on-button flex items-center justify-center"><Plus size={13} /></span>
