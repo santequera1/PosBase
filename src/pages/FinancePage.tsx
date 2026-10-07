@@ -9,7 +9,7 @@ import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/theme';
-import { printDocument, escHtml, expenseNumber } from '@/lib/printDoc';
+import { printDocument, escHtml, expenseNumber, docLogo } from '@/lib/printDoc';
 import AccountingTab from '@/components/finance/AccountingTab';
 import AccountsTab from '@/components/finance/AccountsTab';
 import JournalTab from '@/components/finance/JournalTab';
@@ -36,7 +36,7 @@ interface Expense {
   supplierId: number | null; supplierName: string | null; description: string; amount: number; paymentMethod: string;
   status: 'paid' | 'pending'; dueDate: string | null; paidAt: string | null; invoiceNumber: string; notes: string;
   fromCashRegister: boolean; source: string; overdue?: boolean; dueSoon?: boolean; taxAmount?: number;
-  retention?: number; retentionPct?: number; paidAmount?: number; balance?: number; supportDoc?: boolean; supportDocNumber?: string | null; supportDocStatus?: string | null; invoiceDate?: string | null; supplierNit?: string | null; daysToDue?: number | null;
+  retention?: number; retentionPct?: number; paidAmount?: number; balance?: number; supportDoc?: boolean; supportDocNumber?: string | null; supportDocStatus?: string | null; invoiceDate?: string | null; supplierNit?: string | null; daysToDue?: number | null; voidedAt?: string | null; voidReason?: string | null; voidedBy?: string | null;
 }
 
 const KIND_META: Record<Kind, { label: string; short: string; className: string }> = {
@@ -163,7 +163,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
     } catch (e: any) { setError(e.message); }
   };
 
-  const save = async () => {
+  const save = async (andPrint = false) => {
     setSaving(true);
     setError('');
     try {
@@ -177,6 +177,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
       const saved = expense ? await api.updateExpense(expense.id, payload) : await api.addExpense(payload);
       if (payload.fromCashRegister) refreshCurrentShift();
       onSaved(saved);
+      if (andPrint) printExpenseVoucher(saved);
     } catch (e: any) { setError(e.message || 'No se pudo guardar'); }
     setSaving(false);
   };
@@ -196,7 +197,7 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
         </div>
         <div className="sm:col-span-2">
           <label className={LABEL}>Descripción</label>
-          <input value={form.description} onChange={e => set({ description: e.target.value })} placeholder="Ej: 20 kg de base de gelato, factura #123" className={INPUT} />
+          <input value={form.description} onChange={e => set({ description: e.target.value })} placeholder="Ej: compra de carne y pan, factura #123" className={INPUT} />
         </div>
         <div>
           <label className={LABEL}>Monto</label>
@@ -275,10 +276,11 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
         )}
       </div>
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
-      <button onClick={save} disabled={saving || !form.description.trim() || !(Number(form.amount) > 0)}
+      <button onClick={() => save(false)} disabled={saving || !form.description.trim() || !(Number(form.amount) > 0)}
         className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
         {saving ? 'Guardando...' : expense ? 'Guardar cambios' : 'Registrar gasto'}
       </button>
+      {!expense && <button onClick={() => save(true)} disabled={saving || !form.description.trim() || !(Number(form.amount) > 0)} data-save-print className="w-full py-2.5 rounded-xl border-2 border-brand-primary text-brand-primary text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-40"><Printer size={15} /> Guardar e imprimir comprobante</button>}
     </Modal>
   );
 };
@@ -500,9 +502,10 @@ async function printExpenseVoucher(e: Expense) {
     const pays = (d.payments || []) as any[];
     const html = `
       <div class="head">
-        <div><h1>${escHtml(st.businessName)}</h1><div class="muted">NIT ${escHtml(st.businessNit || '—')} · ${escHtml(st.businessAddress || '')} ${st.businessPhone ? '· Tel. ' + escHtml(st.businessPhone) : ''}</div></div>
+        <div class="brand">${docLogo(st.branding)}<div><h1>${escHtml(st.businessName)}</h1><div class="muted">${st.businessNit ? 'NIT ' + escHtml(st.businessNit) + ' · ' : ''}${escHtml(st.businessAddress || '')} ${st.businessPhone ? '· Tel. ' + escHtml(st.businessPhone) : ''}</div></div></div>
         <div class="num"><div class="lbl">Comprobante de gasto</div><div class="big">N.º ${expenseNumber(x.number)}</div><div class="muted">Fecha ${fmtDate(x.date)}</div></div>
       </div>
+      ${x.voidedAt ? `<div class="void">ANULADO · ${escHtml(x.voidReason || '')} · ${escHtml(x.voidedBy || '')} ${fmtDate(String(x.voidedAt).slice(0, 10))}</div>` : ''}
       <div class="grid">
         <div class="box"><div class="lbl">Pagado a</div><b>${escHtml(s ? s.name : 'Sin proveedor')}</b><br>${s ? `${escHtml(s.docType || 'NIT')} ${escHtml(s.nit || '—')}${s.dv ? '-' + escHtml(s.dv) : ''}<br>${escHtml([s.address, s.city].filter(Boolean).join(', '))}${s.phone ? ' · ' + escHtml(s.phone) : ''}` : ''}</div>
         <div class="box"><div class="lbl">Concepto</div><b>${escHtml(x.description)}</b><br>Categoría: ${escHtml(x.categoryName)}<br>Cuenta contable: ${escHtml(acc.code || '')} ${escHtml(acc.name || '')}</div>
@@ -539,10 +542,14 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
   };
   useEffect(load, [from, to, categoryId, status, search]);
 
-  const remove = async (e: Expense) => {
-    if (confirmDelete !== e.id) { setConfirmDelete(e.id); setTimeout(() => setConfirmDelete(null), 3000); return; }
-    try { await api.deleteExpense(e.id); setConfirmDelete(null); load(); } catch (err: any) { setError(err.message); }
+  const refreshCurrentShift = useStore(st => st.refreshCurrentShift);
+  const [voiding, setVoiding] = useState<Expense | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const doVoid = async () => {
+    if (!voiding) return;
+    try { await api.voidExpense(voiding.id, voidReason.trim()); setVoiding(null); setVoidReason(''); refreshCurrentShift(); load(); } catch (err: any) { setError(err.message); }
   };
+  void confirmDelete; void setConfirmDelete;
 
   return (
     <div className="space-y-3">
@@ -576,22 +583,22 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
             {data.expenses.map(e => {
               const PM = PAYMENT_META[e.paymentMethod]?.icon || Banknote;
               return (
-                <li key={e.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20">
+                <li key={e.id} className={cn('flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20', e.voidedAt && 'opacity-60')} data-expense-row={e.number}>
                   <div className="w-9 h-9 rounded-lg bg-brand-card border border-border flex items-center justify-center text-lg shrink-0">{e.categoryEmoji}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-brand-dark truncate"><span className="font-mono text-[11px] text-muted-foreground mr-1.5" data-expense-number>N.º {expenseNumber(e.number)}</span>{e.description}</p>
+                    <p className="text-sm font-semibold text-brand-dark truncate"><span className="font-mono text-[11px] text-muted-foreground mr-1.5" data-expense-number>N.º {expenseNumber(e.number)}</span><span className={cn(e.voidedAt && 'line-through')}>{e.description}</span>{e.voidedAt && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold" title={e.voidReason || ''}>ANULADO</span>}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
                       {fmtDate(e.date)} · {e.categoryName}{e.supplierName ? ` · ${e.supplierName}` : ''}{e.invoiceNumber ? ` · Fac. ${e.invoiceNumber}` : ''}{e.fromCashRegister ? ' · desde caja' : ''}{e.retention ? ` · ret. ${formatPrice(e.retention)}` : ''}{e.supportDocNumber ? ` · DS ${e.supportDocNumber}` : ''}
                     </p>
                   </div>
                   <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground"><PM size={12} /> {PAYMENT_META[e.paymentMethod]?.label}</span>
-                  <StatusPill e={e} />
+                  {!e.voidedAt && <StatusPill e={e} />}
                   <p className="text-sm font-bold text-brand-primary w-24 text-right">{formatPrice(e.amount)}</p>
                   <button onClick={() => printExpenseVoucher(e)} title="Imprimir comprobante" data-print-expense className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Printer size={14} /></button>
-                  {isAdmin && e.source === 'manual' && (
+                  {e.source === 'manual' && !e.voidedAt && (
                     <div className="flex items-center">
-                      <button onClick={() => setModal({ open: true, expense: e })} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Edit2 size={14} /></button>
-                      <button onClick={() => remove(e)} className={cn('p-1.5 rounded-lg', confirmDelete === e.id ? 'bg-red-600 text-white' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50')}><Trash2 size={14} /></button>
+                      {isAdmin && <button onClick={() => setModal({ open: true, expense: e })} title="Editar" className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Edit2 size={14} /></button>}
+                      <button onClick={() => { setVoiding(e); setVoidReason(''); }} title="Anular (eliminar) este gasto" data-void-expense className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                     </div>
                   )}
                 </li>
@@ -602,6 +609,14 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {modal.open && <ExpenseModal categories={categories} suppliers={suppliers} expense={modal.expense} isAdmin={isAdmin} onClose={() => setModal({ open: false, expense: null })} onSaved={() => { setModal({ open: false, expense: null }); load(); }} />}
+      {voiding && (
+        <Modal title={`Anular gasto N.º ${expenseNumber(voiding.number)}`} onClose={() => setVoiding(null)}>
+          <p className="text-xs text-muted-foreground">{voiding.description} · {formatPrice(voiding.amount)}</p>
+          <p className="text-xs text-muted-foreground">El gasto queda ANULADO con su mismo número (así el consecutivo no tiene huecos), sale de los totales, de cuentas por pagar y de los informes, y se reversa su asiento contable. Si salió de una caja que sigue abierta, se devuelve el dinero a la caja.</p>
+          <div><label className={LABEL}>Motivo de la anulación</label><input autoFocus value={voidReason} onChange={e => setVoidReason(e.target.value)} className={INPUT} placeholder="Ej. registrado dos veces, valor equivocado" data-void-reason /></div>
+          <button onClick={doVoid} disabled={voidReason.trim().length < 3} className="w-full py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-40" data-void-confirm>Anular gasto</button>
+        </Modal>
+      )}
     </div>
   );
 };

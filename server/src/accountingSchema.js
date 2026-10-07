@@ -132,6 +132,10 @@ function initAccountingSchema(db) {
     db.exec("CREATE TRIGGER IF NOT EXISTS trg_expense_number AFTER INSERT ON expenses WHEN NEW.number IS NULL BEGIN UPDATE expenses SET number = (SELECT COALESCE(MAX(number), 0) + 1 FROM expenses) WHERE id = NEW.id; END;");
   }
   addCol(db, 'expenses', 'paid_amount', 'INTEGER DEFAULT 0');
+  // Anulación: el gasto conserva su número consecutivo, queda marcado ANULADO y sale de totales e informes
+  addCol(db, 'expenses', 'voided_at', 'TEXT');
+  addCol(db, 'expenses', 'void_reason', 'TEXT');
+  addCol(db, 'expenses', 'voided_by', 'TEXT');
   addCol(db, 'expenses', 'retention', 'INTEGER DEFAULT 0');
   addCol(db, 'expenses', 'retention_pct', 'REAL DEFAULT 0');
   addCol(db, 'expenses', 'support_doc', 'INTEGER DEFAULT 0');

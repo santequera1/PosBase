@@ -110,7 +110,7 @@ function buildAccounting(db, range) {
            e.invoice_number AS invoice, e.source, c.name AS category, c.kind, s.name AS supplier, s.nit AS supplierNit,
            COALESCE(c.pl_group, CASE c.kind WHEN 'cogs' THEN 'cost' WHEN 'payroll' THEN 'personnel' WHEN 'other' THEN 'other' ELSE 'admin' END) AS plGroup
     FROM expenses e JOIN expense_categories c ON c.id = e.category_id LEFT JOIN suppliers s ON s.id = e.supplier_id
-    WHERE e.date BETWEEN ? AND ? ORDER BY e.date, e.id
+    WHERE e.date BETWEEN ? AND ? AND e.voided_at IS NULL ORDER BY e.date, e.id
   `).all(from, to);
   const purchases = expenseRows.map(e => ({
     ...e, base: e.amount - e.taxAmount, methodLabel: PAYMENT_LABEL[e.method] || e.method, statusLabel: e.status === 'paid' ? 'Pagado' : 'Pendiente',
@@ -150,7 +150,7 @@ function buildAccounting(db, range) {
   };
 
   /* ---------- Cuentas por pagar (saldo actual) ---------- */
-  const payables = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count FROM expenses WHERE status = 'pending'").get();
+  const payables = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count FROM expenses WHERE status = 'pending' AND voided_at IS NULL").get();
 
   /* ---------- Estado de resultados del período ---------- */
   const cogs = pTotals.byKind.cogs || 0, opex = pTotals.byKind.opex || 0, payrollExp = pTotals.byKind.payroll || 0, other = pTotals.byKind.other || 0;

@@ -268,7 +268,7 @@ function syncLedger(db) {
     for (const p of db.prepare("SELECT p.* FROM order_payments p LEFT JOIN journal_entries j ON j.source = 'payment_in' AND j.source_id = p.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY p.id").all()) safe(`abono cliente #${p.id}`, () => postOrderPayment(db, p, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN order_payments p ON p.id = j.source_id WHERE j.source = 'payment_in' AND j.status = 'posted' AND p.id IS NULL").all()) voidEntry(db, j.id, 'Abono eliminado');
     // Gastos pagados sin abono registrado (gastos anteriores a la cartera): se crea el pago por el saldo
-    for (const e of db.prepare("SELECT e.* FROM expenses e WHERE e.status = 'paid' AND NOT EXISTS (SELECT 1 FROM expense_payments p WHERE p.expense_id = e.id)").all()) {
+    for (const e of db.prepare("SELECT e.* FROM expenses e WHERE e.status = 'paid' AND e.voided_at IS NULL AND NOT EXISTS (SELECT 1 FROM expense_payments p WHERE p.expense_id = e.id)").all()) {
       const amount = (e.amount || 0) - (e.retention || 0);
       if (amount > 0) {
         db.prepare("INSERT INTO expense_payments (expense_id, date, amount, method, notes, cash_movement_id, created_by) VALUES (?, ?, ?, ?, 'Pago registrado con el gasto', ?, ?)")
@@ -276,7 +276,8 @@ function syncLedger(db) {
         db.prepare('UPDATE expenses SET paid_amount = ? WHERE id = ?').run(amount, e.id);
       }
     }
-    for (const e of db.prepare("SELECT e.* FROM expenses e LEFT JOIN journal_entries j ON j.source IN ('expense', 'payroll') AND j.source_id = e.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY e.id").all()) safe(`gasto #${e.id}`, () => postExpense(db, e, ctx));
+    for (const e of db.prepare("SELECT e.* FROM expenses e LEFT JOIN journal_entries j ON j.source IN ('expense', 'payroll') AND j.source_id = e.id AND j.status = 'posted' WHERE j.id IS NULL AND e.voided_at IS NULL ORDER BY e.id").all()) safe(`gasto #${e.id}`, () => postExpense(db, e, ctx));
+    for (const j of db.prepare("SELECT j.id FROM journal_entries j JOIN expenses e ON e.id = j.source_id WHERE j.source IN ('expense', 'payroll') AND j.status = 'posted' AND e.voided_at IS NOT NULL").all()) voidEntry(db, j.id, 'Gasto anulado');
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN expenses e ON e.id = j.source_id WHERE j.source IN ('expense', 'payroll') AND j.status = 'posted' AND e.id IS NULL").all()) voidEntry(db, j.id, 'Gasto eliminado');
     for (const p of db.prepare("SELECT p.* FROM expense_payments p LEFT JOIN journal_entries j ON j.source = 'payment_out' AND j.source_id = p.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY p.id").all()) safe(`pago gasto #${p.id}`, () => postExpensePayment(db, p, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN expense_payments p ON p.id = j.source_id WHERE j.source = 'payment_out' AND j.status = 'posted' AND p.id IS NULL").all()) voidEntry(db, j.id, 'Pago eliminado');
@@ -476,7 +477,7 @@ function agingReceivables(db, { date, thirdDoc }) {
 function agingPayables(db, { date, thirdDoc }) {
   const t = date || today(db);
   const rows = db.prepare(`SELECT e.*, s.name AS supplierName, s.nit AS supplierNit, c.name AS categoryName FROM expenses e LEFT JOIN suppliers s ON s.id = e.supplier_id JOIN expense_categories c ON c.id = e.category_id
-    WHERE e.date <= ? AND (e.amount - COALESCE(e.retention, 0) - COALESCE(e.paid_amount, 0)) > 0 AND e.status != 'paid'`).all(t);
+    WHERE e.date <= ? AND (e.amount - COALESCE(e.retention, 0) - COALESCE(e.paid_amount, 0)) > 0 AND e.status != 'paid' AND e.voided_at IS NULL`).all(t);
   const docs = [];
   for (const e of rows) {
     const third = { doc: e.supplierNit || '', name: e.supplierName || 'Sin proveedor', type: 'supplier', id: e.supplier_id || null };
@@ -508,7 +509,7 @@ function summarizeAging(docs, date) {
 /* ---------- terceros (información exógena) ---------- */
 function thirdPartiesReport(db, { from, to }) {
   const sup = db.prepare(`SELECT s.*, COALESCE(SUM(e.amount), 0) AS purchases, COALESCE(SUM(e.tax_amount), 0) AS iva, COALESCE(SUM(e.retention), 0) AS retention, COUNT(e.id) AS docs
-    FROM suppliers s LEFT JOIN expenses e ON e.supplier_id = s.id AND e.date BETWEEN ? AND ? GROUP BY s.id ORDER BY purchases DESC`).all(from, to);
+    FROM suppliers s LEFT JOIN expenses e ON e.supplier_id = s.id AND e.date BETWEEN ? AND ? AND e.voided_at IS NULL GROUP BY s.id ORDER BY purchases DESC`).all(from, to);
   const cus = db.prepare(`SELECT c.*, COALESCE(SUM(o.total), 0) AS sales, COUNT(o.id) AS docs FROM customers c
     LEFT JOIN orders o ON (o.customer_id = c.id OR (o.customer_doc = c.document_id AND c.document_id != '222222222222')) AND o.status NOT IN ('open', 'cancelled') AND date(o.created_at) BETWEEN ? AND ?
     WHERE c.document_id != '222222222222' OR c.phone != '' GROUP BY c.id ORDER BY sales DESC`).all(from, to);

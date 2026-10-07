@@ -7,7 +7,7 @@ import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, KpiCard, INPUT, LABEL, fmtDate, periodPresets } from '@/components/common/Primitives';
-import { printDocument, escHtml } from '@/lib/printDoc';
+import { printDocument, escHtml, docLogo } from '@/lib/printDoc';
 import { downloadXlsx } from '@/lib/xlsx';
 import { readSpreadsheet, normHeader } from '@/lib/xlsxRead';
 
@@ -20,7 +20,7 @@ export function printTipPayout(p: any) {
   const st = useStore.getState() as any;
   const html = `
     <div class="head">
-      <div><h1>${escHtml(st.businessName)}</h1><div class="muted">${st.businessNit ? 'NIT ' + escHtml(st.businessNit) + ' · ' : ''}${escHtml(st.businessAddress || '')}</div></div>
+      <div class="brand">${docLogo(st.branding)}<div><h1>${escHtml(st.businessName)}</h1><div class="muted">${st.businessNit ? 'NIT ' + escHtml(st.businessNit) + ' · ' : ''}${escHtml(st.businessAddress || '')}</div></div></div>
       <div class="num"><div class="lbl">Comprobante de pago de propinas</div><div class="big">N.º ${String(p.id).padStart(5, '0')}</div><div class="muted">Fecha ${fmtDate(p.date)}</div></div>
     </div>
     <div class="grid">

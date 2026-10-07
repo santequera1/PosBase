@@ -28,7 +28,7 @@ const EXP_SELECT = `
          e.supplier_id AS supplierId, s.name AS supplierName, e.description, e.amount, e.payment_method AS paymentMethod,
          e.status, e.due_date AS dueDate, e.paid_at AS paidAt, e.invoice_number AS invoiceNumber, e.notes,
          e.from_cash_register AS fromCashRegister, e.cash_movement_id AS cashMovementId, e.source, e.reference_id AS referenceId,
-         e.created_by AS createdBy, e.created_at AS createdAt, COALESCE(e.tax_amount, 0) AS taxAmount,
+         e.created_by AS createdBy, e.created_at AS createdAt, COALESCE(e.tax_amount, 0) AS taxAmount, e.voided_at AS voidedAt, e.void_reason AS voidReason, e.voided_by AS voidedBy,
          COALESCE(e.retention, 0) AS retention, COALESCE(e.retention_pct, 0) AS retentionPct, COALESCE(e.paid_amount, 0) AS paidAmount,
          (e.amount - COALESCE(e.retention, 0) - COALESCE(e.paid_amount, 0)) AS balance,
          COALESCE(e.support_doc, 0) AS supportDoc, e.support_doc_number AS supportDocNumber, e.support_doc_status AS supportDocStatus, e.support_doc_issued_at AS supportDocIssuedAt,
@@ -140,7 +140,7 @@ router.get('/suppliers', STAFF, (req, res) => {
            COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) AS pendingAmount,
            COUNT(*) AS purchases,
            MAX(date) AS lastPurchase
-    FROM expenses WHERE supplier_id IS NOT NULL GROUP BY supplier_id
+    FROM expenses WHERE supplier_id IS NOT NULL AND voided_at IS NULL GROUP BY supplier_id
   `).all();
   const byId = Object.fromEntries(stats.map(s => [s.id, s]));
   res.json(rows.map(r => ({ ...r, active: Boolean(r.active), ivaResponsible: Boolean(r.ivaResponsible), rutComplete: supplierComplete(r), totalPurchased: byId[r.id]?.totalPurchased || 0, pendingAmount: byId[r.id]?.pendingAmount || 0, purchases: byId[r.id]?.purchases || 0, lastPurchase: byId[r.id]?.lastPurchase || null })));
@@ -254,7 +254,7 @@ router.get('/expenses', STAFF, (req, res) => {
   sql += ' ORDER BY e.date DESC, e.id DESC LIMIT ?';
   params.push(limit);
   const rows = db.prepare(sql).all(...params).map(mapExpense);
-  const total = rows.reduce((a, r) => a + r.amount, 0);
+  const total = rows.filter(r => !r.voidedAt).reduce((a, r) => a + r.amount, 0);
   res.json({ expenses: rows, total, count: rows.length });
 });
 
@@ -324,6 +324,7 @@ router.put('/expenses/:id', ADMIN, (req, res) => {
   const id = Number(req.params.id);
   const cur = db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(id);
   if (!cur) return res.status(404).json({ error: 'Gasto no encontrado' });
+  if (cur.voidedAt) return res.status(400).json({ error: 'Este gasto está anulado; no se puede editar' });
   if (cur.source !== 'manual') return res.status(400).json({ error: 'Este gasto lo generó el módulo de nómina; edítalo desde allí' });
   const v = validateExpense(db, req.body, cur);
   if (v.error) return res.status(400).json({ error: v.error });
@@ -359,6 +360,7 @@ router.post('/expenses/:id/pay', STAFF, (req, res) => {
   const id = Number(req.params.id);
   const cur = db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(id);
   if (!cur) return res.status(404).json({ error: 'Gasto no encontrado' });
+  if (cur.voidedAt) return res.status(400).json({ error: 'Este gasto está anulado' });
   if (cur.status === 'paid' || cur.balance <= 0) return res.status(400).json({ error: 'Este gasto ya está pagado' });
   const amount = req.body.amount === undefined || req.body.amount === null || req.body.amount === '' ? cur.balance : Math.round(Number(req.body.amount));
   if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'El abono debe ser mayor a cero' });
@@ -415,6 +417,24 @@ router.post('/expenses/:id/support-doc', ADMIN, (req, res) => {
   res.json(mapExpense(db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(id)));
 });
 
+/** Anular un gasto: conserva el número consecutivo (no queda hueco), sale de totales e informes y se reversa su contabilidad.
+ * Si salió de una caja que sigue abierta, se devuelve el retiro; los pagos registrados se eliminan. */
+router.post('/expenses/:id/void', STAFF, (req, res) => {
+  const db = getDb();
+  const id = Number(req.params.id);
+  const cur = db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(id);
+  if (!cur) return res.status(404).json({ error: 'Gasto no encontrado' });
+  if (cur.voidedAt) return res.status(400).json({ error: 'Este gasto ya está anulado' });
+  if (cur.source !== 'manual') return res.status(400).json({ error: 'Este gasto lo generó el módulo de nómina; anula la liquidación desde Personal' });
+  const reason = String(req.body.reason || '').trim().slice(0, 200);
+  if (reason.length < 3) return res.status(400).json({ error: 'Escribe el motivo de la anulación' });
+  removeCashMovementIfOpen(db, cur.cashMovementId);
+  for (const p of db.prepare('SELECT cash_movement_id AS cm FROM expense_payments WHERE expense_id = ? AND cash_movement_id IS NOT NULL').all(id)) if (p.cm !== cur.cashMovementId) removeCashMovementIfOpen(db, p.cm);
+  db.prepare('DELETE FROM expense_payments WHERE expense_id = ?').run(id);
+  db.prepare('UPDATE expenses SET voided_at = ?, void_reason = ?, voided_by = ?, paid_amount = 0 WHERE id = ?').run(now(db), reason, req.user?.name || '', id);
+  res.json(mapExpense(db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(id)));
+});
+
 router.delete('/expenses/:id', ADMIN, (req, res) => {
   const db = getDb();
   const id = Number(req.params.id);
@@ -435,7 +455,7 @@ router.get('/payables', STAFF, (req, res) => {
   const db = getDb();
   const t = today(db);
   const soon = shiftDate(t, 7);
-  const rows = db.prepare(`${EXP_SELECT} WHERE e.status = 'pending' ORDER BY COALESCE(e.due_date, e.date), e.id`).all().map(r => ({
+  const rows = db.prepare(`${EXP_SELECT} WHERE e.status = 'pending' AND e.voided_at IS NULL ORDER BY COALESCE(e.due_date, e.date), e.id`).all().map(r => ({
     ...mapExpense(r),
     overdue: Boolean(r.dueDate && r.dueDate < t),
     dueSoon: Boolean(r.dueDate && r.dueDate >= t && r.dueDate <= soon),
@@ -457,7 +477,7 @@ router.get('/summary', ADMIN, (req, res) => {
   const byKind = db.prepare(`
     SELECT c.kind, COALESCE(SUM(e.amount), 0) AS total
     FROM expenses e JOIN expense_categories c ON c.id = e.category_id
-    WHERE e.date BETWEEN ? AND ? GROUP BY c.kind
+    WHERE e.date BETWEEN ? AND ? AND e.voided_at IS NULL GROUP BY c.kind
   `).all(range.from, range.to);
   const k = Object.fromEntries(byKind.map(r => [r.kind, r.total]));
   const cogs = k.cogs || 0, opex = k.opex || 0, payroll = k.payroll || 0, other = k.other || 0;
@@ -466,10 +486,10 @@ router.get('/summary', ADMIN, (req, res) => {
   const byCategory = db.prepare(`
     SELECT c.id, c.name, c.emoji, c.kind, COALESCE(SUM(e.amount), 0) AS total, COUNT(e.id) AS count
     FROM expense_categories c
-    LEFT JOIN expenses e ON e.category_id = c.id AND e.date BETWEEN ? AND ?
+    LEFT JOIN expenses e ON e.category_id = c.id AND e.date BETWEEN ? AND ? AND e.voided_at IS NULL
     GROUP BY c.id ORDER BY total DESC, c.sort_order
   `).all(range.from, range.to);
-  const pending = db.prepare("SELECT COALESCE(SUM(amount), 0) AS t, COUNT(*) AS c FROM expenses WHERE status = 'pending'").get();
+  const pending = db.prepare("SELECT COALESCE(SUM(amount), 0) AS t, COUNT(*) AS c FROM expenses WHERE status = 'pending' AND voided_at IS NULL").get();
   res.json({
     period: range,
     sales: sales.s,
@@ -499,7 +519,7 @@ router.get('/pnl', ADMIN, (req, res) => {
   const expRows = db.prepare(`
     SELECT substr(e.date, 1, 7) AS mth, c.kind, COALESCE(SUM(e.amount), 0) AS t
     FROM expenses e JOIN expense_categories c ON c.id = e.category_id
-    WHERE e.date >= ? GROUP BY mth, c.kind
+    WHERE e.date >= ? AND e.voided_at IS NULL GROUP BY mth, c.kind
   `).all(start);
   const sales = Object.fromEntries(salesRows.map(r => [r.mth, r]));
   const exp = {};

@@ -27,13 +27,27 @@ export function printDocument(bodyHtml: string, title = 'Documento'): void {
     .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 46px; }
     .sign div { border-top: 1px solid #111; padding-top: 4px; text-align: center; font-size: 10px; }
     .foot { margin-top: 18px; font-size: 9px; color: #777; text-align: center; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img.logo { height: 54px; max-width: 120px; object-fit: contain; }
+    .void { margin: 0 0 10px; padding: 8px 12px; border: 3px solid #c00; color: #c00; font-weight: 800; font-size: 16px; text-align: center; letter-spacing: 3px; border-radius: 6px; }
   </style></head><body>${bodyHtml}</body></html>`);
   doc.close();
   const go = () => {
     try { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); } catch { /* sin impresora */ }
     setTimeout(() => iframe.remove(), 60000);
   };
-  setTimeout(go, 250);
+  // Espera a que carguen las imágenes (logo) antes de abrir la impresión; máximo 3 s
+  const imgs = Array.from(doc.images || []);
+  const pending = imgs.filter(i => !i.complete).map(i => new Promise(r => { i.onload = r; i.onerror = r; }));
+  Promise.race([Promise.all(pending), new Promise(r => setTimeout(r, 3000))]).then(() => setTimeout(go, 150));
+}
+
+/** Logo del negocio para documentos en papel (usa el logo para fondos claros si existe). */
+export function docLogo(branding: { logoUrl?: string; logoLoginUrl?: string } | undefined): string {
+  const src = (branding && (branding.logoLoginUrl || branding.logoUrl)) || '';
+  if (!src) return '';
+  const abs = /^(https?:|data:)/.test(src) ? src : `${window.location.origin}${src.startsWith('/') ? '' : '/'}${src}`;
+  return `<img class="logo" src="${abs.replace(/"/g, '&quot;')}" alt="">`;
 }
 
 export const escHtml = (s: any) => String(s ?? '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c] as string));

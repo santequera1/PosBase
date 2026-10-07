@@ -363,5 +363,6 @@ export const api = {
   scanPrinters: (agentId: number) => request<any>(`/printing/agents/${agentId}/scan`, { method: 'POST' }),
   retryPrintJob: (id: number) => request<any>(`/printing/jobs/${id}/retry`, { method: 'POST' }),
   netPrint: (kind: 'receipt' | 'prebill' | 'kitchen' | 'shift-report', data: any) => request<any>(`/printing/${kind}`, { method: 'POST', body: JSON.stringify(data) }),
+  voidExpense: (id: number, reason: string) => request<any>(`/finance/expenses/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
   importEmployees: (rows: any[], dryRun: boolean) => request<any>('/staff/employees/import', { method: 'POST', body: JSON.stringify({ rows, dryRun }) }),
 };
