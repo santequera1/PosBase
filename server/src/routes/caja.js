@@ -212,6 +212,47 @@ router.post('/sales/:id/payment', (req, res) => {
   res.json(fresh);
 });
 
+/**
+ * Corregir datos de una venta (cliente, documento, contacto, dirección, mesero, personas, etiqueta, comentario) para
+ * reimprimir el recibo actualizado. No toca productos ni valores. Si ya tiene factura electrónica, el cliente no cambia.
+ */
+router.post('/sales/:id/details', (req, res) => {
+  const db = getDb();
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(req.params.id));
+  if (!o) return res.status(404).json({ error: 'Venta no encontrada' });
+  if (o.status === 'cancelled') return res.status(400).json({ error: 'La venta está anulada' });
+  if (o.status === 'delivered' && !canEditSale(db, req.user, o)) return res.status(403).json({ error: 'La caja de esta venta ya está cerrada: solo un administrador puede editar sus datos' });
+  const b = req.body || {};
+  const str = (v, max) => String(v === undefined || v === null ? '' : v).trim().slice(0, max);
+  const invoiced = Boolean(o.fe_cufe || o.fe_number);
+  const sets = [], vals = [];
+  const set = (col, v) => { sets.push(col + ' = ?'); vals.push(v); };
+  const customerKeys = ['customerName', 'customerDoc', 'customerEmail', 'customerPhone', 'customerAddress', 'customerNeighborhood'];
+  if (invoiced && customerKeys.some(k => b[k] !== undefined && str(b[k], 160) !== str(o[k.replace(/[A-Z]/g, m => '_' + m.toLowerCase())], 160))) {
+    return res.status(400).json({ error: 'Esta venta ya tiene factura electrónica: los datos del cliente no se pueden cambiar' });
+  }
+  if (b.customerName !== undefined) set('customer_name', str(b.customerName, 120) || 'Consumidor Final');
+  if (b.customerDoc !== undefined) set('customer_doc', str(b.customerDoc, 30).replace(/[^0-9A-Za-z-]/g, '') || '222222222222');
+  if (b.customerEmail !== undefined) set('customer_email', str(b.customerEmail, 120) || null);
+  if (b.customerPhone !== undefined) set('customer_phone', str(b.customerPhone, 40) || null);
+  if (b.customerAddress !== undefined) set('customer_address', str(b.customerAddress, 160) || null);
+  if (b.customerNeighborhood !== undefined) set('customer_neighborhood', str(b.customerNeighborhood, 80) || null);
+  if (b.label !== undefined) set('sale_label', str(b.label, 80) || null);
+  if (b.notes !== undefined) set('notes', str(b.notes, 300));
+  if (b.people !== undefined) set('people', Math.max(0, Math.round(Number(b.people) || 0)));
+  if (b.waiterId !== undefined) {
+    const w = Number(b.waiterId) ? db.prepare('SELECT id, name FROM employees WHERE id = ?').get(Number(b.waiterId)) : null;
+    set('waiter_id', w ? w.id : null); set('waiter_name', w ? w.name : null);
+    // La propina asignada al mesero pasa al nuevo mesero
+    if (o.tip > 0 && o.tip_to === 'waiter') db.prepare('UPDATE tips SET employee_id = ? WHERE notes = ?').run(w ? w.id : null, `Propina pedido #${o.id}`);
+  }
+  if (!sets.length) return res.status(400).json({ error: 'No hay cambios' });
+  db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals, o.id);
+  const fresh = formatOrder(db, db.prepare('SELECT * FROM orders WHERE id = ?').get(o.id));
+  if (req.app.io) req.app.io.emit('order:updated', fresh);
+  res.json(fresh);
+});
+
 router.post('/sales/:id/tip', (req, res) => {
   const db = getDb();
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(req.params.id));

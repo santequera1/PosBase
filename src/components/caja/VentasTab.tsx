@@ -115,7 +115,7 @@ export const SaleDetail = ({ id, onClose, onChanged }: { id: number | null; onCl
   const restaurant = useStore(s => s.restaurant);
   const [d, setD] = useState<any>(null);
   const [fe, setFe] = useState(false);
-  const [edit, setEdit] = useState<null | 'payment' | 'tip' | 'cancel' | { item: any }>(null);
+  const [edit, setEdit] = useState<null | 'payment' | 'tip' | 'cancel' | 'details' | { item: any }>(null);
   const load = useCallback(() => { if (id) api.getCajaSale(id).then(setD).catch(e => { toast.error(e.message); setD(null); }); }, [id]);
   useEffect(() => { setD(null); load(); }, [load]);
   const o = d?.order, sm = d?.summary;
@@ -150,7 +150,20 @@ export const SaleDetail = ({ id, onClose, onChanged }: { id: number | null; onCl
             {o.people ? <Row k="Personas" v={o.people} /> : null}
             {sm.customer && <Row k="Cliente" v={`${sm.customer}${sm.customerPhone ? ' · ' + sm.customerPhone : ''}`} />}
             {sm.invoiced && <Row k="Factura" v={sm.invoiceNumber} />}
+            {o.customer?.doc && o.customer.doc !== '222222222222' && <Row k="C.C. / NIT" v={o.customer.doc} />}
+            {o.notes && <Row k="Comentario" v={o.notes} />}
+            {o.status !== 'cancelled' && (o.status !== 'delivered' || d.canEdit) && <button onClick={() => setEdit('details')} className="mx-4 my-1.5 text-xs font-semibold text-brand-primary flex items-center gap-1" data-edit-details><Pencil size={12} /> Editar datos (cliente, documento, mesero...)</button>}
           </div>
+          {o.status !== 'cancelled' && (
+            <>
+              <SectionTitle>Reimprimir</SectionTitle>
+              <div className="px-4 py-2 grid grid-cols-3 gap-2" data-reprint>
+                {o.status === 'delivered' && <button onClick={() => printReceipt(o)} className="py-2 rounded-lg border border-border text-xs font-semibold flex flex-col items-center gap-1 hover:bg-brand-card" data-reprint-receipt><Printer size={15} /> Recibo</button>}
+                {o.type === 'dine-in' && <button onClick={() => printPreBill(o, restaurant?.tipDineIn ? restaurant.tipPercent : 0)} className="py-2 rounded-lg border border-border text-xs font-semibold flex flex-col items-center gap-1 hover:bg-brand-card" data-reprint-prebill><Receipt size={15} /> Precuenta</button>}
+                <button onClick={() => printKitchen(o, o.items, undefined, restaurant)} className="py-2 rounded-lg border border-border text-xs font-semibold flex flex-col items-center gap-1 hover:bg-brand-card" data-reprint-kitchen><ChefHat size={15} /> Comanda</button>
+              </div>
+            </>
+          )}
           <SectionTitle>Adiciones</SectionTitle>
           <div className="divide-y divide-border/60">
             {o.items.map((i: any) => (
@@ -191,6 +204,7 @@ export const SaleDetail = ({ id, onClose, onChanged }: { id: number | null; onCl
       )}
       {fe && o && <ElectronicInvoiceModal order={o} onClose={() => { setFe(false); changed(); }} />}
       {edit === 'payment' && o && <EditPaymentModal o={o} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); changed(); }} />}
+      {edit === 'details' && o && <EditDetailsModal o={o} invoiced={!!sm?.invoiced} onClose={() => setEdit(null)} onSaved={(fresh, reprint) => { setEdit(null); changed(); if (reprint) { if (fresh.status === 'delivered') printReceipt(fresh); else if (fresh.type === 'dine-in') printPreBill(fresh, restaurant?.tipDineIn ? restaurant.tipPercent : 0); } }} />}
       {edit === 'tip' && o && <EditTipModal o={o} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); changed(); }} />}
       {edit === 'cancel' && o && <ReasonModal title={`Eliminar venta #${o.id}`} text="La venta queda como Eliminada (anulada): sale de los totales, se devuelve el inventario y se anula su asiento contable." confirm="Eliminar venta"
         onClose={() => setEdit(null)} onConfirm={async r => { await api.cancelSale(o.id, r); toast.success('Venta eliminada'); setEdit(null); changed(); }} />}
@@ -237,6 +251,62 @@ const EditPaymentModal = ({ o, onClose, onSaved }: { o: any; onClose: () => void
         </div>
       )}
       <button onClick={save} disabled={!ok} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-save-payment>Guardar pago</button>
+    </Modal>
+  );
+};
+
+/** Editar los datos de una venta (no los valores) y, si se quiere, reimprimir el recibo ya corregido. */
+const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced: boolean; onClose: () => void; onSaved: (fresh: any, reprint: boolean) => void }) => {
+  const waiters = useStore(s => s.restaurant?.staff.waiters || []);
+  const c = o.customer || {};
+  const [f, setF] = useState({
+    customerName: c.name && c.name !== 'Consumidor Final' ? c.name : '', customerDoc: c.doc && c.doc !== '222222222222' ? c.doc : '',
+    customerEmail: c.email || '', customerPhone: c.phone || '', customerAddress: c.address || '', customerNeighborhood: c.neighborhood || '',
+    label: o.label || '', notes: o.notes || '', people: String(o.people || ''), waiterId: String(o.waiterId || 0),
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (p: any) => setF(x => ({ ...x, ...p }));
+  const save = async (reprint: boolean) => {
+    setBusy(true);
+    try {
+      const body: any = { label: f.label, notes: f.notes, waiterId: Number(f.waiterId) || 0 };
+      if (o.type === 'dine-in') body.people = Number(f.people) || 0;
+      if (!invoiced) Object.assign(body, { customerName: f.customerName, customerDoc: f.customerDoc, customerEmail: f.customerEmail, customerPhone: f.customerPhone, customerAddress: f.customerAddress, customerNeighborhood: f.customerNeighborhood });
+      const fresh = await api.editSaleDetails(o.id, body);
+      toast.success('Datos actualizados');
+      onSaved(fresh, reprint);
+    } catch (e: any) { toast.error(e.message); }
+    setBusy(false);
+  };
+  const field = (label: string, key: keyof typeof f, ph = '', extra = '') => (
+    <div className={extra}><label className={LABEL}>{label}</label><input value={f[key]} onChange={e => set({ [key]: e.target.value })} placeholder={ph} disabled={invoiced && key.startsWith('customer')} className={cn(PINPUT, 'disabled:opacity-50')} data-detail-field={key} /></div>
+  );
+  return (
+    <Modal title={`Editar datos · venta #${o.id}`} onClose={onClose}>
+      {invoiced && <p className="text-[11px] text-amber-700">Esta venta ya tiene factura electrónica: los datos del cliente no se pueden cambiar.</p>}
+      <div className="grid grid-cols-2 gap-2">
+        {field('Cliente', 'customerName', 'Consumidor Final', 'col-span-2')}
+        {field('C.C. / NIT', 'customerDoc', '222222222222')}
+        {field('Teléfono', 'customerPhone', '300 000 0000')}
+        {field('Correo', 'customerEmail', 'cliente@correo.com', 'col-span-2')}
+        {o.type === 'delivery' && field('Dirección', 'customerAddress', 'Calle 45 # 12-30', 'col-span-2')}
+        {o.type === 'delivery' && field('Barrio', 'customerNeighborhood', 'Manga', 'col-span-2')}
+        {waiters.length > 0 && (
+          <div className={o.type === 'dine-in' ? '' : 'col-span-2'}><label className={LABEL}>{o.type === 'delivery' ? 'Atendió' : 'Mesero'}</label>
+            <NiceSelect value={f.waiterId} onChange={e => set({ waiterId: e.target.value })} className={PINPUT} data-detail-waiter>
+              <option value="0">Sin asignar</option>
+              {waiters.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
+            </NiceSelect></div>
+        )}
+        {o.type === 'dine-in' && <div><label className={LABEL}>Personas</label><input type="number" min={0} value={f.people} onChange={e => set({ people: e.target.value })} className={cn(PINPUT, 'font-mono')} /></div>}
+        {field('Etiqueta', 'label', 'Ej. Cumpleaños Ana', 'col-span-2')}
+        {field('Comentario', 'notes', '', 'col-span-2')}
+      </div>
+      <p className="text-[11px] text-muted-foreground">Los productos y valores no cambian aquí (para eso: Editar pago, Editar propina o cancelar adiciones).</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => save(false)} disabled={busy} className="py-2.5 rounded-xl border border-border text-sm font-bold disabled:opacity-40" data-save-details>Guardar</button>
+        <button onClick={() => save(true)} disabled={busy} className="py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-40" data-save-details-print><Printer size={14} /> Guardar y reimprimir</button>
+      </div>
     </Modal>
   );
 };

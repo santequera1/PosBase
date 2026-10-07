@@ -130,6 +130,7 @@ export const api = {
   getCajaMovements: (params: Record<string, any> = {}) => request<any>(`/caja/movements${qstr(params)}`),
   getCajaShifts: (params: Record<string, any> = {}) => request<any[]>(`/caja/shifts${qstr(params)}`),
   getCajaSale: (id: number) => request<any>(`/caja/sales/${id}`),
+  editSaleDetails: (id: number, data: any) => request<any>(`/caja/sales/${id}/details`, { method: 'POST', body: JSON.stringify(data) }),
   editSalePayment: (id: number, data: any) => request<any>(`/caja/sales/${id}/payment`, { method: 'POST', body: JSON.stringify(data) }),
   editSaleTip: (id: number, data: any) => request<any>(`/caja/sales/${id}/tip`, { method: 'POST', body: JSON.stringify(data) }),
   getDiscountCatalog: (params: Record<string, any> = {}) => request<any>(`/caja/discounts-catalog${qstr(params)}`),
