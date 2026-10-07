@@ -198,7 +198,7 @@ const OpenOrderPage = () => {
 
         <div className="flex-1 overflow-y-auto p-3 space-y-3"
           onFocus={e => { if ((e.target as HTMLElement).tagName === 'INPUT') { setTyping(true); const t = e.target as HTMLElement; setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300); } }}
-          onBlur={e => { if ((e.target as HTMLElement).tagName === 'INPUT') setTimeout(() => setTyping(false), 150); }}>
+          onBlur={e => { const box = e.currentTarget; if ((e.target as HTMLElement).tagName === 'INPUT') setTimeout(() => { const a = document.activeElement as HTMLElement | null; if (!(a && a.tagName === 'INPUT' && box.contains(a))) setTyping(false); }, 150); }}>
           {sentGroups.map(g => (
             <div key={g.batch} className="rounded-xl border border-border bg-brand-card/60">
               <div className="px-3 py-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-brand-muted"><span className="flex items-center gap-1"><ChefHat size={11} /> Comanda #{g.batch}</span><span>{g.items.every(i => i.kitchenStatus === 'ready') ? '✓ lista' : g.items.some(i => i.kitchenStatus === 'preparing') ? 'en preparación' : 'en cocina'}</span></div>

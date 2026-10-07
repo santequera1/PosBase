@@ -150,7 +150,7 @@ function listAgents(db) {
 }
 
 /* ---------------- plantillas ---------------- */
-const STATION_TITLE = { cocina: 'COCINA', barra: 'BARRA' };
+const STATION_TITLE = { cocina: 'COCINA', barra: 'BEBIDAS' };
 const fmtDateTime = ts => { const s = String(ts || ''); return s.length >= 16 ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)} ${s.slice(11, 16)}` : s; };
 const orderLabel = o => o.type === 'dine-in' ? `MESA ${o.table_label || o.table_number || ''}` : o.type === 'delivery' ? 'DOMICILIO' : `PARA LLEVAR${o.sale_label ? ': ' + o.sale_label : ''}`;
 
@@ -317,8 +317,9 @@ function enqueueKitchen(db, orderId, batch, { user = '', mode } = {}) {
   for (const st of ['cocina', 'barra']) {
     const list = items.filter(i => (i.station === 'barra' ? 'barra' : 'cocina') === st);
     if (!list.length) continue;
-    // Sin impresora de barra, las bebidas NO salen en cocina: se despachan desde la caja (si quieren su ticket, marquen la impresora de caja también como Barra)
-    const targets = st === 'barra' ? printersFor(db, 'barra', order.branch_id) : kitchenPrinters;
+    // Bebidas: en la impresora de barra; si no hay, en la de caja (se despachan desde ahí). Nunca en cocina.
+    const barra = st === 'barra' ? printersFor(db, 'barra', order.branch_id) : [];
+    const targets = st === 'barra' ? (barra.length ? barra : printersFor(db, 'caja', order.branch_id)) : kitchenPrinters;
     for (const p of targets) n += enqueue(db, p, 'comanda', `Comanda ${st} #${order.id}`, kitchenTicket(p, order, list, { station: st, batch, now }), { orderId: order.id, user }).length;
   }
   return n;
