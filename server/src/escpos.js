@@ -56,6 +56,22 @@ class Ticket {
     });
     return this;
   }
+  /**
+   * Imagen de 1 bit (GS v 0). logo = { w, h, data }: data en base64, w/8 bytes por fila, bit alto = punto izquierdo.
+   * Se manda en bloques de 128 filas porque algunas impresoras no aceptan imágenes muy altas de una vez.
+   */
+  image(logo) {
+    if (!logo || !logo.w || !logo.h || !logo.data) return this;
+    const bpr = Math.ceil(logo.w / 8);
+    const buf = Buffer.from(logo.data, 'base64');
+    if (buf.length < bpr * logo.h) return this;
+    for (let y = 0; y < logo.h; y += 128) {
+      const rows = Math.min(128, logo.h - y);
+      this.raw(GS, 0x76, 0x30, 0x00, bpr & 0xff, bpr >> 8, rows & 0xff, rows >> 8);
+      for (let i = y * bpr; i < (y + rows) * bpr; i++) this.bytes.push(buf[i]);
+    }
+    return this;
+  }
   feed(n = 3) { return this.raw(ESC, 0x64, n); }
   cut() { return this.feed(4).raw(GS, 0x56, 0x42, 0x00); }
   /** Abre el cajón monedero conectado a la impresora (pin 2). */

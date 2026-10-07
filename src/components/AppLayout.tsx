@@ -198,7 +198,8 @@ export const AppLayout = () => {
         <header className={cn('fixed top-0 right-0 left-0 h-14 bg-white/90 backdrop-blur border-b border-brand-primary/10 z-30 flex items-center px-4 gap-3', 'md:left-16', headerML, isPOS && 'md:hidden')}>
           {topNav ? (
             <div className="flex-1 md:hidden flex items-center gap-2 min-w-0" data-top-nav>
-              <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain shrink-0" />
+              {/* Encabezado claro: logo para fondo claro (en modo oscuro, el de fondo oscuro) */}
+              <img src={(isDark ? branding.logoUrl : branding.logoLoginUrl || branding.logoUrl) || '/logo/logo-login.svg'} alt={businessName} className="h-9 w-auto max-w-[56px] object-contain shrink-0" data-header-logo />
               <div className="relative min-w-0">
                 <button onClick={() => setShowModules(v => !v)} className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-xl bg-orange-500 text-white text-sm font-bold max-w-[190px]" data-module-switch>
                   {currentModule ? <currentModule.icon size={16} className="shrink-0" /> : null}<span className="truncate">{currentModule ? currentModule.label : 'Menú'}</span><ChevronDown size={15} className={cn('shrink-0 transition-transform', showModules && 'rotate-180')} />

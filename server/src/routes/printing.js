@@ -50,7 +50,24 @@ router.get('/config', ADMIN, (req, res) => {
   const db = getDb();
   const jobs = db.prepare(`SELECT j.id, j.kind, j.title, j.status, j.attempts, j.error, j.created_at AS createdAt, j.done_at AS doneAt, j.created_by AS createdBy, COALESCE(p.name, j.ip) AS printer
     FROM print_jobs j LEFT JOIN printers p ON p.id = j.printer_id ORDER BY j.id DESC LIMIT 40`).all();
-  res.json({ mode: P.printMode(db), printers: P.listPrinters(db), agents: P.listAgents(db), jobs, roles: P.ROLE_LABEL });
+  let logo = null; try { logo = JSON.parse((db.prepare("SELECT value FROM settings WHERE key = 'receiptLogo'").get() || {}).value || 'null'); } catch { logo = null; }
+  res.json({ mode: P.printMode(db), printers: P.listPrinters(db), agents: P.listAgents(db), jobs, roles: P.ROLE_LABEL, logo });
+});
+
+// Logo de precuentas y recibos: mapa de bits de 1 bit ya convertido en el navegador
+router.put('/logo', ADMIN, (req, res) => {
+  const db = getDb();
+  const b = req.body || {};
+  let value;
+  if (!b.on) value = { on: false };
+  else {
+    const w = Math.round(Number(b.w)), h = Math.round(Number(b.h)), data = String(b.data || '');
+    if (!w || w % 8 || w > 576 || !h || h > 600) return res.status(400).json({ error: 'Tamaño de logo inválido' });
+    if (Buffer.from(data, 'base64').length !== (w / 8) * h) return res.status(400).json({ error: 'La imagen del logo está incompleta' });
+    value = { on: true, w, h, data };
+  }
+  db.prepare("INSERT INTO settings (key, value) VALUES ('receiptLogo', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(value));
+  res.json({ success: true, logo: value });
 });
 
 router.put('/mode', ADMIN, (req, res) => {

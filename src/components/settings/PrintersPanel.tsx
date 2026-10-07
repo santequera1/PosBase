@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Printer, Wifi, WifiOff, Plus, Edit2, Trash2, Download, Search, RotateCcw, CheckCircle2, AlertTriangle, Clock, Monitor, Copy, Info, Zap, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { ReceiptLogoSection } from './ReceiptLogo';
 import { useStore } from '@/store/useStore';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
@@ -219,6 +220,8 @@ export const PrintersPanel = () => {
           </div>
         )}
       </section>
+
+      <ReceiptLogoSection logo={cfg.logo} onSaved={load} />
 
       <section className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
         <div className="px-4 py-2.5 border-b border-border bg-brand-card"><p className="text-xs font-bold text-brand-dark">3. Últimas impresiones</p></div>

@@ -358,6 +358,7 @@ export const api = {
   // Impresión en red (agente del restaurante)
   getPrintingMode: () => request<any>('/printing/mode'),
   getPrintingConfig: () => request<any>('/printing/config'),
+  saveReceiptLogo: (logo: { on: boolean; w?: number; h?: number; data?: string }) => request<any>('/printing/logo', { method: 'PUT', body: JSON.stringify(logo) }),
   setPrintingMode: (mode: 'browser' | 'agent') => request<any>('/printing/mode', { method: 'PUT', body: JSON.stringify({ mode }) }),
   addPrinter: (data: any) => request<any>('/printing/printers', { method: 'POST', body: JSON.stringify(data) }),
   updatePrinter: (id: number, data: any) => request<any>(`/printing/printers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

@@ -92,7 +92,11 @@ function bizFor(db, branchId) {
 function biz(db) {
   const g = k => readSetting(db, k) || '';
   return { name: g('businessName') || 'Mi Negocio', slogan: g('businessSlogan'), address: g('businessAddress'), phone: g('businessPhone'), nit: g('businessNit'), hours: g('businessHours'),
-    prefix: g('invoicePrefix') || 'POS', taxType: g('taxType') || 'none', taxRate: Number(g('taxRate')) || 0, footer: g('receiptFooter') };
+    prefix: g('invoicePrefix') || 'POS', taxType: g('taxType') || 'none', taxRate: Number(g('taxRate')) || 0, footer: g('receiptFooter'), logo: receiptLogo(db) };
+}
+/** Logo en blanco y negro para precuentas y recibos (Configuración → Impresoras). null si está apagado. */
+function receiptLogo(db) {
+  try { const l = JSON.parse(readSetting(db, 'receiptLogo') || 'null'); return l && l.on && l.w && l.h && l.data ? l : null; } catch { return null; }
 }
 
 const mapPrinter = r => {
@@ -182,7 +186,9 @@ function itemsBlock(t, items) {
   }
 }
 function headerBlock(t, b) {
-  t.align('center').size(2).bold().line(b.name).size(1).bold(false);
+  t.align('center');
+  if (b.logo && b.logo.w <= t.width * 12) t.image(b.logo).nl();
+  t.size(2).bold().line(b.name).size(1).bold(false);
   if (b.slogan) t.line(b.slogan);
   if (b.nit) t.line(`NIT ${b.nit}`);
   if (b.address) t.line(b.address);
@@ -399,7 +405,7 @@ function autoKitchen(db, orderId, batch, user) {
 }
 
 module.exports = {
-  initPrintingSchema, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
+  receiptLogo, initPrintingSchema, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
   createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, enqueueSamples, autoKitchen,
   kitchenTicket, receiptTicket, preBillTicket, testTicket, shiftReportTicket, biz,
 };
