@@ -45,7 +45,7 @@ router.get('/mode', (req, res) => {
 
 router.get('/config', ADMIN, (req, res) => {
   const db = getDb();
-  const jobs = db.prepare(`SELECT j.id, j.kind, j.title, j.status, j.attempts, j.error, j.created_at AS createdAt, j.done_at AS doneAt, j.created_by AS createdBy, p.name AS printer
+  const jobs = db.prepare(`SELECT j.id, j.kind, j.title, j.status, j.attempts, j.error, j.created_at AS createdAt, j.done_at AS doneAt, j.created_by AS createdBy, COALESCE(p.name, j.ip) AS printer
     FROM print_jobs j LEFT JOIN printers p ON p.id = j.printer_id ORDER BY j.id DESC LIMIT 40`).all();
   res.json({ mode: P.printMode(db), printers: P.listPrinters(db), agents: P.listAgents(db), jobs, roles: P.ROLE_LABEL });
 });
@@ -89,6 +89,16 @@ router.delete('/printers/:id', ADMIN, (req, res) => {
 router.post('/printers/:id/test', ADMIN, (req, res) => {
   try { const ids = P.enqueueTest(getDb(), req.params.id, req.user?.name); res.json({ queued: ids.length }); }
   catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Imprimir una hoja de identificación en una IP (para saber qué impresora física es antes de registrarla)
+router.post('/identify', ADMIN, (req, res) => {
+  const db = getDb();
+  const ip = String(req.body.ip || '').trim();
+  const port = Math.round(Number(req.body.port)) || 9100;
+  if (!IP_RE.test(ip)) return res.status(400).json({ error: 'La IP no es válida (ej. 192.168.1.100)' });
+  if (!P.listAgents(db).some(a => a.online)) return res.status(400).json({ error: 'El agente de impresión no está en línea: enciende el computador del local' });
+  res.json({ jobId: P.enqueueIdentify(db, ip, port, req.user?.name) });
 });
 
 router.post('/agents', ADMIN, (req, res) => {
@@ -162,7 +172,7 @@ function agentAuth(req, res, next) {
 agentRouter.post('/poll', agentAuth, async (req, res) => {
   const db = getDb();
   const b = req.body || {};
-  const info = { version: String(b.version || '').slice(0, 20), hostname: String(b.hostname || '').slice(0, 60), ip: req.ip };
+  const info = { version: String(b.version || '').slice(0, 20), hostname: String(b.hostname || '').slice(0, 60), ip: req.ip, localIps: Array.isArray(b.ips) ? b.ips.map(String).filter(x => IP_RE.test(x)).slice(0, 8) : [] };
   db.prepare("UPDATE print_agents SET last_seen = datetime('now', '-5 hours'), info = ? WHERE id = ?").run(JSON.stringify(info), req.agent.id);
   if (Array.isArray(b.printers)) {
     const upd = db.prepare("UPDATE printers SET online = ?, checked_at = datetime('now', '-5 hours') WHERE id = ?");

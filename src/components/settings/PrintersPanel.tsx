@@ -69,6 +69,18 @@ const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any |
   );
 };
 
+const ManualIdentify = ({ onSend }: { onSend: (ip: string) => void }) => {
+  const [ip, setIp] = useState('');
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="font-semibold text-brand-dark">Probar una IP:</span>
+      <input value={ip} onChange={e => setIp(e.target.value.trim())} placeholder="192.168.1.100" className={cn(INPUT, 'w-40 py-1.5 font-mono')} data-manual-ip />
+      <button onClick={() => onSend(ip)} disabled={!/^\d+\.\d+\.\d+\.\d+$/.test(ip)} className="px-3 py-1.5 rounded-lg border border-border font-semibold disabled:opacity-40" data-manual-identify>Identificar</button>
+      <span className="text-muted-foreground">Imprime una hoja con la IP en la impresora que la tenga.</span>
+    </div>
+  );
+};
+
 /** Configuración → Impresoras: impresión por red con el agente propio (comandas por estación, recibos, cierres). */
 export const PrintersPanel = () => {
   const loadRestaurantConfig = useStore(s => s.loadRestaurantConfig);
@@ -92,6 +104,7 @@ export const PrintersPanel = () => {
   const test = async (p: any) => { try { await api.testPrinter(p.id); toast.success(`Página de prueba enviada a ${p.name}`); setTimeout(load, 1500); } catch (e: any) { toast.error(e.message); } };
   const scan = async (a: any) => { await api.scanPrinters(a.id); toast.info('Buscando impresoras en la red del restaurante (unos segundos)...'); setTimeout(load, 4000); };
   const anyOnline = cfg.agents.some((a: any) => a.online);
+  const identify = async (ip: string) => { try { await api.identifyPrinter(ip); toast.success(`Hoja de identificación enviada a ${ip}: mira cuál impresora la imprime`); setTimeout(load, 2500); } catch (e: any) { toast.error(e.message); } };
   const knownIps = new Set(cfg.printers.map((p: any) => p.ip));
 
   return (
@@ -121,7 +134,18 @@ export const PrintersPanel = () => {
           <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Monitor size={15} /> 1. Agente de impresión (computador del restaurante)</h3>
           <button onClick={createAgent} data-agent-new className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5"><Download size={13} /> Instalar agente en un computador</button>
         </div>
-        <p className="text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> Se instala una sola vez en el computador de la caja (Windows), conectado a la misma red de las impresoras. Debe estar encendido durante el servicio. No necesita programas adicionales.</p>
+        <p className="text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> Se instala una sola vez en el computador de la caja (Windows), conectado a la misma red de las impresoras. Debe estar encendido durante el servicio. No necesita programas adicionales. Ese computador hace de puente: se puede imprimir desde cualquier lugar (celular, casa) porque el servidor le pasa los trabajos.</p>
+        {anyOnline && <ManualIdentify onSend={identify} />}
+        <details className="text-[11px] rounded-lg bg-muted/30 p-2.5">
+          <summary className="font-semibold text-brand-dark cursor-pointer">¿No aparece una impresora?</summary>
+          <ol className="list-decimal pl-4 mt-1.5 space-y-1 text-muted-foreground">
+            <li>Revisa que tenga el cable de red conectado y la luz del puerto encendida.</li>
+            <li>Imprime su hoja de autoprueba: apágala, mantén oprimido el botón FEED y enciéndela. Ahí sale su IP (IP Address).</li>
+            <li>Escribe esa IP arriba en "Probar una IP" y toca Identificar. Si imprime, agrégala.</li>
+            <li>Si su IP es de otra red (por ejemplo 192.168.123.100 y el computador está en 192.168.1.x), hay que cambiarle la IP a una de la red del computador con la herramienta del fabricante (Printer Tool / Ethernet setting) o desde su página web, o configurarla en el router.</li>
+            <li>Lo ideal es dejarle una IP fija (reservada en el router) para que no cambie.</li>
+          </ol>
+        </details>
         {cfg.agents.length === 0 ? <p className="text-xs text-amber-700">Aún no hay agente instalado.</p> : (
           <ul className="divide-y divide-border border border-border rounded-lg">
             {cfg.agents.map((a: any) => (
@@ -130,7 +154,7 @@ export const PrintersPanel = () => {
                   {a.online ? <Wifi size={15} className="text-emerald-600" /> : <WifiOff size={15} className="text-red-500" />}
                   <span className="text-sm font-semibold text-brand-dark">{a.name}</span>
                   <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', a.online ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700')} data-agent-status={a.online ? 'online' : 'offline'}>{a.online ? 'En línea' : 'Desconectado'}</span>
-                  <span className="text-[11px] text-muted-foreground">{a.info?.hostname ? `${a.info.hostname} · v${a.info.version} · ` : ''}visto {ago(a.lastSeen)}</span>
+                  <span className="text-[11px] text-muted-foreground">{a.info?.hostname ? `${a.info.hostname} · v${a.info.version} · ` : ''}{a.info?.localIps?.length ? `red del computador: ${a.info.localIps.join(', ')} · ` : ''}visto {ago(a.lastSeen)}</span>
                   <span className="ml-auto flex gap-1">
                     <button onClick={() => scan(a)} disabled={!a.online} className="px-2 py-1 rounded-lg border border-border text-[11px] font-semibold flex items-center gap-1 disabled:opacity-40"><Search size={12} /> Buscar impresoras</button>
                     <button onClick={() => removeAgent(a)} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>
@@ -141,9 +165,13 @@ export const PrintersPanel = () => {
                   <div className="text-[11px] flex flex-wrap items-center gap-1.5">
                     <span className="text-muted-foreground">Impresoras encontradas en la red:</span>
                     {a.scanResult.length === 0 && <span className="text-amber-700">ninguna (revisa que estén encendidas y en la misma red)</span>}
-                    {a.scanResult.map((ip: string) => knownIps.has(ip)
-                      ? <span key={ip} className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-mono">{ip} ✓</span>
-                      : <button key={ip} onClick={() => setEdit({ open: true, printer: null, ip })} className="px-2 py-0.5 rounded-full bg-brand-card border border-brand-accent/40 font-mono font-semibold">{ip} + agregar</button>)}
+                    {a.scanResult.map((ip: string) => (
+                      <span key={ip} className={cn('inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full font-mono', knownIps.has(ip) ? 'bg-emerald-50 text-emerald-800' : 'bg-brand-card border border-brand-accent/40')} data-found-ip={ip}>
+                        {ip}{knownIps.has(ip) ? ' ✓' : ''}
+                        <button onClick={() => identify(ip)} className="px-1.5 rounded-full bg-white border border-border font-sans font-semibold" title="Imprime una hoja con esta IP para saber qué impresora es" data-identify={ip}>identificar</button>
+                        {!knownIps.has(ip) && <button onClick={() => setEdit({ open: true, printer: null, ip })} className="px-1.5 rounded-full bg-brand-button text-brand-on-button font-sans font-semibold">+ agregar</button>}
+                      </span>
+                    ))}
                   </div>
                 )}
               </li>

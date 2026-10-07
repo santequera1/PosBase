@@ -70,6 +70,9 @@ function initPrintingSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs(status, id);
   `);
   if (!hasCol(db, 'printers', 'beep')) db.exec('ALTER TABLE printers ADD COLUMN beep INTEGER NOT NULL DEFAULT 0');
+  // Trabajos directos a una IP (hoja de identificación de una impresora aún no registrada): printer_id = 0
+  if (!hasCol(db, 'print_jobs', 'ip')) db.exec('ALTER TABLE print_jobs ADD COLUMN ip TEXT');
+  if (!hasCol(db, 'print_jobs', 'port')) db.exec('ALTER TABLE print_jobs ADD COLUMN port INTEGER');
 }
 
 /* ---------------- configuración ---------------- */
@@ -106,8 +109,9 @@ function enqueue(db, printer, kind, title, buf, { orderId = null, user = '' } = 
 
 /** Trabajos pendientes para el agente (o reintentos de trabajos reclamados hace más de 60 s sin respuesta). */
 function claimJobs(db, agentId, limit = 10) {
-  const rows = db.prepare(`SELECT j.id, j.kind, j.title, j.payload, p.ip, p.port, p.name AS printer FROM print_jobs j JOIN printers p ON p.id = j.printer_id
-    WHERE p.active = 1 AND (j.status = 'pending' OR (j.status = 'sent' AND j.claimed_at < datetime('now', '-5 hours', '-60 seconds') AND j.attempts < 4))
+  const rows = db.prepare(`SELECT j.id, j.kind, j.title, j.payload, COALESCE(j.ip, p.ip) AS ip, COALESCE(j.port, p.port) AS port, COALESCE(p.name, 'Impresora ' || j.ip) AS printer
+    FROM print_jobs j LEFT JOIN printers p ON p.id = j.printer_id
+    WHERE (p.active = 1 OR (j.printer_id = 0 AND j.ip IS NOT NULL)) AND (j.status = 'pending' OR (j.status = 'sent' AND j.claimed_at < datetime('now', '-5 hours', '-60 seconds') AND j.attempts < 4))
     ORDER BY j.id LIMIT ?`).all(limit);
   const upd = db.prepare("UPDATE print_jobs SET status = 'sent', claimed_at = datetime('now', '-5 hours'), attempts = attempts + 1, agent_id = ? WHERE id = ?");
   for (const r of rows) upd.run(agentId, r.id);
@@ -253,6 +257,21 @@ function shiftReportTicket(printer, b, s, isZ) {
   return t.cut().buffer();
 }
 
+/** Hoja grande para saber qué impresora física tiene cada IP (antes de registrarla). */
+function identifyTicket(ip, port, b) {
+  const t = new Ticket({ width: 48, codepage: 'cp850' });
+  t.beep(1).align('center').size(2).bold().line('IMPRESORA').line(ip).size(1).bold(false).line(`Puerto ${port}`).sep();
+  t.line(b.name).line('Si esta hoja salió aquí, esta impresora').line(`tiene la IP ${ip}.`).nl();
+  t.line('En el POS: Configuracion > Impresoras >').line('Agregar impresora con esta IP y elegir si es').line('de Cocina, Barra o Caja.');
+  return t.cut().buffer();
+}
+function enqueueIdentify(db, ip, port, user) {
+  const info = db.prepare("INSERT INTO print_jobs (printer_id, kind, title, payload, ip, port, created_by) VALUES (0, 'identificar', ?, ?, ?, ?, ?)")
+    .run(`Identificar ${ip}`, identifyTicket(ip, port, biz(db)).toString('base64'), ip, port, user || '');
+  bus.emit('job');
+  return Number(info.lastInsertRowid);
+}
+
 function testTicket(printer, b) {
   const t = ticketFor(printer);
   if (printer.beep) t.beep(1);
@@ -331,6 +350,6 @@ function autoKitchen(db, orderId, batch, user) {
 
 module.exports = {
   initPrintingSchema, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
-  createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, autoKitchen,
+  createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, autoKitchen,
   kitchenTicket, receiptTicket, preBillTicket, testTicket, shiftReportTicket, biz,
 };

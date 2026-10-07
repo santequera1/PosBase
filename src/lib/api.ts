@@ -361,6 +361,7 @@ export const api = {
   createPrintAgent: (name: string) => request<{ id: number; token: string }>('/printing/agents', { method: 'POST', body: JSON.stringify({ name }) }),
   deletePrintAgent: (id: number) => request<any>(`/printing/agents/${id}`, { method: 'DELETE' }),
   scanPrinters: (agentId: number) => request<any>(`/printing/agents/${agentId}/scan`, { method: 'POST' }),
+  identifyPrinter: (ip: string, port = 9100) => request<any>('/printing/identify', { method: 'POST', body: JSON.stringify({ ip, port }) }),
   retryPrintJob: (id: number) => request<any>(`/printing/jobs/${id}/retry`, { method: 'POST' }),
   netPrint: (kind: 'receipt' | 'prebill' | 'kitchen' | 'shift-report', data: any) => request<any>(`/printing/${kind}`, { method: 'POST', body: JSON.stringify(data) }),
   voidExpense: (id: number, reason: string) => request<any>(`/finance/expenses/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),

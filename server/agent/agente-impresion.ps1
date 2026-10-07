@@ -11,7 +11,7 @@
 #  El instalador (Configuracion -> Impresoras -> Instalar agente) lo crea solo.
 # ---------------------------------------------------------------------------
 $ErrorActionPreference = 'Continue'
-$Version = '1.0.0'
+$Version = '1.1.0'
 $Dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CfgPath = Join-Path $Dir 'config.json'
 $LogPath = Join-Path $Dir 'agente.log'
@@ -59,7 +59,18 @@ function Test-Port([string]$ip, [int]$port, [int]$ms) {
   } catch { return $false } finally { $c.Close() }
 }
 
-# Busca impresoras (puerto 9100 abierto) en las redes locales /24 del computador
+function Get-LocalIps {
+  try {
+    return @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | ForEach-Object { $_.IPAddress })
+  } catch {
+    return @([System.Net.Dns]::GetHostAddresses($env:COMPUTERNAME) | Where-Object { $_.AddressFamily -eq 'InterNetwork' -and $_.ToString() -notlike '127.*' } | ForEach-Object { $_.ToString() })
+  }
+}
+
+# IPs con las que suelen venir de fabrica las impresoras POS de red (Xprinter, Digital POS, 3nStar, Epson...)
+$FactoryIps = @('192.168.123.100', '192.168.1.87', '192.168.0.87', '192.168.1.100', '192.168.0.100', '192.168.1.200', '192.168.0.200', '192.168.192.168', '192.168.1.114', '10.0.0.100')
+
+# Busca impresoras (puerto 9100 abierto) en las redes locales /24 del computador y en las IPs de fabrica
 function Find-Printers {
   $bases = @()
   try {
@@ -72,6 +83,8 @@ function Find-Printers {
       ForEach-Object { ($_.ToString() -split '\.')[0..2] -join '.' }
   }
   $found = New-Object System.Collections.ArrayList
+  $extra = @()
+  foreach ($ip in $FactoryIps) { $c = New-Object System.Net.Sockets.TcpClient; $extra += ,@($ip, $c, $c.BeginConnect($ip, 9100, $null, $null)) }
   foreach ($base in ($bases | Select-Object -Unique)) {
     $pending = @()
     for ($i = 1; $i -le 254; $i++) {
@@ -84,6 +97,11 @@ function Find-Printers {
       if ($p[2].IsCompleted -and $p[1].Connected) { [void]$found.Add($p[0]) }
       try { $p[1].Close() } catch {}
     }
+  }
+  Start-Sleep -Milliseconds 500
+  foreach ($p in $extra) {
+    if ($p[2].IsCompleted -and $p[1].Connected -and -not $found.Contains($p[0])) { [void]$found.Add($p[0]) }
+    try { $p[1].Close() } catch {}
   }
   return ,$found.ToArray()
 }
@@ -109,7 +127,7 @@ while ($true) {
     }
     $printers = @()
     foreach ($k in $status.Keys) { $printers += @{ id = [int]$k; online = [bool]$status[$k] } }
-    $body = @{ version = $Version; hostname = $env:COMPUTERNAME; printers = $printers }
+    $body = @{ version = $Version; hostname = $env:COMPUTERNAME; printers = $printers; ips = @(Get-LocalIps) }
     if ($null -ne $scan) { $body.scan = $scan }
     $res = Invoke-Api '/api/print-agent/poll' $body 45
     $scan = $null
