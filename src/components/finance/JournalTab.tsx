@@ -5,6 +5,7 @@ import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Chip, Modal, INPUT, LABEL, fmtDate } from '@/components/common/Primitives';
 import { downloadXlsx } from '@/lib/xlsx';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const monthStart = () => `${getColombiaTodayStr().slice(0, 7)}-01`;
 const SOURCES: Array<[string, string]> = [['', 'Todos'], ['sale', 'Ventas'], ['payment_in', 'Recibos de caja'], ['expense', 'Compras y gastos'], ['payment_out', 'Egresos'], ['payroll', 'Nómina'], ['advance', 'Anticipos'], ['loan', 'Préstamos a empleados'], ['tip_in', 'Propinas recibidas'], ['tip_payout', 'Pagos de propinas'], ['shift', 'Cierres de caja'], ['cash', 'Movimientos de caja'], ['manual', 'Manuales']];
@@ -45,8 +46,8 @@ const JournalTab = () => {
       <div className="flex flex-wrap items-end gap-2">
         <div><label className={LABEL}>Desde</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')} /></div>
         <div><label className={LABEL}>Hasta</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')} /></div>
-        <div><label className={LABEL}>Tipo</label><select value={source} onChange={e => setSource(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')}>{SOURCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
-        <div><label className={LABEL}>Estado</label><select value={status} onChange={e => setStatus(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')}><option value="posted">Vigentes</option><option value="void">Anulados</option><option value="all">Todos</option></select></div>
+        <div><label className={LABEL}>Tipo</label><NiceSelect value={source} onChange={e => setSource(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')}>{SOURCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</NiceSelect></div>
+        <div><label className={LABEL}>Estado</label><NiceSelect value={status} onChange={e => setStatus(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')}><option value="posted">Vigentes</option><option value="void">Anulados</option><option value="all">Todos</option></NiceSelect></div>
         <div className="flex-1 min-w-[160px]"><label className={LABEL}>Buscar</label><div className="relative"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Número, descripción o # de documento" className={cn(INPUT, 'py-1.5 text-xs pl-8')} /></div></div>
         <button onClick={sync} disabled={syncing} className="px-3 py-2 rounded-lg border border-border text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40" title="Contabiliza los documentos que falten"><RefreshCw size={13} className={syncing ? 'animate-spin' : ''} /> Actualizar</button>
         <button onClick={exportXlsx} className="px-3 py-2 rounded-lg border border-border text-xs font-semibold flex items-center gap-1.5"><Download size={13} /> Excel</button>
@@ -147,9 +148,9 @@ const ManualEntryModal = ({ onClose, onSaved }: { onClose: () => void; onSaved: 
       <div className="space-y-1.5">
         {lines.map((l, i) => (
           <div key={i} className="grid grid-cols-12 gap-1.5 items-center">
-            <select value={l.account} onChange={e => upd(i, { account: e.target.value })} className={cn(INPUT, 'col-span-4 py-1.5 text-xs font-mono')}>
+            <NiceSelect value={l.account} onChange={e => upd(i, { account: e.target.value })} className={cn(INPUT, 'col-span-4 py-1.5 text-xs font-mono')}>
               <option value="">Cuenta…</option>{accounts.map(a => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}
-            </select>
+            </NiceSelect>
             <input type="number" min={0} value={l.debit || ''} onChange={e => upd(i, { debit: Number(e.target.value), credit: Number(e.target.value) > 0 ? 0 : l.credit })} placeholder="Débito" className={cn(INPUT, 'col-span-2 py-1.5 text-xs font-mono text-right')} />
             <input type="number" min={0} value={l.credit || ''} onChange={e => upd(i, { credit: Number(e.target.value), debit: Number(e.target.value) > 0 ? 0 : l.debit })} placeholder="Crédito" className={cn(INPUT, 'col-span-2 py-1.5 text-xs font-mono text-right')} />
             <input value={l.thirdDoc} onChange={e => upd(i, { thirdDoc: e.target.value })} placeholder="NIT/CC" className={cn(INPUT, 'col-span-2 py-1.5 text-xs')} />

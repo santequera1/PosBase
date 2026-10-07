@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, Filter, Download, Plus, X, HelpCircle, Eraser, Table2, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColombiaTodayStr } from '@/lib/format';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 export const SEL = 'px-2.5 py-1.5 rounded-lg border border-input bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20';
 export const INPUT = 'w-full px-3 py-2 rounded-lg border border-input bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20';
@@ -36,20 +37,20 @@ export const PeriodFields = ({ p, set, shifts, serviceShifts, showDateBy = true,
   const W = stacked ? 'w-full' : '';
   return (
     <>
-      {showDateBy && <div className={W}><label className={LBL}>Fecha por</label><select value={p.dateBy} onChange={e => set({ ...p, dateBy: e.target.value as any })} className={cn(SEL, W)} data-date-by><option value="start">Hora inicio</option><option value="close">Hora cierre</option></select></div>}
-      {serviceShifts.length > 0 && <div className={W}><label className={LBL}>Turno</label><select value={p.turno} onChange={e => set({ ...p, turno: e.target.value })} className={cn(SEL, W)} data-turno><option value="">(todos)</option>{serviceShifts.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}</select></div>}
+      {showDateBy && <div className={W}><label className={LBL}>Fecha por</label><NiceSelect value={p.dateBy} onChange={e => set({ ...p, dateBy: e.target.value as any })} className={cn(SEL, W)} data-date-by><option value="start">Hora inicio</option><option value="close">Hora cierre</option></NiceSelect></div>}
+      {serviceShifts.length > 0 && <div className={W}><label className={LBL}>Turno</label><NiceSelect value={p.turno} onChange={e => set({ ...p, turno: e.target.value })} className={cn(SEL, W)} data-turno><option value="">(todos)</option>{serviceShifts.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}</NiceSelect></div>}
       <div className={W}><label className={LBL}>Período</label>
-        <select value={p.period} onChange={e => set({ ...p, period: e.target.value as any, shiftId: e.target.value === 'shift' ? (p.shiftId || String(shifts[0]?.id || '')) : p.shiftId })} className={cn(SEL, W)} data-period-select>
+        <NiceSelect value={p.period} onChange={e => set({ ...p, period: e.target.value as any, shiftId: e.target.value === 'shift' ? (p.shiftId || String(shifts[0]?.id || '')) : p.shiftId })} className={cn(SEL, W)} data-period-select>
           <option value="day">Diario</option><option value="month">Mensual</option><option value="year">Anual</option><option value="custom">Rango</option><option value="shift">Arqueo</option>
-        </select></div>
+        </NiceSelect></div>
       {p.period === 'day' && <div className={W}><label className={LBL}>Día</label><input type="date" value={p.date} onChange={e => e.target.value && set({ ...p, date: e.target.value })} className={cn(SEL, W)} data-period-date /></div>}
       {p.period === 'month' && (
         <div className={cn('flex gap-1.5', W)}>
-          <div className="flex-1"><label className={LBL}>Mes</label><select value={m} onChange={e => setDate(y, Number(e.target.value), d)} className={cn(SEL, 'w-full')}>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></div>
-          <div className="flex-1"><label className={LBL}>Año</label><select value={y} onChange={e => setDate(Number(e.target.value), m, d)} className={cn(SEL, 'w-full')}>{years.map(v => <option key={v}>{v}</option>)}</select></div>
+          <div className="flex-1"><label className={LBL}>Mes</label><NiceSelect value={m} onChange={e => setDate(y, Number(e.target.value), d)} className={cn(SEL, 'w-full')}>{MONTHS.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</NiceSelect></div>
+          <div className="flex-1"><label className={LBL}>Año</label><NiceSelect value={y} onChange={e => setDate(Number(e.target.value), m, d)} className={cn(SEL, 'w-full')}>{years.map(v => <option key={v}>{v}</option>)}</NiceSelect></div>
         </div>
       )}
-      {p.period === 'year' && <div className={W}><label className={LBL}>Año</label><select value={y} onChange={e => setDate(Number(e.target.value), m, d)} className={cn(SEL, W)}>{years.map(v => <option key={v}>{v}</option>)}</select></div>}
+      {p.period === 'year' && <div className={W}><label className={LBL}>Año</label><NiceSelect value={y} onChange={e => setDate(Number(e.target.value), m, d)} className={cn(SEL, W)}>{years.map(v => <option key={v}>{v}</option>)}</NiceSelect></div>}
       {p.period === 'custom' && (
         <div className={cn('flex flex-wrap gap-1.5 items-end', W)}>
           <div><label className={LBL}>Desde</label><div className="flex gap-1"><input type="date" value={p.from} onChange={e => set({ ...p, from: e.target.value })} className={SEL} /><input type="time" value={p.fromTime} onChange={e => set({ ...p, fromTime: e.target.value })} className={SEL} /></div></div>
@@ -58,9 +59,9 @@ export const PeriodFields = ({ p, set, shifts, serviceShifts, showDateBy = true,
       )}
       {p.period === 'shift' && (
         <div className={W}><label className={LBL}>Arqueo de caja · Caja Principal</label>
-          <select value={p.shiftId} onChange={e => set({ ...p, shiftId: e.target.value })} className={cn(SEL, W)} data-period-shift>
+          <NiceSelect value={p.shiftId} onChange={e => set({ ...p, shiftId: e.target.value })} className={cn(SEL, W)} data-period-shift>
             {shifts.map(s => <option key={s.id} value={s.id}>{dt(s.openedAt)} · {s.cashierName}{s.status === 'open' ? ' (abierto)' : ''}</option>)}
-          </select></div>
+          </NiceSelect></div>
       )}
     </>
   );
@@ -79,10 +80,10 @@ const AttrFields = ({ fields, values, set, stacked }: { fields: FilterField[]; v
             {f.list && <datalist id={`dl-${f.key}`}>{f.list.map(x => <option key={x} value={x} />)}</datalist>}
           </>
         ) : (
-          <select value={values[f.key] || ''} onChange={e => set({ ...values, [f.key]: e.target.value })} className={cn(SEL, stacked ? 'w-full' : 'max-w-[180px]')} data-filter-field={f.key}>
+          <NiceSelect value={values[f.key] || ''} onChange={e => set({ ...values, [f.key]: e.target.value })} className={cn(SEL, stacked ? 'w-full' : 'max-w-[180px]')} data-filter-field={f.key}>
             <option value="">(todos)</option>
             {(f.options || []).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </NiceSelect>
         )}
       </div>
     ))}

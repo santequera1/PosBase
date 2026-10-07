@@ -3,6 +3,7 @@ import { FileCheck2, ShieldCheck, Link2, Save, RefreshCw, AlertTriangle, CheckCi
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Chip, INPUT, LABEL } from '@/components/common/Primitives';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 /** Facturación electrónica: elección del proveedor (pruebas o Factus), credenciales, rango de numeración y prueba de conexión. */
 const EinvoicingPanel = () => {
@@ -77,10 +78,10 @@ const EinvoicingPanel = () => {
           <div>
             <label className={LABEL}>Rango de numeración (resolución DIAN)</label>
             {test?.ok && test.ranges?.length ? (
-              <select value={form.numberingRangeId} onChange={e => set({ numberingRangeId: e.target.value })} className={cn(INPUT, 'text-xs')}>
+              <NiceSelect value={form.numberingRangeId} onChange={e => set({ numberingRangeId: e.target.value })} className={cn(INPUT, 'text-xs')}>
                 <option value="">Selecciona…</option>
                 {test.ranges.map((r: any) => <option key={r.id} value={r.id}>#{r.id} · {r.document} {r.prefix} {r.from}–{r.to} {r.isActive ? '' : '(inactivo)'}</option>)}
-              </select>
+              </NiceSelect>
             ) : <input type="number" value={form.numberingRangeId} onChange={e => set({ numberingRangeId: e.target.value })} placeholder="ID del rango en Factus" className={cn(INPUT, 'font-mono text-xs')} />}
           </div>
           <div>

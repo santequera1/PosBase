@@ -13,6 +13,7 @@ import { orderTitle, statusLabel, STATUS_CLASS, elapsedLabel, CHANNEL_LABEL, TYP
 import { printKitchenTickets } from '@/lib/restaurantPrint';
 import { printPreBill, printKitchen, netPrintOn } from '@/lib/netPrint';
 import { canDo } from '@/lib/permissions';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const backPath = (o: Order) => (o.type === 'dine-in' ? '/tables' : o.type === 'pickup' ? '/counter' : '/delivery');
 const sameLine = (a: OrderItem, b: OrderItem) => a.productId === b.productId && (a.size || '') === (b.size || '') && (a.notes || '') === (b.notes || '');
@@ -261,17 +262,17 @@ const EditHeaderModal = ({ order, onClose, onSaved }: { order: Order; onClose: (
       <div className="grid sm:grid-cols-2 gap-3 text-sm">
         {order.type === 'dine-in' && <>
           <div><label className={LABEL}>Personas</label><input type="number" min={1} value={f.people} onChange={e => set({ people: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
-          <div><label className={LABEL}>Mesero</label><select value={f.waiterId} onChange={e => set({ waiterId: Number(e.target.value) })} className={INPUT}><option value={0}>— Sin asignar —</option>{(restaurant?.staff.waiters || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+          <div><label className={LABEL}>Mesero</label><NiceSelect value={f.waiterId} onChange={e => set({ waiterId: Number(e.target.value) })} className={INPUT}><option value={0}>— Sin asignar —</option>{(restaurant?.staff.waiters || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</NiceSelect></div>
         </>}
         <div><label className={LABEL}>{order.type === 'pickup' ? 'Nombre o etiqueta' : 'Etiqueta'}</label><input value={f.label} onChange={e => set({ label: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Cliente</label><input value={f.name} onChange={e => set({ name: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Teléfono</label><input value={f.phone} onChange={e => set({ phone: e.target.value })} className={INPUT} /></div>
-        <div><label className={LABEL}>Canal</label><select value={f.channel} onChange={e => set({ channel: e.target.value })} className={INPUT}>{Object.entries(CHANNEL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+        <div><label className={LABEL}>Canal</label><NiceSelect value={f.channel} onChange={e => set({ channel: e.target.value })} className={INPUT}>{Object.entries(CHANNEL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NiceSelect></div>
         {order.type === 'delivery' && <>
           <div className="sm:col-span-2"><label className={LABEL}>Dirección</label><input value={f.address} onChange={e => set({ address: e.target.value })} className={INPUT} /></div>
           <div><label className={LABEL}>Piso / apto</label><input value={f.address2} onChange={e => set({ address2: e.target.value })} className={INPUT} /></div>
           <div><label className={LABEL}>Barrio</label><input value={f.neighborhood} onChange={e => set({ neighborhood: e.target.value })} className={INPUT} /></div>
-          <div><label className={LABEL}>Repartidor</label><select value={f.driverId} onChange={e => set({ driverId: Number(e.target.value) })} className={INPUT}><option value={0}>— Sin asignar —</option>{(restaurant?.staff.couriers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div><label className={LABEL}>Repartidor</label><NiceSelect value={f.driverId} onChange={e => set({ driverId: Number(e.target.value) })} className={INPUT}><option value={0}>— Sin asignar —</option>{(restaurant?.staff.couriers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></div>
           <div><label className={LABEL}>Tiempo estimado</label><div className="flex flex-wrap gap-1.5">{(restaurant?.deliveryTimes || [15, 30, 45, 60]).map(m => <Chip key={m} active={f.estimatedMinutes === m} onClick={() => set({ estimatedMinutes: m })}>{m} min</Chip>)}</div></div>
           <div><label className={LABEL}>Costo de envío</label><input type="number" min={0} value={f.deliveryFee} onChange={e => set({ deliveryFee: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={f.saveCustomer} onChange={e => set({ saveCustomer: e.target.checked })} /> Actualizar la dirección del cliente guardado</label>

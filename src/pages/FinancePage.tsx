@@ -15,6 +15,7 @@ import AccountsTab from '@/components/finance/AccountsTab';
 import JournalTab from '@/components/finance/JournalTab';
 import LedgerReportsTab from '@/components/finance/LedgerReportsTab';
 import CarteraTab from '@/components/finance/CarteraTab';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 /* ------------------------------------------------------------------ */
 /* Tipos y constantes                                                   */
@@ -191,9 +192,9 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
         </div>
         <div>
           <label className={LABEL}>Categoría</label>
-          <select value={form.categoryId} onChange={e => set({ categoryId: Number(e.target.value) })} className={INPUT}>
+          <NiceSelect value={form.categoryId} onChange={e => set({ categoryId: Number(e.target.value) })} className={INPUT}>
             {categories.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-          </select>
+          </NiceSelect>
         </div>
         <div className="sm:col-span-2">
           <label className={LABEL}>Descripción</label>
@@ -205,10 +206,10 @@ const ExpenseModal = ({ categories, suppliers, expense, isAdmin, onClose, onSave
         </div>
         <div>
           <label className={LABEL}>Proveedor (opcional)</label>
-          <select value={form.supplierId} onChange={e => set({ supplierId: Number(e.target.value) })} className={INPUT}>
+          <NiceSelect value={form.supplierId} onChange={e => set({ supplierId: Number(e.target.value) })} className={INPUT}>
             <option value={0}>— Sin proveedor —</option>
             {supplierList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </NiceSelect>
           {isAdmin && (
             <div className="flex gap-1.5 mt-1.5">
               <input value={newSupplier} onChange={e => setNewSupplier(e.target.value)} placeholder="Nuevo proveedor rápido" className={cn(INPUT, 'text-xs py-1.5')} />
@@ -557,13 +558,13 @@ const ExpensesTab = ({ categories, suppliers, isAdmin }: { categories: ExpenseCa
         <div><label className={LABEL}>Desde</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')} /></div>
         <div><label className={LABEL}>Hasta</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')} /></div>
         <div><label className={LABEL}>Categoría</label>
-          <select value={categoryId} onChange={e => setCategoryId(Number(e.target.value))} className={cn(INPUT, 'py-1.5 text-xs')}>
+          <NiceSelect value={categoryId} onChange={e => setCategoryId(Number(e.target.value))} className={cn(INPUT, 'py-1.5 text-xs')}>
             <option value={0}>Todas</option>{categories.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-          </select></div>
+          </NiceSelect></div>
         <div><label className={LABEL}>Estado</label>
-          <select value={status} onChange={e => setStatus(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')}>
+          <NiceSelect value={status} onChange={e => setStatus(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs')}>
             <option value="">Todos</option><option value="paid">Pagados</option><option value="pending">Pendientes</option>
-          </select></div>
+          </NiceSelect></div>
         <div className="flex-1 min-w-[160px]"><label className={LABEL}>Buscar</label>
           <div className="relative"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="N.º, descripción, proveedor o factura" className={cn(INPUT, 'py-1.5 text-xs pl-8')} /></div></div>
         <button onClick={() => setModal({ open: true, expense: null })} className="px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab hover:opacity-90">
@@ -738,7 +739,7 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
               <Chip active={form.personType === 'natural'} onClick={() => setForm({ ...form, personType: 'natural', docType: form.docType === 'NIT' ? 'CC' : form.docType })}>Persona natural</Chip>
             </div>
             <div className="col-span-2 sm:col-span-3"><label className={LABEL}>{form.personType === 'natural' ? 'Nombre completo' : 'Razón social'}</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={INPUT} /></div>
-            <div><label className={LABEL}>Tipo doc.</label><select value={form.docType || ''} onChange={e => setForm({ ...form, docType: e.target.value })} className={INPUT}><option value="">—</option>{['NIT', 'CC', 'CE', 'PAS', 'TI', 'PEP', 'NUIP'].map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+            <div><label className={LABEL}>Tipo doc.</label><NiceSelect value={form.docType || ''} onChange={e => setForm({ ...form, docType: e.target.value })} className={INPUT}><option value="">—</option>{['NIT', 'CC', 'CE', 'PAS', 'TI', 'PEP', 'NUIP'].map(d => <option key={d} value={d}>{d}</option>)}</NiceSelect></div>
             <div className="col-span-2"><label className={LABEL}>{form.docType === 'NIT' ? 'NIT' : 'Número de documento'}</label><input value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
             <div><label className={LABEL}>DV</label><input value={form.dv || ''} onChange={e => setForm({ ...form, dv: e.target.value.replace(/\D/g, '').slice(0, 1) })} className={cn(INPUT, 'font-mono')} /></div>
             <div><label className={LABEL}>Qué provee</label><input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Insumos, empaques..." className={INPUT} /></div>
@@ -750,7 +751,7 @@ const SuppliersTab = ({ suppliers, isAdmin, reload }: { suppliers: Supplier[]; i
             <div><label className={LABEL}>Teléfono</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={INPUT} /></div>
             <div className="col-span-2"><label className={LABEL}>Correo</label><input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={INPUT} /></div>
             <div><label className={LABEL}>Actividad económica (CIIU)</label><input value={form.ciiu || ''} onChange={e => setForm({ ...form, ciiu: e.target.value })} placeholder="Ej: 1040" className={cn(INPUT, 'font-mono')} /></div>
-            <div><label className={LABEL}>Régimen</label><select value={form.regime || ''} onChange={e => setForm({ ...form, regime: e.target.value })} className={INPUT}><option value="">—</option><option value="ordinario">Ordinario (responsable IVA)</option><option value="simple">Régimen simple</option><option value="no_responsable">No responsable de IVA</option></select></div>
+            <div><label className={LABEL}>Régimen</label><NiceSelect value={form.regime || ''} onChange={e => setForm({ ...form, regime: e.target.value })} className={INPUT}><option value="">—</option><option value="ordinario">Ordinario (responsable IVA)</option><option value="simple">Régimen simple</option><option value="no_responsable">No responsable de IVA</option></NiceSelect></div>
             <div><label className={LABEL}>Días de crédito</label><input type="number" min={0} value={form.creditDays ?? 0} onChange={e => setForm({ ...form, creditDays: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
             <div><label className={LABEL}>Retención en la fuente %</label><input type="number" min={0} max={100} step={0.1} value={form.retentionPct ?? 0} onChange={e => setForm({ ...form, retentionPct: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
             <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={Boolean(form.ivaResponsible)} onChange={e => setForm({ ...form, ivaResponsible: e.target.checked, regime: e.target.checked && form.regime === 'no_responsable' ? 'ordinario' : form.regime })} /> Responsable de IVA (sus facturas traen IVA)</label>

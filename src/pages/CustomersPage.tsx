@@ -9,6 +9,7 @@ import { useStore, type Customer } from '@/store/useStore';
 import { formatPrice, plural } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 type ViewMode = 'table' | 'cards';
 type FilterTab = 'all' | 'frequent' | 'companies' | 'new';
@@ -644,7 +645,7 @@ const CustomersPage = () => {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-1">
                     <label className="font-semibold text-gray-700 mb-1 block">Tipo Doc.</label>
-                    <select
+                    <NiceSelect
                       value={formDocType}
                       onChange={e => setFormDocType(e.target.value)}
                       className="w-full px-2.5 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary text-xs font-medium"
@@ -653,7 +654,7 @@ const CustomersPage = () => {
                       <option value="NIT">NIT</option>
                       <option value="CE">Cédula Ext. (CE)</option>
                       <option value="PP">Pasaporte</option>
-                    </select>
+                    </NiceSelect>
                   </div>
                   <div className="col-span-2">
                     <label className="font-semibold text-gray-700 mb-1 block">Número de Documento</label>

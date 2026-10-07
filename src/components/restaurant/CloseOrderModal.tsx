@@ -10,6 +10,7 @@ import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { PAYMENT_LABEL } from '@/lib/restaurant';
 import { canDo } from '@/lib/permissions';
 import { printReceipt } from '@/lib/netPrint';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const METHODS = [
   { id: 'cash', label: 'Efectivo', icon: Banknote },
@@ -148,8 +149,8 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           )}
           {method === 'mixed' && (
             <div className="grid grid-cols-2 gap-2">
-              <div><label className={LABEL}>Medio 1</label><select value={m1} onChange={e => setM1(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select><input type="number" min={0} value={a1} onChange={e => { setA1(e.target.value); setA2(String(Math.max(0, due - (Number(e.target.value) || 0)))); }} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
-              <div><label className={LABEL}>Medio 2</label><select value={m2} onChange={e => setM2(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select><input type="number" min={0} value={a2} onChange={e => setA2(e.target.value)} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
+              <div><label className={LABEL}>Medio 1</label><NiceSelect value={m1} onChange={e => setM1(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a1} onChange={e => { setA1(e.target.value); setA2(String(Math.max(0, due - (Number(e.target.value) || 0)))); }} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
+              <div><label className={LABEL}>Medio 2</label><NiceSelect value={m2} onChange={e => setM2(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a2} onChange={e => setA2(e.target.value)} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
               <p className={cn('col-span-2 text-[11px]', splitOk ? 'text-emerald-700' : 'text-red-600')}>{splitOk ? 'Los dos medios suman el total.' : `Deben sumar ${formatPrice(due)} (van ${formatPrice(splitSum)}).`}</p>
             </div>
           )}

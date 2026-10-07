@@ -6,6 +6,7 @@ import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
 import { printReceipt, netPrintOn } from '@/lib/netPrint';
 import { useStore } from '@/store/useStore';
 import { orderNumber } from '@/lib/orderNumber';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 interface PrintModalProps {
   isOpen: boolean;
@@ -72,14 +73,14 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
             Tamaño de impresión (Optimizado para rollo térmico)
           </label>
           <div className="relative">
-            <select
+            <NiceSelect
               value={paperSize}
               onChange={(e) => setPaperSize(e.target.value as any)}
               className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-300 text-xs sm:text-sm font-semibold text-brand-dark focus:outline-none focus:ring-2 focus:ring-[#0091FF]"
             >
               <option value="80mm">80 mm (Estándar Térmica - Corto Ahorro Papel)</option>
               <option value="58mm">58 mm (Mini Térmica 58mm)</option>
-            </select>
+            </NiceSelect>
           </div>
         </div>
 

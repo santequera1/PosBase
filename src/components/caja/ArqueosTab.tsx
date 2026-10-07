@@ -10,6 +10,7 @@ import { downloadXlsx } from '@/lib/xlsx';
 import { printThermal, generateZReportHtml } from '@/lib/thermalPrint';
 import { printShiftReport } from '@/lib/netPrint';
 import { Kpi, DetailPane, ActionBtn, Row, SectionTitle, Empty, usePaged, MoreButton, dt, useIsMobile, INPUT, LBL, SEL } from './common';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const ARQUEO: Array<{ key: 'cash' | 'transfer' | 'card'; label: string; icon: any }> = [
   { key: 'cash', label: 'Efectivo', icon: Banknote }, { key: 'transfer', label: 'Transferencias bancarias', icon: ArrowLeftRight }, { key: 'card', label: 'Datáfono', icon: CreditCard },
@@ -61,8 +62,8 @@ const CajasView = ({ onShiftsChanged }: { onShiftsChanged: () => void }) => {
       <div className="grid lg:grid-cols-[minmax(0,1.4fr)_minmax(340px,1fr)] gap-3 items-start">
         <div className="space-y-3 min-w-0">
           <div className="bg-card rounded-xl border border-border p-3 flex flex-wrap items-end gap-2">
-            <div><label className={LBL}>Estado</label><select value={status} onChange={e => setStatus(e.target.value)} className={SEL} data-arqueo-status><option value="">(todos)</option><option value="open">Abierto</option><option value="closed">Cerrado</option></select></div>
-            <div><label className={LBL}>Caja</label><select className={SEL} disabled><option>Principal</option></select></div>
+            <div><label className={LBL}>Estado</label><NiceSelect value={status} onChange={e => setStatus(e.target.value)} className={SEL} data-arqueo-status><option value="">(todos)</option><option value="open">Abierto</option><option value="closed">Cerrado</option></NiceSelect></div>
+            <div><label className={LBL}>Caja</label><NiceSelect className={SEL} disabled><option>Principal</option></NiceSelect></div>
             <div className="flex-1" />
             <button onClick={exportX} className="px-3 py-1.5 rounded-lg border border-brand-primary/30 text-sm font-semibold">Exportar</button>
             <button onClick={() => { setSel(null); setPanel(true); }} className="px-3 py-1.5 rounded-lg gradient-primary text-primary-foreground text-sm font-bold" data-new-arqueo>{currentShift ? 'Arqueo actual' : '+ Nuevo arqueo de caja'}</button>
@@ -246,9 +247,9 @@ const ConciliacionView = () => {
     <div className="space-y-3" data-conciliacion>
       <div className="bg-card rounded-xl border border-border p-3 flex flex-wrap items-end gap-2">
         <div><label className={LBL}>Período (mes)</label><input type="month" value={f.month} onChange={e => e.target.value && setF({ ...f, month: e.target.value })} className={SEL} /></div>
-        <div><label className={LBL}>Caja</label><select className={SEL} disabled><option>Principal</option></select></div>
-        <div><label className={LBL}>Estado</label><select value={f.reconciled} onChange={e => setF({ ...f, reconciled: e.target.value })} className={SEL} data-conc-state><option value="">(todos)</option><option value="no">Pendiente</option><option value="yes">Conciliado</option></select></div>
-        <div><label className={LBL}>Usuario</label><select value={f.closedBy} onChange={e => setF({ ...f, closedBy: e.target.value })} className={SEL}><option value="">(todos)</option>{users.map(u => <option key={u}>{u}</option>)}</select></div>
+        <div><label className={LBL}>Caja</label><NiceSelect className={SEL} disabled><option>Principal</option></NiceSelect></div>
+        <div><label className={LBL}>Estado</label><NiceSelect value={f.reconciled} onChange={e => setF({ ...f, reconciled: e.target.value })} className={SEL} data-conc-state><option value="">(todos)</option><option value="no">Pendiente</option><option value="yes">Conciliado</option></NiceSelect></div>
+        <div><label className={LBL}>Usuario</label><NiceSelect value={f.closedBy} onChange={e => setF({ ...f, closedBy: e.target.value })} className={SEL}><option value="">(todos)</option>{users.map(u => <option key={u}>{u}</option>)}</NiceSelect></div>
       </div>
       <div className="bg-card rounded-xl border border-border overflow-hidden"><div className="grid grid-cols-1 sm:grid-cols-4"><Kpi label="Total de cajas" value={String(rows.length)} /><Kpi label="Pendientes" value={String(pend.length)} tone={pend.length ? 'bg-amber-50' : ''} /><Kpi label="Conciliadas" value={String(done.length)} /><Kpi label="Diferencia total" value={formatPrice(totalDiff)} tone={totalDiff < 0 ? 'bg-red-50' : ''} /></div></div>
       <div className="grid lg:grid-cols-[minmax(0,1.4fr)_minmax(340px,1fr)] gap-3 items-start">

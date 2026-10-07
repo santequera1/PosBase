@@ -12,6 +12,7 @@ import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle, PAYMENT_LABEL } from '@/lib/restaurant';
 import { printReceipt } from '@/lib/netPrint';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
   { key: 'pending', title: 'Pendientes', match: s => s === 'open' || s === 'pending', cls: 'border-amber-200 bg-amber-50/50' },
@@ -78,9 +79,9 @@ const DeliveryPage = () => {
                     <OrderCard key={o.id} order={o} actions={actionsFor(o)}>
                       {o.status !== 'delivered' && (
                         <label className="flex items-center gap-1.5 text-[11px]"><Bike size={11} className="text-brand-muted" />
-                          <select value={o.driverId || 0} onChange={e => assign(o, Number(e.target.value))} className="flex-1 px-2 py-1 rounded-lg border border-border bg-white text-[11px]" title="Repartidor">
+                          <NiceSelect value={o.driverId || 0} onChange={e => assign(o, Number(e.target.value))} className="flex-1 px-2 py-1 rounded-lg border border-border bg-white text-[11px]" title="Repartidor">
                             <option value={0}>Sin repartidor</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select></label>
+                          </NiceSelect></label>
                       )}
                     </OrderCard>
                   ))}

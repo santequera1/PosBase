@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore';
 import { allStaff } from '@/lib/restaurant';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 export interface DiscountSel { discountId: number; name: string; amount: number; employeeId?: number; employeeName?: string; value?: number }
 type Item = { productId: number; price: number; quantity: number };
@@ -63,10 +64,10 @@ export const DiscountPicker = ({ items, value, onChange }: { items: Item[]; valu
       {pending && (
         <div className="rounded-xl border border-border p-2.5 space-y-1.5 bg-white">
           {pending.requiresEmployee && (
-            <select autoFocus value={emp} onChange={e => setEmp(Number(e.target.value))} className="w-full px-2 py-2 rounded-lg border border-input text-xs" data-staff-select>
+            <NiceSelect autoFocus value={emp} onChange={e => setEmp(Number(e.target.value))} className="w-full px-2 py-2 rounded-lg border border-input text-xs" data-staff-select>
               <option value={0}>¿A qué trabajador?</option>
               {staff.map(s => <option key={s.id} value={s.id}>{s.name}{s.position ? ` · ${s.position}` : ''}</option>)}
-            </select>
+            </NiceSelect>
           )}
           {pending.value === null && <input type="number" min={0} value={free} onChange={e => setFree(e.target.value)} placeholder={pending.kind === 'percent' ? 'Porcentaje (ej. 15)' : 'Valor en pesos'} className="w-full px-2 py-2 rounded-lg border border-input text-xs font-mono" data-discount-free />}
           <p className="text-[11px] text-muted-foreground">Descuento: − {formatPrice(pendCalc?.amount || 0)}{pending.applyTo === 'no_drinks' ? ` (sobre ${formatPrice(pendCalc?.base || 0)}, sin bebidas)` : ''}</p>

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Chip, INPUT, LABEL, fmtDate } from '@/components/common/Primitives';
 import { downloadXlsx } from '@/lib/xlsx';
 import { useStore } from '@/store/useStore';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 type View = 'balance' | 'situacion' | 'resultados' | 'auxiliar' | 'terceros';
 const monthStart = () => `${getColombiaTodayStr().slice(0, 7)}-01`;
@@ -259,8 +260,8 @@ const LedgerView = () => {
   return (
     <div className="space-y-3">
       <RangeBar from={from} to={to} setFrom={setFrom} setTo={setTo}>
-        <div className="min-w-[230px]"><label className={LABEL}>Cuenta desde</label><select value={codeFrom} onChange={e => { setCodeFrom(e.target.value); if (e.target.value > codeTo) setCodeTo(e.target.value); }} className={cn(INPUT, 'py-1.5 text-xs font-mono')} data-ledger-from>{opts}</select></div>
-        <div className="min-w-[230px]"><label className={LABEL}>Cuenta hasta</label><select value={codeTo} onChange={e => setCodeTo(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs font-mono')} data-ledger-to>{opts}</select></div>
+        <div className="min-w-[230px]"><label className={LABEL}>Cuenta desde</label><NiceSelect value={codeFrom} onChange={e => { setCodeFrom(e.target.value); if (e.target.value > codeTo) setCodeTo(e.target.value); }} className={cn(INPUT, 'py-1.5 text-xs font-mono')} data-ledger-from>{opts}</NiceSelect></div>
+        <div className="min-w-[230px]"><label className={LABEL}>Cuenta hasta</label><NiceSelect value={codeTo} onChange={e => setCodeTo(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs font-mono')} data-ledger-to>{opts}</NiceSelect></div>
         <div><label className={LABEL}>Tercero (NIT/CC)</label><input value={third} onChange={e => setThird(e.target.value)} placeholder="Todos" className={cn(INPUT, 'py-1.5 text-xs w-32')} /></div>
       </RangeBar>
       <div className="flex flex-wrap gap-1 print:hidden">{SHORTCUTS.map(([l, a, b]) => <Chip key={l} active={codeFrom === a && codeTo === b} onClick={() => { setCodeFrom(a); setCodeTo(b); }}>{l}</Chip>)}</div>

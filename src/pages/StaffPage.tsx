@@ -10,6 +10,7 @@ import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, KpiCard, INPUT, LABEL, fmtDate, fmtTime, periodPresets } from '@/components/common/Primitives';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 /* ------------------------------------------------------------------ */
 /* Tipos y constantes                                                   */
@@ -72,7 +73,7 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
         <div><label className={LABEL}>Documento</label><input value={form.document} onChange={e => set({ document: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Teléfono</label><input value={form.phone} onChange={e => set({ phone: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Cargo</label>
-          <select value={form.position} onChange={e => set({ position: e.target.value })} className={INPUT}>{[...new Set([...POSITIONS, form.position].filter(Boolean))].map(p => <option key={p}>{p}</option>)}</select></div>
+          <NiceSelect value={form.position} onChange={e => set({ position: e.target.value })} className={INPUT}>{[...new Set([...POSITIONS, form.position].filter(Boolean))].map(p => <option key={p}>{p}</option>)}</NiceSelect></div>
         <div><label className={LABEL}>Fecha de ingreso</label><input type="date" value={form.startDate} onChange={e => set({ startDate: e.target.value })} className={INPUT} /></div>
         <div className="sm:col-span-2">
           <label className={LABEL}>Modalidad de pago</label>
@@ -88,10 +89,10 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
         <div><label className={LABEL}>Valor por {unitLabel(form.payMode)}</label><input type="number" min={0} value={form.baseAmount} onChange={e => set({ baseAmount: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
         <div>
           <label className={cn(LABEL, 'flex items-center gap-1')}><Link2 size={12} /> Usuario del sistema (opcional)</label>
-          <select value={form.userId} onChange={e => set({ userId: Number(e.target.value) })} className={INPUT}>
+          <NiceSelect value={form.userId} onChange={e => set({ userId: Number(e.target.value) })} className={INPUT}>
             <option value={0}>— Sin vincular —</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.name} (@{u.username})</option>)}
-          </select>
+          </NiceSelect>
           <p className="text-[10px] text-muted-foreground mt-1">Si se vincula, la asistencia se registra sola al abrir y cerrar caja.</p>
         </div>
         <div><label className={LABEL}>Jornada ordinaria (horas por día)</label><input type="number" min={1} max={16} step={0.5} value={form.hoursPerDay} onChange={e => set({ hoursPerDay: e.target.value })} className={cn(INPUT, 'font-mono')} /><p className="text-[10px] text-muted-foreground mt-1">Lo que pase de estas horas en un día se paga como hora extra.</p></div>
@@ -193,9 +194,9 @@ const AttendanceTab = ({ employees }: { employees: Employee[] }) => {
         {presets.map(p => <Chip key={p.label} active={from === p.from && to === p.to} onClick={() => { setFrom(p.from); setTo(p.to); }}>{p.label}</Chip>)}
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} />
         <input type="date" value={to} onChange={e => setTo(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} />
-        <select value={employeeId} onChange={e => setEmployeeId(Number(e.target.value))} className={cn(INPUT, 'w-auto py-1.5 text-xs')}>
+        <NiceSelect value={employeeId} onChange={e => setEmployeeId(Number(e.target.value))} className={cn(INPUT, 'w-auto py-1.5 text-xs')}>
           <option value={0}>Todos</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
+        </NiceSelect>
         <button onClick={() => setShow(true)} className="ml-auto px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Registrar asistencia</button>
       </div>
       <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Info size={11} /> Al abrir caja con un usuario vinculado a un colaborador, la asistencia del día se registra automáticamente; al cerrar se calculan las horas.</p>
@@ -224,7 +225,7 @@ const AttendanceTab = ({ employees }: { employees: Employee[] }) => {
         <Modal title="Registrar asistencia" onClose={() => setShow(false)}>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><label className={LABEL}>Colaborador</label>
-              <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+              <NiceSelect value={form.employeeId} onChange={e => setForm({ ...form, employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</NiceSelect></div>
             <div className="col-span-2"><label className={LABEL}>Fecha</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className={INPUT} /></div>
             <div><label className={LABEL}>Entrada</label><input type="time" value={form.checkIn} onChange={e => setForm({ ...form, checkIn: e.target.value })} className={INPUT} /></div>
             <div><label className={LABEL}>Salida</label><input type="time" value={form.checkOut} onChange={e => setForm({ ...form, checkOut: e.target.value })} className={INPUT} /></div>
@@ -297,10 +298,10 @@ const TipsTab = ({ employees, isAdmin }: { employees: Employee[]; isAdmin: boole
             <div><label className={LABEL}>Fecha</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className={INPUT} /></div>
             <div><label className={LABEL}>Monto</label><input type="number" min={0} value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
             <div className="col-span-2"><label className={LABEL}>Para</label>
-              <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: Number(e.target.value) })} className={INPUT}>
+              <NiceSelect value={form.employeeId} onChange={e => setForm({ ...form, employeeId: Number(e.target.value) })} className={INPUT}>
                 <option value={0}>Propina común (se reparte entre quienes trabajaron ese día)</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select></div>
+              </NiceSelect></div>
             <div className="col-span-2"><label className={LABEL}>Recibida por</label>
               <div className="flex gap-2">{Object.entries(METHOD_META).map(([k, m]) => <Chip key={k} active={form.method === k} onClick={() => setForm({ ...form, method: k })}>{m.label}</Chip>)}</div></div>
             <div className="col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={INPUT} /></div>
@@ -340,9 +341,9 @@ const AdvancesTab = ({ employees, isAdmin }: { employees: Employee[]; isAdmin: b
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <select value={employeeId} onChange={e => setEmployeeId(Number(e.target.value))} className={cn(INPUT, 'w-auto py-1.5 text-xs')}>
+        <NiceSelect value={employeeId} onChange={e => setEmployeeId(Number(e.target.value))} className={cn(INPUT, 'w-auto py-1.5 text-xs')}>
           <option value={0}>Todos los colaboradores</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
+        </NiceSelect>
         <label className="text-xs text-muted-foreground flex items-center gap-1"><input type="checkbox" checked={onlyUnsettled} onChange={e => setOnlyUnsettled(e.target.checked)} /> Solo pendientes por descontar</label>
         <button onClick={() => setShow(true)} className="ml-auto px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Nuevo anticipo</button>
       </div>
@@ -373,7 +374,7 @@ const AdvancesTab = ({ employees, isAdmin }: { employees: Employee[]; isAdmin: b
         <Modal title="Nuevo anticipo de sueldo" onClose={() => setShow(false)}>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><label className={LABEL}>Colaborador</label>
-              <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+              <NiceSelect value={form.employeeId} onChange={e => setForm({ ...form, employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</NiceSelect></div>
             <div><label className={LABEL}>Fecha</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className={INPUT} /></div>
             <div><label className={LABEL}>Monto</label><input type="number" min={0} value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
             <div className="col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={INPUT} /></div>
@@ -509,7 +510,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
           <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Calculator size={15} /> Calcular liquidación</h3>
           <div className="grid sm:grid-cols-3 gap-2">
             <div className="sm:col-span-3"><label className={LABEL}>Colaborador</label>
-              <select value={employeeId} onChange={e => { setEmployeeId(Number(e.target.value)); setPreview(null); }} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name} · {e.payModeLabel}</option>)}</select></div>
+              <NiceSelect value={employeeId} onChange={e => { setEmployeeId(Number(e.target.value)); setPreview(null); }} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name} · {e.payModeLabel}</option>)}</NiceSelect></div>
             <div className="sm:col-span-3 flex flex-wrap gap-1.5">{presets.map(p => <Chip key={p.label} active={from === p.from && to === p.to} onClick={() => { setFrom(p.from); setTo(p.to); setPreview(null); }}>{p.label}</Chip>)}</div>
             <div><label className={LABEL}>Desde</label><input type="date" value={from} onChange={e => { setFrom(e.target.value); setPreview(null); }} className={INPUT} /></div>
             <div><label className={LABEL}>Hasta</label><input type="date" value={to} onChange={e => { setTo(e.target.value); setPreview(null); }} className={INPUT} /></div>

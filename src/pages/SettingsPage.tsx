@@ -9,6 +9,7 @@ import RestaurantPanel from '@/components/settings/RestaurantPanel';
 import EinvoicingPanel from '@/components/settings/EinvoicingPanel';
 import SectionsPanel from '@/components/settings/SectionsPanel';
 import PrintersPanel from '@/components/settings/PrintersPanel';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'impresoras' | 'facturacion' | 'integracion';
 
@@ -237,11 +238,11 @@ const SettingsPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Impuesto en ventas</label>
-                <select value={taxType} onChange={e => { const v = e.target.value; setTaxType(v); if (v === 'inc' && !taxRate) setTaxRate('8'); if (v === 'iva' && !taxRate) setTaxRate('19'); }} className={INPUT}>
+                <NiceSelect value={taxType} onChange={e => { const v = e.target.value; setTaxType(v); if (v === 'inc' && !taxRate) setTaxRate('8'); if (v === 'iva' && !taxRate) setTaxRate('19'); }} className={INPUT}>
                   <option value="none">Sin impuesto (no responsable)</option>
                   <option value="inc">INC · Impuesto al consumo</option>
                   <option value="iva">IVA</option>
-                </select>
+                </NiceSelect>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Tarifa (%)</label>

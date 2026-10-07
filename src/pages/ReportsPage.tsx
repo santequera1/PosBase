@@ -16,6 +16,7 @@ import { BRAND } from '@/lib/theme';
 import { CHANNEL_LABEL } from '@/lib/restaurant';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { NiceSelect } from '@/components/ui/nice-select';
 import {
   DEFAULT_FILTERS, PERIOD_LABEL, SALE_KIND_LABEL, STATUS_FILTER_LABEL, WEEKDAYS, PAY_LABEL, FLAG_LABEL,
   type SalesFilters, type PeriodKey, type SaleKind,
@@ -297,12 +298,12 @@ export const ReportsPage: React.FC = () => {
             <div>
               <p className="font-bold text-brand-dark mb-1 flex items-center gap-1"><Clock size={12} /> Franja horaria</p>
               <div className="flex items-center gap-1.5">
-                <select value={f.hourFrom} onChange={e => set({ hourFrom: e.target.value })} className="p-1.5 rounded-lg border border-gray-300 bg-white" data-hour-from>
+                <NiceSelect value={f.hourFrom} onChange={e => set({ hourFrom: e.target.value })} className="p-1.5 rounded-lg border border-gray-300 bg-white" data-hour-from>
                   <option value="">Desde</option>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}
-                </select>
-                <select value={f.hourTo} onChange={e => set({ hourTo: e.target.value })} className="p-1.5 rounded-lg border border-gray-300 bg-white" data-hour-to>
+                </NiceSelect>
+                <NiceSelect value={f.hourTo} onChange={e => set({ hourTo: e.target.value })} className="p-1.5 rounded-lg border border-gray-300 bg-white" data-hour-to>
                   <option value="">Hasta</option>{HOURS.map(h => <option key={h} value={h}>{h}:59</option>)}
-                </select>
+                </NiceSelect>
               </div>
             </div>
             <div>

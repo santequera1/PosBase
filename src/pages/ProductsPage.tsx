@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { canDo } from '@/lib/permissions';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MediaManagerModal } from '@/components/MediaManagerModal';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const StockBadge = ({ p, onAdjust }: { p: any; onAdjust?: () => void }) => {
   if (!p.trackStock) return <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">∞ Siempre disponible</span>;
@@ -438,10 +439,10 @@ const ProductsPage = () => {
                 </div>
                 <div>
                   <label className="font-bold text-brand-primary mb-1 block">Categoría</label>
-                  <select value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: Number(e.target.value) })}
+                  <NiceSelect value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: Number(e.target.value) })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary bg-white">
                     {categories.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-                  </select>
+                  </NiceSelect>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">

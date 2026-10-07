@@ -18,6 +18,7 @@ import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import type { Customer, OrderItem, PaymentMethod, PaymentSplit, TabOrder } from '@/store/useStore';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const QUICK_CASH_AMOUNTS = [20000, 50000, 100000, 200000];
 
@@ -347,7 +348,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] text-brand-muted font-bold block mb-1">1er Método</label>
-                    <select
+                    <NiceSelect
                       value={paymentSplit?.method1 || 'cash'}
                       onChange={(e) =>
                         onUpdateTab({
@@ -366,7 +367,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <option value="card_credit">💳 T. Crédito</option>
                       <option value="transfer">📱 QR / Nequi</option>
                       <option value="platform">🛵 Plataforma (Rappi/DiDi)</option>
-                    </select>
+                    </NiceSelect>
                   </div>
                   <div>
                     <label className="text-[10px] text-brand-muted font-bold block mb-1">Monto 1 (COP)</label>
@@ -400,7 +401,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] text-brand-muted font-bold block mb-1">2do Método</label>
-                    <select
+                    <NiceSelect
                       value={paymentSplit?.method2 || 'card_debit'}
                       onChange={(e) =>
                         onUpdateTab({
@@ -418,7 +419,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <option value="card_credit">💳 T. Crédito</option>
                       <option value="transfer">📱 QR / Nequi</option>
                       <option value="cash">💵 Efectivo</option>
-                    </select>
+                    </NiceSelect>
                   </div>
                   <div>
                     <label className="text-[10px] text-brand-muted font-bold block mb-1">Monto 2 (Restante)</label>
@@ -511,14 +512,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
 
                   <div className="flex gap-2 items-center pt-1">
-                    <select
+                    <NiceSelect
                       value={discountType}
                       onChange={(e) => onUpdateTab({ discountType: e.target.value as 'percent' | 'fixed' })}
                       className="p-1.5 text-xs font-bold rounded-xl border border-gray-200 bg-white"
                     >
                       <option value="percent">% Porc.</option>
                       <option value="fixed">$ COP</option>
-                    </select>
+                    </NiceSelect>
                     <input
                       type="number"
                       value={discountValue || ''}

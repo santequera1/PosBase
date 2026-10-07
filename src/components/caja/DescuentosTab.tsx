@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/xlsx';
 import { FilterBar, DetailPane, Row, SectionTitle, Empty, dt, periodParams, useIsMobile, INPUT, LBL, SEL, type Period } from './common';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const amountLabel = (d: any) => (d.value === null || d.value === undefined ? 'Libre' : d.kind === 'percent' ? `${d.value}%` : formatPrice(d.value));
 
@@ -49,7 +50,7 @@ export const DescuentosTab = ({ period, setPeriod, shifts, serviceShifts }: { pe
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar descuento por nombre" className={cn(INPUT, 'pl-8')} /></div>
           <div className="flex gap-2">
-            <select value={state} onChange={e => setState(e.target.value as any)} className={cn(SEL, 'flex-1 sm:flex-none')} data-discount-state><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select>
+            <NiceSelect value={state} onChange={e => setState(e.target.value as any)} className={cn(SEL, 'flex-1 sm:flex-none')} data-discount-state><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></NiceSelect>
             {isAdmin && <button onClick={() => { setSel(null); setForm({ name: '', kind: 'percent', value: '', applyTo: 'all', requiresEmployee: false, active: true }); }} className="px-3 py-2 rounded-lg gradient-primary text-primary-foreground text-sm font-bold flex items-center gap-1.5 whitespace-nowrap" data-discount-new><Plus size={14} /> Nuevo descuento</button>}
           </div>
         </div>

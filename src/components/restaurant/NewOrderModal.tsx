@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { CHANNEL_LABEL, type Channel } from '@/lib/restaurant';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 interface Props {
   type: OrderType;
@@ -130,9 +131,9 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
               <div className="flex flex-wrap gap-1.5">{(restaurant?.deliveryTimes || [15, 30, 45, 60]).map(m => <Chip key={m} active={minutes === m} onClick={() => setMinutes(m)}>{m >= 60 ? `${m / 60} h` : `${m} min`}</Chip>)}</div></div>
             <div><label className={LABEL}>Costo de envío</label><input type="number" min={0} value={fee} onChange={e => setFee(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
             <div><label className={LABEL}>Medio de pago previsto</label>
-              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className={INPUT}>
+              <NiceSelect value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className={INPUT}>
                 <option value="cash">Efectivo contra entrega</option><option value="transfer">Transferencia / Nequi</option><option value="card_debit">Datáfono contra entrega</option><option value="platform">Paga la plataforma (Rappi / DiDi)</option>
-              </select></div>
+              </NiceSelect></div>
             <label className="sm:col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={saveCustomer} onChange={e => setSaveCustomer(e.target.checked)} /> Guardar cliente y dirección para la próxima vez</label>
           </>
         )}

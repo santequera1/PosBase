@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/xlsx';
 import { canDo } from '@/lib/permissions';
 import { FilterBar, Kpi, DetailPane, Row, SectionTitle, Empty, usePaged, MoreButton, dt, periodParams, useIsMobile, INPUT, LBL, METHOD_OPTS, type Period, type FilterField } from './common';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 /* ======================= Movimientos de caja ======================= */
 export const MovimientosTab = ({ period, setPeriod, shifts, serviceShifts }: { period: Period; setPeriod: (p: Period) => void; shifts: any[]; serviceShifts: any[] }) => {
@@ -65,7 +66,7 @@ export const MovimientosTab = ({ period, setPeriod, shifts, serviceShifts }: { p
         <DetailPane open onClose={() => setForm(false)} title="NUEVO MOVIMIENTO" tone="yellow">
           <div className="p-4 space-y-3" data-movement-form>
             <div><label className={LBL}>Monto *</label><input type="number" min={0} value={mv.amount} onChange={e => setMv({ ...mv, amount: e.target.value })} className={cn(INPUT, 'font-mono')} data-mv-amount /></div>
-            <div><label className={LBL}>Tipo *</label><select value={mv.type} onChange={e => setMv({ ...mv, type: e.target.value })} className={INPUT}><option value="deposit">Ingreso</option><option value="withdrawal">Egreso</option></select></div>
+            <div><label className={LBL}>Tipo *</label><NiceSelect value={mv.type} onChange={e => setMv({ ...mv, type: e.target.value })} className={INPUT}><option value="deposit">Ingreso</option><option value="withdrawal">Egreso</option></NiceSelect></div>
             <div><label className={LBL}>Medio de pago</label><input value="Efectivo" disabled className={cn(INPUT, 'bg-muted/40')} /></div>
             <div><label className={LBL}>Caja *</label><input value={`Principal · turno #${currentShift?.id ?? ''}`} disabled className={cn(INPUT, 'bg-muted/40')} /></div>
             <div><label className={LBL}>Comentario *</label><textarea value={mv.reason} onChange={e => setMv({ ...mv, reason: e.target.value })} className={cn(INPUT, 'h-20')} placeholder="Ej. compra de hielo, base adicional" data-mv-reason /></div>

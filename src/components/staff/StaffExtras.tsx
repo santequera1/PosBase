@@ -10,6 +10,7 @@ import { Modal, Chip, KpiCard, INPUT, LABEL, fmtDate, periodPresets } from '@/co
 import { printDocument, escHtml, docLogo } from '@/lib/printDoc';
 import { downloadXlsx } from '@/lib/xlsx';
 import { readSpreadsheet, normHeader } from '@/lib/xlsxRead';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const PAY_METHOD: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia' };
 
@@ -278,7 +279,7 @@ export const NoveltiesTab = ({ employees }: { employees: Array<{ id: number; nam
         {presets.map(p => <Chip key={p.label} active={from === p.from && to === p.to} onClick={() => { setFrom(p.from); setTo(p.to); }}>{p.label}</Chip>)}
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} />
         <input type="date" value={to} onChange={e => setTo(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} />
-        <select value={employeeId} onChange={e => setEmployeeId(Number(e.target.value))} className={cn(INPUT, 'w-auto py-1.5 text-xs')}><option value={0}>Todos</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <NiceSelect value={employeeId} onChange={e => setEmployeeId(Number(e.target.value))} className={cn(INPUT, 'w-auto py-1.5 text-xs')}><option value={0}>Todos</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</NiceSelect>
         <label className="text-xs text-muted-foreground flex items-center gap-1"><input type="checkbox" checked={onlyPending} onChange={e => setOnlyPending(e.target.checked)} /> Solo sin liquidar</label>
         <button onClick={() => setShow(true)} data-novelty-new className="ml-auto px-4 py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-fab"><Plus size={14} /> Nueva novedad</button>
       </div>
@@ -340,18 +341,18 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
     <Modal title="Nueva novedad de nómina" onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2"><label className={LABEL}>Colaborador</label>
-          <select value={form.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}{e.payModeLabel ? ` · ${e.payModeLabel}` : ''}</option>)}</select></div>
+          <NiceSelect value={form.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}{e.payModeLabel ? ` · ${e.payModeLabel}` : ''}</option>)}</NiceSelect></div>
         <div className="col-span-2"><label className={LABEL}>Tipo</label>
-          <select value={form.type} onChange={e => set({ type: e.target.value, amount: '' })} className={INPUT} data-novelty-type>
+          <NiceSelect value={form.type} onChange={e => set({ type: e.target.value, amount: '' })} className={INPUT} data-novelty-type>
             {groups.map(({ g, items }) => <optgroup key={g} label={GROUP_LABEL[g]}>{items.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>)}
-          </select>
+          </NiceSelect>
           {t?.help && <p className="text-[10px] text-muted-foreground mt-1">{t.help}</p>}
         </div>
         {form.type === 'task' && (
           <div className="col-span-2"><label className={LABEL}>Adicional</label>
-            <select value={form.taskId} onChange={e => set({ taskId: e.target.value, amount: '' })} className={INPUT} data-novelty-task>
+            <NiceSelect value={form.taskId} onChange={e => set({ taskId: e.target.value, amount: '' })} className={INPUT} data-novelty-task>
               {tasks.map(x => <option key={x.id} value={x.id}>{x.name}{x.amount ? ` · ${formatPrice(x.amount)} por vez` : ' · sin tarifa'}</option>)}
-            </select>
+            </NiceSelect>
             {!tasks.length && <p className="text-[11px] text-amber-700 mt-1">Crea los adicionales en "Adicionales y tarifas".</p>}
           </div>
         )}
@@ -457,7 +458,7 @@ const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: Array
   return (
     <Modal title="Nuevo préstamo (libranza)" onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2"><label className={LABEL}>Colaborador</label><select value={f.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+        <div className="col-span-2"><label className={LABEL}>Colaborador</label><NiceSelect value={f.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</NiceSelect></div>
         <div><label className={LABEL}>Fecha</label><input type="date" value={f.date} onChange={e => set({ date: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Valor prestado</label><input type="number" min={0} value={f.amount} onChange={e => set({ amount: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-amount /></div>
         <div><label className={LABEL}>Número de cuotas</label><input type="number" min={1} max={120} value={f.installments} onChange={e => set({ installments: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-installments /></div>

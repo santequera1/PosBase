@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Chip, Modal, INPUT, LABEL } from '@/components/common/Primitives';
 import { downloadXlsx } from '@/lib/xlsx';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 interface Account { code: string; name: string; level: number; parentCode: string | null; nature: 'D' | 'C'; active: boolean; isSystem: boolean; used: number }
 type View = 'plan' | 'config';
@@ -168,10 +169,10 @@ const GROUPS: Array<{ title: string; keys: string[] }> = [
 ];
 
 const AccountSelect = ({ value, onChange, accounts, className }: { value: string; onChange: (v: string) => void; accounts: Account[]; className?: string }) => (
-  <select value={value} onChange={e => onChange(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs font-mono', className)}>
+  <NiceSelect value={value} onChange={e => onChange(e.target.value)} className={cn(INPUT, 'py-1.5 text-xs font-mono', className)}>
     {!accounts.some(a => a.code === value) && <option value={value}>{value} (no existe)</option>}
     {accounts.filter(a => a.active && a.level >= 6).map(a => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}
-  </select>
+  </NiceSelect>
 );
 
 const ConfigView = ({ config, accounts, reload }: { config: any; accounts: Account[]; reload: () => void }) => {

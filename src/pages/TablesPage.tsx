@@ -11,6 +11,7 @@ import { NewOrderModal } from '@/components/restaurant/NewOrderModal';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { elapsedLabel, minutesSince, type Room, type RestaurantTable } from '@/lib/restaurant';
 import { printPreBill } from '@/lib/netPrint';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const STATE_STYLE: Record<string, string> = {
   free: 'bg-emerald-500/90 text-white border-emerald-600 hover:bg-emerald-500',
@@ -236,7 +237,7 @@ const TableFormModal = ({ room, rooms, table, onClose, onSaved, onDelete }: { ro
         <div><label className={LABEL}>Nombre o número</label><input value={label} onChange={e => setLabel(e.target.value)} className={INPUT} autoFocus /></div>
         <div><label className={LABEL}>Puestos</label><input type="number" min={1} value={seats} onChange={e => setSeats(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
         <div className="col-span-2"><label className={LABEL}>Forma</label><div className="flex gap-1.5">{(['square', 'round', 'rect'] as const).map(s => <Chip key={s} active={shape === s} onClick={() => setShape(s)}>{s === 'square' ? 'Cuadrada' : s === 'round' ? 'Redonda' : 'Rectangular'}</Chip>)}</div></div>
-        {rooms.length > 1 && <div className="col-span-2"><label className={LABEL}>Salón</label><select value={roomId} onChange={e => setRoomId(Number(e.target.value))} className={INPUT}>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>}
+        {rooms.length > 1 && <div className="col-span-2"><label className={LABEL}>Salón</label><NiceSelect value={roomId} onChange={e => setRoomId(Number(e.target.value))} className={INPUT}>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</NiceSelect></div>}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">
