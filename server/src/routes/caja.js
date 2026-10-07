@@ -189,6 +189,7 @@ router.post('/sales/:id/payment', (req, res) => {
   if (!o) return res.status(404).json({ error: 'Venta no encontrada' });
   if (o.status !== 'delivered') return res.status(400).json({ error: 'Solo se corrige el pago de ventas cerradas' });
   if (!canEditSale(db, req.user, o)) return res.status(403).json({ error: 'La caja de esta venta ya está cerrada: solo un administrador puede corregir el pago' });
+  if (o.payment_method === 'payroll') return res.status(400).json({ error: 'Esta venta se cobró por descuento de nómina: para cambiar el pago, anúlala y vuelve a cobrarla' });
   const method = String(req.body.paymentMethod || '');
   if (!METHODS.includes(method)) return res.status(400).json({ error: 'Medio de pago inválido' });
   const due = (o.total || 0) + (o.tip || 0);

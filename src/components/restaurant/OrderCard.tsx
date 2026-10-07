@@ -11,7 +11,7 @@ export const OrderCard = ({ order, actions, children }: { order: Order; actions:
   const late = order.type === 'delivery' && order.estimatedMinutes && order.status !== 'delivered' && minutesSince(order.createdAt) > order.estimatedMinutes;
   const itemsText = order.items.slice(0, 3).map(i => `${i.quantity}x ${i.name}`).join(' · ') + (order.items.length > 3 ? ` · +${order.items.length - 3}` : '');
   return (
-    <div className={cn('bg-card rounded-xl border shadow-card p-3 space-y-2', late ? 'border-red-300' : 'border-border')}>
+    <div className={cn('bg-card rounded-xl border shadow-card p-3 space-y-2 min-w-0 max-w-full overflow-hidden', late ? 'border-red-300' : 'border-border')}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-bold text-sm text-brand-dark truncate">{orderTitle(order)} <span className="text-[11px] font-normal text-muted-foreground">#{order.id}</span></p>

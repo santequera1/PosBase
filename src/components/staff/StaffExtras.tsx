@@ -445,7 +445,7 @@ export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name:
   );
 };
 
-const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: Array<{ id: number; name: string }>; hasShift: boolean; onClose: () => void; onSaved: (l: any) => void }) => {
+export const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: Array<{ id: number; name: string }>; hasShift: boolean; onClose: () => void; onSaved: (l: any) => void }) => {
   const [f, setF] = useState({ employeeId: employees[0]?.id || 0, date: getColombiaTodayStr(), amount: '', installments: '2', installmentAmount: '', fromCashRegister: false, notes: '' });
   const [error, setError] = useState('');
   const set = (p: any) => setF(x => ({ ...x, ...p }));

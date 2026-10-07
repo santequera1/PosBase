@@ -53,6 +53,8 @@ function initPayrollExtras(db) {
     CREATE INDEX IF NOT EXISTS idx_tips_date ON tips(date);
   `);
   addCol(db, 'payroll_settlements', 'novelties_extras', 'INTEGER DEFAULT 0');
+  // Consumos de empleados cobrados con "Descuento de nómina": se manejan como un préstamo atado a la venta
+  try { addCol(db, 'employee_loans', 'kind', "TEXT DEFAULT 'loan'"); addCol(db, 'employee_loans', 'order_id', 'INTEGER'); } catch { /* aún no existe la tabla */ }
   addCol(db, 'payroll_settlements', 'novelties_bonus', 'INTEGER DEFAULT 0');
   addCol(db, 'payroll_settlements', 'novelties_absence', 'INTEGER DEFAULT 0');
   addCol(db, 'payroll_settlements', 'novelties_deductions', 'INTEGER DEFAULT 0');
@@ -87,6 +89,7 @@ function initPayrollExtras(db) {
     CREATE INDEX IF NOT EXISTS idx_loans_emp ON employee_loans(employee_id, status);
     CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id);
   `);
+  ensureConsumoCols(db);
   // Adicionales pagados por vez (armado de carne, lavado de campana...): tarifas editables en Personal → Novedades
   if (!db.prepare("SELECT 1 FROM settings WHERE key = 'payrollTasks'").get()) {
     db.prepare("INSERT INTO settings (key, value) VALUES ('payrollTasks', ?)").run(JSON.stringify([{ id: 'armado_carne', name: 'Armado de carne', amount: 0 }, { id: 'lavado_campana', name: 'Lavado de campana', amount: 0 }]));
@@ -115,6 +118,9 @@ function saveTasks(db, list) {
  * Cuotas que se descuentan en la liquidación del período. skip = préstamos cuya cuota no se cobra este período;
  * payoff = préstamos que se cobran completos (por ejemplo en la liquidación final).
  */
+/** Columnas de consumos (por si la tabla de préstamos se creó en esta misma arrancada). */
+function ensureConsumoCols(db) { addCol(db, 'employee_loans', 'kind', "TEXT DEFAULT 'loan'"); addCol(db, 'employee_loans', 'order_id', 'INTEGER'); }
+
 function loanPlan(db, empId, to, { skip = [], payoff = [] } = {}) {
   const lines = [];
   for (const l of db.prepare("SELECT * FROM employee_loans WHERE employee_id = ? AND status = 'active' AND date <= ? ORDER BY date, id").all(empId, to)) {
@@ -294,6 +300,7 @@ function noveltiesFor(db, empId, from, to, settlementId = null) {
 }
 
 module.exports = {
+  ensureConsumoCols,
   initPayrollExtras, readTipsConfig, saveTipsConfig, shareCommonDay, tipAccrual, tipsPaid, tipBalance, tipStatement,
   NOVELTY_TYPES, noveltyAmount, noveltiesFor, mapNovelty, NOV_SELECT, dayValue,
   readTasks, saveTasks, loanPlan, applyLoanPlan, revertLoanPayments,

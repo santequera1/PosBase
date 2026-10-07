@@ -68,11 +68,11 @@ const DeliveryPage = () => {
 
       {tab === 'board' && (
         <>
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             {COLUMNS.map(col => {
               const list = active.filter(o => col.match(o.status));
               return (
-                <div key={col.key} className={cn('rounded-2xl border p-2.5 min-h-[220px] space-y-2', col.cls)}>
+                <div key={col.key} className={cn('rounded-2xl border p-2.5 min-h-[220px] space-y-2 min-w-0', col.cls)}>
                   <div className="flex items-center justify-between px-1"><p className="text-xs font-bold text-brand-dark uppercase tracking-wide">{col.title}</p><span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white border border-border">{list.length}</span></div>
                   {list.length === 0 && <p className="text-[11px] text-muted-foreground text-center py-6">Nada por aquí</p>}
                   {list.map(o => (

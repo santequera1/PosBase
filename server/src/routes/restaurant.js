@@ -35,6 +35,23 @@ function recomputeTotals(db, orderId) {
   db.prepare('UPDATE orders SET subtotal = ?, total = ? WHERE id = ?').run(subtotal, total, orderId);
 }
 
+/**
+ * Consumo del empleado por una venta cobrada con descuento de nómina: un "préstamo" de tipo consumo atado a la venta,
+ * que se descuenta en las próximas liquidaciones. Si la venta deja de ser por nómina, el consumo sin cuotas se elimina.
+ */
+function syncPayrollConsumo(db, orderId, emp, installments, userName) {
+  require('../payrollExtras').ensureConsumoCols(db);
+  const cur = db.prepare("SELECT * FROM employee_loans WHERE order_id = ? AND kind = 'consumo'").get(orderId);
+  const paid = cur ? db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ?').get(cur.id).c : 0;
+  if (cur && !paid) db.prepare('DELETE FROM employee_loans WHERE id = ?').run(cur.id);
+  if (!emp || (cur && paid)) return;
+  const o = db.prepare('SELECT total, created_at FROM orders WHERE id = ?').get(orderId);
+  const amount = o.total || 0;
+  if (amount <= 0) return;
+  db.prepare(`INSERT INTO employee_loans (employee_id, date, amount, installments, installment_amount, from_cash_register, notes, created_by, kind, order_id)
+    VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'consumo', ?)`).run(emp.id, today(db), amount, installments, Math.ceil(amount / installments), `Consumo venta #${orderId}`, userName || '', orderId);
+}
+
 /** Envía a cocina los ítems que aún no tienen comanda. Devuelve el número de comanda o null si no había nada nuevo. */
 function sendUnsent(db, io, order, userName, out = {}) {
   const unsent = db.prepare('SELECT * FROM order_items WHERE order_id = ? AND batch IS NULL').all(order.id);
@@ -408,6 +425,12 @@ router.post('/orders/:id/status', (req, res) => {
   if (status === 'cancelled') { sets.push('closed_at = ?', 'closed_by = ?', 'cancel_reason = ?'); vals.push(ts, req.user?.name || null, String(req.body.reason || '').trim().slice(0, 160) || null); }
   // Al marcar listo/enviado/entregado un pedido con productos sin comanda, se envían para que el inventario y la cocina queden al día
   if (['ready', 'shipped', 'delivered'].includes(status)) sendUnsent(db, req.app.io, order, req.user?.name);
+  if (status === 'cancelled' && order.payment_method === 'payroll') {
+    require('../payrollExtras').ensureConsumoCols(db);
+    const c = db.prepare("SELECT id FROM employee_loans WHERE order_id = ? AND kind = 'consumo'").get(order.id);
+    if (c && db.prepare('SELECT COUNT(*) AS n FROM loan_payments WHERE loan_id = ?').get(c.id).n > 0) return res.status(400).json({ error: 'Este consumo ya se descontó en una liquidación de nómina: no se puede anular la venta' });
+    if (c) db.prepare('DELETE FROM employee_loans WHERE id = ?').run(c.id);
+  }
   if (status === 'cancelled') restoreOrderStock(db, req.app.io, order.id, req.user?.name);
   vals.push(order.id);
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
@@ -446,7 +469,9 @@ router.post('/orders/:id/close', (req, res) => {
     discount = r.amount; discountReason = r.reason; dk = r.kind; dId = r.discount.id; dName = r.discount.name; empId = r.employee ? r.employee.id : null; empName = r.employee ? r.employee.name : null;
   }
   if (discount > 0 && discount !== (order.discount || 0) && !hasAction(req.user, 'discounts')) return res.status(403).json({ error: 'No tienes permiso para aplicar descuentos. Pídele a un administrador.' });
-  const tip = Math.max(0, Math.round(Number(b.tip ?? order.tip) || 0));
+  // Venta por descuento de nómina: nunca lleva propina (se valida antes de guardar nada)
+  if (b.paymentMethod === 'payroll' && Math.round(Number(b.tip) || 0) > 0) return res.status(400).json({ error: 'Las ventas por descuento de nómina no llevan propina' });
+  const tip = b.paymentMethod === 'payroll' ? 0 : Math.max(0, Math.round(Number(b.tip ?? order.tip) || 0));
   db.prepare('UPDATE orders SET discount = ?, discount_reason = ?, tip = ?, tip_to = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ?, discount_id = ?, discount_name = ? WHERE id = ?')
     .run(discount, discount > 0 ? discountReason : null, tip, tip > 0 ? (b.tipTo === 'waiter' ? 'waiter' : 'common') : null,
       discount > 0 ? dk : null, discount > 0 ? empId : null, discount > 0 ? empName : null, discount > 0 ? dId : null, discount > 0 ? dName : null, order.id);
@@ -454,7 +479,14 @@ router.post('/orders/:id/close', (req, res) => {
   const fresh = getOrder(db, order.id);
   const due = fresh.total + tip;
 
-  const method = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'].includes(b.paymentMethod) ? b.paymentMethod : (fresh.payment_method || 'cash');
+  const method = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed', 'payroll'].includes(b.paymentMethod) ? b.paymentMethod : (fresh.payment_method || 'cash');
+  // Descuento de nómina: no entra a la caja; queda como consumo del empleado y se descuenta en su liquidación
+  let payrollEmp = null, payrollInstallments = 1;
+  if (method === 'payroll') {
+    payrollEmp = db.prepare('SELECT id, name FROM employees WHERE id = ? AND active = 1').get(Number(b.payrollEmployeeId));
+    if (!payrollEmp) return res.status(400).json({ error: 'Elige el empleado al que se le descuenta de la nómina' });
+    payrollInstallments = Math.min(6, Math.max(1, Math.round(Number(b.payrollInstallments) || 1)));
+  }
   let split = null;
   if (method === 'mixed') {
     const s = b.paymentSplit || {};
@@ -467,11 +499,12 @@ router.post('/orders/:id/close', (req, res) => {
   const cashChange = method === 'cash' ? Math.max(0, cashReceived - due) : 0;
   const ts = now(db);
   const closeNow = fresh.type !== 'delivery' || Boolean(b.markDelivered) || fresh.status === 'delivered';
-  const sets = ['payment_method = ?', 'payment_split = ?', 'payment_status = ?', 'cash_received = ?', 'cash_change = ?', 'closed_by = ?'];
-  const vals = [method, split ? JSON.stringify(split) : null, paymentStatus, cashReceived, cashChange, req.user?.name || null];
+  const sets = ['payment_method = ?', 'payment_split = ?', 'payment_status = ?', 'cash_received = ?', 'cash_change = ?', 'closed_by = ?', 'payroll_employee_id = ?'];
+  const vals = [method, split ? JSON.stringify(split) : null, paymentStatus, cashReceived, cashChange, req.user?.name || null, payrollEmp ? payrollEmp.id : null];
   if (closeNow) { sets.push('status = ?', 'delivered_at = COALESCE(delivered_at, ?)', 'closed_at = ?'); vals.push('delivered', ts, ts); }
   vals.push(order.id);
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+  syncPayrollConsumo(db, order.id, payrollEmp, payrollInstallments, req.user?.name);
 
   // Propina → módulo de personal (directa al mesero o común)
   if (tip > 0) {

@@ -55,7 +55,9 @@ router.get('/employees', STAFF, (req, res) => {
   const monthStart = `${today(db).slice(0, 7)}-01`;
   const att = Object.fromEntries(db.prepare('SELECT employee_id AS id, COUNT(*) AS c, COALESCE(SUM(hours), 0) AS h FROM attendance WHERE date >= ? GROUP BY employee_id').all(monthStart).map(r => [r.id, r]));
   const adv = Object.fromEntries(db.prepare('SELECT employee_id AS id, COALESCE(SUM(amount), 0) AS t FROM advances WHERE settled = 0 GROUP BY employee_id').all().map(r => [r.id, r.t]));
-  res.json(rows.map(r => ({ ...mapEmp(r), monthAttendance: att[r.id]?.c || 0, monthHours: Math.round((att[r.id]?.h || 0) * 10) / 10, unsettledAdvances: adv[r.id] || 0 })));
+  // Préstamos y consumos con saldo (se descuentan en las liquidaciones)
+  const loans = Object.fromEntries(db.prepare("SELECT employee_id AS id, COALESCE(SUM(CASE WHEN COALESCE(kind, 'loan') = 'consumo' THEN 0 ELSE amount - paid_total END), 0) AS l, COALESCE(SUM(CASE WHEN kind = 'consumo' THEN amount - paid_total ELSE 0 END), 0) AS c FROM employee_loans WHERE status = 'active' GROUP BY employee_id").all().map(r => [r.id, r]));
+  res.json(rows.map(r => ({ ...mapEmp(r), monthAttendance: att[r.id]?.c || 0, monthHours: Math.round((att[r.id]?.h || 0) * 10) / 10, unsettledAdvances: adv[r.id] || 0, loansBalance: loans[r.id]?.l || 0, consumosBalance: loans[r.id]?.c || 0 })));
 });
 
 function employeePayload(body, cur = {}) {
@@ -521,12 +523,13 @@ router.put('/novelties/tasks', ADMIN, (req, res) => res.json(PX.saveTasks(getDb(
 /* Préstamos a empleados (libranza sin intereses)                       */
 /* ------------------------------------------------------------------ */
 const LOAN_SELECT = `SELECT l.id, l.employee_id AS employeeId, e.name AS employeeName, e.document, l.date, l.amount, l.installments, l.installment_amount AS installmentAmount, l.paid_total AS paidTotal,
-  l.amount - l.paid_total AS balance, l.status, l.from_cash_register AS fromCashRegister, l.notes, l.created_by AS createdBy, l.created_at AS createdAt,
+  l.amount - l.paid_total AS balance, l.status, l.from_cash_register AS fromCashRegister, l.notes, l.created_by AS createdBy, l.created_at AS createdAt, COALESCE(l.kind, 'loan') AS kind, l.order_id AS orderId,
   (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id) AS paymentsCount FROM employee_loans l JOIN employees e ON e.id = l.employee_id`;
 const mapLoan = r => ({ ...r, fromCashRegister: Boolean(r.fromCashRegister) });
 
 router.get('/loans', ADMIN, (req, res) => {
   const db = getDb();
+  PX.ensureConsumoCols(db);
   let sql = `${LOAN_SELECT} WHERE 1=1`;
   const params = [];
   if (req.query.employeeId) { sql += ' AND l.employee_id = ?'; params.push(Number(req.query.employeeId)); }
@@ -568,6 +571,7 @@ router.delete('/loans/:id', ADMIN, (req, res) => {
   const cur = db.prepare('SELECT * FROM employee_loans WHERE id = ?').get(Number(req.params.id));
   if (!cur) return res.status(404).json({ error: 'Préstamo no encontrado' });
   if (db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ?').get(cur.id).c > 0) return res.status(400).json({ error: 'Este préstamo ya tiene cuotas descontadas en nómina; no se puede eliminar' });
+  if (cur.kind === 'consumo') return res.status(400).json({ error: `Es el consumo de la venta #${cur.order_id}: para quitarlo, anula esa venta en Caja → Ventas` });
   removeCashMovementIfOpen(db, cur.cash_movement_id);
   db.prepare('DELETE FROM employee_loans WHERE id = ?').run(cur.id);
   res.json({ success: true });

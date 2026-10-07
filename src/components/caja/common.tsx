@@ -242,4 +242,4 @@ export const STATUS_STYLE: Record<string, { label: string; chip: string; bar: st
 };
 export const statusStyle = (s: string) => STATUS_STYLE[s] || STATUS_STYLE.open;
 export const METHOD_OPTS: Array<[string, string]> = [['cash', 'Efectivo'], ['transfer', 'Transferencia bancaria'], ['card', 'Datáfono'], ['platform', 'Plataforma (Rappi/DiDi)'], ['credit', 'A crédito']];
-export const METHOD_NAME: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Datáfono', card_debit: 'Datáfono débito', card_credit: 'Datáfono crédito', platform: 'Plataforma', credit: 'A crédito', mixed: 'Mixto' };
+export const METHOD_NAME: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Datáfono', card_debit: 'Datáfono débito', card_credit: 'Datáfono crédito', platform: 'Plataforma', credit: 'A crédito', mixed: 'Mixto', payroll: 'Descuento de nómina' };

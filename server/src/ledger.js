@@ -91,7 +91,10 @@ function postSale(db, o, ctx) {
   if (tip > 0) lines.push({ account: map.tipsPayable, credit: tip, third, description: 'Propina recibida', docRef });
   // Contrapartida (débito): efectivo, banco, plataforma o cartera
   const due = total + tip;
-  if (o.payment_method === 'platform') {
+  if (o.payment_method === 'payroll') {
+    // Consumo de empleado: cuenta por cobrar al trabajador (se cruza con la nómina), no entra a caja
+    lines.push({ account: map.employeeAdvances, debit: due, third: thirdEmployee(db, o.payroll_employee_id) || third, description: 'Descuento de nómina (consumo de empleado)', docRef });
+  } else if (o.payment_method === 'platform') {
     lines.push({ account: map.platformReceivable, debit: due, third, description: 'Por cobrar a la plataforma', docRef });
   } else if (o.payment_status && o.payment_status !== 'paid') {
     lines.push({ account: map.customerReceivable, debit: due, third, description: 'Venta a crédito', docRef });
@@ -285,7 +288,8 @@ function syncLedger(db) {
     for (const a of db.prepare("SELECT a.* FROM advances a LEFT JOIN journal_entries j ON j.source = 'advance' AND j.source_id = a.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY a.id").all()) safe(`anticipo #${a.id}`, () => postAdvance(db, a, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN advances a ON a.id = j.source_id WHERE j.source = 'advance' AND j.status = 'posted' AND a.id IS NULL").all()) voidEntry(db, j.id, 'Anticipo eliminado');
     // Préstamos a empleados
-    for (const l of db.prepare("SELECT l.* FROM employee_loans l LEFT JOIN journal_entries j ON j.source = 'loan' AND j.source_id = l.id AND j.status = 'posted' WHERE j.id IS NULL ORDER BY l.id").all()) safe(`préstamo #${l.id}`, () => postLoan(db, l, ctx));
+    // Los consumos (descuento de nómina) ya quedan en el asiento de la venta: no tienen asiento de desembolso
+    for (const l of db.prepare("SELECT l.* FROM employee_loans l LEFT JOIN journal_entries j ON j.source = 'loan' AND j.source_id = l.id AND j.status = 'posted' WHERE j.id IS NULL AND COALESCE(l.kind, 'loan') != 'consumo' ORDER BY l.id").all()) safe(`préstamo #${l.id}`, () => postLoan(db, l, ctx));
     for (const j of db.prepare("SELECT j.id FROM journal_entries j LEFT JOIN employee_loans l ON l.id = j.source_id WHERE j.source = 'loan' AND j.status = 'posted' AND l.id IS NULL").all()) voidEntry(db, j.id, 'Préstamo eliminado');
     // Propinas anotadas a mano (las de los pedidos ya entran con la venta)
     for (const t of db.prepare("SELECT t.* FROM tips t LEFT JOIN journal_entries j ON j.source = 'tip_in' AND j.source_id = t.id AND j.status = 'posted' WHERE j.id IS NULL AND COALESCE(t.notes, '') NOT LIKE 'Propina pedido #%' ORDER BY t.id").all()) safe(`propina #${t.id}`, () => postManualTip(db, t, ctx));

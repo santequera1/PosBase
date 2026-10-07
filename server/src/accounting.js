@@ -36,7 +36,7 @@ function paymentParts(o) {
     else if (m === 'card_credit' || m === 'card') parts.credit += amt;
     else if (m === 'transfer') parts.transfer += amt;
     else if (m === 'platform') parts.platform += amt;
-    else if (m === 'credit') parts.onCredit += amt;
+    else if (m === 'credit' || m === 'payroll') parts.onCredit += amt;
   };
   if (o.payment_status && o.payment_status !== 'paid') { parts.onCredit += o.total; return parts; }
   if (o.payment_split) {

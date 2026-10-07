@@ -105,7 +105,7 @@ export function elapsedClass(ts: string | undefined, warn = 20, danger = 40): st
 }
 
 export const PAYMENT_LABEL: Record<string, string> = {
-  cash: 'Efectivo', card_debit: 'T. Débito', card_credit: 'T. Crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', credit: 'A crédito', mixed: 'Mixto',
+  cash: 'Efectivo', card_debit: 'T. Débito', card_credit: 'T. Crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', credit: 'A crédito', mixed: 'Mixto', payroll: 'Descuento de nómina',
 };
 export const PAYMENT_METHODS: Array<{ id: string; label: string; short: string }> = [
   { id: 'cash', label: 'Efectivo', short: 'Efectivo' },

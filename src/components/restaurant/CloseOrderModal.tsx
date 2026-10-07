@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2 } from 'lucide-react';
+import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2, UserMinus } from 'lucide-react';
 import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
 import type { Order } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
@@ -20,6 +20,7 @@ const METHODS = [
   { id: 'platform', label: 'Plataforma', icon: Smartphone },
   { id: 'credit', label: 'A crédito', icon: Handshake },
   { id: 'mixed', label: 'Mixto', icon: Split },
+  { id: 'payroll', label: 'Nómina', icon: UserMinus },
 ];
 
 /** Cobro de una cuenta: descuento con motivo, propina, uno o dos medios de pago, vueltas. */
@@ -40,6 +41,10 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const [m1, setM1] = useState('cash'); const [a1, setA1] = useState('');
   const [m2, setM2] = useState('transfer'); const [a2, setA2] = useState('');
   const [markDelivered, setMarkDelivered] = useState(order.type !== 'delivery' || order.status === 'shipped');
+  // Descuento de nómina: empleado (por defecto el del descuento de trabajador, si lo hay) y en cuántas quincenas/meses
+  const staffAll = restaurant?.staff.all || [];
+  const [payEmp, setPayEmp] = useState<number>(order.discountEmployeeId || 0);
+  const [payInst, setPayInst] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<Order | null>(null);
@@ -47,7 +52,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const base = order.subtotal + (order.deliveryFee || 0);
   const disc = cat ? Math.min(base, cat.amount) : Math.min(base, Math.max(0, Math.round(Number(discount) || 0)));
   const total = base - disc;
-  const tip = tipMode === 'none' ? 0 : tipMode === 'suggested' ? Math.round((total * tipPct) / 100) : Math.max(0, Math.round(Number(tipCustom) || 0));
+  const tip = tipMode === 'none' || method === 'payroll' ? 0 : tipMode === 'suggested' ? Math.round((total * tipPct) / 100) : Math.max(0, Math.round(Number(tipCustom) || 0));
   const due = total + tip;
   const received = Math.round(Number(cashReceived) || 0);
   const change = method === 'cash' && received > due ? received - due : 0;
@@ -62,6 +67,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
         paymentMethod: method, discount: disc, discountReason, tip, tipTo, markDelivered,
         ...(cat ? { discountId: cat.discountId, discountValue: cat.value, discountEmployeeId: cat.employeeId } : {}),
         cashReceived: method === 'cash' ? (received || due) : undefined,
+        ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: payInst } : {}),
         paymentSplit: method === 'mixed' ? { method1: m1, amount1: Math.round(Number(a1) || 0), method2: m2, amount2: Math.round(Number(a2) || 0) } : undefined,
       });
       setDone(closed);
@@ -131,7 +137,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           <div>
             <label className={LABEL}>Medio de pago</label>
             <div className="grid grid-cols-4 gap-1.5">
-              {METHODS.map(m => (
+              {METHODS.filter(m => m.id !== 'payroll' || staffAll.length > 0).map(m => (
                 <button key={m.id} onClick={() => setMethod(m.id)} className={cn('py-2.5 px-1 rounded-xl text-[11px] font-bold flex flex-col items-center gap-1 border transition-all', method === m.id ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md' : 'bg-white text-brand-primary border-brand-primary/15 hover:bg-brand-card')}>
                   <m.icon size={17} />{m.label}
                 </button>
@@ -149,18 +155,30 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           )}
           {method === 'mixed' && (
             <div className="grid grid-cols-2 gap-2">
-              <div><label className={LABEL}>Medio 1</label><NiceSelect value={m1} onChange={e => setM1(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a1} onChange={e => { setA1(e.target.value); setA2(String(Math.max(0, due - (Number(e.target.value) || 0)))); }} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
-              <div><label className={LABEL}>Medio 2</label><NiceSelect value={m2} onChange={e => setM2(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a2} onChange={e => setA2(e.target.value)} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
+              <div><label className={LABEL}>Medio 1</label><NiceSelect value={m1} onChange={e => setM1(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit', 'payroll'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a1} onChange={e => { setA1(e.target.value); setA2(String(Math.max(0, due - (Number(e.target.value) || 0)))); }} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
+              <div><label className={LABEL}>Medio 2</label><NiceSelect value={m2} onChange={e => setM2(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit', 'payroll'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a2} onChange={e => setA2(e.target.value)} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
               <p className={cn('col-span-2 text-[11px]', splitOk ? 'text-emerald-700' : 'text-red-600')}>{splitOk ? 'Los dos medios suman el total.' : `Deben sumar ${formatPrice(due)} (van ${formatPrice(splitSum)}).`}</p>
             </div>
           )}
           {method === 'platform' && <p className="text-[11px] text-muted-foreground">La app (Rappi, DiDi) paga después; queda registrado como venta por plataforma, no entra a la caja en efectivo.</p>}
+          {method === 'payroll' && (
+            <div className="rounded-xl border border-brand-accent/40 bg-brand-card p-3 space-y-2" data-payroll-box>
+              <div><label className={LABEL}>Empleado</label>
+                <NiceSelect value={String(payEmp)} onChange={e => setPayEmp(Number(e.target.value))} className={INPUT} data-payroll-employee>
+                  <option value="0">Elige el empleado...</option>
+                  {staffAll.map(e => <option key={e.id} value={String(e.id)}>{e.name}</option>)}
+                </NiceSelect></div>
+              <div className="flex items-center gap-1.5 flex-wrap"><span className="text-xs text-muted-foreground">Descontar en</span>
+                {[1, 2, 3].map(n => <Chip key={n} active={payInst === n} onClick={() => setPayInst(n)}>{n === 1 ? '1 pago' : `${n} cuotas`}</Chip>)}</div>
+              <p className="text-[11px] text-muted-foreground">No entra a la caja hoy. Queda en el perfil del empleado y se descuenta sola en su próxima liquidación de nómina (quincenal o mensual){payInst > 1 ? ` en ${payInst} cuotas de ${formatPrice(Math.ceil(total / payInst))}` : ''}. Sin propina.</p>
+            </div>
+          )}
           {method === 'credit' && <p className="text-[11px] text-amber-700">Queda pendiente de pago. Aparecerá en Historial → Por cobrar hasta que se registre el pago.</p>}
           {order.type === 'delivery' && (
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={markDelivered} onChange={e => setMarkDelivered(e.target.checked)} /> Marcar también como entregado</label>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
-          <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !cat && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
+          <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !cat && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due) || (method === 'payroll' && !payEmp)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
             {saving ? 'Registrando...' : `Cobrar ${formatPrice(due)}`}
           </button>
         </div>
