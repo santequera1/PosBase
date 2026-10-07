@@ -144,6 +144,7 @@ export interface Order {
   discountName?: string;
   cancelReason?: string;
   createdBy?: string;
+  branchId?: number;
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
@@ -193,6 +194,8 @@ export interface Driver {
   phone: string;
   available: boolean;
 }
+
+export interface Branch { id: number; name: string; address: string; phone: string; invoicePrefix: string; color: string; active: boolean }
 
 export interface Branding {
   logoUrl: string;
@@ -277,6 +280,10 @@ interface AppState {
   initialized: boolean;
   sidebarCollapsed: boolean;
   hiddenViews: string[];
+  branches: Branch[];
+  branchId: number;
+  loadBranches: () => Promise<void>;
+  setBranch: (id: number) => Promise<void>;
   setHiddenViews: (v: string[]) => void;
 
   // Auth
@@ -373,6 +380,8 @@ export const useStore = create<AppState>((set, get) => ({
   initialized: false,
   sidebarCollapsed: false,
   hiddenViews: [],
+  branches: [],
+  branchId: Number((typeof localStorage !== 'undefined' && localStorage.getItem('pos-branch')) || 1),
   setHiddenViews: (v) => set({ hiddenViews: v }),
 
   loginWithCredentials: async (username, password) => {
@@ -478,6 +487,7 @@ export const useStore = create<AppState>((set, get) => ({
       });
       applyBranding(get().branding, get().businessName);
       get().loadRestaurantConfig();
+      get().loadBranches();
     } catch (err) {
       console.error('Error initializing data:', err);
     }
@@ -737,11 +747,28 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  loadBranches: async () => {
+    try {
+      const r = await api.getBranches();
+      set({ branches: r.branches || [], branchId: r.current || 1 });
+      try { if ((r.branches || []).length > 1) localStorage.setItem('pos-branch', String(r.current)); } catch { /* sin almacenamiento */ }
+    } catch { /* sin sedes */ }
+  },
+
+  /** Cambia la sede activa: la caja, las mesas, la cocina y las ventas pasan a ser las de esa sede. */
+  setBranch: async (id) => {
+    try { localStorage.setItem('pos-branch', String(id)); } catch { /* sin almacenamiento */ }
+    set({ branchId: id, orders: [], currentShift: null });
+    await get().initialize();
+  },
+
   loadRestaurantConfig: async () => {
     try { set({ restaurant: await api.getRestaurantConfig() }); } catch { /* sin módulo de restaurante */ }
   },
 
   handleOrderEvent: (order) => {
+    // Los pedidos de otra sede no se mezclan con los de la sede activa
+    if ((order as any).branchId && (order as any).branchId !== get().branchId && get().branches.length > 1) { set(s => ({ orders: s.orders.filter(o => o.id !== order.id) })); return; }
     set(s => {
       const idx = s.orders.findIndex(o => o.id === order.id);
       if (idx >= 0) {

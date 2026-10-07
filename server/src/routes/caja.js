@@ -13,6 +13,7 @@ const { today, isDate, now } = require('../cashHelpers');
 const { formatOrder } = require('../orderFormat');
 const { readRestaurantConfig } = require('../restaurantSchema');
 const D = require('../discounts');
+const { branchWhere } = require('../branches');
 const L = require('../ledger');
 
 const router = Router();
@@ -48,12 +49,13 @@ function scope(db, q) {
     from = q.from; to = toTime ? q.to : addDays(q.to, 1); if (!toTime) toTime = '00:00';
   }
   const fromTs = `${from} ${fromTime}:00`, toTs = `${to} ${toTime}:00`;
-  return { from, to: addDays(to, -1), fromTs, toTs, dateBy, turno, period, label: `Del ${fmtTs(fromTs)} al ${fmtTs(toTs)}` };
+  return { from, to: addDays(to, -1), fromTs, toTs, dateBy, turno, period, q: { branch: q.branch }, label: `Del ${fmtTs(fromTs)} al ${fmtTs(toTs)}` };
 }
 const tsExpr = (sc, alias = 'o') => (sc.dateBy === 'close' ? `COALESCE(${alias}.closed_at, ${alias}.delivered_at, ${alias}.created_at)` : `${alias}.created_at`);
 function where(sc, alias = 'o') {
   if (sc.shiftId) return { sql: `${alias}.shift_id = ?`, params: [sc.shiftId] };
-  return { sql: `${tsExpr(sc, alias)} >= ? AND ${tsExpr(sc, alias)} < ?`, params: [sc.fromTs, sc.toTs] };
+  const bw = branchWhere(alias, sc.q || {});
+  return { sql: `${tsExpr(sc, alias)} >= ? AND ${tsExpr(sc, alias)} < ?${bw.sql}`, params: [sc.fromTs, sc.toTs, ...bw.params] };
 }
 /** ¿La hora del día cae en el turno de servicio (Almuerzo, Cena…)? Admite turnos que pasan la medianoche. */
 function inTurno(db, sc, ts) {
@@ -300,7 +302,8 @@ router.delete('/discounts-catalog/:id', ADMIN_ONLY, (req, res) => {
 router.get('/movements', (req, res) => {
   const db = getDb();
   const sc = scope(db, req.query);
-  const w = sc.shiftId ? { sql: 'm.shift_id = ?', params: [sc.shiftId] } : { sql: 'm.created_at >= ? AND m.created_at < ?', params: [sc.fromTs, sc.toTs] };
+  const mbw = branchWhere('s', req.query);
+  const w = sc.shiftId ? { sql: 'm.shift_id = ?', params: [sc.shiftId] } : { sql: 'm.created_at >= ? AND m.created_at < ?' + mbw.sql, params: [sc.fromTs, sc.toTs, ...mbw.params] };
   let sql = `SELECT m.*, s.cashier_name AS shiftCashier FROM cash_movements m LEFT JOIN cash_shifts s ON s.id = m.shift_id WHERE ${w.sql}`;
   if (req.query.type === 'withdrawal' || req.query.type === 'deposit') sql += ` AND m.type = '${req.query.type}'`;
   const rows = db.prepare(sql + ' ORDER BY m.created_at DESC, m.id DESC').all(...w.params).filter(m => inTurno(db, sc, m.created_at));
@@ -329,8 +332,9 @@ function mapShift(r) {
 }
 router.get('/shifts', (req, res) => {
   const db = getDb();
-  let sql = `${SHIFT_SELECT} WHERE 1=1`;
-  const params = [];
+  const sbw = branchWhere('', req.query);
+  let sql = `${SHIFT_SELECT} WHERE 1=1${sbw.sql}`;
+  const params = [...sbw.params];
   if (req.query.status === 'open' || req.query.status === 'closed') { sql += ' AND status = ?'; params.push(req.query.status); }
   if (req.query.reconciled === 'yes') sql += ' AND reconciled_at IS NOT NULL';
   else if (req.query.reconciled === 'no') sql += " AND reconciled_at IS NULL AND status = 'closed'";

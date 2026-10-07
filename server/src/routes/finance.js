@@ -313,6 +313,7 @@ router.post('/expenses', STAFF, (req, res) => {
   `).run(v.date, v.categoryId, v.supplierId, v.description, v.amount, v.taxAmount, v.paymentMethod, v.status, v.dueDate,
     v.status === 'paid' ? now(db) : null, v.invoiceNumber, v.notes, fromCash ? 1 : 0, cashMovementId, req.user?.name || '', v.retention, v.retentionPct, v.invoiceDate, v.supportDoc);
   const id = Number(info.lastInsertRowid);
+  db.prepare('UPDATE expenses SET branch_id = ? WHERE id = ?').run(require('../branches').currentBranch(), id);
   if (v.status === 'paid') recordExpensePayment(db, { id }, { date: v.date, amount: payable, method: v.paymentMethod, notes: 'Pago registrado con el gasto', cashMovementId, createdBy: req.user?.name });
   if (v.supportDoc) issueSupportDoc(db, id);
   const row = db.prepare(`${EXP_SELECT} WHERE e.id = ?`).get(id);

@@ -1,7 +1,9 @@
 // Utilidades compartidas para vincular gastos, anticipos y pagos de nómina con la caja abierta.
 
-function getOpenShift(db) {
-  return db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+/** Turno de caja abierto de la sede activa (cada sede tiene su propia caja). */
+function getOpenShift(db, branchId) {
+  const b = branchId || require('./branches').currentBranch();
+  return db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' AND COALESCE(branch_id, 1) = ? ORDER BY opened_at DESC LIMIT 1").get(b);
 }
 
 /** Registra un retiro de efectivo en el turno abierto. Devuelve { id, shiftId } o { error }. */

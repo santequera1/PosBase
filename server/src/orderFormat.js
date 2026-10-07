@@ -47,6 +47,7 @@ function formatOrder(db, order) {
     discountName: order.discount_name || undefined,
     cancelReason: order.cancel_reason || undefined,
     createdBy: order.created_by || undefined,
+    branchId: order.branch_id || 1,
     tip,
     tipTo: order.tip_to || undefined,
     total: order.total,

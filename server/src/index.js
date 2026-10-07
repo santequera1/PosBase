@@ -34,6 +34,8 @@ app.io = io;
 app.use(cors());
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ limit: '30mb', extended: true }));
+// Sede activa de cada petición (encabezado X-Branch-Id): caja, mesas, cocina y ventas por sede
+app.use(require('./branches').branchMiddleware(getDb));
 
 // Initialize database
 getDb();
@@ -60,6 +62,7 @@ app.use('/api/restaurant', authMiddleware, require('./routes/restaurant'));
 app.use('/api/accounting', authMiddleware, require('./routes/accounting'));
 app.use('/api/einvoicing', authMiddleware, require('./routes/einvoicing'));
 app.use('/api/caja', authMiddleware, require('./routes/caja'));
+app.use('/api/branches', authMiddleware, require('./routes/branches'));
 // Impresión en red: configuración (usuarios) y agente del restaurante (token propio)
 const printingRoutes = require('./routes/printing');
 app.use('/api/printing', authMiddleware, printingRoutes.router);

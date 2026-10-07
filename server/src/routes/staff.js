@@ -218,7 +218,7 @@ router.post('/tips', STAFF, (req, res) => {
   const employeeId = req.body.employeeId ? Number(req.body.employeeId) : null;
   if (employeeId && !db.prepare('SELECT id FROM employees WHERE id = ?').get(employeeId)) return res.status(400).json({ error: 'Colaborador no encontrado' });
   const method = ['cash', 'card', 'transfer'].includes(req.body.method) ? req.body.method : 'cash';
-  const shift = db.prepare("SELECT id FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+  const shift = require('../cashHelpers').getOpenShift(db);
   const info = db.prepare('INSERT INTO tips (date, employee_id, amount, method, shift_id, notes) VALUES (?, ?, ?, ?, ?, ?)')
     .run(date, employeeId, amount, method, shift ? shift.id : null, String(req.body.notes || '').trim());
   res.status(201).json(db.prepare(`${TIP_SELECT} WHERE t.id = ?`).get(info.lastInsertRowid));

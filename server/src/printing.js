@@ -79,6 +79,16 @@ function initPrintingSchema(db) {
 const readSetting = (db, k) => { const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(k); return r ? r.value : undefined; };
 /** 'browser' = se imprime desde el navegador (diálogo de impresión) · 'agent' = por red con el agente. */
 function printMode(db) { return readSetting(db, 'printMode') === 'agent' ? 'agent' : 'browser'; }
+/** Datos del negocio con la dirección y el teléfono de la sede (si los tiene) y su nombre cuando hay varias sedes. */
+function bizFor(db, branchId) {
+  const b = biz(db);
+  try {
+    const br = db.prepare('SELECT * FROM branches WHERE id = ?').get(Number(branchId || 1));
+    const many = db.prepare('SELECT COUNT(*) AS c FROM branches WHERE active = 1').get().c > 1;
+    if (br) { if (br.address) b.address = br.address; if (br.phone) b.phone = br.phone; if (many) b.slogan = [b.slogan, `Sede ${br.name}`].filter(Boolean).join(' · '); }
+  } catch { /* sin sedes */ }
+  return b;
+}
 function biz(db) {
   const g = k => readSetting(db, k) || '';
   return { name: g('businessName') || 'Mi Negocio', slogan: g('businessSlogan'), address: g('businessAddress'), phone: g('businessPhone'), nit: g('businessNit'), hours: g('businessHours'),
@@ -88,10 +98,11 @@ function biz(db) {
 const mapPrinter = r => {
   let roles = []; try { roles = JSON.parse(r.roles || '[]'); } catch { roles = []; }
   return { id: r.id, name: r.name, ip: r.ip, port: r.port, roles, paper: r.paper, codepage: r.codepage, copies: r.copies, drawer: Boolean(r.drawer), beep: Boolean(r.beep), active: Boolean(r.active),
-    online: r.online === null || r.online === undefined ? null : Boolean(r.online), checkedAt: r.checked_at || null };
+    online: r.online === null || r.online === undefined ? null : Boolean(r.online), checkedAt: r.checked_at || null, branchId: r.branch_id === null || r.branch_id === undefined ? null : Number(r.branch_id) };
 };
 const listPrinters = db => db.prepare('SELECT * FROM printers ORDER BY id').all().map(mapPrinter);
-const printersFor = (db, role) => listPrinters(db).filter(p => p.active && p.roles.includes(role));
+/** Impresoras activas con esa función en la sede (las que no tienen sede sirven para todas). */
+const printersFor = (db, role, branchId = 1) => listPrinters(db).filter(p => p.active && p.roles.includes(role) && (p.branchId === null || p.branchId === Number(branchId || 1)));
 const ticketFor = p => new Ticket({ width: p.paper === 58 ? 32 : 48, codepage: p.codepage });
 
 /* ---------------- cola ---------------- */
@@ -296,7 +307,7 @@ function enqueueKitchen(db, orderId, batch, { user = '', mode } = {}) {
     WHERE oi.order_id = ? ${batch ? 'AND oi.batch = ?' : 'AND oi.batch IS NOT NULL'} ORDER BY oi.id`).all(...(batch ? [order.id, batch] : [order.id])).filter(i => i.station !== 'none');
   if (!items.length) return 0;
   const now = db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d;
-  const kitchenPrinters = printersFor(db, 'cocina');
+  const kitchenPrinters = printersFor(db, 'cocina', order.branch_id);
   const kmode = mode || (readSetting(db, 'kitchenPrintMode') === 'station' ? 'station' : 'single');
   let n = 0;
   if (kmode === 'single') {
@@ -306,7 +317,7 @@ function enqueueKitchen(db, orderId, batch, { user = '', mode } = {}) {
   for (const st of ['cocina', 'barra']) {
     const list = items.filter(i => (i.station === 'barra' ? 'barra' : 'cocina') === st);
     if (!list.length) continue;
-    const targets = printersFor(db, st).length ? printersFor(db, st) : kitchenPrinters;
+    const targets = printersFor(db, st, order.branch_id).length ? printersFor(db, st, order.branch_id) : kitchenPrinters;
     for (const p of targets) n += enqueue(db, p, 'comanda', `Comanda ${st} #${order.id}`, kitchenTicket(p, order, list, { station: st, batch, now }), { orderId: order.id, user }).length;
   }
   return n;
@@ -317,21 +328,21 @@ function enqueuePreBill(db, orderId, tipPct, user) {
   if (!order) throw new Error('Pedido no encontrado');
   const items = db.prepare('SELECT name, size, flavors, quantity, price FROM order_items WHERE order_id = ? ORDER BY id').all(order.id);
   order.now = db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d;
-  const b = biz(db);
-  return printersFor(db, 'caja').reduce((n, p) => n + enqueue(db, p, 'precuenta', `Precuenta #${order.id}`, preBillTicket(p, b, order, items, Number(tipPct) || 0), { orderId: order.id, user }).length, 0);
+  const b = bizFor(db, order.branch_id);
+  return printersFor(db, 'caja', order.branch_id).reduce((n, p) => n + enqueue(db, p, 'precuenta', `Precuenta #${order.id}`, preBillTicket(p, b, order, items, Number(tipPct) || 0), { orderId: order.id, user }).length, 0);
 }
 
 function enqueueReceipt(db, orderId, user) {
   const order = orderRow(db, orderId);
   if (!order) throw new Error('Pedido no encontrado');
   const items = db.prepare('SELECT name, size, flavors, quantity, price FROM order_items WHERE order_id = ? ORDER BY id').all(order.id);
-  const b = biz(db);
-  return printersFor(db, 'caja').reduce((n, p) => n + enqueue(db, p, 'recibo', `Recibo ${b.prefix}-${order.id}`, receiptTicket(p, b, order, items), { orderId: order.id, user }).length, 0);
+  const b = bizFor(db, order.branch_id);
+  return printersFor(db, 'caja', order.branch_id).reduce((n, p) => n + enqueue(db, p, 'recibo', `Recibo ${b.prefix}-${order.id}`, receiptTicket(p, b, order, items), { orderId: order.id, user }).length, 0);
 }
 
 function enqueueShiftReport(db, stats, isZ, user) {
-  const b = biz(db);
-  return printersFor(db, 'caja').reduce((n, p) => n + enqueue(db, p, isZ ? 'cierre' : 'corte', `${isZ ? 'Cierre' : 'Corte'} turno #${stats.id}`, shiftReportTicket(p, b, stats, isZ), { user }).length, 0);
+  const b = bizFor(db, stats.branch_id);
+  return printersFor(db, 'caja', stats.branch_id).reduce((n, p) => n + enqueue(db, p, isZ ? 'cierre' : 'corte', `${isZ ? 'Cierre' : 'Corte'} turno #${stats.id}`, shiftReportTicket(p, b, stats, isZ), { user }).length, 0);
 }
 
 function enqueueTest(db, printerId, user) {

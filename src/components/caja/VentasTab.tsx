@@ -18,6 +18,7 @@ const INFO_TABS = [['methods', 'Medios de pago'], ['rooms', 'Salones'], ['cancel
 
 export const VentasTab = ({ period, setPeriod, shifts, selectedId, onSelect }: { period: Period; setPeriod: (p: Period) => void; shifts: any[]; selectedId: number | null; onSelect: (id: number | null) => void }) => {
   const customers = useStore(s => s.customers);
+  const branches = useStore(s => s.branches);
   const [f, setF] = useState<Record<string, string>>({ status: '', type: '', waiter: '', customer: '', method: '', table: '', invoiced: '' });
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,7 @@ export const VentasTab = ({ period, setPeriod, shifts, selectedId, onSelect }: {
     { key: 'method', label: 'Medio de pago', options: [['cash', 'Efectivo'], ['card', 'Datáfono'], ['transfer', 'Transferencia bancaria'], ['platform', 'Plataforma'], ['credit', 'A crédito']] },
     { key: 'table', label: 'Mesa', options: (data?.tables || []).map((t: string) => [t, t]) },
     { key: 'invoiced', label: 'Facturación', options: [['yes', 'Facturado'], ['no', 'No facturado']] },
+    ...(branches.length > 1 ? [{ key: 'branch', label: 'Sede', options: [['all', 'Todas las sedes'], ...branches.map(b => [String(b.id), b.name] as [string, string])] as Array<[string, string]> }] : []),
   ];
   const exportX = () => data && downloadXlsx(`ventas_${new Date().toISOString().slice(0, 10)}`, [{
     name: 'Ventas', widths: [8, 16, 16, 11, 12, 6, 20, 22, 12, 14, 12, 10, 10, 13],

@@ -6,6 +6,7 @@ import {
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
+import { api } from '@/lib/api';
 import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { PrintModal } from '@/components/PrintModal';
 import { GelatoStats } from '@/components/GelatoStats';
@@ -72,7 +73,15 @@ const SimpleTable = ({ headers, rows, empty = 'Sin datos con estos filtros.' }: 
 );
 
 export const ReportsPage: React.FC = () => {
-  const { orders, user, deleteOrder, products, categories } = useStore();
+  const { orders: branchOrders, user, deleteOrder, products, categories, branches, branchId } = useStore();
+  // Sede: la activa (pedidos del store) o todas / otra sede (se consultan aparte)
+  const [branchView, setBranchView] = useState<string>('current');
+  const [otherOrders, setOtherOrders] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (branchView === 'current') { setOtherOrders(null); return; }
+    api.getOrders({ branch: branchView }).then(setOtherOrders).catch(() => setOtherOrders([]));
+  }, [branchView, branchId]);
+  const orders = (branchView === 'current' ? branchOrders : (otherOrders || [])) as typeof branchOrders;
   const [tab, setTab] = useState<Tab>('ventas');
   const [f, setF] = useState<SalesFilters>(loadFilters);
   const [showMore, setShowMore] = useState(false);
@@ -228,6 +237,13 @@ export const ReportsPage: React.FC = () => {
               </button>
             ))}
           </div>
+          {branches.length > 1 && (
+            <NiceSelect value={branchView} onChange={e => setBranchView(e.target.value)} className="py-2 text-xs font-bold" data-report-branch>
+              <option value="current">Sede: {branches.find(b => b.id === branchId)?.name || 'actual'}</option>
+              <option value="all">Todas las sedes</option>
+              {branches.filter(b => b.id !== branchId).map(b => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
+            </NiceSelect>
+          )}
           <button onClick={exportXlsx} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-brand-primary/20 text-xs font-bold text-brand-primary hover:bg-brand-card shadow-sm">
             <Download size={14} /><span className="hidden sm:inline">Excel</span>
           </button>

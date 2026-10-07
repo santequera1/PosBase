@@ -16,6 +16,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(localStorage.getItem('pos-branch') ? { 'X-Branch-Id': String(localStorage.getItem('pos-branch')) } : {}),
       ...options.headers,
     },
   });
@@ -89,9 +90,10 @@ export const api = {
   deleteCustomer: (id: number) => request<any>(`/customers/${id}`, { method: 'DELETE' }),
 
   // Orders
-  getOrders: (params?: { status?: string; search?: string }) => {
+  getOrders: (params?: { status?: string; search?: string; branch?: string }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
+    if (params?.branch) qs.set('branch', params.branch);
     if (params?.search) qs.set('search', params.search);
     const q = qs.toString();
     return request<any[]>(`/orders${q ? '?' + q : ''}`);
@@ -365,5 +367,9 @@ export const api = {
   retryPrintJob: (id: number) => request<any>(`/printing/jobs/${id}/retry`, { method: 'POST' }),
   netPrint: (kind: 'receipt' | 'prebill' | 'kitchen' | 'shift-report', data: any) => request<any>(`/printing/${kind}`, { method: 'POST', body: JSON.stringify(data) }),
   voidExpense: (id: number, reason: string) => request<any>(`/finance/expenses/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  getBranches: (all = false) => request<any>(`/branches${all ? '?all=1' : ''}`),
+  addBranch: (data: any) => request<any>('/branches', { method: 'POST', body: JSON.stringify(data) }),
+  updateBranch: (id: number, data: any) => request<any>(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  assignCategoryBranches: (assign: Record<number, number | null>) => request<any>('/branches/categories/assign', { method: 'PUT', body: JSON.stringify({ assign }) }),
   importEmployees: (rows: any[], dryRun: boolean) => request<any>('/staff/employees/import', { method: 'POST', body: JSON.stringify({ rows, dryRun }) }),
 };

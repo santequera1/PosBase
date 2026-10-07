@@ -6,6 +6,7 @@ import { useStore } from '@/store/useStore';
 import { cn } from '@/lib/utils';
 import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { buildInstaller } from '@/lib/printInstaller';
+import { NiceSelect } from '@/components/ui/nice-select';
 
 const ROLE_OPTS = [
   { id: 'cocina', label: 'Cocina', hint: 'Comandas de comida' },
@@ -32,7 +33,9 @@ const ago = (ts?: string | null) => {
 };
 
 const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any | null; prefillIp?: string; onClose: () => void; onSaved: () => void }) => {
-  const [f, setF] = useState<any>(printer ? { ...printer } : { name: '', ip: prefillIp || '', port: 9100, roles: [], paper: 80, codepage: 'cp850', copies: 1, drawer: false, beep: false, active: true });
+  const branches = useStore(s => s.branches);
+  const branchId = useStore(s => s.branchId);
+  const [f, setF] = useState<any>(printer ? { ...printer } : { name: '', ip: prefillIp || '', port: 9100, roles: [], paper: 80, codepage: 'cp850', copies: 1, drawer: false, beep: false, active: true, branchId });
   const [error, setError] = useState('');
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const save = async () => {
@@ -59,6 +62,14 @@ const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any |
         <div><label className={LABEL}>Papel</label><div className="flex gap-1.5">{[80, 58].map(p => <Chip key={p} active={f.paper === p} onClick={() => set({ paper: p })}>{p} mm</Chip>)}</div></div>
         <div><label className={LABEL}>Copias</label><div className="flex gap-1.5">{[1, 2, 3].map(c => <Chip key={c} active={f.copies === c} onClick={() => set({ copies: c })}>{c}</Chip>)}</div></div>
         <div className="col-span-2"><label className={LABEL}>Tildes y ñ</label><div className="flex gap-1.5"><Chip active={f.codepage === 'cp850'} onClick={() => set({ codepage: 'cp850' })}>Con tildes (PC850)</Chip><Chip active={f.codepage === 'ascii'} onClick={() => set({ codepage: 'ascii' })}>Sin tildes (si salen símbolos raros)</Chip></div></div>
+        {branches.length > 1 && (
+          <div className="col-span-2"><label className={LABEL}>Sede</label>
+            <NiceSelect value={f.branchId === null || f.branchId === undefined ? '' : String(f.branchId)} onChange={e => set({ branchId: e.target.value === '' ? null : Number(e.target.value) })} className={INPUT} data-printer-branch>
+              <option value="">Todas las sedes</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </NiceSelect>
+          </div>
+        )}
         <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={f.drawer} onChange={e => set({ drawer: e.target.checked })} /> Abrir el cajón monedero al imprimir un recibo pagado en efectivo</label>
         <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={f.beep} onChange={e => set({ beep: e.target.checked })} /> Pitido al llegar una comanda (si la impresora lo soporta)</label>
         {printer && <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={f.active} onChange={e => set({ active: e.target.checked })} /> Activa</label>}
@@ -85,6 +96,7 @@ const ManualIdentify = ({ onSend }: { onSend: (ip: string) => void }) => {
 export const PrintersPanel = () => {
   const loadRestaurantConfig = useStore(s => s.loadRestaurantConfig);
   const restaurant = useStore(s => s.restaurant);
+  const branchesAll = useStore(s => s.branches);
   const [cfg, setCfg] = useState<any>(null);
   const [edit, setEdit] = useState<{ open: boolean; printer: any | null; ip?: string }>({ open: false, printer: null });
   const [newAgent, setNewAgent] = useState<{ token: string; name: string } | null>(null);
@@ -195,7 +207,7 @@ export const PrintersPanel = () => {
                   <button onClick={() => setEdit({ open: true, printer: p })} className="p-1 text-muted-foreground hover:text-brand-primary"><Edit2 size={13} /></button>
                   <button onClick={() => removePrinter(p)} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>
                 </div>
-                <p className="text-[11px] font-mono text-muted-foreground">{p.ip}:{p.port} · {p.paper} mm{p.copies > 1 ? ` · ${p.copies} copias` : ''}</p>
+                <p className="text-[11px] font-mono text-muted-foreground">{p.ip}:{p.port} · {p.paper} mm{p.copies > 1 ? ` · ${p.copies} copias` : ''}{branchesAll.length > 1 ? ` · ${p.branchId ? (branchesAll.find(b => b.id === p.branchId)?.name || 'Sede') : 'Todas las sedes'}` : ''}</p>
                 <div className="flex flex-wrap gap-1">{p.roles.length ? p.roles.map((r: string) => <span key={r} className="text-[10px] px-2 py-0.5 rounded-full bg-brand-card border border-brand-accent/40 font-semibold">{cfg.roles[r] || r}</span>) : <span className="text-[10px] text-amber-700">Sin función asignada</span>}</div>
                 <p className="text-[10px] text-muted-foreground">{p.online === false ? 'No responde: revisa que esté encendida y conectada' : p.online ? `Responde · ${ago(p.checkedAt)}` : 'El agente aún no la ha revisado'}</p>
                 <button onClick={() => test(p)} disabled={!anyOnline} data-printer-test className="w-full py-1.5 rounded-lg border border-border text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40"><Zap size={12} /> Imprimir prueba</button>

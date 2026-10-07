@@ -5,6 +5,7 @@ const { initModulesSchema } = require('./modules');
 const { initRestaurantSchema } = require('./restaurantSchema');
 const { initPayrollExtras } = require('./payrollExtras');
 const { initPrintingSchema } = require('./printing');
+const { initBranches } = require('./branches');
 const { initAccountingSchema } = require('./accountingSchema');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data.db');
@@ -23,6 +24,7 @@ function getDb() {
     initPrintingSchema(db);
     initRestaurantSchema(db);
     initAccountingSchema(db);
+    initBranches(db);
     seedIfEmpty();
     syncSpecialProducts();
     backfillOrderCashier(db);

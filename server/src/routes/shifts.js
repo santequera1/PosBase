@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { registerAttendanceForShift, closeAttendanceForShift } = require('../cashHelpers');
+const { registerAttendanceForShift, closeAttendanceForShift, getOpenShift } = require('../cashHelpers');
+const { currentBranch } = require('../branches');
 const { requirePerm } = require('../auth');
 const L = require('../ledger');
 
@@ -118,7 +119,7 @@ function getShiftLiveStats(db, shift) {
 // Get current open shift
 router.get('/current', (req, res) => {
   const db = getDb();
-  const shift = db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+  const shift = getOpenShift(db);
 
   if (!shift) {
     return res.json(null);
@@ -138,7 +139,7 @@ router.post('/movement', requirePerm('cash_withdrawals'), (req, res) => {
   const db = getDb();
   let shift = shiftId
     ? db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(shiftId)
-    : db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+    : getOpenShift(db);
 
   if (!shift) {
     return res.status(404).json({ error: 'No hay turno abierto' });
@@ -162,7 +163,7 @@ router.get('/movements', (req, res) => {
   const db = getDb();
   let shift = shiftId
     ? db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(shiftId)
-    : db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+    : getOpenShift(db);
 
   if (!shift) return res.json([]);
   const movements = db.prepare('SELECT * FROM cash_movements WHERE shift_id = ? ORDER BY created_at DESC').all(shift.id);
@@ -175,13 +176,13 @@ router.post('/open', requirePerm('shift'), (req, res) => {
   const db = getDb();
 
   // Close any previously open shift first
-  db.prepare("UPDATE cash_shifts SET status = 'closed', closed_at = datetime('now', '-5 hours') WHERE status = 'open'").run();
+  db.prepare("UPDATE cash_shifts SET status = 'closed', closed_at = datetime('now', '-5 hours') WHERE status = 'open' AND COALESCE(branch_id, 1) = ?").run(currentBranch());
 
   const name = cashierName || req.user?.name || 'Caja';
   const result = db.prepare(`
-    INSERT INTO cash_shifts (user_id, cashier_name, opened_at, initial_cash, status, notes)
-    VALUES (?, ?, datetime('now', '-5 hours'), ?, 'open', ?)
-  `).run(req.user?.id || 1, name, Number(initialCash) || 0, notes);
+    INSERT INTO cash_shifts (user_id, cashier_name, opened_at, initial_cash, status, notes, branch_id)
+    VALUES (?, ?, datetime('now', '-5 hours'), ?, 'open', ?, ?)
+  `).run(req.user?.id || 1, name, Number(initialCash) || 0, notes, currentBranch());
 
   const shift = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(result.lastInsertRowid);
   registerAttendanceForShift(db, shift, req.user);
@@ -197,7 +198,7 @@ router.post('/close', requirePerm('shift'), (req, res) => {
 
   let shift = shiftId
     ? db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(shiftId)
-    : db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+    : getOpenShift(db);
 
   if (!shift) {
     return res.status(404).json({ error: 'No hay turno abierto para cerrar' });
@@ -251,7 +252,7 @@ router.post('/close', requirePerm('shift'), (req, res) => {
 // Shift history
 router.get('/history', (req, res) => {
   const db = getDb();
-  const rows = db.prepare('SELECT * FROM cash_shifts ORDER BY opened_at DESC, id DESC LIMIT 30').all();
+  const rows = db.prepare('SELECT * FROM cash_shifts WHERE COALESCE(branch_id, 1) = ? ORDER BY opened_at DESC, id DESC LIMIT 30').all(currentBranch());
   res.json(rows);
 });
 

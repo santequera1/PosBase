@@ -7,6 +7,7 @@ const { formatOrder } = require('../orderFormat');
 const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
 const D = require('../discounts');
 const { getOpenShift, now } = require('../cashHelpers');
+const { branchWhere, currentBranch } = require('../branches');
 const CHANNEL_IDS = CHANNELS.map(c => c.id);
 const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
 const { requireRole, hasAction } = require('../auth');
@@ -24,8 +25,9 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 router.get('/', (req, res) => {
   const { status, search } = req.query;
   const db = getDb();
-  let sql = 'SELECT * FROM orders WHERE 1=1';
-  const params = [];
+  const bw = branchWhere('', req.query);
+  let sql = 'SELECT * FROM orders WHERE 1=1' + bw.sql;
+  const params = [...bw.params];
 
   if (status && status !== 'all') {
     sql += ' AND status = ?';
@@ -126,7 +128,7 @@ router.post('/', async (req, res) => {
   // Auto-link to active open shift if shiftId is not provided or zero
   let effectiveShiftId = Number(shiftId);
   if (!effectiveShiftId || effectiveShiftId <= 0) {
-    const openShift = db.prepare("SELECT id FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+    const openShift = getOpenShift(db);
     effectiveShiftId = openShift ? openShift.id : null;
   }
 
@@ -166,6 +168,7 @@ router.post('/', async (req, res) => {
   );
 
   const orderId = result.lastInsertRowid;
+  db.prepare('UPDATE orders SET branch_id = ? WHERE id = ?').run(currentBranch(), orderId);
   if (Number(discount) > 0) db.prepare('UPDATE orders SET discount_reason = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ?, discount_id = ?, discount_name = ? WHERE id = ?')
     .run(reason || null, cat ? cat.kind : 'manual', cat && cat.employee ? cat.employee.id : null, cat && cat.employee ? cat.employee.name : null, cat ? cat.discount.id : null, cat ? cat.discount.name : null, orderId);
   db.prepare('UPDATE orders SET created_by = ? WHERE id = ?').run(req.user?.name || null, orderId);

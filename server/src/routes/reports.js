@@ -5,7 +5,8 @@ const { requirePerm } = require('../auth');
 const router = Router();
 
 function getPeriodFilter(period) {
-  return "AND status != 'open' " + periodClause(period);
+  const { currentBranch } = require('../branches');
+  return "AND status != 'open' " + periodClause(period) + ` AND COALESCE(branch_id, 1) = ${Number(currentBranch())}`;
 }
 function periodClause(period) {
   switch (period) {

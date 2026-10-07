@@ -41,7 +41,7 @@ export function printThermal(htmlInnerContent: string, title = 'Impresión POS')
 }
 
 export function generateSalesTicketHtml(order: any, options: PrintOptions = {}): string {
-  const biz = getBusinessInfo();
+  const biz = getBusinessInfo(order?.branchId);
   const paperSize = options.paperSize || '80mm';
   const widthCss = '50mm';
   const fontSize = '8.5px';
@@ -171,7 +171,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
 }
 
 export function generateZReportHtml(shiftData: any, options: PrintOptions & { isReportX?: boolean } = {}): string {
-  const biz = getBusinessInfo();
+  const biz = getBusinessInfo(shiftData?.branch_id || shiftData?.branchId);
   const paperSize = options.paperSize || '80mm';
   const widthCss = '50mm';
   const fontSize = '8px';

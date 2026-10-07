@@ -22,6 +22,7 @@ import {
   LayoutGrid, ShoppingBag, Bike, ChefHat, ChevronDown,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { BranchSwitcher } from '@/components/BranchSwitcher';
 import { formatPrice, formatTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { can, type ViewKey, type PermUser } from '@/lib/permissions';
@@ -225,6 +226,7 @@ export const AppLayout = () => {
           <div className="flex-1 hidden md:flex items-center min-w-0">
             <span className="font-serif font-bold text-lg text-brand-primary truncate" data-testid="header-business-name">{businessName}</span>
           </div>
+        <BranchSwitcher />
         {/* Modo claro / oscuro (preferencia de este dispositivo) */}
         <button onClick={() => setModeOverride(isDark ? 'light' : 'dark')}
           className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>

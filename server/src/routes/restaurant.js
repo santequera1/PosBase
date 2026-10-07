@@ -8,6 +8,7 @@ const { requireRole, requirePerm, hasAction } = require('../auth');
 const { formatOrder } = require('../orderFormat');
 const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, getProduct, emitProduct } = require('../stock');
 const { getOpenShift, now, today, isDate } = require('../cashHelpers');
+const { branchWhere, currentBranch } = require('../branches');
 const { readRestaurantConfig, saveRestaurantConfig, staffLists, CHANNELS, STATIONS } = require('../restaurantSchema');
 const D = require('../discounts');
 
@@ -88,7 +89,7 @@ router.put('/config', ADMIN, (req, res) => {
 
 /* =================== Salones y mesas =================== */
 function roomsWithTables(db) {
-  const rooms = db.prepare('SELECT id, name, sort_order AS sortOrder FROM rooms WHERE active = 1 ORDER BY sort_order, id').all();
+  const rooms = db.prepare('SELECT id, name, sort_order AS sortOrder FROM rooms WHERE active = 1 AND COALESCE(branch_id, 1) = ? ORDER BY sort_order, id').all(currentBranch());
   const tables = db.prepare('SELECT id, room_id AS roomId, label, shape, seats, x, y, w, h, sort_order AS sortOrder FROM tables WHERE active = 1 ORDER BY sort_order, id').all();
   return rooms.map(r => ({ ...r, tables: tables.filter(t => t.roomId === r.id) }));
 }
@@ -114,7 +115,7 @@ router.post('/rooms', ADMIN, (req, res) => {
   const name = String(req.body.name || '').trim();
   if (name.length < 2) return res.status(400).json({ error: 'El nombre del salón es requerido' });
   const max = db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM rooms').get().m;
-  const info = db.prepare('INSERT INTO rooms (name, sort_order) VALUES (?, ?)').run(name, max + 1);
+  const info = db.prepare('INSERT INTO rooms (name, sort_order, branch_id) VALUES (?, ?, ?)').run(name, max + 1, currentBranch());
   res.status(201).json(roomsWithTables(db).find(r => r.id === Number(info.lastInsertRowid)));
 });
 router.put('/rooms/:id', ADMIN, (req, res) => {
@@ -129,7 +130,7 @@ router.delete('/rooms/:id', ADMIN, (req, res) => {
   const id = Number(req.params.id);
   const busy = db.prepare(`SELECT COUNT(*) AS c FROM orders o JOIN tables t ON t.id = o.table_id WHERE t.room_id = ? AND o.status IN (${ACTIVE_SQL})`).get(id).c;
   if (busy) return res.status(409).json({ error: 'Hay mesas con cuentas abiertas en este salón' });
-  if (db.prepare('SELECT COUNT(*) AS c FROM rooms WHERE active = 1').get().c <= 1) return res.status(400).json({ error: 'Debe quedar al menos un salón' });
+  if (db.prepare('SELECT COUNT(*) AS c FROM rooms WHERE active = 1 AND COALESCE(branch_id, 1) = ?').get(currentBranch()).c <= 1) return res.status(400).json({ error: 'Debe quedar al menos un salón' });
   db.prepare('UPDATE tables SET active = 0 WHERE room_id = ?').run(id);
   db.prepare('UPDATE rooms SET active = 0 WHERE id = ?').run(id);
   res.json({ ok: true });
@@ -223,7 +224,7 @@ router.post('/orders', (req, res) => {
     deliveryFee, deliveryFee, paymentMethod, String(b.notes || '').trim(), shift ? shift.id : null, req.user?.name || null, req.user?.id || null,
     b.estimatedMinutes ? Math.round(Number(b.estimatedMinutes)) : null,
   );
-  db.prepare('UPDATE orders SET created_by = COALESCE(created_by, ?) WHERE id = ?').run(req.user?.name || null, info.lastInsertRowid);
+  db.prepare('UPDATE orders SET created_by = COALESCE(created_by, ?), branch_id = ? WHERE id = ?').run(req.user?.name || null, currentBranch(), info.lastInsertRowid);
   const formatted = fmt(db, info.lastInsertRowid);
   emit(req, 'order:new', formatted);
   res.status(201).json(formatted);
@@ -233,8 +234,9 @@ router.post('/orders', (req, res) => {
 router.get('/orders/active', (req, res) => {
   const db = getDb();
   const type = TYPES.includes(req.query.type) ? req.query.type : null;
-  let sql = `SELECT * FROM orders WHERE status IN (${ACTIVE_SQL})`;
-  const params = [];
+  const bw = branchWhere('', req.query);
+  let sql = `SELECT * FROM orders WHERE status IN (${ACTIVE_SQL})${bw.sql}`;
+  const params = [...bw.params];
   if (type) { sql += ' AND type = ?'; params.push(type); }
   sql += ' ORDER BY created_at';
   res.json(db.prepare(sql).all(...params).map(o => formatOrder(db, o)));
@@ -529,7 +531,7 @@ router.get('/kitchen', (req, res) => {
            oi.id AS itemId, oi.batch, oi.sent_at AS sentAt, COALESCE(oi.kitchen_status, 'pending') AS kitchenStatus, oi.kitchen_ready_at AS readyAt, oi.name, oi.size, oi.flavors, oi.quantity, oi.notes,
            COALESCE(p.station, 'cocina') AS station
     FROM order_items oi JOIN orders o ON o.id = oi.order_id LEFT JOIN products p ON p.id = oi.product_id
-    WHERE oi.batch IS NOT NULL AND o.status IN (${ACTIVE_SQL})
+    WHERE oi.batch IS NOT NULL AND o.status IN (${ACTIVE_SQL}) AND COALESCE(o.branch_id, 1) = ${Number(currentBranch())}
       AND (COALESCE(oi.kitchen_status, 'pending') != 'ready' OR oi.kitchen_ready_at >= datetime('now', '-5 hours', '-45 minutes'))
       AND COALESCE(p.station, 'cocina') != 'none'
     ORDER BY oi.sent_at, o.id, oi.batch, oi.id
@@ -594,7 +596,8 @@ function cashPart(o) {
 router.get('/stats', requireRole('admin', 'cashier'), (req, res) => {
   const db = getDb();
   const { from, to } = range(req);
-  const orders = db.prepare("SELECT * FROM orders WHERE status != 'cancelled' AND date(created_at) BETWEEN ? AND ?").all(from, to);
+  const bw = branchWhere('', req.query);
+  const orders = db.prepare(`SELECT * FROM orders WHERE status != 'cancelled' AND date(created_at) BETWEEN ? AND ?${bw.sql}`).all(from, to, ...bw.params);
   const byType = {}, byChannel = {}, byWaiter = {}, byCourier = {};
   let tips = 0, deliveryFees = 0, people = 0, dineInTotal = 0, discounts = 0;
   for (const o of orders) {

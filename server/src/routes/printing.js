@@ -26,6 +26,7 @@ function printerPayload(b, cur = {}) {
     drawer: b.drawer !== undefined ? Boolean(b.drawer) : Boolean(cur.drawer),
     beep: b.beep !== undefined ? Boolean(b.beep) : Boolean(cur.beep),
     active: b.active !== undefined ? Boolean(b.active) : (cur.active === undefined ? true : Boolean(cur.active)),
+    branchId: b.branchId !== undefined ? (b.branchId === null || b.branchId === '' ? null : Number(b.branchId)) : (cur.branchId === undefined ? require('../branches').currentBranch() : cur.branchId),
   };
 }
 function validate(p) {
@@ -62,8 +63,8 @@ router.post('/printers', ADMIN, (req, res) => {
   const p = printerPayload(req.body || {});
   const err = validate(p);
   if (err) return res.status(400).json({ error: err });
-  const info = db.prepare('INSERT INTO printers (name, ip, port, roles, paper, codepage, copies, drawer, beep, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(p.name, p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0);
+  const info = db.prepare('INSERT INTO printers (name, ip, port, roles, paper, codepage, copies, drawer, beep, active, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(p.name, p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, p.branchId);
   res.status(201).json(P.listPrinters(db).find(x => x.id === Number(info.lastInsertRowid)));
 });
 
@@ -74,8 +75,8 @@ router.put('/printers/:id', ADMIN, (req, res) => {
   const p = printerPayload(req.body || {}, cur);
   const err = validate(p);
   if (err) return res.status(400).json({ error: err });
-  db.prepare('UPDATE printers SET name = ?, ip = ?, port = ?, roles = ?, paper = ?, codepage = ?, copies = ?, drawer = ?, beep = ?, active = ? WHERE id = ?')
-    .run(p.name, p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, cur.id);
+  db.prepare('UPDATE printers SET name = ?, ip = ?, port = ?, roles = ?, paper = ?, codepage = ?, copies = ?, drawer = ?, beep = ?, active = ?, branch_id = ? WHERE id = ?')
+    .run(p.name, p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, p.branchId, cur.id);
   res.json(P.listPrinters(db).find(x => x.id === cur.id));
 });
 
@@ -146,7 +147,7 @@ router.post('/shift-report', (req, res) => {
   if (!needAgentMode(db, res)) return;
   const shift = req.body.shiftId
     ? db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(Number(req.body.shiftId))
-    : db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").get();
+    : require('../cashHelpers').getOpenShift(db);
   if (!shift) return res.status(404).json({ error: 'Turno no encontrado' });
   const stats = require('./shifts').getShiftLiveStats(db, shift);
   queued(res, P.enqueueShiftReport(db, stats, req.body.type === 'Z' || shift.status === 'closed', req.user?.name), 'la caja');

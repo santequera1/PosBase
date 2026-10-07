@@ -7,14 +7,16 @@ export function orderNumber(id: number | string | undefined | null): string {
 }
 
 /** Datos del negocio configurados en Ajustes → Negocio, para encabezados de recibos. */
-export function getBusinessInfo() {
+export function getBusinessInfo(branchId?: number) {
   const s = useStore.getState();
+  const br = s.branches.find(b => b.id === (branchId || s.branchId));
+  const many = s.branches.length > 1;
   return {
     name: s.businessName || 'Mi Negocio',
     hours: s.businessHours || '',
-    slogan: s.businessSlogan || '',
-    address: s.businessAddress || '',
-    phone: s.businessPhone || '',
+    slogan: [s.businessSlogan || '', many && br ? `Sede ${br.name}` : ''].filter(Boolean).join(' · '),
+    address: (br && br.address) || s.businessAddress || '',
+    phone: (br && br.phone) || s.businessPhone || '',
     nit: s.businessNit || '',
     prefix: s.invoicePrefix || 'POS',
     taxType: s.taxType || 'none',
