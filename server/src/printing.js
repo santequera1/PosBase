@@ -317,7 +317,8 @@ function enqueueKitchen(db, orderId, batch, { user = '', mode } = {}) {
   for (const st of ['cocina', 'barra']) {
     const list = items.filter(i => (i.station === 'barra' ? 'barra' : 'cocina') === st);
     if (!list.length) continue;
-    const targets = printersFor(db, st, order.branch_id).length ? printersFor(db, st, order.branch_id) : kitchenPrinters;
+    // Sin impresora de barra, las bebidas NO salen en cocina: se despachan desde la caja (si quieren su ticket, marquen la impresora de caja también como Barra)
+    const targets = st === 'barra' ? printersFor(db, 'barra', order.branch_id) : kitchenPrinters;
     for (const p of targets) n += enqueue(db, p, 'comanda', `Comanda ${st} #${order.id}`, kitchenTicket(p, order, list, { station: st, batch, now }), { orderId: order.id, user }).length;
   }
   return n;
@@ -390,7 +391,8 @@ function enqueueSamples(db, printerId, user) {
 /** Al enviar una tanda a cocina: si está activa la impresión en red y la impresión automática, sale sola. */
 function autoKitchen(db, orderId, batch, user) {
   try {
-    if (printMode(db) !== 'agent' || readSetting(db, 'autoPrintKitchen') !== '1' || !batch) return 0;
+    // Con impresión en red, la comanda sale al enviarla salvo que se haya desactivado explícitamente
+    if (printMode(db) !== 'agent' || readSetting(db, 'autoPrintKitchen') === '0' || !batch) return 0;
     return enqueueKitchen(db, orderId, batch, { user });
   } catch (e) { console.warn('Impresión de comanda:', e.message); return 0; }
 }

@@ -34,11 +34,12 @@ const PersonPicker = ({ people, value, onChange, empty }: { people: Array<{ id: 
 };
 
 export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }: Props) => {
-  const { restaurant, customers } = useStore();
+  const { restaurant, customers, user } = useStore();
   const waiters = restaurant?.staff.waiters || [];
   const couriers = restaurant?.staff.couriers || [];
   const [people, setPeople] = useState('2');
-  const [waiterId, setWaiterId] = useState<number>(0);
+  // Si quien abre la mesa es un mesero con cuenta propia, queda asignado de una vez
+  const [waiterId, setWaiterId] = useState<number>(() => (waiters as Array<{ id: number; userId?: number | null }>).find(w => user?.id && w.userId === user.id)?.id || 0);
   const [label, setLabel] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -92,7 +93,12 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
                 <div className="flex items-center gap-1 ml-1"><span className="text-xs text-muted-foreground">Otro:</span><input type="number" min={1} value={people} onChange={e => setPeople(e.target.value)} className={cn(INPUT, 'w-20 font-mono text-center')} /></div>
               </div></div>
             <div className="sm:col-span-2"><label className={cn(LABEL, 'flex items-center gap-1')}><UserRound size={12} /> Mesero</label>
-              <PersonPicker people={waiters} value={waiterId} onChange={setWaiterId} empty="Crea los meseros en Personal para poder asignarlos." />
+              {waiters.length ? (
+                <NiceSelect value={String(waiterId)} onChange={e => setWaiterId(Number(e.target.value))} className={INPUT} data-waiter-select>
+                  <option value="0">Sin asignar</option>
+                  {waiters.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
+                </NiceSelect>
+              ) : <p className="text-[10px] text-muted-foreground">Crea los meseros en Personal para poder asignarlos.</p>}
             </div>
             <div><label className={LABEL}>Cliente (opcional)</label><input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre para la cuenta" className={INPUT} /></div>
             <div><label className={LABEL}>Etiqueta (opcional)</label><input value={label} onChange={e => setLabel(e.target.value)} placeholder="Ej. Cumpleaños, reserva Ana..." className={INPUT} /></div>
@@ -137,8 +143,9 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
             <label className="sm:col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={saveCustomer} onChange={e => setSaveCustomer(e.target.checked)} /> Guardar cliente y dirección para la próxima vez</label>
           </>
         )}
-        <div className="sm:col-span-2"><label className={cn(LABEL, 'flex items-center gap-1')}><MessageSquare size={12} /> Comentario</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ej. sin cebolla, timbre dañado, pagar con 50 mil..." className={INPUT} /></div>
+        {type !== 'dine-in' && <div className="sm:col-span-2"><label className={cn(LABEL, 'flex items-center gap-1')}><MessageSquare size={12} /> Comentario</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ej. sin cebolla, timbre dañado, pagar con 50 mil..." className={INPUT} /></div>}
       </div>
+      {type === 'dine-in' && <p className="text-[11px] text-muted-foreground">El comentario de la mesa se agrega después desde la cuenta (⋯ → Editar datos).</p>}
       {type === 'delivery' && <p className="text-[11px] text-muted-foreground">Envío {formatPrice(Number(fee) || 0)} · llega en ~{minutes} min. Los productos se agregan en el siguiente paso.</p>}
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button onClick={submit} disabled={saving || !canSubmit} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Creando...' : type === 'dine-in' ? 'Abrir mesa y agregar productos' : 'Crear y agregar productos'}</button>

@@ -35,7 +35,7 @@ function recomputeTotals(db, orderId) {
 }
 
 /** Envía a cocina los ítems que aún no tienen comanda. Devuelve el número de comanda o null si no había nada nuevo. */
-function sendUnsent(db, io, order, userName) {
+function sendUnsent(db, io, order, userName, out = {}) {
   const unsent = db.prepare('SELECT * FROM order_items WHERE order_id = ? AND batch IS NULL').all(order.id);
   if (!unsent.length) return null;
   const batch = (db.prepare('SELECT COALESCE(MAX(batch), 0) AS b FROM order_items WHERE order_id = ?').get(order.id).b || 0) + 1;
@@ -48,7 +48,7 @@ function sendUnsent(db, io, order, userName) {
   }
   applySaleStock(db, io, order.id, unsent.map(i => ({ productId: i.product_id, quantity: i.quantity })), userName);
   if (order.status === 'open' && order.type !== 'dine-in') db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('pending', order.id);
-  require('../printing').autoKitchen(db, order.id, batch, userName);
+  out.printed = require('../printing').autoKitchen(db, order.id, batch, userName);
   return batch;
 }
 
@@ -299,11 +299,12 @@ router.post('/orders/:id/send', (req, res) => {
   const order = getOrder(db, req.params.id);
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
   if (!ACTIVE.includes(order.status)) return res.status(400).json({ error: 'El pedido ya está cerrado' });
-  const batch = sendUnsent(db, req.app.io, order, req.user?.name);
+  const out = {};
+  const batch = sendUnsent(db, req.app.io, order, req.user?.name, out);
   const formatted = fmt(db, order.id);
   emit(req, batch ? 'order:updated' : 'order:updated', formatted);
   if (batch) emit(req, 'kitchen:new', { orderId: order.id, batch });
-  res.json({ order: formatted, batch, items: batch ? formatted.items.filter(i => i.batch === batch) : [] });
+  res.json({ order: formatted, batch, items: batch ? formatted.items.filter(i => i.batch === batch) : [], printed: out.printed || 0 });
 });
 
 // Datos de cabecera: personas, mesero, cliente, etiqueta, canal, comentario, repartidor, tiempo, envío

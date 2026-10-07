@@ -21,7 +21,8 @@ export const Modal = ({ title, onClose, children, wide }: { title: string; onClo
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className={cn('bg-white rounded-t-3xl sm:rounded-2xl w-full p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto', wide ? 'max-w-2xl' : 'max-w-md')} onClick={e => e.stopPropagation()}>
+      <div className={cn('bg-white rounded-t-3xl sm:rounded-2xl w-full p-5 shadow-2xl space-y-3 max-h-[92dvh] overflow-y-auto overscroll-contain', wide ? 'max-w-2xl' : 'max-w-md')} onClick={e => e.stopPropagation()}
+        onFocusCapture={e => { const t = e.target as HTMLElement; if (t.matches('input:not([type=checkbox]):not([type=radio]), textarea')) setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350); }}>
         <div className="flex items-center justify-between">
           <h4 className="font-bold text-sm text-brand-dark">{title}</h4>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>

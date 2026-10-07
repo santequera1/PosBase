@@ -92,11 +92,20 @@ const OpenOrderPage = () => {
       if (r.batch) {
         lastBatch.current = { batch: r.batch, items: r.items };
         toast.success(`Comanda #${r.batch} enviada a cocina (${r.items.length} producto${r.items.length === 1 ? '' : 's'})`);
-        if (restaurant?.autoPrintKitchen && !netPrintOn()) await printKitchenTickets(r.order, r.items, r.batch, restaurant);
+        // Impresión del navegador: no se espera a que cierren el diálogo para volver a la lista
+        if (restaurant?.autoPrintKitchen && !netPrintOn()) Promise.resolve(printKitchenTickets(r.order, r.items, r.batch, restaurant)).catch(() => {});
       } else toast.info('No hay productos nuevos para enviar');
-      if (order.type !== 'dine-in') navigate(backPath(order));
+      if (r.batch && netPrintOn() && !r.printed) toast.warning('La comanda no se imprimió: no hay impresora de cocina configurada (Configuración → Impresoras).', { duration: 7000 });
+      // Enviada la comanda, se vuelve a la lista (mesas, para llevar o domicilios)
+      navigate(backPath(order));
     } catch (e: any) { toast.error(e.message); }
     setBusy(false);
+  };
+  // Salir de la cuenta sin cobrar: lo que no se ha enviado queda guardado en la cuenta
+  const leave = async () => {
+    try { await flush(); } catch { /* se reintenta al volver */ }
+    if (order && draftRef.current.length) toast.info(`${draftRef.current.length} producto(s) quedaron guardados sin enviar a cocina`);
+    if (order) navigate(backPath(order));
   };
   const printLastBatch = () => { if (order && lastBatch.current) printKitchen(order, lastBatch.current.items, lastBatch.current.batch, restaurant); };
   const prebill = async () => {
@@ -107,7 +116,9 @@ const OpenOrderPage = () => {
       if (draftRef.current.length) { const r = await api.sendToKitchen(orderId); setDraft([]); draftRef.current = []; setOrder(r.order); }
       const o = order.type === 'dine-in' ? await api.setRestaurantStatus(orderId, 'billing') : await api.getOrder(orderId);
       setOrder(o);
-      printPreBill(o, restaurant?.tipDineIn && o.type === 'dine-in' ? restaurant.tipPercent : 0);
+      await printPreBill(o, restaurant?.tipDineIn && o.type === 'dine-in' ? restaurant.tipPercent : 0);
+      // Impresa la precuenta, la mesa queda "pidiendo la cuenta" y se vuelve al plano
+      if (o.type === 'dine-in') navigate(backPath(o));
     } catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
@@ -131,11 +142,11 @@ const OpenOrderPage = () => {
   const closed = !isActive(order);
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full bg-brand-bg text-brand-primary overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full w-full bg-brand-bg text-brand-primary overflow-hidden" data-account-page>
       {/* Catálogo */}
-      <div className={cn('flex-1 flex-col h-full overflow-hidden border-r border-brand-primary/10', mobileView === 'catalog' ? 'flex' : 'hidden lg:flex')}>
+      <div className={cn('flex-1 min-h-0 flex-col lg:h-full overflow-hidden border-r border-brand-primary/10', mobileView === 'catalog' ? 'flex' : 'hidden lg:flex')}>
         <div className="flex items-center gap-2 px-3 py-2 bg-brand-surface text-brand-on-dark shrink-0">
-          <button onClick={() => navigate(backPath(order))} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Volver"><ArrowLeft size={18} /></button>
+          <button onClick={leave} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Volver sin cobrar"><ArrowLeft size={18} /></button>
           <div className="min-w-0 flex-1">
             <p className="font-bold text-sm truncate">{orderTitle(order)} <span className="font-normal opacity-70">· {TYPE_LABEL[order.type]}{order.channel && order.channel !== 'local' ? ` · ${CHANNEL_LABEL[order.channel as Channel]}` : ''}</span></p>
             <p className="text-[11px] opacity-70 truncate">{order.type === 'dine-in' ? `${order.people || 0} personas${order.waiterName ? ` · ${order.waiterName}` : ''}` : order.type === 'delivery' ? `${order.customer.address || ''}${order.customer.neighborhood ? ` · ${order.customer.neighborhood}` : ''}` : order.customer.phone || ''} · {elapsedLabel(order.createdAt)}</p>
@@ -146,9 +157,10 @@ const OpenOrderPage = () => {
       </div>
 
       {/* Cuenta */}
-      <div className={cn('w-full lg:w-[400px] xl:w-[440px] flex-col h-full bg-white border-l border-brand-primary/10', mobileView === 'account' ? 'flex' : 'hidden lg:flex')}>
+      <div className={cn('w-full flex-1 min-h-0 lg:flex-none lg:w-[400px] xl:w-[440px] flex-col lg:h-full bg-white border-l border-brand-primary/10', mobileView === 'account' ? 'flex' : 'hidden lg:flex')}>
         <div className="px-3 py-2 border-b border-brand-primary/10 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
+            <button onClick={leave} className="lg:hidden h-8 pl-1.5 pr-2.5 rounded-lg bg-brand-card text-brand-dark text-xs font-bold flex items-center gap-1" title="Volver sin cobrar" data-leave-account><ArrowLeft size={14} /> {order.type === 'dine-in' ? 'Mesas' : 'Volver'}</button>
             <span className="text-xs font-bold uppercase tracking-wide text-brand-muted">Cuenta #{order.id}</span>
             {order.unsentCount || draft.length ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">{draft.length} sin enviar</span> : null}
           </div>
@@ -214,17 +226,20 @@ const OpenOrderPage = () => {
             <div className="flex justify-between text-base font-bold text-brand-dark"><span>Total</span><span>{formatPrice(total)}</span></div>
           </div>
           {!closed && (
+            <>
             <div className="grid grid-cols-3 gap-2">
               <button onClick={send} disabled={busy || draft.length === 0} className="py-2.5 rounded-xl bg-brand-surface text-brand-on-dark text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Enviar a cocina solo lo nuevo"><ChefHat size={16} />{order.type === 'dine-in' ? 'A cocina' : 'Confirmar'}</button>
               <button onClick={prebill} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl bg-white border border-brand-primary/20 text-brand-primary text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Imprimir precuenta"><Receipt size={16} />Precuenta</button>
               <button onClick={openClose} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl gradient-primary text-primary-foreground text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Cobrar y cerrar"><Wallet size={16} />Cobrar</button>
             </div>
+            <button onClick={leave} className="w-full py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card" data-leave-bottom><ArrowLeft size={13} /> Guardar y salir sin cobrar</button>
+            </>
           )}
         </div>
       </div>
 
       {/* Alternar catálogo / cuenta en móvil */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 grid grid-cols-2 bg-brand-surface text-brand-on-dark">
+      <div className="lg:hidden shrink-0 grid grid-cols-2 bg-brand-surface text-brand-on-dark pb-[env(safe-area-inset-bottom)]">
         <button onClick={() => setMobileView('catalog')} className={cn('py-3 text-xs font-bold flex items-center justify-center gap-1.5', mobileView === 'catalog' && 'bg-white/15')}><Utensils size={15} /> Productos</button>
         <button onClick={() => setMobileView('account')} className={cn('py-3 text-xs font-bold flex items-center justify-center gap-1.5', mobileView === 'account' && 'bg-white/15')}><ShoppingBag size={15} /> Cuenta · {formatPrice(total)}</button>
       </div>

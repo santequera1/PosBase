@@ -14,7 +14,9 @@ const ADMIN = requireRole('admin');
 const IP_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
 function printerPayload(b, cur = {}) {
-  const roles = Array.isArray(b.roles) ? b.roles.filter(r => P.ROLES.includes(r)) : (cur.roles || []);
+  let roles = Array.isArray(b.roles) ? b.roles.filter(r => P.ROLES.includes(r)) : (cur.roles || []);
+  // Sin función marcada se deduce del nombre ("Cocina", "Caja", "Barra") para que no quede una impresora que nunca imprime
+  if (!roles.length) { const n = String(b.name !== undefined ? b.name : cur.name || '').toLowerCase(); roles = P.ROLES.filter(r => n.includes(r)); }
   return {
     name: b.name !== undefined ? String(b.name).trim().slice(0, 60) : cur.name,
     ip: b.ip !== undefined ? String(b.ip).trim() : cur.ip,

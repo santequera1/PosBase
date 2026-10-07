@@ -29,6 +29,9 @@ const TablesPage = () => {
   const [roomId, setRoomId] = useState<number | null>(null);
   const [selected, setSelected] = useState<RestaurantTable | null>(null);
   const [opening, setOpening] = useState<RestaurantTable | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  // En el celular la información de la mesa queda debajo de la cuadrícula: se baja hasta ella al tocar una mesa ocupada
+  useEffect(() => { if (selected && window.innerWidth < 768) setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }, [selected?.id]);
   const [closing, setClosing] = useState<Order | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -149,8 +152,30 @@ const TablesPage = () => {
 
       <div className="grid lg:grid-cols-4 gap-4">
         <div className="lg:col-span-3">
+          {/* En el celular el plano queda muy pequeño: cuadrícula de mesas grandes (el plano sigue en tablet y PC) */}
+          {!editMode && room && (
+            <div className="md:hidden grid grid-cols-3 gap-2.5" data-tables-grid>
+              {[...room.tables].sort((a, b) => String(a.label).localeCompare(String(b.label), 'es', { numeric: true })).map(t => {
+                const st = t.state || 'free';
+                return (
+                  <button key={t.id} onClick={() => { if (st === 'free') setOpening(t); else setSelected(t); }}
+                    className={cn('relative min-h-[84px] rounded-2xl border-2 shadow-sm flex flex-col items-center justify-center px-1 py-2', STATE_STYLE[st], selected?.id === t.id && 'ring-4 ring-brand-accent')}
+                    data-table-tile={t.label}>
+                    <span className="font-display font-bold text-2xl leading-none">{t.label}</span>
+                    {st !== 'free' && t.order ? (
+                      <span className="text-[11px] leading-tight mt-1 text-center font-semibold">{formatPrice(t.order.total)}<br /><span className="font-normal opacity-90">{elapsedLabel(t.order.since)}{t.order.waiterName ? ` · ${t.order.waiterName.split(' ')[0]}` : ''}</span></span>
+                    ) : (
+                      <span className="text-[11px] mt-1 opacity-90 flex items-center gap-0.5"><Users size={11} /> {t.seats}</span>
+                    )}
+                    {t.order?.unsent ? <span className="absolute top-1 right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-amber-900 text-[10px] font-bold flex items-center justify-center shadow">{t.order.unsent}</span> : null}
+                  </button>
+                );
+              })}
+              {room.tables.length === 0 && <p className="col-span-3 text-sm text-brand-muted text-center py-8">Este salón no tiene mesas.</p>}
+            </div>
+          )}
           <div ref={planRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-            className={cn('relative w-full aspect-[16/10] rounded-2xl border bg-brand-card/70 overflow-hidden select-none', editMode ? 'border-dashed border-brand-primary/40' : 'border-brand-primary/10')}
+            className={cn('relative w-full aspect-[16/10] rounded-2xl border bg-brand-card/70 overflow-hidden select-none', editMode ? 'border-dashed border-brand-primary/40' : 'border-brand-primary/10 hidden md:block')}
             style={{ backgroundImage: 'radial-gradient(hsl(var(--brand-primary) / 0.08) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
             {room?.tables.map(t => {
               const st = t.state || 'free';
@@ -178,7 +203,7 @@ const TablesPage = () => {
 
         <div className="space-y-3">
           {selected && selected.order ? (
-            <div className="bg-card rounded-xl border border-border shadow-card p-4 space-y-3">
+            <div ref={detailRef} className="bg-card rounded-xl border border-border shadow-card p-4 space-y-3 scroll-mt-20" data-table-detail>
               <div className="flex items-start justify-between">
                 <div><p className="font-display font-bold text-lg text-brand-dark">Mesa {selected.label}</p><p className="text-[11px] text-muted-foreground">{selected.order.status === 'billing' ? 'Pidiendo la cuenta' : 'Cuenta abierta'} · cuenta #{selected.order.id}</p></div>
                 <button onClick={() => setSelected(null)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center"><X size={14} /></button>

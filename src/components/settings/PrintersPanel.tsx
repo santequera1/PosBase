@@ -75,7 +75,8 @@ const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any |
         {printer && <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={f.active} onChange={e => set({ active: e.target.checked })} /> Activa</label>}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <button onClick={save} disabled={!f.name || !f.ip} data-printer-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">Guardar</button>
+      {!f.roles.length && <p className="text-xs text-amber-700">Marca qué imprime (Cocina, Barra o Caja): sin eso no le llega nada.</p>}
+      <button onClick={save} disabled={!f.name || !f.ip || !f.roles.length} data-printer-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">Guardar</button>
     </Modal>
   );
 };
@@ -209,7 +210,7 @@ export const PrintersPanel = () => {
                   <button onClick={() => removePrinter(p)} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>
                 </div>
                 <p className="text-[11px] font-mono text-muted-foreground">{p.ip}:{p.port} · {p.paper} mm{p.copies > 1 ? ` · ${p.copies} copias` : ''}{branchesAll.length > 1 ? ` · ${p.branchId ? (branchesAll.find(b => b.id === p.branchId)?.name || 'Sede') : 'Todas las sedes'}` : ''}</p>
-                <div className="flex flex-wrap gap-1">{p.roles.length ? p.roles.map((r: string) => <span key={r} className="text-[10px] px-2 py-0.5 rounded-full bg-brand-card border border-brand-accent/40 font-semibold">{cfg.roles[r] || r}</span>) : <span className="text-[10px] text-amber-700">Sin función asignada</span>}</div>
+                <div className="flex flex-wrap gap-1">{p.roles.length ? p.roles.map((r: string) => <span key={r} className="text-[10px] px-2 py-0.5 rounded-full bg-brand-card border border-brand-accent/40 font-semibold">{cfg.roles[r] || r}</span>) : <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-bold">Sin función: no imprime nada. Edítala y marca Cocina o Caja</span>}</div>
                 <p className="text-[10px] text-muted-foreground">{p.online === false ? 'No responde: revisa que esté encendida y conectada' : p.online ? `Responde · ${ago(p.checkedAt)}` : 'El agente aún no la ha revisado'}</p>
                 <button onClick={() => test(p)} disabled={!anyOnline} data-printer-test className="w-full py-1.5 rounded-lg border border-border text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40"><Zap size={12} /> Imprimir prueba</button>
                 <button onClick={() => samples(p)} disabled={!anyOnline} data-printer-samples className="w-full py-1.5 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40" title="Comanda, precuenta y recibo de ejemplo según la función de la impresora (no crea ventas)"><Receipt size={12} /> Imprimir ejemplos</button>

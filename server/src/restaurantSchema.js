@@ -277,7 +277,7 @@ function saveRestaurantConfig(db, body) {
 /** Meseros (todo el personal activo que no es repartidor) y repartidores (cargo de domicilios). */
 function staffLists(db) {
   require('./permissions').ensureAllCouriers(db);
-  const rows = db.prepare('SELECT id, name, position FROM employees WHERE active = 1 ORDER BY name').all();
+  const rows = db.prepare('SELECT id, name, position, user_id AS userId FROM employees WHERE active = 1 ORDER BY name').all();
   const isCourier = e => /domicil|repart|mensaj|motoriz/i.test(e.position || '');
   // La lista de meseros deja por fuera la cocina (auxiliar de cocina, planchero, cocinero...); si no queda nadie, van todos
   const isKitchen = e => /cocin|planch|parrill|chef|lavaplat|oficios|steward|bodeg/i.test(e.position || '');

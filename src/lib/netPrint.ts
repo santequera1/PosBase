@@ -17,8 +17,8 @@ async function viaNet(send: () => Promise<any>, fallback: () => any, what: strin
     await send();
     toast.success(`${what} enviada a la impresora`);
   } catch (e: any) {
-    toast.error(`${e.message || 'No se pudo enviar a la impresora'}. Se abre la impresión del navegador.`);
-    return fallback();
+    // Con impresión en red no se abre el diálogo del navegador (en un celular no hay impresora): se avisa qué falta
+    toast.error(e.message || 'No se pudo enviar a la impresora', { duration: 7000 });
   }
 }
 

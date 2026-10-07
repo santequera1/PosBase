@@ -52,14 +52,16 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {list.length === 0 && <p className="text-xs text-brand-muted text-center py-10">Ningún producto coincide.</p>}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
           {list.map(p => (
             <button key={p.id} onClick={() => pick(p)} disabled={!p.available} title={p.available ? `Agregar ${p.name}` : 'No disponible'}
               className={cn('text-left rounded-2xl border bg-white shadow-sm overflow-hidden transition-all hover:shadow-md active:scale-[0.98]', p.available ? 'border-brand-primary/10' : 'border-gray-200 opacity-50 cursor-not-allowed')}>
-              <div className="aspect-[4/3] bg-brand-card flex items-center justify-center overflow-hidden">
-                {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" /> : <span className="text-3xl">🍽️</span>}
-              </div>
-              <div className="p-2.5">
+              {p.image ? (
+                <div className="aspect-[4/3] bg-brand-card flex items-center justify-center overflow-hidden">
+                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                </div>
+              ) : null}
+              <div className="p-2.5 h-full flex flex-col justify-between min-h-[64px]">
                 <p className="text-xs font-bold text-brand-dark leading-tight line-clamp-2">{p.name}</p>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[11px] font-semibold text-brand-primary">{p.sizes && p.sizes.length ? `Desde ${formatPrice(Math.min(...p.sizes.map(s => s.price)))}` : formatPrice(p.price)}</span>
