@@ -3,7 +3,8 @@ import {
   Plus, Edit2, Trash2, UsersRound, CalendarCheck, HandCoins, PiggyBank, FileSpreadsheet, Search, Banknote, ArrowLeftRight, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2, ClipboardList, Upload,
 } from 'lucide-react';
-import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal, LoansPanel, LoanModal } from '@/components/staff/StaffExtras';
+import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal, LoansPanel } from '@/components/staff/StaffExtras';
+import { EmployeeDetail } from '@/components/staff/EmployeeDetail';
 import { downloadXlsx } from '@/lib/xlsx';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -114,51 +115,6 @@ const EmployeeModal = ({ employee, users, onClose, onSaved }: { employee: Employ
   );
 };
 
-/** Perfil del empleado: préstamos (libranza) y consumos por descuento de nómina, con su saldo; crear un préstamo nuevo. */
-const EmployeeAccountModal = ({ employee, onClose }: { employee: Employee; onClose: () => void }) => {
-  const currentShift = useStore(s => s.currentShift);
-  const [data, setData] = useState<any>(null);
-  const [newLoan, setNewLoan] = useState(false);
-  const [error, setError] = useState('');
-  const load = () => api.getLoans({ employeeId: employee.id }).then(setData).catch(e => setError(e.message));
-  useEffect(() => { load(); }, [employee.id]);
-  const rows: any[] = data?.loans || [];
-  const active = rows.filter(r => r.status === 'active');
-  const loansBal = active.filter(r => r.kind !== 'consumo').reduce((a, r) => a + r.balance, 0);
-  const consBal = active.filter(r => r.kind === 'consumo').reduce((a, r) => a + r.balance, 0);
-  const nextCut = active.reduce((a, r) => a + Math.min(r.installmentAmount, r.balance), 0);
-  return (
-    <Modal title={`${employee.name} · préstamos y consumos`} onClose={onClose} wide>
-      <div className="grid grid-cols-3 gap-2" data-employee-account-modal>
-        <KpiCard label="Préstamos (saldo)" value={formatPrice(loansBal)} />
-        <KpiCard label="Consumos por nómina" value={formatPrice(consBal)} />
-        <KpiCard label="Se descuenta en la próxima liquidación" value={formatPrice(nextCut)} className={nextCut > 0 ? 'bg-amber-50 border-amber-200' : ''} />
-      </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <div className="border border-border rounded-xl overflow-hidden">
-        {!data ? <p className="p-4 text-xs text-muted-foreground">Cargando...</p> : rows.length === 0 ? <p className="p-4 text-xs text-muted-foreground text-center">Sin préstamos ni consumos.</p> : (
-          <div className="overflow-x-auto"><table className="w-full text-xs">
-            <thead className="bg-brand-card text-muted-foreground"><tr><th className="text-left px-3 py-2">Fecha</th><th className="text-left px-3 py-2">Concepto</th><th className="text-right px-3 py-2">Valor</th><th className="text-right px-3 py-2">Cuota</th><th className="text-right px-3 py-2">Pagado</th><th className="text-right px-3 py-2">Saldo</th></tr></thead>
-            <tbody>{rows.map(r => (
-              <tr key={r.id} className={cn('border-t border-border', r.status !== 'active' && 'opacity-50')} data-account-row={r.kind}>
-                <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.date)}</td>
-                <td className="px-3 py-1.5">{r.kind === 'consumo' ? <span className="font-semibold">Consumo{r.orderId ? ` · venta #${r.orderId}` : ''}</span> : <span className="font-semibold">Préstamo</span>}<span className="block text-[10px] text-muted-foreground">{r.installments} cuota(s){r.notes && r.kind !== 'consumo' ? ` · ${r.notes}` : ''}{r.status === 'paid' ? ' · pagado' : ''}</span></td>
-                <td className="px-3 py-1.5 text-right">{formatPrice(r.amount)}</td>
-                <td className="px-3 py-1.5 text-right">{formatPrice(r.installmentAmount)}</td>
-                <td className="px-3 py-1.5 text-right">{formatPrice(r.paidTotal)}</td>
-                <td className="px-3 py-1.5 text-right font-bold">{formatPrice(r.balance)}</td>
-              </tr>
-            ))}</tbody>
-          </table></div>
-        )}
-      </div>
-      <p className="text-[11px] text-muted-foreground">Las cuotas se descuentan solas en cada liquidación de nómina (Personal → Liquidaciones). Los consumos salen de ventas cobradas con <b>Descuento de nómina</b>; para quitar uno, anula la venta en Caja → Ventas.</p>
-      <button onClick={() => setNewLoan(true)} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5" data-account-new-loan><Plus size={14} /> Nuevo préstamo a {employee.name.split(' ')[0]}</button>
-      {newLoan && <LoanModal employees={[employee]} hasShift={!!currentShift} onClose={() => setNewLoan(false)} onSaved={() => { setNewLoan(false); load(); }} />}
-    </Modal>
-  );
-};
-
 const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: () => void }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [modal, setModal] = useState<{ open: boolean; employee: Employee | null }>({ open: false, employee: null });
@@ -189,7 +145,7 @@ const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: ()
             <div className="flex items-start gap-3">
               <div className="w-11 h-11 rounded-full bg-brand-accent/30 text-brand-dark flex items-center justify-center text-base font-bold shrink-0">{e.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-brand-dark truncate">{e.name}</p>
+                <button onClick={() => setAccount(e)} className="text-sm font-bold text-brand-dark truncate hover:underline text-left max-w-full block" title="Ver detalle" data-employee-name={e.id}>{e.name}</button>
                 <p className="text-[11px] text-muted-foreground">{e.position}{e.userId ? ' · vinculado al sistema' : ''}{e.tipPoints !== 1 ? ` · ${e.tipPoints} pts propina` : ''}</p>
                 <p className="text-[11px] text-brand-primary font-semibold">{e.payModeLabel}: {formatPrice(e.baseAmount)}</p>
               </div>
@@ -204,14 +160,14 @@ const EmployeesTab = ({ employees, reload }: { employees: Employee[]; reload: ()
               <div className={cn('rounded-lg p-2', (e.loansBalance || 0) > 0 ? 'bg-amber-50' : 'bg-brand-card')}><p className="text-muted-foreground">Préstamos (saldo)</p><p className={cn('font-bold', (e.loansBalance || 0) > 0 ? 'text-amber-800' : 'text-brand-dark')}>{formatPrice(e.loansBalance || 0)}</p></div>
               <div className={cn('rounded-lg p-2', (e.consumosBalance || 0) > 0 ? 'bg-amber-50' : 'bg-brand-card')}><p className="text-muted-foreground">Consumos por nómina</p><p className={cn('font-bold', (e.consumosBalance || 0) > 0 ? 'text-amber-800' : 'text-brand-dark')}>{formatPrice(e.consumosBalance || 0)}</p></div>
             </div>
-            <button onClick={() => setAccount(e)} className="mt-2 w-full py-1.5 rounded-lg border border-border text-xs font-semibold text-brand-dark hover:bg-brand-card flex items-center justify-center gap-1.5" data-employee-account={e.id}><HandCoins size={13} /> Préstamos y consumos</button>
+            <button onClick={() => setAccount(e)} className="mt-2 w-full py-1.5 rounded-lg border border-border text-xs font-semibold text-brand-dark hover:bg-brand-card flex items-center justify-center gap-1.5" data-employee-account={e.id}><HandCoins size={13} /> Ver detalle · préstamos y consumos</button>
           </div>
         ))}
         {list.length === 0 && <p className="text-xs text-muted-foreground">Aún no hay colaboradores registrados.</p>}
       </div>
       {modal.open && <EmployeeModal employee={modal.employee} users={users} onClose={() => setModal({ open: false, employee: null })} onSaved={() => { setModal({ open: false, employee: null }); reload(); }} />}
       {importing && <ImportEmployeesModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
-      {account && <EmployeeAccountModal employee={account} onClose={() => { setAccount(null); reload(); }} />}
+      {account && <EmployeeDetail employee={account} onClose={() => { setAccount(null); reload(); }} onEdit={() => { const e = account; setAccount(null); setModal({ open: true, employee: e }); }} />}
     </div>
   );
 };
