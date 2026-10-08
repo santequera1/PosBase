@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, FileCheck2, AlertTriangle, Download, MessageCircle, Mail, Share2 } from 'lucide-react';
 import { downloadInvoiceFile, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
 import { useStore } from '@/store/useStore';
@@ -87,11 +88,12 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
     setTimeout(cleanup, 60000);
   };
 
-  return (
-    <div className="print-overlay fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6 overflow-y-auto" onClick={onClose}>
+  // Se dibuja directo en <body>: así el encabezado y las pestañas de la página no tapan la barra de botones
+  return createPortal(
+    <div className="print-overlay fixed inset-0 !m-0 z-[200] bg-black/60 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6 overflow-y-auto" onClick={onClose}>
       <div className="w-full max-w-3xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-2 print:hidden">
-          <div className="flex gap-2">
+        <div className="sticky top-0 z-10 -mx-2 px-2 py-2 sm:-mx-6 sm:px-6 bg-black/40 backdrop-blur rounded-b-xl flex items-center justify-between gap-2 mb-2 print:hidden" data-fe-toolbar>
+          <div className="flex flex-wrap gap-2">
             {!fe && (
               <button onClick={issue} disabled={issuing} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow disabled:opacity-50">
                 <FileCheck2 size={14} /> {issuing ? 'Emitiendo...' : feError ? 'Reintentar emisión' : 'Emitir factura electrónica'}
@@ -226,7 +228,8 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
           <p className="mt-6 text-[10px] text-gray-400 text-center">{real ? 'Representación gráfica de la factura electrónica de venta. Proveedor tecnológico: Factus.' : 'Representación gráfica de prueba generada por el POS.'} {businessName} · {new Date().getFullYear()}</p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
