@@ -285,6 +285,15 @@
   body.print-report .print-overlay { position: static !important; overflow: visible !important; height: auto !important; padding: 0 !important; background: #fff !important; backdrop-filter: none !important; }
 }
 
+/* Factura electrónica (modal fuera de #root): se imprime solo el documento, en una página */
+@media print {
+  body.print-invoice #root, body.print-invoice [data-sonner-toaster] { display: none !important; }
+  body.print-invoice .print-overlay { position: static !important; inset: auto !important; display: block !important; overflow: visible !important; height: auto !important; padding: 0 !important; background: #fff !important; backdrop-filter: none !important; }
+  body.print-invoice .print-overlay > div { max-width: none !important; width: 100% !important; }
+  body.print-invoice .print-area { box-shadow: none !important; border-radius: 0 !important; padding: 8mm 10mm !important; break-inside: avoid; }
+  body.print-invoice .print-area button { display: none !important; }
+}
+
 /* Vista previa en pantalla de tickets térmicos (cierre de caja) */
 .ticket-preview { width: 300px; font-family: "Segoe UI", Roboto, Arial, monospace, sans-serif; font-size: 11px; line-height: 1.3; color: #111; }
 .ticket-preview .ticket { width: 100% !important; max-width: 100% !important; }

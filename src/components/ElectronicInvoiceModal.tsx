@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, FileCheck2, AlertTriangle, Download, MessageCircle, Mail, Share2 } from 'lucide-react';
-import { downloadInvoiceFile, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
+import { X, Printer, FileCheck2, AlertTriangle, Download, MessageCircle, Mail, Share2, ExternalLink } from 'lucide-react';
+import { downloadInvoiceFile, openInvoicePdf, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
@@ -81,8 +81,8 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
     setIssuing(false);
   };
   const print = () => {
-    document.body.classList.add('print-report');
-    const cleanup = () => { document.body.classList.remove('print-report'); window.removeEventListener('afterprint', cleanup); };
+    document.body.classList.add('print-invoice');
+    const cleanup = () => { document.body.classList.remove('print-invoice'); window.removeEventListener('afterprint', cleanup); };
     window.addEventListener('afterprint', cleanup);
     setTimeout(() => window.print(), 50);
     setTimeout(cleanup, 60000);
@@ -92,36 +92,42 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
   return createPortal(
     <div className="print-overlay fixed inset-0 !m-0 z-[200] bg-black/60 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6 overflow-y-auto" onClick={onClose}>
       <div className="w-full max-w-3xl" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 z-10 -mx-2 px-2 py-2 sm:-mx-6 sm:px-6 bg-black/40 backdrop-blur rounded-b-xl flex items-center justify-between gap-2 mb-2 print:hidden" data-fe-toolbar>
-          <div className="flex flex-wrap gap-2">
-            {!fe && (
-              <button onClick={issue} disabled={issuing} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow disabled:opacity-50">
-                <FileCheck2 size={14} /> {issuing ? 'Emitiendo...' : feError ? 'Reintentar emisión' : 'Emitir factura electrónica'}
-              </button>
-            )}
-            {fe && (
-              <button onClick={print} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow">
-                <Printer size={14} /> Imprimir / PDF
-              </button>
-            )}
-            {real && fe?.publicUrl && (
-              <a href={fe.publicUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow">Ver en la DIAN</a>
-            )}
-            {real && fe?.number && (() => {
-              const msg = invoiceMessage({ number: fe.number, customerName: live.customer?.name, total: live.total, publicUrl: fe.publicUrl }, businessName || 'nuestro negocio');
-              return (
-                <>
-                  <button onClick={() => downloadInvoiceFile(fe.number, 'pdf').catch((e: any) => setError(e.message))} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow" data-fe-download><Download size={14} /> Descargar PDF</button>
-                  {canShareFiles() && <button onClick={() => shareInvoicePdf(fe.number, msg).catch((e: any) => e?.name !== 'AbortError' && setError(e.message))} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow"><Share2 size={14} /> Compartir PDF</button>}
-                  <a href={whatsappLink(live.customer?.phone, msg)} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow"><MessageCircle size={14} /> WhatsApp</a>
-                  <a href={mailtoLink(live.customer?.email, fe.number, msg)} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow"><Mail size={14} /> Correo</a>
-                </>
-              );
-            })()}
+        {/* Barra de acciones: estado de la factura a la izquierda, acciones a la derecha (siempre visible) */}
+        <div className="sticky top-0 z-10 mb-3 print:hidden" data-fe-toolbar>
+          <div className="bg-white rounded-2xl shadow-xl border border-black/5 px-3 py-2.5 flex items-center gap-3">
+            <div className="min-w-0 flex items-center gap-2">
+              <span className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', real ? 'bg-emerald-100 text-emerald-700' : fe ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')}><FileCheck2 size={16} /></span>
+              <div className="min-w-0 leading-tight">
+                <p className="text-sm font-bold text-gray-900 truncate">{fe ? `Factura ${fe.number}` : 'Factura electrónica'}</p>
+                <p className={cn('text-[11px] font-semibold', real ? 'text-emerald-700' : feError ? 'text-red-600' : 'text-gray-500')}>{real ? 'Validada por la DIAN' : fe ? 'Documento de prueba' : feError ? 'Rechazada: revisa el detalle' : 'Sin emitir'}</p>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-end gap-1.5 overflow-x-auto no-scrollbar">
+              {!fe && (
+                <button onClick={issue} disabled={issuing} className="h-9 px-4 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50" data-fe-issue>
+                  <FileCheck2 size={14} /> {issuing ? 'Emitiendo…' : feError ? 'Reintentar emisión' : 'Emitir factura electrónica'}
+                </button>
+              )}
+              {real && fe?.number && (() => {
+                const msg = invoiceMessage({ number: fe.number, customerName: live.customer?.name, total: live.total, publicUrl: fe.publicUrl }, businessName || 'nuestro negocio');
+                const btn = 'h-9 px-3 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap hover:bg-gray-50';
+                return (
+                  <>
+                    <button onClick={() => openInvoicePdf(fe.number).catch((e: any) => setError(e.message))} className={btn} title="Abrir el PDF oficial para imprimir"><Printer size={14} /> Imprimir</button>
+                    <button onClick={() => downloadInvoiceFile(fe.number, 'pdf').catch((e: any) => setError(e.message))} className={btn} data-fe-download><Download size={14} /> PDF</button>
+                    {canShareFiles() && <button onClick={() => shareInvoicePdf(fe.number, msg).catch((e: any) => e?.name !== 'AbortError' && setError(e.message))} className={btn}><Share2 size={14} /> Compartir</button>}
+                    <a href={mailtoLink(live.customer?.email, fe.number, msg)} className={btn}><Mail size={14} /> Correo</a>
+                    {fe.publicUrl && <a href={fe.publicUrl} target="_blank" rel="noreferrer" className={btn} title="Consulta oficial"><ExternalLink size={14} /> DIAN</a>}
+                    <a href={whatsappLink(live.customer?.phone, msg)} target="_blank" rel="noreferrer" className="h-9 px-3.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap hover:bg-emerald-700"><MessageCircle size={14} /> WhatsApp</a>
+                  </>
+                );
+              })()}
+              {fe && !real && <button onClick={print} className="h-9 px-3 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"><Printer size={14} /> Imprimir</button>}
+            </div>
+            <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0" title="Cerrar"><X size={16} /></button>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X size={16} /></button>
         </div>
-        {(error || feError) && <p className="text-xs text-red-200 mb-2 bg-red-900/60 rounded-lg px-3 py-1.5">{error || `El proveedor rechazó la factura: ${feError}`}</p>}
+        {(error || feError) && <p className="text-xs text-red-800 mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2 print:hidden">{error || `El proveedor rechazó la factura: ${feError}`}</p>}
 
         {/* Documento */}
         <div className="print-area paper bg-white rounded-2xl shadow-2xl p-6 sm:p-8 text-[12px] text-gray-800 font-sans relative overflow-hidden">
