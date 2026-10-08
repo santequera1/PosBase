@@ -258,7 +258,15 @@ const EditPaymentModal = ({ o, onClose, onSaved }: { o: any; onClose: () => void
 /** Editar los datos de una venta (no los valores) y, si se quiere, reimprimir el recibo ya corregido. */
 const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced: boolean; onClose: () => void; onSaved: (fresh: any, reprint: boolean) => void }) => {
   const waiters = useStore(s => s.restaurant?.staff.waiters || []);
+  const customers = useStore(s => s.customers);
   const c = o.customer || {};
+  const [customerId, setCustomerId] = useState<number>(o.customerId || 0);
+  const [isCompany, setIsCompany] = useState(false);
+  const [dv, setDv] = useState('');
+  const [saveCustomer, setSaveCustomer] = useState(false);
+  const [search, setSearch] = useState('');
+  const matches = search.trim().length >= 2 ? customers.filter((x: any) => `${x.name} ${x.documentId || ''} ${x.phone || ''}`.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6) : [];
+  const pickCustomer = (x: any) => { setCustomerId(x.id); setIsCompany(Boolean(x.isCompany)); setDv(x.dv || ''); set({ customerName: x.name || '', customerDoc: x.documentId && x.documentId !== '222222222222' ? x.documentId : '', customerEmail: x.email || '', customerPhone: x.phone || '', customerAddress: x.address || '' }); setSearch(''); };
   const [f, setF] = useState({
     customerName: c.name && c.name !== 'Consumidor Final' ? c.name : '', customerDoc: c.doc && c.doc !== '222222222222' ? c.doc : '',
     customerEmail: c.email || '', customerPhone: c.phone || '', customerAddress: c.address || '', customerNeighborhood: c.neighborhood || '',
@@ -271,8 +279,9 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
     try {
       const body: any = { label: f.label, notes: f.notes, waiterId: Number(f.waiterId) || 0 };
       if (o.type === 'dine-in') body.people = Number(f.people) || 0;
-      if (!invoiced) Object.assign(body, { customerName: f.customerName, customerDoc: f.customerDoc, customerEmail: f.customerEmail, customerPhone: f.customerPhone, customerAddress: f.customerAddress, customerNeighborhood: f.customerNeighborhood });
+      if (!invoiced) Object.assign(body, { customerName: f.customerName, customerDoc: f.customerDoc, customerEmail: f.customerEmail, customerPhone: f.customerPhone, customerAddress: f.customerAddress, customerNeighborhood: f.customerNeighborhood, customerId: customerId || undefined, saveCustomer, isCompany, dv });
       const fresh = await api.editSaleDetails(o.id, body);
+      if (saveCustomer) { try { useStore.setState({ customers: await api.getCustomers() }); } catch { /* el directorio se recarga al entrar a Clientes */ } }
       toast.success('Datos actualizados');
       onSaved(fresh, reprint);
     } catch (e: any) { toast.error(e.message); }
@@ -284,9 +293,25 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
   return (
     <Modal title={`Editar datos · venta #${o.id}`} onClose={onClose}>
       {invoiced && <p className="text-[11px] text-amber-700">Esta venta ya tiene factura electrónica: los datos del cliente no se pueden cambiar.</p>}
+      {!invoiced && (
+        <div className="relative" data-customer-search>
+          <label className={LABEL}>Buscar cliente guardado</label>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nombre, cédula/NIT o celular" className={PINPUT} />
+          {matches.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-white border border-border rounded-xl shadow-elevated overflow-hidden">
+              {matches.map((x: any) => (
+                <button key={x.id} type="button" onClick={() => pickCustomer(x)} className="w-full text-left px-3 py-2 text-xs hover:bg-brand-card flex justify-between gap-2">
+                  <span className="font-semibold truncate">{x.name}{x.isCompany ? ' · empresa' : ''}</span><span className="text-muted-foreground shrink-0">{x.documentId && x.documentId !== '222222222222' ? x.documentId : x.phone || ''}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {customerId ? <p className="text-[11px] text-emerald-700 mt-1">Cliente del directorio vinculado a esta venta.</p> : null}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         {field('Cliente', 'customerName', 'Consumidor Final', 'col-span-2')}
-        {field('C.C. / NIT', 'customerDoc', '222222222222')}
+        {field(isCompany ? 'NIT (sin DV)' : 'Cédula', 'customerDoc', isCompany ? '900123456' : '1047123456')}
         {field('Teléfono', 'customerPhone', '300 000 0000')}
         {field('Correo', 'customerEmail', 'cliente@correo.com', 'col-span-2')}
         {o.type === 'delivery' && field('Dirección', 'customerAddress', 'Calle 45 # 12-30', 'col-span-2')}
@@ -302,6 +327,15 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
         {field('Etiqueta', 'label', 'Ej. Cumpleaños Ana', 'col-span-2')}
         {field('Comentario', 'notes', '', 'col-span-2')}
       </div>
+      {!invoiced && (
+        <div className="rounded-xl border border-border p-2.5 space-y-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={isCompany} onChange={e => setIsCompany(e.target.checked)} data-customer-company /> Es empresa (factura a NIT)</label>
+            {isCompany && <label className="flex items-center gap-1.5">DV <input value={dv} onChange={e => setDv(e.target.value.replace(/\D/g, '').slice(0, 1))} className="w-10 px-2 py-1 rounded border border-border font-mono text-center" /></label>}
+          </div>
+          <label className="flex items-center gap-1.5"><input type="checkbox" checked={saveCustomer} onChange={e => setSaveCustomer(e.target.checked)} data-customer-save /> Guardar en el directorio de clientes (para la próxima vez solo buscarlo)</label>
+        </div>
+      )}
       <p className="text-[11px] text-muted-foreground">Los productos y valores no cambian aquí (para eso: Editar pago, Editar propina o cancelar adiciones).</p>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => save(false)} disabled={busy} className="py-2.5 rounded-xl border border-border text-sm font-bold disabled:opacity-40" data-save-details>Guardar</button>

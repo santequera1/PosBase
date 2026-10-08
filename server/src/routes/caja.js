@@ -247,6 +247,31 @@ router.post('/sales/:id/details', (req, res) => {
     // La propina asignada al mesero pasa al nuevo mesero
     if (o.tip > 0 && o.tip_to === 'waiter') db.prepare('UPDATE tips SET employee_id = ? WHERE notes = ?').run(w ? w.id : null, `Propina pedido #${o.id}`);
   }
+  // Cliente del directorio: se vincula (la factura toma de ahí si es empresa, su DV y su responsabilidad de IVA)
+  let customerId = null;
+  if (!invoiced && b.customerId) {
+    const c = db.prepare('SELECT * FROM customers WHERE id = ?').get(Number(b.customerId));
+    if (!c) return res.status(400).json({ error: 'Cliente no encontrado' });
+    customerId = c.id;
+  }
+  // Guardar (o actualizar) en el directorio con los datos escritos
+  if (!invoiced && b.saveCustomer) {
+    const doc = str(b.customerDoc, 30).replace(/[^0-9A-Za-z-]/g, '');
+    const name = str(b.customerName, 120);
+    if (!doc || doc === '222222222222' || name.length < 2) return res.status(400).json({ error: 'Para guardar el cliente escribe su nombre y su cédula o NIT' });
+    const isCompany = b.isCompany ? 1 : 0;
+    const dv = isCompany ? str(b.dv, 2).replace(/\D/g, '') : '';
+    const cur = (customerId && db.prepare('SELECT id FROM customers WHERE id = ?').get(customerId)) || db.prepare('SELECT id FROM customers WHERE document_id = ?').get(doc);
+    if (cur) {
+      db.prepare('UPDATE customers SET name = ?, document_id = ?, email = ?, phone = ?, address = COALESCE(NULLIF(?, \'\'), address), is_company = ?, dv = ?, doc_type = ? WHERE id = ?')
+        .run(name, doc, str(b.customerEmail, 120), str(b.customerPhone, 40), str(b.customerAddress, 160), isCompany, dv, isCompany ? 'NIT' : 'CC', cur.id);
+      customerId = cur.id;
+    } else {
+      customerId = Number(db.prepare("INSERT INTO customers (name, document_id, email, phone, address, notes, is_company, dv, doc_type) VALUES (?, ?, ?, ?, ?, 'Creado desde Caja → Ventas', ?, ?, ?)")
+        .run(name, doc, str(b.customerEmail, 120), str(b.customerPhone, 40), str(b.customerAddress, 160), isCompany, dv, isCompany ? 'NIT' : 'CC').lastInsertRowid);
+    }
+  }
+  if (customerId) set('customer_id', customerId);
   if (!sets.length) return res.status(400).json({ error: 'No hay cambios' });
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals, o.id);
   const fresh = formatOrder(db, db.prepare('SELECT * FROM orders WHERE id = ?').get(o.id));
