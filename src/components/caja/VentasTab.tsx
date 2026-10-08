@@ -291,7 +291,7 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
     <div className={extra}><label className={LABEL}>{label}</label><input value={f[key]} onChange={e => set({ [key]: e.target.value })} placeholder={ph} disabled={invoiced && key.startsWith('customer')} className={cn(PINPUT, 'disabled:opacity-50')} data-detail-field={key} /></div>
   );
   return (
-    <Modal title={`Editar datos · venta #${o.id}`} onClose={onClose}>
+    <Modal title={`Editar datos · venta #${o.id}`} onClose={onClose} wide>
       {invoiced && <p className="text-[11px] text-amber-700">Esta venta ya tiene factura electrónica: los datos del cliente no se pueden cambiar.</p>}
       {!invoiced && (
         <div className="relative" data-customer-search>
@@ -309,8 +309,8 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
           {customerId ? <p className="text-[11px] text-emerald-700 mt-1">Cliente del directorio vinculado a esta venta.</p> : null}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-2">
-        {field('Cliente', 'customerName', 'Consumidor Final', 'col-span-2')}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {field('Cliente', 'customerName', 'Consumidor Final', 'col-span-2 sm:col-span-4')}
         {field(isCompany ? 'NIT (sin DV)' : 'Cédula', 'customerDoc', isCompany ? '900123456' : '1047123456')}
         {field('Teléfono', 'customerPhone', '300 000 0000')}
         {field('Correo', 'customerEmail', 'cliente@correo.com', 'col-span-2')}
