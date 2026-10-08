@@ -24,7 +24,7 @@ router.get('/preview/:orderId', ADMIN, (req, res) => {
   const order = db.prepare('SELECT o.*, c.dv AS customer_dv, c.iva_responsible AS customer_iva_responsible, c.is_company FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.id = ?').get(Number(req.params.orderId));
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
   const items = db.prepare('SELECT product_id, name, quantity, price FROM order_items WHERE order_id = ?').all(order.id);
-  res.json(factus.buildBill(db, order, items, cfg));
+  res.json(cfg.apiVersion === 'v2' ? factus.buildBillV2(db, order, items, cfg) : factus.buildBill(db, order, items, cfg));
 });
 router.get('/invoices/:number/pdf', async (req, res) => {
   try {

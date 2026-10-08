@@ -17,7 +17,7 @@ const EinvoicingPanel = () => {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
-  const load = () => api.getFeConfig().then(c => { setCfg(c); setForm({ provider: c.provider, env: c.env, clientId: c.clientId, clientSecret: c.clientSecret, email: c.email, password: c.password, numberingRangeId: c.numberingRangeId || '', municipalityId: c.municipalityId || '' }); }).catch(e => setError(e.message));
+  const load = () => api.getFeConfig().then(c => { setCfg(c); setForm({ provider: c.provider, env: c.env, clientId: c.clientId, clientSecret: c.clientSecret, email: c.email, password: c.password, numberingRangeId: c.numberingRangeId || '', municipalityId: c.municipalityId || '', municipalityCode: c.municipalityCode || '' }); }).catch(e => setError(e.message));
   useEffect(() => { load(); }, []);
   const set = (patch: any) => setForm((f: any) => ({ ...f, ...patch }));
 
@@ -28,7 +28,7 @@ const EinvoicingPanel = () => {
   };
   const runTest = async () => {
     setTesting(true); setError(''); setTest(null);
-    try { await api.updateFeConfig(form); const r = await api.testFeConnection(); setTest(r); if (r.ok && r.ranges?.length && !form.numberingRangeId) set({ numberingRangeId: r.ranges[0].id }); } catch (e: any) { setTest({ ok: false, error: e.message }); }
+    try { await api.updateFeConfig(form); const r = await api.testFeConnection(); setTest(r); const inv = (r.ranges || []).filter((x: any) => /factura/i.test(x.document || '') && x.isActive !== false); if (r.ok && (inv[0] || r.ranges?.[0]) && !form.numberingRangeId) set({ numberingRangeId: (inv[0] || r.ranges[0]).id }); } catch (e: any) { setTest({ ok: false, error: e.message }); }
     setTesting(false);
   };
   const searchMuni = async () => { try { setMunis(await api.getFeMunicipalities(muniQuery)); } catch (e: any) { setError(e.message); } };
@@ -71,7 +71,7 @@ const EinvoicingPanel = () => {
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={runTest} disabled={testing || !form.clientId || !form.email} className="px-3 py-2 rounded-xl border border-sky-300 bg-white text-sky-800 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"><Link2 size={14} className={testing ? 'animate-pulse' : ''} /> {testing ? 'Conectando...' : 'Probar conexión y cargar rangos'}</button>
           {test && (test.ok
-            ? <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1"><CheckCircle2 size={13} /> Conectado a Factus ({test.env}) · {test.ranges.length} rango(s) de numeración</span>
+            ? <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1"><CheckCircle2 size={13} /> Conectado a Factus ({test.env}{test.apiVersion ? ` · API ${test.apiVersion}` : ''}) · {test.ranges.length} rango(s) de numeración</span>
             : <span className="text-xs text-red-600 font-semibold flex items-center gap-1"><AlertTriangle size={13} /> {test.error}</span>)}
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -80,10 +80,17 @@ const EinvoicingPanel = () => {
             {test?.ok && test.ranges?.length ? (
               <NiceSelect value={form.numberingRangeId} onChange={e => set({ numberingRangeId: e.target.value })} className={cn(INPUT, 'text-xs')}>
                 <option value="">Selecciona…</option>
-                {test.ranges.map((r: any) => <option key={r.id} value={r.id}>#{r.id} · {r.document} {r.prefix} {r.from}–{r.to} {r.isActive ? '' : '(inactivo)'}</option>)}
+                {test.ranges.filter((r: any) => !r.document || /factura/i.test(r.document)).map((r: any) => <option key={r.id} value={r.id}>#{r.id} · {r.document} {r.prefix}{r.from ? ` ${r.from}–${r.to}` : ''}{r.end ? ` · vence ${r.end}` : ''} {r.isActive === false ? '(inactivo)' : ''}</option>)}
               </NiceSelect>
             ) : <input type="number" value={form.numberingRangeId} onChange={e => set({ numberingRangeId: e.target.value })} placeholder="ID del rango en Factus" className={cn(INPUT, 'font-mono text-xs')} />}
           </div>
+          {(test?.apiVersion || cfg.apiVersion) === 'v2' ? (
+          <div>
+            <label className={LABEL}>Municipio del negocio (código DIVIPOLA)</label>
+            <input value={form.municipalityCode || ''} onChange={e => set({ municipalityCode: e.target.value.replace(/\D/g, '').slice(0, 5) })} placeholder="Ej: 13001 (Cartagena)" className={cn(INPUT, 'font-mono text-xs')} data-fe-muni-code />
+            <p className="text-[10px] text-muted-foreground mt-1">La API v2 usa el código DANE del municipio: Cartagena 13001, Bogotá 11001, Barranquilla 08001, Medellín 05001.</p>
+          </div>
+          ) : (
           <div>
             <label className={LABEL}>Municipio del negocio (ID Factus)</label>
             <div className="flex gap-1.5">
@@ -93,6 +100,7 @@ const EinvoicingPanel = () => {
             </div>
             {munis.length > 0 && <div className="mt-1 max-h-28 overflow-y-auto rounded-lg border border-border bg-white text-xs">{munis.map(m => <button key={m.id} onClick={() => { set({ municipalityId: m.id }); setMunis([]); }} className="block w-full text-left px-2 py-1 hover:bg-brand-button/5">{m.name} ({m.department}) · #{m.id}</button>)}</div>}
           </div>
+          )}
         </div>
       </div>
 

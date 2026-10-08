@@ -8,7 +8,9 @@
  * marcadas como F.E. generan el documento simulado (einvoice.js). Con 'factus', se emite la factura real.
  */
 const BASES = { sandbox: 'https://api-sandbox.factus.com.co', production: 'https://api.factus.com.co' };
-const KEYS = ['feProvider', 'factusEnv', 'factusClientId', 'factusClientSecret', 'factusEmail', 'factusPassword', 'factusNumberingRangeId', 'factusMunicipalityId', 'factusCodes'];
+const KEYS = ['feProvider', 'factusEnv', 'factusClientId', 'factusClientSecret', 'factusEmail', 'factusPassword', 'factusNumberingRangeId', 'factusMunicipalityId', 'factusCodes', 'factusApiVersion', 'factusMunicipalityCode'];
+// API v2 de Factus: usa códigos DIAN en lugar de ids. Tipos de documento del cliente (tabla DIAN)
+const V2_DOC = { CC: '13', NIT: '31', CE: '22', TI: '12', PAS: '41', PEP: '47', NUIP: '91', RC: '11', TE: '21' };
 // Códigos de la API de Factus que se pueden ajustar sin tocar el código
 const DEFAULT_CODES = {
   paymentMethods: { cash: '10', transfer: '47', card_credit: '48', card_debit: '49', card: '48', platform: '47', credit: '10', mixed: '10' },
@@ -29,6 +31,8 @@ function readFeConfig(db, { masked = true } = {}) {
     clientId: cfg.factusClientId, clientSecret: masked ? (cfg.factusClientSecret ? '••••••••' : '') : cfg.factusClientSecret,
     email: cfg.factusEmail, password: masked ? (cfg.factusPassword ? '••••••••' : '') : cfg.factusPassword,
     numberingRangeId: cfg.factusNumberingRangeId ? Number(cfg.factusNumberingRangeId) : null,
+    apiVersion: cfg.factusApiVersion === 'v2' ? 'v2' : cfg.factusApiVersion === 'v1' ? 'v1' : '',
+    municipalityCode: cfg.factusMunicipalityCode || '',
     municipalityId: cfg.factusMunicipalityId ? Number(cfg.factusMunicipalityId) : null,
     codes, baseUrl: BASES[cfg.factusEnv === 'production' ? 'production' : 'sandbox'],
     configured: Boolean(cfg.factusClientId && cfg.factusClientSecret && cfg.factusEmail && cfg.factusPassword),
@@ -45,6 +49,9 @@ function saveFeConfig(db, body) {
   if (body.numberingRangeId !== undefined) up.run('factusNumberingRangeId', body.numberingRangeId ? String(Math.round(Number(body.numberingRangeId))) : '');
   if (body.municipalityId !== undefined) up.run('factusMunicipalityId', body.municipalityId ? String(Math.round(Number(body.municipalityId))) : '');
   if (body.codes !== undefined && typeof body.codes === 'object') up.run('factusCodes', JSON.stringify(body.codes));
+  if (body.municipalityCode !== undefined) up.run('factusMunicipalityCode', String(body.municipalityCode || '').replace(/\D/g, '').slice(0, 5));
+  // Credenciales o ambiente nuevos: se vuelve a detectar la versión de la API
+  if (body.clientId !== undefined || body.env !== undefined || body.email !== undefined) db.prepare("DELETE FROM settings WHERE key = 'factusApiVersion'").run();
   db.prepare("DELETE FROM settings WHERE key = 'factusToken'").run();
   return readFeConfig(db);
 }
@@ -73,6 +80,20 @@ async function call(db, cfg, method, path, body, retry = true) {
     const err = new Error(`Factus (${r.status}): ${detail}`); err.status = r.status; err.payload = j; throw err;
   }
   return j;
+}
+
+/**
+ * Versión de la API habilitada para la cuenta: las cuentas nuevas de Factus solo aceptan v2 (con v1 responden 403
+ * "Version de API no disponible para esta empresa"). Se detecta una vez y se guarda.
+ */
+async function apiVersion(db, cfg, force = false) {
+  if (cfg.apiVersion && !force) return cfg.apiVersion;
+  let v = 'v1';
+  try { await call(db, cfg, 'GET', '/v2/numbering-ranges'); v = 'v2'; }
+  catch (e) { if (e.status !== 403 && e.status !== 404) throw e; }
+  db.prepare("INSERT INTO settings (key, value) VALUES ('factusApiVersion', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(v);
+  cfg.apiVersion = v;
+  return v;
 }
 
 /* ---------- armado de la factura ---------- */
@@ -135,6 +156,64 @@ function buildBill(db, order, items, cfg) {
   return bill;
 }
 
+/**
+ * Factura en formato v2 (códigos DIAN). Los precios del POS incluyen el impuesto: el precio de cada ítem va sin impuesto
+ * y Factus calcula el total; la diferencia de redondeo frente al total cobrado se informa en cash_rounding_amount.
+ */
+function buildBillV2(db, order, items, cfg) {
+  const v1 = buildBill(db, order, items, cfg);
+  const biz = readBiz(db);
+  const codes = cfg.codes;
+  const rate = biz.taxRate;
+  const taxed = biz.taxType !== 'none' && rate > 0;
+  const taxCode = biz.taxType === 'inc' ? '04' : '01';
+  const c = v1.customer;
+  const isCompany = c.legal_organization_id === '1';
+  const docKey = Object.keys(codes.documentIds).find(k => codes.documentIds[k] === c.identification_document_id) || 'CC';
+  const customer = {
+    identification_document_code: V2_DOC[docKey] || '13',
+    identification: c.identification,
+    ...(isCompany ? { company: c.company, trade_name: c.trade_name || c.company } : { names: c.names || 'CONSUMIDOR FINAL' }),
+    ...(isCompany && c.dv ? { dv: c.dv } : {}),
+    legal_organization_code: isCompany ? '1' : '2',
+    tribute_code: c.tribute_id === codes.customerTributeResponsible ? '01' : 'ZZ',
+    responsibilities: ['R-99-PN'],
+    country_code: 'CO',
+    ...(cfg.municipalityCode ? { municipality_code: cfg.municipalityCode } : {}),
+    ...(c.address ? { address: c.address } : {}),
+    ...(c.email ? { email: c.email } : {}),
+    ...(c.phone ? { phone: String(c.phone).replace(/\D/g, '').slice(0, 15) } : {}),
+  };
+  const lines = v1.items.map(l => ({
+    code_reference: l.code_reference, name: l.name, quantity: Number(l.quantity).toFixed(2), discount_rate: Number(l.discount_rate || 0).toFixed(2),
+    price: Number(l.price).toFixed(2), unit_measure_code: '94', standard_code: '999',
+    taxes: [taxed ? { code: taxCode, rate: rate.toFixed(2) } : { code: '01', rate: '0.00', is_excluded: true }],
+  }));
+  // Total como lo calcula Factus (por línea, a 2 decimales)
+  const computed = lines.reduce((a, l) => { const base = round2(Number(l.price) * Number(l.quantity) * (1 - Number(l.discount_rate) / 100)); return a + base + round2(base * Number(l.taxes[0].rate) / 100); }, 0);
+  const charged = Math.max(0, (order.total || 0));
+  const diff = round2(charged - computed);
+  const total = Math.abs(diff) <= 500 ? charged : round2(computed);
+  const credit = order.payment_status !== 'paid' || order.payment_method === 'credit';
+  const methodCode = m => codes.paymentMethods[m] || '10';
+  let payments;
+  let split = null; try { split = order.payment_split ? JSON.parse(order.payment_split) : null; } catch { split = null; }
+  if (credit) payments = [{ payment_form: '2', payment_method_code: methodCode(order.payment_method === 'credit' ? 'cash' : order.payment_method), amount: total.toFixed(2), due_date: String(order.created_at || '').slice(0, 10) }];
+  else if (order.payment_method === 'mixed' && split && split.method1) {
+    const a2 = Math.min(total, Math.round(Number(split.amount2) || 0));
+    payments = [{ payment_form: '1', payment_method_code: methodCode(split.method1), amount: (total - a2).toFixed(2) }];
+    if (a2 > 0) payments.push({ payment_form: '1', payment_method_code: methodCode(split.method2), amount: a2.toFixed(2) });
+  } else payments = [{ payment_form: '1', payment_method_code: methodCode(order.payment_method), amount: total.toFixed(2) }];
+  const bill = {
+    reference_code: v1.reference_code, document: '01', operation_type: '10', send_email: Boolean(customer.email),
+    ...(cfg.numberingRangeId ? { numbering_range_id: cfg.numberingRangeId } : {}),
+    ...(v1.observation ? { observation: v1.observation } : {}),
+    payment_details: payments, customer, items: lines,
+  };
+  if (Math.abs(diff) <= 500 && diff !== 0) bill.cash_rounding_amount = diff.toFixed(2);
+  return bill;
+}
+
 /** Emite la factura electrónica real del pedido y guarda número, CUFE, QR y enlace público. */
 async function issueInvoice(db, orderId, userName) {
   const cfg = readFeConfig(db, { masked: false });
@@ -146,15 +225,18 @@ async function issueInvoice(db, orderId, userName) {
   if (order.fe_provider === 'factus' && order.fe_cufe) return order;
   const items = db.prepare('SELECT product_id, name, quantity, price FROM order_items WHERE order_id = ?').all(orderId);
   if (!items.length) throw new Error('El pedido no tiene productos');
-  const bill = buildBill(db, order, items, cfg);
+  const version = await apiVersion(db, cfg);
+  const bill = version === 'v2' ? buildBillV2(db, order, items, cfg) : buildBill(db, order, items, cfg);
   let resp;
   try {
-    resp = await call(db, cfg, 'POST', '/v1/bills/validate', bill);
+    resp = await call(db, cfg, 'POST', `/${version}/bills/validate`, bill);
   } catch (e) {
     db.prepare("UPDATE orders SET fe_error = ?, fe_status = CASE WHEN fe_status = 'accepted' THEN fe_status ELSE 'error' END WHERE id = ?").run(String(e.message).slice(0, 500), orderId);
     throw e;
   }
-  const b = (resp && resp.data && resp.data.bill) || {};
+  // v1 responde data.bill; v2 responde data con cufe y links { qr, public_url }
+  const d = (resp && resp.data) || {};
+  const b = d.bill || { number: d.number, cufe: d.cufe, qr: d.links && d.links.qr, public_url: d.links && d.links.public_url };
   db.prepare(`UPDATE orders SET is_electronic_invoice = 1, fe_provider = 'factus', fe_number = ?, fe_cufe = ?, fe_qr = ?, fe_public_url = ?, fe_status = 'accepted', fe_error = NULL, fe_issued_at = datetime('now', '-5 hours') WHERE id = ?`)
     .run(String(b.number || b.id || ''), String(b.cufe || ''), String(b.qr || ''), String(b.public_url || ''), orderId);
   return db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
@@ -164,20 +246,24 @@ async function testConnection(db) {
   const cfg = readFeConfig(db, { masked: false });
   if (!cfg.configured) throw new Error('Faltan credenciales');
   await getToken(db, cfg, true);
-  const ranges = await call(db, cfg, 'GET', '/v1/numbering-ranges');
-  return { ok: true, env: cfg.env, ranges: (ranges.data || []).map(r => ({ id: r.id, document: r.document, prefix: r.prefix, from: r.from, to: r.to, current: r.current, resolution: r.resolution_number, start: r.start_date, end: r.end_date, isActive: r.is_active })) };
+  const version = await apiVersion(db, cfg, true);
+  const ranges = await call(db, cfg, 'GET', `/${version}/numbering-ranges`);
+  const list = Array.isArray(ranges.data) ? ranges.data : (ranges.data && ranges.data.data) || [];
+  return { ok: true, env: cfg.env, apiVersion: version, ranges: list.map(r => ({ id: r.id, document: r.document, prefix: r.prefix, from: r.from, to: r.to, current: r.current, resolution: r.resolution_number, start: r.start_date, end: r.end_date, isActive: r.is_active })) };
 }
 async function searchMunicipalities(db, q) {
   const cfg = readFeConfig(db, { masked: false });
+  if (await apiVersion(db, cfg) === 'v2') throw new Error('Con la API v2 escribe el código DIVIPOLA del municipio (ej. Cartagena 13001)');
   const r = await call(db, cfg, 'GET', `/v1/municipalities${q ? '?name=' + encodeURIComponent(q) : ''}`);
   return (r.data || []).slice(0, 50).map(m => ({ id: m.id, code: m.code, name: m.name, department: m.department }));
 }
 async function downloadPdf(db, number) {
   const cfg = readFeConfig(db, { masked: false });
-  const r = await call(db, cfg, 'GET', `/v1/bills/download-pdf/${encodeURIComponent(number)}`);
+  const v2 = (await apiVersion(db, cfg)) === 'v2';
+  const r = await call(db, cfg, 'GET', v2 ? `/v2/bills/${encodeURIComponent(number)}/download-pdf` : `/v1/bills/download-pdf/${encodeURIComponent(number)}`);
   const b64 = r.data && (r.data.pdf_base_64_encoded || r.data.pdf);
   if (!b64) throw new Error('Factus no devolvió el PDF');
   return Buffer.from(b64, 'base64');
 }
 
-module.exports = { readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, buildBill, DEFAULT_CODES };
+module.exports = { readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };
