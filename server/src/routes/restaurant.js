@@ -432,6 +432,8 @@ router.post('/orders/:id/status', (req, res) => {
     if (c) db.prepare('DELETE FROM employee_loans WHERE id = ?').run(c.id);
   }
   if (status === 'cancelled') restoreOrderStock(db, req.app.io, order.id, req.user?.name);
+  // La propina de una venta anulada no se le debe al personal
+  if (status === 'cancelled') db.prepare('DELETE FROM tips WHERE notes = ?').run(`Propina pedido #${order.id}`);
   vals.push(order.id);
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
   const formatted = fmt(db, order.id);
