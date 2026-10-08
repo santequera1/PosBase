@@ -270,10 +270,11 @@ router.put('/orders/:id/items', (req, res) => {
   const items = Array.isArray(req.body.items) ? req.body.items : [];
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM order_items WHERE order_id = ? AND batch IS NULL').run(order.id);
-    const ins = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const ins = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, seat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const it of items) {
       const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
-      ins.run(order.id, Number(it.productId) || 0, String(it.name || 'Producto').slice(0, 120), it.size || null, it.flavors || null, qty, Math.max(0, Math.round(Number(it.price) || 0)), String(it.notes || '').slice(0, 200));
+      const seat = Math.round(Number(it.seat) || 0);
+      ins.run(order.id, Number(it.productId) || 0, String(it.name || 'Producto').slice(0, 120), it.size || null, it.flavors || null, qty, Math.max(0, Math.round(Number(it.price) || 0)), String(it.notes || '').slice(0, 200), seat > 0 && seat <= 50 ? seat : null);
     }
     recomputeTotals(db, order.id);
   });
@@ -291,20 +292,29 @@ router.delete('/orders/:id/items/:itemId', (req, res) => {
   const item = db.prepare('SELECT * FROM order_items WHERE id = ? AND order_id = ?').get(Number(req.params.itemId), Number(req.params.id));
   if (!order || !item) return res.status(404).json({ error: 'Ítem no encontrado' });
   if (!ACTIVE.includes(order.status)) return res.status(400).json({ error: 'El pedido ya está cerrado' });
+  // Cantidad a cancelar: toda la línea o solo algunas unidades (ej. de 2 Coca-Cola dejar 1)
+  const cancelQty = Math.min(item.quantity, Math.max(1, Math.round(Number(req.query.quantity || req.body?.quantity) || item.quantity)));
   db.prepare('INSERT INTO order_item_cancellations (order_id, product_id, name, quantity, price, was_sent, reason, cancelled_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(order.id, item.product_id, item.name, item.quantity, item.price, item.batch ? 1 : 0, String(req.query.reason || req.body?.reason || '').slice(0, 120) || null, req.user?.name || '');
+    .run(order.id, item.product_id, item.name, cancelQty, item.price, item.batch ? 1 : 0, String(req.query.reason || req.body?.reason || '').slice(0, 120) || null, req.user?.name || '');
   if (item.batch) {
     // Devuelve al inventario lo que ya se había descontado por la comanda (movimiento de venta en positivo para que la anulación cuadre)
     const cur = db.prepare('SELECT COALESCE(track_stock, 0) AS ts, COALESCE(stock, 0) AS stock FROM products WHERE id = ?').get(item.product_id);
     if (cur && cur.ts) {
-      const newStock = cur.stock + item.quantity;
+      const newStock = cur.stock + cancelQty;
       db.prepare('UPDATE products SET stock = ? WHERE id = ?').run(newStock, item.product_id);
       syncAvailability(db, item.product_id, cur.stock, newStock);
-      recordMovement(db, item.product_id, item.quantity, newStock, 'venta', order.id, req.user?.name);
+      recordMovement(db, item.product_id, cancelQty, newStock, 'venta', order.id, req.user?.name);
       emitProduct(req.app.io, getProduct(db, item.product_id));
     }
+    // Ingredientes de la receta: vuelven al inventario
+    try {
+      const INV = require('../inventory');
+      for (const r of db.prepare('SELECT r.ingredient_id AS id, r.quantity, i.waste_pct AS w FROM recipe_items r JOIN ingredients i ON i.id = r.ingredient_id WHERE r.product_id = ?').all(item.product_id))
+        INV.move(db, r.id, r.quantity * cancelQty * (1 + (r.w || 0) / 100), 'ajuste', { orderId: order.id, notes: `Producto cancelado: ${item.name}`, user: req.user?.name });
+    } catch (e) { console.warn('Ingredientes del producto cancelado:', e.message); }
   }
-  db.prepare('DELETE FROM order_items WHERE id = ?').run(item.id);
+  if (cancelQty < item.quantity) db.prepare('UPDATE order_items SET quantity = quantity - ? WHERE id = ?').run(cancelQty, item.id);
+  else db.prepare('DELETE FROM order_items WHERE id = ?').run(item.id);
   recomputeTotals(db, order.id);
   const formatted = fmt(db, order.id);
   emit(req, 'order:updated', formatted);
@@ -591,13 +601,13 @@ router.post('/orders/:id/split', (req, res) => {
       .run(parent.type, parent.status === 'billing' ? 'open' : parent.status, parent.table_id, parent.table_label, parent.table_number, Math.max(0, Math.round(Number(req.body.people) || 1)),
         parent.waiter_id, parent.waiter_name, parent.channel || 'local', `Cuenta separada de #${parent.id}`, parent.shift_id, parent.cashier_name, req.user?.id || null, req.user?.name || null, parent.branch_id || 1, parent.id);
     childId = Number(info.lastInsertRowid);
-    const copy = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, batch, sent_at, kitchen_status, kitchen_ready_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const copy = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, batch, sent_at, kitchen_status, kitchen_ready_at, seat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const w of wanted) {
       const r = rows.find(x => x.id === w.itemId);
       if (w.quantity === r.quantity) db.prepare('UPDATE order_items SET order_id = ? WHERE id = ?').run(childId, r.id);
       else {
         db.prepare('UPDATE order_items SET quantity = quantity - ? WHERE id = ?').run(w.quantity, r.id);
-        copy.run(childId, r.product_id, r.name, r.size, r.flavors, w.quantity, r.price, r.notes, r.batch, r.sent_at, r.kitchen_status, r.kitchen_ready_at);
+        copy.run(childId, r.product_id, r.name, r.size, r.flavors, w.quantity, r.price, r.notes, r.batch, r.sent_at, r.kitchen_status, r.kitchen_ready_at, r.seat ?? null);
       }
     }
     recomputeTotals(db, parent.id);

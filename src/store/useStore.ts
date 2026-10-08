@@ -100,6 +100,8 @@ export interface OrderItem {
   sentAt?: string;
   kitchenStatus?: 'pending' | 'preparing' | 'ready';
   station?: string;
+  /** Cuentas separadas: persona (1, 2, 3...) a la que va el producto */
+  seat?: number | null;
 }
 
 export interface Order {

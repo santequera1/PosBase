@@ -80,7 +80,8 @@ function initRestaurantSchema(db) {
   // Pedido: canal, etiqueta, mesa, personas, mesero, repartidor, propina, tiempos y cierre
   addCol(db, 'orders', 'channel', "TEXT DEFAULT 'local'");
   addCol(db, 'orders', 'split_from', 'INTEGER');
-  addCol(db, 'orders', 'payroll_employee_id', 'INTEGER'); // venta cobrada con descuento de nómina a este empleado // cuenta separada: id de la cuenta de la mesa de la que salió
+  addCol(db, 'orders', 'payroll_employee_id', 'INTEGER');
+  addCol(db, 'order_items', 'seat', 'INTEGER'); // cuentas separadas: persona (1, 2, 3...) a la que va el producto // venta cobrada con descuento de nómina a este empleado // cuenta separada: id de la cuenta de la mesa de la que salió
   addCol(db, 'orders', 'sale_label', 'TEXT');
   addCol(db, 'orders', 'table_id', 'INTEGER');
   addCol(db, 'orders', 'table_label', 'TEXT');

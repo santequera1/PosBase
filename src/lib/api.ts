@@ -277,7 +277,7 @@ export const api = {
   openRestaurantOrder: (data: any) => request<any>('/restaurant/orders', { method: 'POST', body: JSON.stringify(data) }),
   getActiveOrders: (type?: string) => request<any[]>(`/restaurant/orders/active${type ? '?type=' + type : ''}`),
   setOrderItems: (id: number, items: any[]) => request<any>(`/restaurant/orders/${id}/items`, { method: 'PUT', body: JSON.stringify({ items }) }),
-  removeSentItem: (id: number, itemId: number) => request<any>(`/restaurant/orders/${id}/items/${itemId}`, { method: 'DELETE' }),
+  removeSentItem: (id: number, itemId: number, quantity?: number, reason?: string) => request<any>(`/restaurant/orders/${id}/items/${itemId}${qstr({ quantity, reason })}`, { method: 'DELETE' }),
   sendToKitchen: (id: number) => request<any>(`/restaurant/orders/${id}/send`, { method: 'POST' }),
   updateOrderHeader: (id: number, data: any) => request<any>(`/restaurant/orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   setRestaurantStatus: (id: number, status: string, driverId?: number) => request<any>(`/restaurant/orders/${id}/status`, { method: 'POST', body: JSON.stringify({ status, driverId }) }),

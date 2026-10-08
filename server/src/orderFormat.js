@@ -3,7 +3,7 @@ const { electronicInvoiceOf } = require('./einvoice');
 /** Pedido tal como lo consume el frontend (usado por /orders y /restaurant). */
 function formatOrder(db, order) {
   const items = db.prepare(`
-    SELECT oi.id, oi.product_id AS productId, oi.name, oi.size, oi.flavors, oi.quantity, oi.price, oi.notes,
+    SELECT oi.id, oi.product_id AS productId, oi.name, oi.size, oi.flavors, oi.quantity, oi.price, oi.notes, oi.seat,
            oi.batch, oi.sent_at AS sentAt, COALESCE(oi.kitchen_status, 'pending') AS kitchenStatus, oi.kitchen_ready_at AS kitchenReadyAt,
            COALESCE(p.station, 'cocina') AS station
     FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id

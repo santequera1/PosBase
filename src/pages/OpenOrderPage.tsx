@@ -16,7 +16,11 @@ import { canDo } from '@/lib/permissions';
 import { NiceSelect } from '@/components/ui/nice-select';
 
 const backPath = (o: Order) => (o.type === 'dine-in' ? '/tables' : o.type === 'pickup' ? '/counter' : '/delivery');
-const sameLine = (a: OrderItem, b: OrderItem) => a.productId === b.productId && (a.size || '') === (b.size || '') && (a.notes || '') === (b.notes || '');
+const sameLine = (a: OrderItem, b: OrderItem) => a.productId === b.productId && (a.size || '') === (b.size || '') && (a.notes || '') === (b.notes || '') && (a.seat || 0) === (b.seat || 0);
+/** Insignia de la persona en cuentas separadas */
+const SeatBadge = ({ seat, onClick, title }: { seat?: number | null; onClick?: () => void; title?: string }) => (
+  <button type="button" onClick={onClick} disabled={!onClick} title={title} className={cn('shrink-0 min-w-[26px] h-6 px-1.5 rounded-md text-[10px] font-bold border', seat ? 'bg-sky-100 text-sky-800 border-sky-200' : 'bg-white text-brand-muted border-dashed border-border', !onClick && 'cursor-default')} data-seat-badge={seat || 0}>{seat ? `P${seat}` : '—'}</button>
+);
 
 /** Cuenta abierta: se agregan productos, se mandan comandas a cocina, precuenta y cobro. Sirve para mesas, para llevar y domicilios. */
 const OpenOrderPage = () => {
@@ -71,7 +75,12 @@ const OpenOrderPage = () => {
       catch (e: any) { toast.error(e.message); }
     }, 350);
   };
+  // Cuentas separadas desde el principio: a quién va lo que se agrega (0 = para la mesa / sin separar)
+  const [seat, setSeat] = useState(0);
+  const [seatCount, setSeatCount] = useState(2);
+  const canCancel = user?.role === 'admin' || canDo(user, 'cancel_orders');
   const addItem = (item: OrderItem) => {
+    item = { ...item, seat: seat || null };
     const cur = draftRef.current;
     const idx = cur.findIndex(i => sameLine(i, item));
     const next = idx >= 0 ? cur.map((i, k) => (k === idx ? { ...i, quantity: i.quantity + 1 } : i)) : [...cur, item];
@@ -82,10 +91,15 @@ const OpenOrderPage = () => {
     persist(next);
   };
   const setNote = (idx: number, notes: string) => persist(draftRef.current.map((i, k) => (k === idx ? { ...i, notes } : i)));
-  const removeSent = async (item: OrderItem) => {
-    if (!item.id || !window.confirm(`¿Retirar "${item.name}" de la cuenta? Ya se envió a cocina.`)) return;
-    try { const o = await api.removeSentItem(orderId, item.id); setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); } catch (e: any) { toast.error(e.message); }
+  // Corregir un producto ya enviado: quitar una unidad o toda la línea (queda como adición cancelada)
+  const removeSent = async (item: OrderItem, quantity?: number) => {
+    if (!item.id) return;
+    const what = quantity && quantity < item.quantity ? `1 de ${item.quantity} × "${item.name}"` : `"${item.name}"`;
+    const reason = window.prompt(`Quitar ${what} de la cuenta (ya se envió a cocina).\nMotivo (opcional): ej. el cliente cambió de opinión`, '');
+    if (reason === null) return;
+    try { const o = await api.removeSentItem(orderId, item.id, quantity, reason || undefined); setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); toast.success('Producto corregido'); } catch (e: any) { toast.error(e.message); }
   };
+  const cycleSeat = (idx: number) => persist(draftRef.current.map((i, k) => (k === idx ? { ...i, seat: ((i.seat || 0) + 1) > seatCount ? null : (i.seat || 0) + 1 } : i)));
 
   const flush = async () => { if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; await api.setOrderItems(orderId, draftRef.current); } };
   const send = async () => {
@@ -152,6 +166,11 @@ const OpenOrderPage = () => {
     return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([batch, items]) => ({ batch, items }));
   }, [order]);
   const subtotal = (order ? order.items.filter(i => i.batch).reduce((a, i) => a + i.price * i.quantity, 0) : 0) + draft.reduce((a, i) => a + i.price * i.quantity, 0);
+  // Cuentas separadas: subtotal de cada persona
+  const allLines = [...(order ? order.items.filter(i => i.batch) : []), ...draft];
+  const anySeat = allLines.some(i => i.seat);
+  const seatTotals = Object.entries(allLines.reduce((acc: Record<number, number>, i) => { const k = i.seat || 0; acc[k] = (acc[k] || 0) + i.price * i.quantity; return acc; }, {})).map(([k, v]) => [Number(k), v] as [number, number]).sort((a, b) => (a[0] || 99) - (b[0] || 99));
+  useEffect(() => { const max = allLines.reduce((m, i) => Math.max(m, i.seat || 0), 0); if (max > seatCount) setSeatCount(max); }, [allLines.length]);
   const total = Math.max(0, subtotal + (order?.deliveryFee || 0) - (order?.discount || 0));
 
   if (error) return <div className="p-6 text-sm text-red-600">{error} <button onClick={() => navigate(-1)} className="underline ml-2">Volver</button></div>;
@@ -170,6 +189,16 @@ const OpenOrderPage = () => {
           </div>
           <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', STATUS_CLASS[order.status])}>{statusLabel(order)}</span>
         </div>
+        {!closed && (
+          <div className="px-3 py-2 bg-white/70 border-b border-brand-primary/10 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0" data-seat-bar>
+            <span className="text-[11px] font-semibold text-brand-muted whitespace-nowrap">Cuentas separadas · para:</span>
+            <button onClick={() => setSeat(0)} className={cn('px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap', !seat ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-dark border-border')}>Toda la mesa</button>
+            {Array.from({ length: seatCount }, (_, k) => k + 1).map(n => (
+              <button key={n} onClick={() => setSeat(n)} className={cn('px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap', seat === n ? 'bg-sky-600 text-white border-sky-700' : 'bg-white text-sky-800 border-sky-200')} data-seat={n}>Persona {n}</button>
+            ))}
+            <button onClick={() => { setSeatCount(c => Math.min(20, c + 1)); setSeat(seatCount + 1); }} className="px-2 py-1 rounded-lg text-xs font-bold border border-dashed border-border text-brand-muted whitespace-nowrap" title="Otra persona" data-seat-add>+ Persona</button>
+          </div>
+        )}
         {closed ? <div className="p-6 text-sm text-muted-foreground">Esta cuenta ya está cerrada.</div> : <ProductPicker onAdd={addItem} />}
       </div>
 
@@ -188,7 +217,7 @@ const OpenOrderPage = () => {
                 <button onClick={() => { setShowMenu(false); setShowEdit(true); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Pencil size={14} /> Editar datos del pedido</button>
                 {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); setShowMove('move'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><ArrowLeftRight size={14} /> Cambiar de mesa</button>}
                 {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); setShowMove('merge'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Merge size={14} /> Unir con otra mesa</button>}
-                {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); openSplit(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-split-menu><Split size={14} /> Cuentas separadas</button>}
+                {<button onClick={() => { setShowMenu(false); openSplit(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-split-menu><Split size={14} /> Cuentas separadas</button>}
                 {lastBatch.current && <button onClick={() => { setShowMenu(false); printLastBatch(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Printer size={14} /> Reimprimir última comanda</button>}
                 {canDo(user, 'cancel_orders') && <button onClick={() => { setShowMenu(false); cancel(); }} className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"><Ban size={14} /> Anular cuenta</button>}
               </div>
@@ -205,9 +234,11 @@ const OpenOrderPage = () => {
               {g.items.map(i => (
                 <div key={i.id} className="px-3 py-1.5 flex items-start gap-2 text-xs border-t border-border/60">
                   <span className="font-bold w-6">{i.quantity}x</span>
+                  {anySeat && <SeatBadge seat={i.seat} />}
                   <span className="flex-1 min-w-0"><span className="font-semibold text-brand-dark">{i.name}</span>{i.notes && <span className="block text-[11px] text-brand-muted">➜ {i.notes}</span>}</span>
                   <span className="font-semibold">{formatPrice(i.price * i.quantity)}</span>
-                  {user?.role === 'admin' && !closed && <button onClick={() => removeSent(i)} className="text-brand-muted hover:text-red-600" title="Retirar (admin)"><Trash2 size={13} /></button>}
+                  {canCancel && !closed && i.quantity > 1 && <button onClick={() => removeSent(i, 1)} className="w-6 h-6 rounded-md border border-border text-brand-muted hover:text-red-600 flex items-center justify-center" title="Quitar una unidad" data-sent-minus><Minus size={12} /></button>}
+                  {canCancel && !closed && <button onClick={() => removeSent(i)} className="w-6 h-6 rounded-md text-brand-muted hover:text-red-600 flex items-center justify-center" title="Quitar de la cuenta" data-sent-remove><Trash2 size={13} /></button>}
                 </div>
               ))}
             </div>
@@ -223,6 +254,7 @@ const OpenOrderPage = () => {
                       <span className="w-6 text-center font-bold">{i.quantity}</span>
                       <button onClick={() => changeQty(idx, 1)} className="w-7 h-7 flex items-center justify-center" title="Agregar uno"><Plus size={12} /></button>
                     </div>
+                    {(anySeat || seat > 0) && <SeatBadge seat={i.seat} onClick={() => cycleSeat(idx)} title="Tocar para cambiar de persona" />}
                     <span className="flex-1 min-w-0 font-semibold text-brand-dark truncate">{i.name}</span>
                     <span className="font-semibold">{formatPrice(i.price * i.quantity)}</span>
                     <button onClick={() => setNoteEdit(noteEdit === idx ? null : idx)} className={cn('w-7 h-7 rounded-lg flex items-center justify-center', i.notes ? 'text-brand-primary bg-brand-card' : 'text-brand-muted hover:bg-brand-card')} title="Nota para cocina"><StickyNote size={13} /></button>
@@ -244,6 +276,7 @@ const OpenOrderPage = () => {
             {order.deliveryFee ? <div className="flex justify-between text-brand-muted"><span>Envío</span><span>{formatPrice(order.deliveryFee)}</span></div> : null}
             {order.discount ? <div className="flex justify-between text-red-700"><span>Descuento</span><span>− {formatPrice(order.discount)}</span></div> : null}
             <div className="flex justify-between text-base font-bold text-brand-dark"><span>Total</span><span>{formatPrice(total)}</span></div>
+            {anySeat && <div className="flex flex-wrap gap-1.5 pt-1" data-seat-totals>{seatTotals.map(([s, v]) => <span key={s} className={cn('px-2 py-0.5 rounded-md text-[11px] font-semibold border', s ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-gray-50 text-gray-600 border-gray-200')}>{s ? `Persona ${s}` : 'Mesa'}: {formatPrice(v)}</span>)}</div>}
           </div>
           {!closed && (
             <>
@@ -253,7 +286,7 @@ const OpenOrderPage = () => {
               <button onClick={openClose} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl gradient-primary text-primary-foreground text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Cobrar y cerrar"><Wallet size={16} />Cobrar</button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {order.type === 'dine-in' ? <button onClick={openSplit} disabled={busy || order.items.length + draft.length < 2} className="py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card disabled:opacity-40" data-split><Split size={13} /> Cuentas separadas</button> : <span />}
+              {true ? <button onClick={openSplit} disabled={busy || allLines.reduce((n, i) => n + i.quantity, 0) < 2} className="py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card disabled:opacity-40" data-split><Split size={13} /> Cuentas separadas</button> : <span />}
               <button onClick={leave} className="py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card" data-leave-bottom><ArrowLeft size={13} /> Salir sin cobrar</button>
             </div>
             </>
@@ -368,6 +401,8 @@ const SplitModal = ({ order, onClose, onSplit }: { order: Order; onClose: () => 
   const totalQty = lines.reduce((s, i) => s + i.quantity, 0);
   const pickedQty = Object.values(qty).reduce((a, b) => a + b, 0);
   const set = (id: number, max: number, d: number) => setQty(q => ({ ...q, [id]: Math.max(0, Math.min(max, (q[id] || 0) + d)) }));
+  const seats = [...new Set(lines.map(i => i.seat || 0).filter(Boolean))].sort((a, b) => a - b);
+  const pickSeat = (s: number) => { setQty(Object.fromEntries(lines.filter(i => (i.seat || 0) === s).map(i => [i.id as number, i.quantity]))); setPeople(1); };
   const go = async () => {
     setBusy(true);
     try {
@@ -379,11 +414,18 @@ const SplitModal = ({ order, onClose, onSplit }: { order: Order; onClose: () => 
   return (
     <Modal title={`Cuentas separadas · ${orderTitle(order)}`} onClose={onClose}>
       <p className="text-xs text-muted-foreground">Marca lo que paga <b>esta persona</b>. Esa parte se cobra aparte con su propio recibo o factura y la mesa sigue abierta con el resto. Repite para cada persona; la última paga con <b>Cobrar</b>.</p>
+      {seats.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5" data-split-seats>
+          <span className="text-xs text-muted-foreground">Cobrar a:</span>
+          {seats.map(s => <button key={s} onClick={() => pickSeat(s)} className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-bold" data-split-seat={s}>Persona {s} · {formatPrice(lines.filter(i => i.seat === s).reduce((a, i) => a + i.price * i.quantity, 0))}</button>)}
+        </div>
+      )}
       <ul className="divide-y divide-border border border-border rounded-xl max-h-[45dvh] overflow-y-auto" data-split-list>
         {lines.map(i => {
           const n = qty[i.id as number] || 0;
           return (
             <li key={i.id} className={cn('flex items-center gap-2 px-3 py-2 text-xs', n > 0 && 'bg-brand-card/60')}>
+              {i.seat ? <SeatBadge seat={i.seat} /> : null}
               <span className="flex-1 min-w-0"><span className="font-semibold text-brand-dark block truncate">{i.name}</span><span className="text-muted-foreground">{i.quantity} × {formatPrice(i.price)}</span></span>
               <div className="flex items-center rounded-lg border border-border bg-white">
                 <button onClick={() => set(i.id as number, i.quantity, -1)} className="w-8 h-8 flex items-center justify-center" aria-label="Menos"><Minus size={13} /></button>

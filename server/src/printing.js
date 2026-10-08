@@ -173,7 +173,7 @@ function kitchenTicket(printer, order, items, { station, batch, now }) {
   if (order.channel && order.channel !== 'local') t.line(`Canal: ${order.channel}`);
   t.line(fmtDateTime(now)).align('left').sep('=');
   for (const it of items) {
-    t.size('tall').bold().line(`${it.quantity} x ${it.name}${it.size ? ' (' + it.size + ')' : ''}`).size(1).bold(false);
+    t.size('tall').bold().line(`${it.quantity} x ${it.name}${it.size ? ' (' + it.size + ')' : ''}${it.seat ? '  [P' + it.seat + ']' : ''}`).size(1).bold(false);
     if (it.flavors) t.line(`   ${it.flavors}`);
     if (it.notes) t.bold().line(`   ** ${it.notes}`).bold(false);
   }
@@ -318,7 +318,7 @@ function orderRow(db, id) { return db.prepare('SELECT * FROM orders WHERE id = ?
 function enqueueKitchen(db, orderId, batch, { user = '', mode } = {}) {
   const order = orderRow(db, orderId);
   if (!order) return 0;
-  const items = db.prepare(`SELECT oi.name, oi.size, oi.flavors, oi.quantity, oi.notes, COALESCE(p.station, 'cocina') AS station FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+  const items = db.prepare(`SELECT oi.name, oi.size, oi.flavors, oi.quantity, oi.notes, oi.seat, COALESCE(p.station, 'cocina') AS station FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
     WHERE oi.order_id = ? ${batch ? 'AND oi.batch = ?' : 'AND oi.batch IS NOT NULL'} ORDER BY oi.id`).all(...(batch ? [order.id, batch] : [order.id])).filter(i => i.station !== 'none');
   if (!items.length) return 0;
   const now = db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d;
