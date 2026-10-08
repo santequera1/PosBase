@@ -25,6 +25,7 @@ function getDb() {
     initRestaurantSchema(db);
     initAccountingSchema(db);
     initBranches(db);
+    require('./inventory').initInventory(db);
     seedIfEmpty();
     syncSpecialProducts();
     backfillOrderCashier(db);

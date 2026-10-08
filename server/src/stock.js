@@ -67,10 +67,13 @@ function applySaleStock(db, io, orderId, items, userName) {
     touched.add(pid);
   }
   for (const pid of touched) emitProduct(io, getProduct(db, pid));
+  // Ingredientes de la receta de cada producto vendido
+  try { require('./inventory').consumeForSale(db, orderId, items, userName); } catch (e) { console.warn('Inventario de ingredientes:', e.message); }
 }
 
 /** Anulación o eliminación de un pedido: devuelve al stock lo descontado (una sola vez por pedido). */
 function restoreOrderStock(db, io, orderId, userName) {
+  try { require('./inventory').restoreForOrder(db, orderId, userName); } catch (e) { console.warn('Inventario de ingredientes:', e.message); }
   const already = db.prepare("SELECT COUNT(*) AS c FROM stock_movements WHERE order_id = ? AND reason = 'devolucion'").get(orderId).c;
   if (already) return;
   const rows = db.prepare("SELECT product_id AS pid, SUM(delta) AS delta FROM stock_movements WHERE order_id = ? AND reason = 'venta' GROUP BY product_id").all(orderId);

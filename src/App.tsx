@@ -14,7 +14,7 @@ import OrdersPage from "@/pages/OrdersPage";
 import NewOrderPage from "@/pages/NewOrderPage";
 import OrderDetailPage from "@/pages/OrderDetailPage";
 import KitchenPage from "@/pages/KitchenPage";
-import ProductsPage from "@/pages/ProductsPage";
+import MenuModulePage from "@/pages/MenuModulePage";
 import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import ReportsPage from "@/pages/ReportsPage";
@@ -129,7 +129,7 @@ const App = () => (
             <Route path="/counter" element={<Guard view="counter"><CounterPage /></Guard>} />
             <Route path="/delivery" element={<Guard view="delivery"><DeliveryPage /></Guard>} />
             <Route path="/cuenta/:id" element={<Guard view={['tables', 'counter', 'delivery', 'pos']}><OpenOrderPage /></Guard>} />
-            <Route path="/products" element={<Guard view="menu"><ProductsPage /></Guard>} />
+            <Route path="/products" element={<Guard view="menu"><MenuModulePage /></Guard>} />
             <Route path="/customers" element={<Guard view="customers"><CustomersPage /></Guard>} />
             <Route path="/customers/:id" element={<Guard view="customers"><CustomerDetailPage /></Guard>} />
             <Route path="/staff" element={<Guard view="staff"><StaffPage /></Guard>} />

@@ -47,6 +47,7 @@ app.use('/api/public', require('./routes/public'));
 // Protected routes
 app.use('/api/categories', authMiddleware, require('./routes/categories'));
 app.use('/api/products', authMiddleware, require('./routes/products'));
+app.use('/api/inventory', authMiddleware, require('./routes/inventory'));
 app.use('/api/media', authMiddleware, require('./routes/media'));
 app.use('/api/customers', authMiddleware, require('./routes/customers'));
 app.use('/api/orders', authMiddleware, require('./routes/orders'));
