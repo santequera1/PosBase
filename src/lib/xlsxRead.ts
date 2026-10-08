@@ -41,7 +41,7 @@ async function unzip(buf: ArrayBuffer): Promise<Map<string, Uint8Array>> {
 
 const colIndex = (ref: string) => { const letters = ref.replace(/[0-9]/g, ''); let n = 0; for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
 
-async function readXlsx(buf: ArrayBuffer): Promise<string[][]> {
+async function readXlsx(buf: ArrayBuffer, all = false): Promise<any> {
   const files = await unzip(buf);
   const dec = new TextDecoder();
   const parser = new DOMParser();
@@ -51,9 +51,10 @@ async function readXlsx(buf: ArrayBuffer): Promise<string[][]> {
     const doc = parser.parseFromString(dec.decode(ss), 'application/xml');
     for (const si of Array.from(doc.getElementsByTagName('si'))) shared.push(Array.from(si.getElementsByTagName('t')).map(t => t.textContent || '').join(''));
   }
-  const sheetName = [...files.keys()].filter(k => /worksheets\/sheet\d+\.xml$/.test(k)).sort((a, b) => Number(a.match(/(\d+)\.xml$/)![1]) - Number(b.match(/(\d+)\.xml$/)![1]))[0];
-  if (!sheetName) throw new Error('El Excel no tiene hojas');
-  const doc = parser.parseFromString(dec.decode(files.get(sheetName)!), 'application/xml');
+  const sheetNames = [...files.keys()].filter(k => /worksheets\/sheet\d+\.xml$/.test(k)).sort((a, b) => Number(a.match(/(\d+)\.xml$/)![1]) - Number(b.match(/(\d+)\.xml$/)![1]));
+  if (!sheetNames.length) throw new Error('El Excel no tiene hojas');
+  const sheets = (all ? sheetNames : sheetNames.slice(0, 1)).map(name => {
+  const doc = parser.parseFromString(dec.decode(files.get(name)!), 'application/xml');
   const rows: string[][] = [];
   for (const row of Array.from(doc.getElementsByTagName('row'))) {
     const r = Number(row.getAttribute('r')) - 1;
@@ -71,6 +72,8 @@ async function readXlsx(buf: ArrayBuffer): Promise<string[][]> {
     rows[r >= 0 ? r : rows.length] = Array.from(cells, x => x ?? '');
   }
   return Array.from(rows, x => x ?? []);
+  });
+  return all ? sheets : sheets[0];
 }
 
 function readCsv(text: string): string[][] {
@@ -94,6 +97,12 @@ export async function readSpreadsheet(file: File): Promise<string[][]> {
   if (/\.csv$/i.test(file.name) || file.type === 'text/csv') return readCsv(await file.text());
   if (/\.xls$/i.test(file.name)) throw new Error('El formato .xls (Excel 97) no se puede leer. En Excel: Archivo → Guardar como → Libro de Excel (.xlsx).');
   return readXlsx(await file.arrayBuffer());
+}
+
+/** Todas las hojas de un .xlsx (un .csv cuenta como una sola hoja). */
+export async function readAllSheets(file: File): Promise<string[][][]> {
+  if (/\.csv$/i.test(file.name) || file.type === 'text/csv') return [readCsv(await file.text())];
+  return readXlsx(await file.arrayBuffer(), true);
 }
 
 /** Quita tildes, espacios y mayúsculas para comparar encabezados. */

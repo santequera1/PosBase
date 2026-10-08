@@ -50,6 +50,14 @@ function initInventory(db) {
       user_name TEXT DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now', '-5 hours'))
     );
+    -- Sub-receta de un ingrediente elaborado (ej. cebolla caramelizada = azúcar + cebolla cruda + mantequilla)
+    CREATE TABLE IF NOT EXISTS ingredient_components (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),
+      component_id INTEGER NOT NULL REFERENCES ingredients(id),
+      quantity REAL NOT NULL,
+      UNIQUE(ingredient_id, component_id)
+    );
     CREATE INDEX IF NOT EXISTS idx_recipe_product ON recipe_items(product_id);
     CREATE INDEX IF NOT EXISTS idx_ingmov_ing ON ingredient_movements(ingredient_id, date);
     CREATE INDEX IF NOT EXISTS idx_ingmov_order ON ingredient_movements(order_id);
@@ -151,4 +159,13 @@ function profitability(db, { from, to, branchSql = '', branchParams = [] }) {
   };
 }
 
-module.exports = { UNITS, KINDS, initInventory, ING_SELECT, mapIng, effCost, recipeOf, recipeCost, syncProductCost, syncCostsForIngredient, move, consumeForSale, restoreForOrder, profitability };
+/** Sub-receta de un ingrediente con el costo de cada componente (incluye su merma). */
+function componentsOf(db, ingredientId) {
+  const rows = db.prepare(`SELECT c.id, c.component_id AS componentId, c.quantity, i.name, i.unit, i.cost, i.waste_pct AS wastePct
+    FROM ingredient_components c JOIN ingredients i ON i.id = c.component_id WHERE c.ingredient_id = ? ORDER BY i.name`).all(ingredientId)
+    .map(r => ({ ...r, lineCost: Math.round(r.quantity * effCost(r)) }));
+  return { items: rows, cost: Math.round(rows.reduce((a, r) => a + r.quantity * effCost(r), 0)) };
+}
+
+module.exports = {
+  componentsOf, UNITS, KINDS, initInventory, ING_SELECT, mapIng, effCost, recipeOf, recipeCost, syncProductCost, syncCostsForIngredient, move, consumeForSale, restoreForOrder, profitability };

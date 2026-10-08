@@ -364,7 +364,7 @@ export const api = {
   addIngredient: (data: any) => request<any>('/inventory/ingredients', { method: 'POST', body: JSON.stringify(data) }),
   updateIngredient: (id: number, data: any) => request<any>(`/inventory/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteIngredient: (id: number) => request<any>(`/inventory/ingredients/${id}`, { method: 'DELETE' }),
-  importIngredients: (rows: any[], dryRun: boolean) => request<any>('/inventory/ingredients/import', { method: 'POST', body: JSON.stringify({ rows, dryRun }) }),
+  importIngredients: (rows: any[], dryRun: boolean, components: any[] = []) => request<any>('/inventory/ingredients/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, components }) }),
   getRecipes: () => request<any[]>('/inventory/recipes'),
   getRecipe: (productId: number) => request<any>(`/inventory/recipes/${productId}`),
   saveRecipe: (productId: number, items: Array<{ ingredientId: number; quantity: number }>) => request<any>(`/inventory/recipes/${productId}`, { method: 'PUT', body: JSON.stringify({ items }) }),

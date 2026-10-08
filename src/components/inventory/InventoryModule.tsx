@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { canDo } from '@/lib/permissions';
 import { Modal, Chip, KpiCard, INPUT, LABEL, fmtDate } from '@/components/common/Primitives';
 import { NiceSelect } from '@/components/ui/nice-select';
-import { readSpreadsheet, normHeader } from '@/lib/xlsxRead';
+import { readSpreadsheet, readAllSheets, normHeader } from '@/lib/xlsxRead';
 import { downloadXlsx } from '@/lib/xlsx';
 
 export const UNITS: Array<[string, string]> = [['unid', 'unid.'], ['kg', 'kg'], ['g', 'g'], ['l', 'litro'], ['ml', 'ml'], ['lb', 'lb'], ['oz', 'oz']];
@@ -134,6 +134,16 @@ const IngredientDetail = ({ id, categories, onClose }: { id: number; categories:
           <button onClick={remove} className="ml-auto px-3 py-2 rounded-lg border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-1"><Trash2 size={12} /> Eliminar</button>
         </div>
       )}
+      {d.components?.items?.length > 0 && (
+        <div className="border border-border rounded-xl overflow-hidden" data-ing-components>
+          <p className="px-3 py-2 bg-brand-card text-xs font-bold uppercase">Receta del ingrediente (elaboración)</p>
+          {d.components.items.map((c: any) => (
+            <div key={c.id} className="flex justify-between px-3 py-1.5 text-xs border-t border-border"><span className="uppercase">{c.name}</span><span>{fmtQty(c.quantity)} {unitLabel(c.unit)} · <b>{formatPrice(c.lineCost)}</b></span></div>
+          ))}
+          <p className="px-3 py-2 text-xs border-t border-border">Costo según la receta: <b>{formatPrice(d.components.cost)}</b> por {unitLabel(i.unit)} · costo registrado <b>{formatPrice(i.cost)}</b>{Math.abs(d.components.cost - i.cost) > 1 && canEdit ? <button onClick={async () => { try { await api.updateIngredient(i.id, { cost: d.components.cost }); toast.success('Costo actualizado'); load(); } catch (e: any) { toast.error(e.message); } }} className="ml-2 text-brand-primary font-semibold underline">usar el de la receta</button> : null}</p>
+        </div>
+      )}
+      {d.usedInIngredients?.length > 0 && <p className="text-[11px] text-muted-foreground">También se usa para elaborar: {d.usedInIngredients.map((u: any) => `${u.name} (${fmtQty(u.quantity)} ${unitLabel(i.unit)})`).join(' · ')}</p>}
       <div className="grid md:grid-cols-2 gap-3">
         <div className="border border-border rounded-xl overflow-hidden">
           <p className="px-3 py-2 bg-brand-card text-xs font-bold uppercase">Productos asociados ({d.products.length})</p>
@@ -165,7 +175,8 @@ const ImportIngredients = ({ onClose, onDone }: { onClose: () => void; onDone: (
   const [preview, setPreview] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const COLS: Record<string, string[]> = { name: ['nombre', 'ingrediente', 'name'], category: ['categoria', 'category'], unit: ['unidad', 'unit'], cost: ['costo', 'cost', 'precio'], wastePct: ['merma', 'mermapct', 'merma%'], stock: ['stock', 'cantidad', 'existencia'] };
+  const [components, setComponents] = useState<any[]>([]);
+  const COLS: Record<string, string[]> = { name: ['nombre', 'ingrediente', 'name'], category: ['categoria', 'category'], unit: ['unidad', 'unit'], cost: ['costo', 'cost', 'precio'], wastePct: ['merma', 'mermapct', 'merma%'], stock: ['stock', 'cantidad', 'existencia'], trackStock: ['controldestock', 'controlarstock', 'controlstock'] };
   const pick = async (file?: File | null) => {
     if (!file) return;
     try {
@@ -180,13 +191,21 @@ const ImportIngredients = ({ onClose, onDone }: { onClose: () => void; onDone: (
         if (o.wastePct) o.wastePct = o.wastePct.replace(/[%\s-]/g, '').replace(',', '.');
         return o;
       });
+      // Segunda hoja (exportación de Fudo): Ingrediente · Subingrediente · Cantidad
+      let comps: any[] = [];
+      try {
+        const sheets = await readAllSheets(file);
+        const sub = sheets.find(t => (t[0] || []).map(h => normHeader(h)).includes('subingrediente'));
+        if (sub) { const h = sub[0].map(x => normHeader(x)); const a = h.indexOf('ingrediente'), b = h.indexOf('subingrediente'), q = h.indexOf('cantidad'); comps = sub.slice(1).filter(r => r[a] && r[b]).map(r => ({ ingredient: r[a], component: r[b], quantity: String(r[q] ?? '').replace(',', '.') })); }
+      } catch { /* sin hoja de sub-recetas */ }
+      setComponents(comps);
       setRows(parsed);
-      setPreview(await api.importIngredients(parsed, true));
+      setPreview(await api.importIngredients(parsed, true, comps));
     } catch (e: any) { toast.error(e.message || 'No se pudo leer el archivo'); }
   };
   const go = async () => {
     if (!rows) return; setBusy(true);
-    try { const r = await api.importIngredients(rows, false); toast.success(`${r.created} creados · ${r.updated} actualizados`); onDone(); } catch (e: any) { toast.error(e.message); }
+    try { const r = await api.importIngredients(rows, false, components); toast.success(`${r.created} creados · ${r.updated} actualizados${r.components ? ` · ${r.components} sub-recetas` : ''}`); onDone(); } catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
   return (
@@ -201,6 +220,8 @@ const ImportIngredients = ({ onClose, onDone }: { onClose: () => void; onDone: (
             <tbody>{preview.preview.map((r: any, k: number) => <tr key={k} className="border-t border-border"><td className="px-2 py-1">{r.name}</td><td className="px-2">{r.category}</td><td className="px-2">{r.unit}</td><td className="px-2 text-right">{formatPrice(r.cost)}</td><td className="px-2">{r.action}</td></tr>)}</tbody>
           </table></div>
           {preview.skipped.length > 0 && <p className="text-[11px] text-amber-700">Se omiten {preview.skipped.length} fila(s) sin nombre.</p>}
+          {preview.ignoredStock?.length > 0 && <p className="text-[11px] text-amber-700">Stock no confiable, queda en 0 para hacer conteo: {preview.ignoredStock.map((s: any) => `${s.name} (${s.stock})`).join(', ')}</p>}
+          {components.length > 0 && <p className="text-[11px] text-muted-foreground">También se cargan {preview.components} sub-receta(s) de ingredientes elaborados{preview.componentErrors?.length ? ` (${preview.componentErrors.length} sin coincidencia)` : ''}.</p>}
           <button onClick={go} disabled={busy} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">Importar {preview.preview.length} ingrediente(s)</button>
         </>
       )}

@@ -22,7 +22,7 @@ function ingredientPayload(b, cur = {}) {
     cost: Math.max(0, num(pick('cost', 0))),
     wastePct: Math.min(90, Math.max(0, num(pick('wastePct', 0)))),
     minStock: Math.max(0, num(pick('minStock', 0))),
-    trackStock: Boolean(pick('trackStock', true)),
+    trackStock: (v => (typeof v === 'string' ? !/^(no|n|false|0)$/i.test(v.trim()) : Boolean(v)))(pick('trackStock', true)),
     supplierId: Number(pick('supplierId', 0)) || null,
     notes: String(pick('notes', '')).slice(0, 200),
     active: pick('active', true) !== false,
@@ -43,7 +43,8 @@ router.get('/ingredients/:id', READ, (req, res) => {
   const products = db.prepare(`SELECT p.id, p.name, p.price, COALESCE(p.cost, 0) AS cost, r.quantity FROM recipe_items r JOIN products p ON p.id = r.product_id WHERE r.ingredient_id = ? ORDER BY p.name`).all(ing.id);
   const movements = db.prepare(`SELECT m.id, m.date, m.kind, m.quantity, m.stock_after AS stockAfter, m.unit_cost AS unitCost, m.total_cost AS totalCost, m.order_id AS orderId, m.notes, m.user_name AS userName, s.name AS supplierName
     FROM ingredient_movements m LEFT JOIN suppliers s ON s.id = m.supplier_id WHERE m.ingredient_id = ? ORDER BY m.id DESC LIMIT 60`).all(ing.id);
-  res.json({ ingredient: ing, products, movements });
+  const usedInIngredients = db.prepare('SELECT i.id, i.name, c.quantity FROM ingredient_components c JOIN ingredients i ON i.id = c.ingredient_id WHERE c.component_id = ? ORDER BY i.name').all(ing.id);
+  res.json({ ingredient: ing, products, movements, components: INV.componentsOf(db, ing.id), usedInIngredients });
 });
 
 router.post('/ingredients', EDIT, (req, res) => {
@@ -88,23 +89,38 @@ router.post('/ingredients/import', EDIT, (req, res) => {
   const db = getDb();
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   const dry = Boolean(req.body.dryRun);
-  const result = { created: 0, updated: 0, skipped: [], preview: [] };
+  const components = Array.isArray(req.body.components) ? req.body.components : [];
+  const result = { created: 0, updated: 0, skipped: [], preview: [], ignoredStock: [], components: 0, componentErrors: [] };
   const tx = db.transaction(() => {
     rows.forEach((r, i) => {
       const p = ingredientPayload(r || {});
       if (p.name.length < 2) { result.skipped.push({ row: i + 2, reason: 'sin nombre' }); return; }
       const cur = db.prepare('SELECT id FROM ingredients WHERE LOWER(name) = LOWER(?)').get(p.name);
-      result.preview.push({ ...p, action: cur ? 'actualizar' : 'crear', stock: num(r.stock, 0) });
+      // El stock que viene de otro sistema se toma solo si es razonable (positivo y menor a 10.000); si no, queda en 0 para hacer conteo
+      const rawStock = num(r.stock, 0);
+      const stock = p.trackStock && rawStock > 0 && rawStock < 10000 ? rawStock : 0;
+      if (rawStock && !stock) result.ignoredStock.push({ name: p.name, stock: rawStock });
+      result.preview.push({ ...p, action: cur ? 'actualizar' : 'crear', stock });
       if (dry) return;
       if (cur) {
-        db.prepare('UPDATE ingredients SET category = ?, unit = ?, cost = ?, waste_pct = ?, active = 1 WHERE id = ?').run(p.category, p.unit, p.cost, p.wastePct, cur.id);
+        db.prepare('UPDATE ingredients SET category = ?, unit = ?, cost = ?, waste_pct = ?, track_stock = ?, active = 1 WHERE id = ?').run(p.category, p.unit, p.cost, p.wastePct, p.trackStock ? 1 : 0, cur.id);
         INV.syncCostsForIngredient(db, cur.id); result.updated++;
       } else {
-        const id = Number(db.prepare('INSERT INTO ingredients (name, category, unit, cost, waste_pct, min_stock, track_stock) VALUES (?, ?, ?, ?, ?, ?, 1)').run(p.name, p.category, p.unit, p.cost, p.wastePct, p.minStock).lastInsertRowid);
-        if (num(r.stock, 0) > 0) INV.move(db, id, num(r.stock, 0), 'inicial', { unitCost: p.cost, user: req.user?.name });
+        const id = Number(db.prepare('INSERT INTO ingredients (name, category, unit, cost, waste_pct, min_stock, track_stock) VALUES (?, ?, ?, ?, ?, ?, ?)').run(p.name, p.category, p.unit, p.cost, p.wastePct, p.minStock, p.trackStock ? 1 : 0).lastInsertRowid);
+        if (stock > 0) INV.move(db, id, stock, 'inicial', { unitCost: p.cost, notes: 'Importado', user: req.user?.name });
         result.created++;
       }
     });
+    // Sub-recetas: [{ ingredient, component, quantity }] por nombre
+    const byName = n => db.prepare('SELECT id FROM ingredients WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))').get(String(n || ''));
+    for (const c of components) {
+      // En la vista previa los ingredientes nuevos aún no existen: cuentan si vienen en el mismo archivo
+      const inFile = n => (dry && rows.some(r => String(r && r.name || '').trim().toLowerCase() === String(n || '').trim().toLowerCase()) ? { id: -1 } : null);
+      const a = byName(c.ingredient) || inFile(c.ingredient), b = byName(c.component) || inFile(c.component), q = num(c.quantity);
+      if (!a || !b || !(q > 0)) { result.componentErrors.push(`${c.ingredient} → ${c.component}`); continue; }
+      result.components++;
+      if (!dry) db.prepare('INSERT INTO ingredient_components (ingredient_id, component_id, quantity) VALUES (?, ?, ?) ON CONFLICT(ingredient_id, component_id) DO UPDATE SET quantity = excluded.quantity').run(a.id, b.id, q);
+    }
   });
   tx();
   res.json(result);
