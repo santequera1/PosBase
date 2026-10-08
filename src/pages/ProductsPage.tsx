@@ -2,6 +2,7 @@ import { PackagePlus, AlertTriangle } from 'lucide-react';
 import { StockModal } from '@/components/StockModal';
 import { BRAND } from '@/lib/theme';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Grid3X3, List, X, Trash2, Edit3, Image as ImageIcon, Pencil } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
@@ -24,6 +25,7 @@ const StockBadge = ({ p, onAdjust }: { p: any; onAdjust?: () => void }) => {
 };
 
 const ProductsPage = () => {
+  const navigate = useNavigate();
   const { categories, products, toggleProductAvailability, addProduct, updateProduct, deleteProduct, addCategory, updateCategory, deleteCategory, user } = useStore();
   const isAdmin = user?.role === 'admin';
   const [showCatForm, setShowCatForm] = useState(false);
@@ -375,7 +377,8 @@ const ProductsPage = () => {
                   <label className="font-bold text-brand-primary mb-1 block">Costo unitario (opcional)</label>
                   <input type="number" min={0} value={formData.cost} onChange={e => setFormData({ ...formData, cost: e.target.value })} placeholder="0"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
-                  <p className="text-[10px] text-brand-muted mt-1">Cuánto cuesta producir o comprar una unidad. Se usa para el costo de ventas cuando la contabilidad está en inventario permanente.</p>
+                  <p className="text-[10px] text-brand-muted mt-1">Cuánto cuesta producir o comprar una unidad. Si el producto tiene receta, el costo lo calcula la receta.</p>
+                  {editingId && <button type="button" onClick={() => navigate(`/products?tab=recetas&producto=${editingId}`)} className="mt-1.5 px-3 py-1.5 rounded-lg border border-brand-primary/20 text-xs font-bold text-brand-primary hover:bg-brand-card" data-product-recipe>Receta y costo de este producto →</button>}
                 </div>
                 {/* Estación de preparación (comandas a cocina o barra) */}
                 <div>

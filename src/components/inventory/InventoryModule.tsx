@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Upload, Trash2, PackagePlus, ClipboardCheck, AlertTriangle, ChefHat, TrendingUp, Download, X, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -233,6 +234,13 @@ const ImportIngredients = ({ onClose, onDone }: { onClose: () => void; onDone: (
  * Compras, mermas, ajustes y conteos
  * ====================================================================== */
 export const PurchaseModal = ({ preset, onClose, onSaved }: { preset?: any; onClose: () => void; onSaved: () => void }) => {
+  const currentShift = useStore(s => s.currentShift);
+  const refreshCurrentShift = useStore(s => s.refreshCurrentShift);
+  // La compra también es un egreso: se registra en Finanzas → Gastos (caja, cuentas por pagar y contabilidad)
+  const [withExpense, setWithExpense] = useState(true);
+  const [cats, setCats] = useState<any[]>([]);
+  const [categoryId, setCategoryId] = useState(0);
+  const [pay, setPay] = useState<'cash_register' | 'cash' | 'transfer' | 'card' | 'credit'>('transfer');
   const [ings, setIngs] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState(preset?.supplierId || 0);
@@ -241,7 +249,10 @@ export const PurchaseModal = ({ preset, onClose, onSaved }: { preset?: any; onCl
   const [updateCost, setUpdateCost] = useState(true);
   const [lines, setLines] = useState<any[]>([{ ingredientId: preset?.id || 0, quantity: '', totalCost: '' }]);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { api.getIngredients().then(setIngs).catch(() => {}); api.getSuppliers().then(setSuppliers).catch(() => {}); }, []);
+  useEffect(() => {
+    api.getIngredients().then(setIngs).catch(() => {}); api.getSuppliers().then(setSuppliers).catch(() => {});
+    api.getExpenseCategories().then(cs => { const list = cs.filter((c: any) => c.kind !== 'payroll'); setCats(list); const mp = list.find((c: any) => c.plGroup === 'cost' || /materia|insumo/i.test(c.name)); setCategoryId((mp || list[0] || { id: 0 }).id); }).catch(() => {});
+  }, []);
   const setLine = (k: number, p: any) => setLines(ls => ls.map((l, i) => (i === k ? { ...l, ...p } : l)));
   const valid = lines.filter(l => l.ingredientId && Number(l.quantity) > 0);
   const total = valid.reduce((a, l) => a + (Number(l.totalCost) || 0), 0);
@@ -249,7 +260,20 @@ export const PurchaseModal = ({ preset, onClose, onSaved }: { preset?: any; onCl
     setBusy(true);
     try {
       const r = await api.addPurchase({ supplierId: supplierId || null, date, notes, updateCost, lines: valid.map(l => ({ ingredientId: Number(l.ingredientId), quantity: Number(l.quantity), totalCost: l.totalCost === '' ? undefined : Number(l.totalCost) })) });
-      toast.success(`Compra registrada: ${r.lines.length} ingrediente(s) · ${formatPrice(r.total)}`); onSaved();
+      let msg = `Compra registrada: ${r.lines.length} ingrediente(s) · ${formatPrice(r.total)}`;
+      if (withExpense && r.total > 0) {
+        try {
+          const desc = 'Compra de inventario: ' + r.lines.map((l: any) => `${l.name} x${fmtQty(l.quantity)}`).join(', ');
+          await api.addExpense({
+            date, categoryId, supplierId: supplierId || null, description: desc.slice(0, 200), amount: r.total,
+            paymentMethod: pay === 'cash_register' ? 'cash' : pay, status: pay === 'credit' ? 'pending' : 'paid',
+            fromCashRegister: pay === 'cash_register', invoiceNumber: notes, notes: 'Registrado desde Inventario → Ingresar compra',
+          });
+          if (pay === 'cash_register') refreshCurrentShift();
+          msg += pay === 'credit' ? ' · queda por pagar al proveedor' : ' · egreso registrado en Finanzas';
+        } catch (e: any) { toast.error(`El inventario se actualizó, pero el gasto no se pudo registrar: ${e.message}. Regístralo en Finanzas → Gastos.`, { duration: 9000 }); }
+      }
+      toast.success(msg); onSaved();
     } catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
@@ -276,8 +300,26 @@ export const PurchaseModal = ({ preset, onClose, onSaved }: { preset?: any; onCl
         <button onClick={() => setLines(ls => [...ls, { ingredientId: 0, quantity: '', totalCost: '' }])} className="text-xs font-semibold text-brand-primary flex items-center gap-1"><Plus size={12} /> Otro ingrediente</button>
       </div>
       <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={updateCost} onChange={e => setUpdateCost(e.target.checked)} /> Actualizar el costo de cada ingrediente con el de esta compra (recalcula el costo de los productos)</label>
-      <p className="text-[11px] text-muted-foreground">Esto suma al inventario. El pago al proveedor se sigue registrando en Finanzas → Gastos.</p>
-      <button onClick={save} disabled={busy || valid.length === 0} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-purchase-save>Registrar compra{total ? ` · ${formatPrice(total)}` : ''}</button>
+      <div className="rounded-xl border border-border p-3 space-y-2" data-purchase-expense>
+        <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={withExpense} onChange={e => setWithExpense(e.target.checked)} data-purchase-with-expense /> Registrar también el egreso en Finanzas → Gastos</label>
+        {withExpense && (
+          <>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <div><label className={LABEL}>Categoría del gasto</label><NiceSelect value={String(categoryId)} onChange={e => setCategoryId(Number(e.target.value))} className={INPUT}>{cats.map(c => <option key={c.id} value={String(c.id)}>{c.emoji ? c.emoji + ' ' : ''}{c.name}</option>)}</NiceSelect></div>
+              <div><label className={LABEL}>¿Cómo se pagó?</label><NiceSelect value={pay} onChange={e => setPay(e.target.value as any)} className={INPUT} data-purchase-pay>
+                <option value="transfer">Transferencia / Nequi</option>
+                <option value="cash_register" disabled={!currentShift}>Efectivo de la caja abierta{currentShift ? '' : ' (no hay caja abierta)'}</option>
+                <option value="cash">Efectivo (fuera de la caja)</option>
+                <option value="card">Tarjeta</option>
+                <option value="credit">A crédito: queda por pagar al proveedor</option>
+              </NiceSelect></div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{pay === 'cash_register' ? 'Sale el dinero de la caja de hoy (aparece en el arqueo como retiro).' : pay === 'credit' ? 'Queda en Finanzas como cuenta por pagar al proveedor, con su vencimiento.' : 'No mueve la caja de hoy; queda como gasto pagado.'} Si ya registraste esta factura en Finanzas, desmarca esta opción para no contarla dos veces.</p>
+          </>
+        )}
+        {!withExpense && <p className="text-[11px] text-amber-700">Solo suma al inventario; el pago al proveedor tendrás que registrarlo en Finanzas → Gastos.</p>}
+      </div>
+      <button onClick={save} disabled={busy || valid.length === 0 || (withExpense && !categoryId)} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-purchase-save>Registrar compra{total ? ` · ${formatPrice(total)}` : ''}</button>
     </Modal>
   );
 };
@@ -373,8 +415,16 @@ export const RecipesTab = () => {
   const [cat, setCat] = useState('');
   const [only, setOnly] = useState<'all' | 'with' | 'without'>('all');
   const [open, setOpen] = useState<any | null>(null);
+  const [params, setParams] = useSearchParams();
   const load = () => api.getRecipes().then(setRows).catch(e => toast.error(e.message));
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const pid = Number(params.get('producto'));
+    if (!pid || !rows.length) return;
+    const p = rows.find(r => r.id === pid);
+    if (p) setOpen(p);
+    setParams(x => { x.delete('producto'); return x; }, { replace: true });
+  }, [rows, params]);
   const cats = [...new Set(rows.map(r => r.category).filter(Boolean))];
   const shown = rows.filter(r => (!q || r.name.toLowerCase().includes(q.toLowerCase())) && (!cat || r.category === cat) && (only === 'all' || (only === 'with' ? r.hasRecipe : !r.hasRecipe)));
   const withCost = rows.filter(r => r.cost > 0);
@@ -405,12 +455,12 @@ export const RecipesTab = () => {
           </tr>
         ))}</tbody>
       </table></div></div>
-      {open && <RecipeEditor product={open} onClose={() => setOpen(null)} onSaved={() => { setOpen(null); load(); }} />}
+      {open && <RecipeEditor product={open} others={rows.filter(r => r.hasRecipe && r.id !== open.id)} onClose={() => setOpen(null)} onSaved={() => { setOpen(null); load(); }} />}
     </div>
   );
 };
 
-const RecipeEditor = ({ product, onClose, onSaved }: { product: any; onClose: () => void; onSaved: () => void }) => {
+const RecipeEditor = ({ product, others = [], onClose, onSaved }: { product: any; others?: any[]; onClose: () => void; onSaved: () => void }) => {
   const user = useStore(s => s.user);
   const canEdit = canDo(user, 'edit_menu');
   const [ings, setIngs] = useState<any[]>([]);
@@ -429,6 +479,13 @@ const RecipeEditor = ({ product, onClose, onSaved }: { product: any; onClose: ()
   const margin = product.price ? (profit / product.price) * 100 : 0;
   const suggested = Number(target) > 0 && Number(target) < 100 ? Math.ceil(cost / (1 - Number(target) / 100) / 100) * 100 : 0;
   const setItem = (k: number, p: any) => setItems(xs => xs.map((x, i) => (i === k ? { ...x, ...p } : x)));
+  // Copiar la receta de otro producto (ej. la clásica para la de pollo) y luego cambiar lo que sea distinto
+  const copyFrom = async (pid: number) => {
+    if (!pid) return;
+    if (items.length && !window.confirm('Esto reemplaza los ingredientes que tienes aquí por los del otro producto. ¿Continuar?')) return;
+    try { const r = await api.getRecipe(pid); setItems(r.items.map((i: any) => ({ ingredientId: i.ingredientId, quantity: String(i.quantity) }))); toast.success(`Copiada la receta de ${r.product.name}: cambia lo que sea distinto y guarda`); }
+    catch (e: any) { toast.error(e.message); }
+  };
   const save = async () => {
     setBusy(true);
     try { const r = await api.saveRecipe(product.id, items.filter(i => i.ingredientId && Number(i.quantity) > 0).map(i => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity) }))); toast.success(`Receta guardada · costo ${formatPrice(r.recipeCost)}`); onSaved(); }
@@ -459,7 +516,8 @@ const RecipeEditor = ({ product, onClose, onSaved }: { product: any; onClose: ()
             </div>
           );
         })}
-        {canEdit && <div className="px-3 py-2 border-t border-border flex gap-3"><button onClick={() => setItems(xs => [...xs, { ingredientId: 0, quantity: '1' }])} className="text-xs font-semibold text-brand-primary flex items-center gap-1" data-recipe-add><Plus size={12} /> Agregar ingrediente</button><button onClick={() => setNewIng(true)} className="text-xs font-semibold text-muted-foreground">Crear ingrediente nuevo</button></div>}
+        {canEdit && <div className="px-3 py-2 border-t border-border flex flex-wrap items-center gap-3"><button onClick={() => setItems(xs => [...xs, { ingredientId: 0, quantity: '1' }])} className="text-xs font-semibold text-brand-primary flex items-center gap-1" data-recipe-add><Plus size={12} /> Agregar ingrediente</button><button onClick={() => setNewIng(true)} className="text-xs font-semibold text-muted-foreground">Crear ingrediente nuevo</button>
+          {others.length > 0 && <div className="ml-auto flex items-center gap-1.5 text-xs"><span className="text-muted-foreground">Copiar receta de</span><NiceSelect value="0" onChange={e => copyFrom(Number(e.target.value))} className="text-xs py-1" data-recipe-copy><option value="0">otro producto…</option>{others.map(o => <option key={o.id} value={String(o.id)}>{o.name}</option>)}</NiceSelect></div>}</div>}
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs bg-brand-card rounded-lg px-3 py-2">
         <TrendingUp size={14} className="text-brand-primary" /> Para ganar el <input type="number" min={1} max={95} value={target} onChange={e => setTarget(e.target.value)} className="w-14 px-1.5 py-0.5 rounded border border-border font-mono text-center" /> % el precio debería ser <b>{suggested ? formatPrice(suggested) : '—'}</b>{suggested > 0 && product.price < suggested ? <span className="text-amber-700">(hoy está por debajo)</span> : suggested > 0 ? <span className="text-emerald-700">(el precio actual lo cumple)</span> : null}
