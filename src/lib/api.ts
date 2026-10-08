@@ -65,7 +65,7 @@ export const api = {
   getLowStock: () => request<any[]>('/products/low-stock'),
 
   // Media Gallery & File Manager
-  getMedia: () => request<{ success: boolean; count: number; media: any[] }>('/media'),
+  getMedia: (demo = false) => request<{ success: boolean; count: number; media: any[] }>(`/media${demo ? '?demo=1' : ''}`),
   uploadMedia: (filename: string, data: string) =>
     request<{ success: boolean; url: string; filename: string; name: string; group: string }>('/media/upload', {
       method: 'POST',

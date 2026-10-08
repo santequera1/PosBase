@@ -363,7 +363,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
 
       {/* More menu overlay */}
       {showMore && (
-        <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setShowMore(false)}>
+        <div className="md:hidden fixed inset-0 !m-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setShowMore(false)}>
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 pb-8 safe-area-bottom shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-base text-brand-primary">Menú {businessName}</h3>

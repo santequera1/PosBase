@@ -20,13 +20,17 @@ function formatTitle(filename) {
 router.get('/', (req, res) => {
   try {
     const mediaList = [];
+    // Las fotos de ejemplo (heladería del sistema base) solo se muestran si se piden con ?demo=1
+    const demo = req.query.demo === '1';
     const scanFolders = [
+      { dir: 'images/uploads', group: 'Mis fotos' },
+      ...(!demo ? [] : [
       { dir: 'images/gelatos/vaso4oz', group: 'Vasos 4 oz (Café clarito)' },
       { dir: 'images/gelatos/conos', group: 'Conos Waffle' },
       { dir: 'images/gelatos/litro', group: 'Envases 1 Litro (Abiertos)' },
       { dir: 'images/gelatos', group: 'Vasos 6 oz (Tarrina azul)', recursive: false },
       { dir: 'images/products', group: 'Bebidas & Toppings', recursive: false },
-      { dir: 'images/uploads', group: 'Mis Fotos Subidas' },
+      ]),
     ];
 
     scanFolders.forEach(({ dir, group, recursive }) => {

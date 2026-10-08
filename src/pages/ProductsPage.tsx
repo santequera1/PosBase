@@ -11,6 +11,7 @@ import { canDo } from '@/lib/permissions';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MediaManagerModal } from '@/components/MediaManagerModal';
 import { NiceSelect } from '@/components/ui/nice-select';
+import { RecipePanel } from '@/components/inventory/InventoryModule';
 
 const StockBadge = ({ p, onAdjust }: { p: any; onAdjust?: () => void }) => {
   if (!p.trackStock) return <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">∞ Siempre disponible</span>;
@@ -345,13 +346,14 @@ const ProductsPage = () => {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+            className="fixed inset-0 !m-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-white rounded-3xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto shadow-2xl border border-brand-primary/10" onClick={e => e.stopPropagation()}>
+              className={cn('bg-white rounded-3xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl border border-brand-primary/10', editingId ? 'max-w-5xl' : 'max-w-md')} onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-lg text-brand-primary">{editingId ? 'Editar' : 'Nuevo'} Producto</h2>
                 <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"><X size={16} /></button>
               </div>
+              <div className={editingId ? 'grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-6 items-start' : ''}>
               <div className="space-y-3 text-xs">
                 <div>
                   <label className="font-bold text-brand-primary mb-1 block">Nombre</label>
@@ -378,7 +380,7 @@ const ProductsPage = () => {
                   <input type="number" min={0} value={formData.cost} onChange={e => setFormData({ ...formData, cost: e.target.value })} placeholder="0"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
                   <p className="text-[10px] text-brand-muted mt-1">Cuánto cuesta producir o comprar una unidad. Si el producto tiene receta, el costo lo calcula la receta.</p>
-                  {editingId && <button type="button" onClick={() => navigate(`/products?tab=recetas&producto=${editingId}`)} className="mt-1.5 px-3 py-1.5 rounded-lg border border-brand-primary/20 text-xs font-bold text-brand-primary hover:bg-brand-card" data-product-recipe>Receta y costo de este producto →</button>}
+                  
                 </div>
                 {/* Estación de preparación (comandas a cocina o barra) */}
                 <div>
@@ -474,30 +476,20 @@ const ProductsPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                    {[
-                      { label: '🍨 Vaso 4oz', path: '/images/products/cup-4oz.webp' },
-                      { label: '🍨 Vaso 6oz', path: '/images/products/cup-6oz.webp' },
-                      { label: '🍦 Cono 1 Sabor', path: '/images/products/cone-small.webp' },
-                      { label: '🍦 Cono 2 Sabores', path: '/images/products/cone-large.webp' },
-                      { label: '☕ Affogato', path: '/images/products/affogato.webp' },
-                      { label: '🍨 Litro', path: '/images/products/tub-1l.webp' },
-                    ].map(p => (
-                      <button
-                        key={p.path}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, image: p.path })}
-                        className="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-gray-200 text-[10px] text-gray-700 font-medium"
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <button onClick={handleSave} disabled={!formData.name || (!formData.price && formData.sizes.length === 0)}
                   className="w-full mt-2 py-3 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface font-bold text-sm disabled:opacity-40 shadow-md">
                   {editingId ? 'Guardar Cambios' : 'Crear Producto'}
                 </button>
+                {!editingId && <p className="text-[11px] text-brand-muted text-center">Después de crearlo, ábrelo de nuevo para agregarle sus ingredientes (receta).</p>}
+              </div>
+              {editingId && (
+                <div className="md:border-l md:border-brand-primary/10 md:pl-6" data-product-recipe-panel>
+                  <h3 className="font-bold text-sm text-brand-primary mb-1">Ingredientes (receta)</h3>
+                  <p className="text-[11px] text-brand-muted mb-2">Lo que lleva una unidad de este producto. Al venderlo se descuenta del inventario y su costo queda como costo del producto.</p>
+                  <RecipePanel product={{ id: editingId, name: formData.name, price: Number(formData.price) || 0 }} onSaved={(r: any) => setFormData(f => ({ ...f, cost: String(r?.recipeCost ?? f.cost) }))} />
+                </div>
+              )}
               </div>
             </motion.div>
           </motion.div>

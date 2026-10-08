@@ -71,6 +71,8 @@ router.put('/:id', requirePerm('edit_menu'), (req, res) => {
 
   if (STATIONS.includes(req.body.station)) db.prepare('UPDATE products SET station = ? WHERE id = ?').run(req.body.station, req.params.id);
   if (req.body.cost !== undefined) db.prepare('UPDATE products SET cost = ? WHERE id = ?').run(Math.max(0, Math.round(Number(req.body.cost) || 0)), req.params.id);
+  // Si tiene receta, el costo lo manda la receta (no el número escrito a mano)
+  require('../inventory').syncProductCost(db, Number(req.params.id));
   // Cambio de stock desde el formulario: se registra como ajuste de inventario
   const nowTracking = trackStock !== undefined ? Boolean(trackStock) : Boolean(existing.ts);
   if (nowTracking && stock !== undefined && stock !== null && stock !== '') {

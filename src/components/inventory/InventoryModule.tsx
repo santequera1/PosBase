@@ -460,7 +460,11 @@ export const RecipesTab = () => {
   );
 };
 
-const RecipeEditor = ({ product, others = [], onClose, onSaved }: { product: any; others?: any[]; onClose: () => void; onSaved: () => void }) => {
+/** Ingredientes de un producto con su costo, ganancia y margen. Se usa en Recetas y costos y dentro del formulario del producto. */
+export const RecipePanel = ({ product, others: othersProp, onSaved }: { product: { id: number; name: string; price: number }; others?: any[]; onSaved?: () => void }) => {
+  const [othersLoaded, setOthersLoaded] = useState<any[]>([]);
+  useEffect(() => { if (!othersProp) api.getRecipes().then(rs => setOthersLoaded(rs.filter(r => r.hasRecipe && r.id !== product.id))).catch(() => {}); }, [product.id, othersProp]);
+  const others = othersProp || othersLoaded;
   const user = useStore(s => s.user);
   const canEdit = canDo(user, 'edit_menu');
   const [ings, setIngs] = useState<any[]>([]);
@@ -488,12 +492,12 @@ const RecipeEditor = ({ product, others = [], onClose, onSaved }: { product: any
   };
   const save = async () => {
     setBusy(true);
-    try { const r = await api.saveRecipe(product.id, items.filter(i => i.ingredientId && Number(i.quantity) > 0).map(i => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity) }))); toast.success(`Receta guardada · costo ${formatPrice(r.recipeCost)}`); onSaved(); }
+    try { const r = await api.saveRecipe(product.id, items.filter(i => i.ingredientId && Number(i.quantity) > 0).map(i => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity) }))); toast.success(`Receta guardada · costo ${formatPrice(r.recipeCost)}`); onSaved?.(r); }
     catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
   return (
-    <Modal title={`Receta · ${product.name}`} onClose={onClose} wide>
+    <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-recipe-editor>
         <KpiCard label="Precio de venta" value={formatPrice(product.price)} />
         <KpiCard label="Costo (receta)" value={formatPrice(cost)} />
@@ -525,9 +529,15 @@ const RecipeEditor = ({ product, others = [], onClose, onSaved }: { product: any
       <p className="text-[11px] text-muted-foreground">La merma de cada ingrediente ya está incluida en el costo. Al vender, el inventario descuenta estas cantidades por cada unidad.</p>
       {canEdit && <button onClick={save} disabled={busy} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-recipe-save><ChefHat size={14} className="inline mr-1" /> Guardar receta</button>}
       {newIng && <IngredientForm ingredient={null} categories={[...new Set(ings.map(i => i.category))]} onClose={() => setNewIng(false)} onSaved={i => { setNewIng(false); loadIngs().then(() => setItems(xs => [...xs, { ingredientId: i.id, quantity: '1' }])); }} />}
-    </Modal>
+    </div>
   );
 };
+
+const RecipeEditor = ({ product, others = [], onClose, onSaved }: { product: any; others?: any[]; onClose: () => void; onSaved: () => void }) => (
+  <Modal title={`Receta · ${product.name}`} onClose={onClose} wide>
+    <RecipePanel product={product} others={others} onSaved={onSaved} />
+  </Modal>
+);
 
 /* ======================================================================
  * Rentabilidad: cuánto se vende, cuánto cuesta y cuánto se gana

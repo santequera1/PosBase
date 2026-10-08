@@ -38,6 +38,8 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
   const [selectedUrl, setSelectedUrl] = useState<string>(currentImageUrl || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  // Fotos de ejemplo del sistema base (heladería): ocultas salvo que se pidan
+  const [showDemo, setShowDemo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync initial selected URL
@@ -46,7 +48,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
       setSelectedUrl(currentImageUrl || '');
       loadMedia();
     }
-  }, [isOpen, currentImageUrl]);
+  }, [isOpen, currentImageUrl, showDemo]);
 
   // Escape cierra la ventana
   useEffect(() => {
@@ -59,7 +61,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
   const loadMedia = async () => {
     setLoading(true);
     try {
-      const res = await api.getMedia();
+      const res = await api.getMedia(showDemo);
       if (res && res.media) {
         setMediaList(res.media);
       }
@@ -241,6 +243,7 @@ export const MediaManagerModal: React.FC<MediaManagerModalProps> = ({
                 <Upload size={14} />
                 <span>{uploading ? 'Subiendo...' : 'Subir Foto Propia'}</span>
               </button>
+              <label className="flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap"><input type="checkbox" checked={showDemo} onChange={e => { setShowDemo(e.target.checked); setSelectedGroup('all'); }} /> Ver fotos de ejemplo</label>
 
               <button
                 type="button"
