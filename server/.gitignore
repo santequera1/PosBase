@@ -1,2 +1,4 @@
 node_modules/
 data.db
+# Copias de las facturas electrónicas emitidas (PDF/XML con datos de clientes)
+einvoices/

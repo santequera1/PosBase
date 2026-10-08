@@ -56,6 +56,20 @@ function saveFeConfig(db, body) {
   return readFeConfig(db);
 }
 
+/* ---------- archivo local de facturas (PDF y XML) ---------- */
+const fsx = require('fs');
+const pathx = require('path');
+/** Carpeta junto a la base de datos: einvoices/ (no se sube al repositorio). */
+function archiveDir() {
+  const dbPath = process.env.DB_PATH || pathx.join(__dirname, '..', 'data.db');
+  const dir = pathx.join(pathx.dirname(dbPath), 'einvoices');
+  if (!fsx.existsSync(dir)) fsx.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+const safeName = n => String(n || '').replace(/[^A-Za-z0-9_-]/g, '');
+const archivePath = (number, ext) => pathx.join(archiveDir(), `${safeName(number)}.${ext}`);
+function readArchived(number, ext) { const p = archivePath(number, ext); return fsx.existsSync(p) ? fsx.readFileSync(p) : null; }
+
 /* ---------- autenticación ---------- */
 async function getToken(db, cfg, force = false) {
   if (!force) {
@@ -239,6 +253,7 @@ async function issueInvoice(db, orderId, userName) {
   const b = d.bill || { number: d.number, cufe: d.cufe, qr: d.links && d.links.qr, public_url: d.links && d.links.public_url };
   db.prepare(`UPDATE orders SET is_electronic_invoice = 1, fe_provider = 'factus', fe_number = ?, fe_cufe = ?, fe_qr = ?, fe_public_url = ?, fe_status = 'accepted', fe_error = NULL, fe_issued_at = datetime('now', '-5 hours') WHERE id = ?`)
     .run(String(b.number || b.id || ''), String(b.cufe || ''), String(b.qr || ''), String(b.public_url || ''), orderId);
+  if (b.number) await archiveInvoice(db, String(b.number));
   return db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
 }
 
@@ -257,13 +272,35 @@ async function searchMunicipalities(db, q) {
   const r = await call(db, cfg, 'GET', `/v1/municipalities${q ? '?name=' + encodeURIComponent(q) : ''}`);
   return (r.data || []).slice(0, 50).map(m => ({ id: m.id, code: m.code, name: m.name, department: m.department }));
 }
+/** PDF de la factura: la copia guardada; si no existe, se descarga de Factus y se guarda. */
 async function downloadPdf(db, number) {
+  const saved = readArchived(number, 'pdf');
+  if (saved) return saved;
   const cfg = readFeConfig(db, { masked: false });
   const v2 = (await apiVersion(db, cfg)) === 'v2';
   const r = await call(db, cfg, 'GET', v2 ? `/v2/bills/${encodeURIComponent(number)}/download-pdf` : `/v1/bills/download-pdf/${encodeURIComponent(number)}`);
   const b64 = r.data && (r.data.pdf_base_64_encoded || r.data.pdf);
   if (!b64) throw new Error('Factus no devolvió el PDF');
-  return Buffer.from(b64, 'base64');
+  const buf = Buffer.from(b64, 'base64');
+  try { fsx.writeFileSync(archivePath(number, 'pdf'), buf); } catch (e) { console.warn('No se pudo guardar el PDF:', e.message); }
+  return buf;
+}
+/** XML (documento oficial para el contador): copia guardada o descarga de Factus. */
+async function downloadXml(db, number) {
+  const saved = readArchived(number, 'xml');
+  if (saved) return saved;
+  const cfg = readFeConfig(db, { masked: false });
+  const v2 = (await apiVersion(db, cfg)) === 'v2';
+  const r = await call(db, cfg, 'GET', v2 ? `/v2/bills/${encodeURIComponent(number)}/download-xml` : `/v1/bills/download-xml/${encodeURIComponent(number)}`);
+  const b64 = r.data && (r.data.xml_base_64_encoded || r.data.xml);
+  if (!b64) throw new Error('Factus no devolvió el XML');
+  const buf = Buffer.from(b64, 'base64');
+  try { fsx.writeFileSync(archivePath(number, 'xml'), buf); } catch (e) { console.warn('No se pudo guardar el XML:', e.message); }
+  return buf;
+}
+/** Guarda PDF y XML apenas se emite la factura (si falla, se reintenta al descargarla). */
+async function archiveInvoice(db, number) {
+  for (const fn of [downloadPdf, downloadXml]) { try { await fn(db, number); } catch (e) { console.warn(`Archivo de la factura ${number}:`, e.message); } }
 }
 
-module.exports = { readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };
+module.exports = { readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, downloadXml, archiveInvoice, readArchived, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };

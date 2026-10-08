@@ -257,6 +257,7 @@ export const api = {
   getFeConfig: () => request<any>('/einvoicing/config'),
   updateFeConfig: (data: any) => request<any>('/einvoicing/config', { method: 'PUT', body: JSON.stringify(data) }),
   testFeConnection: () => request<any>('/einvoicing/test', { method: 'POST' }),
+  getInvoices: (params: Record<string, any> = {}) => request<{ invoices: any[]; total: number }>('/einvoicing/invoices' + qstr(params)),
   getFeMunicipalities: (q: string) => request<any[]>(`/einvoicing/municipalities${qstr({ q })}`),
   getFePreview: (orderId: number) => request<any>(`/einvoicing/preview/${orderId}`),
 

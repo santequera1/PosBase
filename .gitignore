@@ -51,3 +51,5 @@ public/fonts/uploads/*
 # Material de marca de prospectos (logos, briefs): no se publica
 scripts/wonkas/
 scripts/brand-assets/
+# Copias de las facturas electrónicas emitidas (PDF/XML con datos de clientes)
+server/einvoices/

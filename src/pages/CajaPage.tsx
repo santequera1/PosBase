@@ -8,9 +8,10 @@ import { VentasTab } from '@/components/caja/VentasTab';
 import { MovimientosTab, PropinasTab } from '@/components/caja/MovTipsTabs';
 import { ArqueosTab } from '@/components/caja/ArqueosTab';
 import { DescuentosTab } from '@/components/caja/DescuentosTab';
+import { FacturasTab } from '@/components/caja/FacturasTab';
 
-type Tab = 'ventas' | 'movimientos' | 'arqueos' | 'propinas' | 'descuentos';
-const TABS: Array<[Tab, string]> = [['ventas', 'Ventas'], ['movimientos', 'Movimientos de caja'], ['arqueos', 'Arqueos de Caja'], ['propinas', 'Propinas'], ['descuentos', 'Descuentos']];
+type Tab = 'ventas' | 'movimientos' | 'arqueos' | 'propinas' | 'descuentos' | 'facturas';
+const TABS: Array<[Tab, string]> = [['ventas', 'Ventas'], ['movimientos', 'Movimientos de caja'], ['arqueos', 'Arqueos de Caja'], ['propinas', 'Propinas'], ['descuentos', 'Descuentos'], ['facturas', 'Facturas electrónicas']];
 const KEY = 'caja-period-v2';
 
 /**
@@ -49,6 +50,7 @@ const CajaPage = () => {
         {tab === 'movimientos' && <MovimientosTab period={period} setPeriod={setPeriod} shifts={shifts} serviceShifts={serviceShifts} />}
         {tab === 'arqueos' && <ArqueosTab onShiftsChanged={loadShifts} />}
         {tab === 'propinas' && <PropinasTab period={period} setPeriod={setPeriod} shifts={shifts} serviceShifts={serviceShifts} />}
+        {tab === 'facturas' && <FacturasTab />}
         {tab === 'descuentos' && <DescuentosTab period={period} setPeriod={setPeriod} shifts={shifts} serviceShifts={serviceShifts} />}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, Printer, FileCheck2, AlertTriangle } from 'lucide-react';
+import { X, Printer, FileCheck2, AlertTriangle, Download, MessageCircle, Mail, Share2 } from 'lucide-react';
+import { downloadInvoiceFile, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
@@ -104,6 +105,17 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
             {real && fe?.publicUrl && (
               <a href={fe.publicUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow">Ver en la DIAN</a>
             )}
+            {real && fe?.number && (() => {
+              const msg = invoiceMessage({ number: fe.number, customerName: live.customer?.name, total: live.total, publicUrl: fe.publicUrl }, businessName || 'nuestro negocio');
+              return (
+                <>
+                  <button onClick={() => downloadInvoiceFile(fe.number, 'pdf').catch((e: any) => setError(e.message))} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow" data-fe-download><Download size={14} /> Descargar PDF</button>
+                  {canShareFiles() && <button onClick={() => shareInvoicePdf(fe.number, msg).catch((e: any) => e?.name !== 'AbortError' && setError(e.message))} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow"><Share2 size={14} /> Compartir PDF</button>}
+                  <a href={whatsappLink(live.customer?.phone, msg)} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow"><MessageCircle size={14} /> WhatsApp</a>
+                  <a href={mailtoLink(live.customer?.email, fe.number, msg)} className="px-3 py-2 rounded-xl bg-white text-brand-dark text-xs font-bold flex items-center gap-1.5 shadow"><Mail size={14} /> Correo</a>
+                </>
+              );
+            })()}
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X size={16} /></button>
         </div>
