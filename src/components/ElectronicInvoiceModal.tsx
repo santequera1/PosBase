@@ -91,18 +91,18 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
   // Se dibuja directo en <body>: así el encabezado y las pestañas de la página no tapan la barra de botones
   return createPortal(
     <div className="print-overlay fixed inset-0 !m-0 z-[200] bg-black/60 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6 overflow-y-auto" onClick={onClose}>
-      <div className="w-full max-w-3xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-4xl" onClick={e => e.stopPropagation()}>
         {/* Barra de acciones: estado de la factura a la izquierda, acciones a la derecha (siempre visible) */}
         <div className="sticky top-0 z-10 mb-3 print:hidden" data-fe-toolbar>
-          <div className="bg-white rounded-2xl shadow-xl border border-black/5 px-3 py-2.5 flex items-center gap-3">
-            <div className="min-w-0 flex items-center gap-2">
+          <div className="bg-white rounded-2xl shadow-xl border border-black/5 px-3 py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-3">
+            <div className="min-w-0 flex items-center gap-2 shrink-0">
               <span className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', real ? 'bg-emerald-100 text-emerald-700' : fe ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')}><FileCheck2 size={16} /></span>
               <div className="min-w-0 leading-tight">
                 <p className="text-sm font-bold text-gray-900 truncate">{fe ? `Factura ${fe.number}` : 'Factura electrónica'}</p>
                 <p className={cn('text-[11px] font-semibold', real ? 'text-emerald-700' : feError ? 'text-red-600' : 'text-gray-500')}>{real ? 'Validada por la DIAN' : fe ? 'Documento de prueba' : feError ? 'Rechazada: revisa el detalle' : 'Sin emitir'}</p>
               </div>
             </div>
-            <div className="flex-1 flex items-center justify-end gap-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex-1 flex flex-wrap items-center justify-end gap-1.5" data-fe-actions>
               {!fe && (
                 <button onClick={issue} disabled={issuing} className="h-9 px-4 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50" data-fe-issue>
                   <FileCheck2 size={14} /> {issuing ? 'Emitiendo…' : feError ? 'Reintentar emisión' : 'Emitir factura electrónica'}
