@@ -249,8 +249,8 @@ function receiptTicket(printer, b, order, items) {
   t.bold().size('tall').pair('TOTAL', money(order.total)).size(1).bold(false);
   if (order.tip) t.pair('Propina (voluntaria)', money(order.tip)).bold().pair('TOTAL PAGADO', money(order.total + order.tip)).bold(false);
   t.nl();
-  let split = null; try { split = order.payment_split ? JSON.parse(order.payment_split) : null; } catch { split = null; }
-  if (order.payment_method === 'mixed' && split) { t.pair(PAY[split.method1] || split.method1, money(split.amount1)).pair(PAY[split.method2] || split.method2, money(split.amount2)); }
+  const sps = require('./paymentSplit').splitParts(order.payment_split);
+  if (order.payment_method === 'mixed' && sps.length) { for (const p of sps) t.pair(PAY[p.method] || p.method, money(p.amount)); }
   else t.pair('Pago', PAY[order.payment_method] || order.payment_method || '');
   if (order.cash_received && order.payment_method === 'cash') t.pair('Recibido', money(order.cash_received)).pair('Cambio', money(order.cash_change || 0));
   t.nl().align('center');

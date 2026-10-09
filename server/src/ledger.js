@@ -99,12 +99,10 @@ function postSale(db, o, ctx) {
   } else if (o.payment_status && o.payment_status !== 'paid') {
     lines.push({ account: map.customerReceivable, debit: due, third, description: 'Venta a crédito', docRef });
   } else if (o.payment_method === 'mixed' && o.payment_split) {
-    let s = null; try { s = JSON.parse(o.payment_split); } catch { s = null; }
-    if (s && s.method1) {
-      const a1 = Math.round(Number(s.amount1) || 0), a2 = Math.round(Number(s.amount2) || 0);
-      const rest = due - a1 - a2; // propina o redondeo va al primer medio
-      lines.push({ account: methodAccount(map, s.method1), debit: a1 + rest, third, description: `Pago ${s.method1}`, docRef });
-      lines.push({ account: methodAccount(map, s.method2), debit: a2, third, description: `Pago ${s.method2}`, docRef });
+    const sps = require('./paymentSplit').splitParts(o.payment_split);
+    if (sps.length) {
+      const rest = due - sps.reduce((a, p) => a + p.amount, 0); // propina o redondeo va al primer medio
+      sps.forEach((p, i) => lines.push({ account: methodAccount(map, p.method), debit: p.amount + (i === 0 ? rest : 0), third, description: `Pago ${p.method}`, docRef }));
     } else lines.push({ account: map.cash, debit: due, third, description: 'Pago', docRef });
   } else {
     lines.push({ account: methodAccount(map, o.payment_method), debit: due, third, description: `Pago ${o.payment_method}`, docRef });

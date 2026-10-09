@@ -507,13 +507,12 @@ router.post('/orders/:id/close', (req, res) => {
   }
   let split = null;
   if (method === 'mixed') {
-    const s = b.paymentSplit || {};
-    const a1 = Math.round(Number(s.amount1) || 0), a2 = Math.round(Number(s.amount2) || 0);
-    if (!s.method1 || !s.method2 || a1 + a2 !== due) return res.status(400).json({ error: `La suma de los dos medios de pago debe ser ${due}` });
-    split = { method1: s.method1, amount1: a1, method2: s.method2, amount2: a2 };
+    const r = require('../paymentSplit').readSplitInput(b.paymentSplit, due);
+    if (r.error) return res.status(400).json({ error: r.error });
+    split = r.split;
   }
   const paymentStatus = method === 'credit' ? 'pending' : 'paid';
-  const cashReceived = method === 'cash' ? Math.max(due, Math.round(Number(b.cashReceived) || due)) : (method === 'mixed' ? (split.method1 === 'cash' ? split.amount1 : split.method2 === 'cash' ? split.amount2 : 0) : 0);
+  const cashReceived = method === 'cash' ? Math.max(due, Math.round(Number(b.cashReceived) || due)) : (method === 'mixed' ? require('../paymentSplit').cashOf(split) : 0);
   const cashChange = method === 'cash' ? Math.max(0, cashReceived - due) : 0;
   const ts = now(db);
   const closeNow = fresh.type !== 'delivery' || Boolean(b.markDelivered) || fresh.status === 'delivered';
@@ -528,7 +527,7 @@ router.post('/orders/:id/close', (req, res) => {
   if (tip > 0) {
     try {
       const shift = getOpenShift(db);
-      const tipMethod = method === 'cash' || (split && (split.method1 === 'cash' || split.method2 === 'cash')) ? 'cash' : method === 'transfer' ? 'transfer' : 'card';
+      const tipMethod = method === 'cash' || (split && require('../paymentSplit').hasMethod(split, 'cash')) ? 'cash' : method === 'transfer' ? 'transfer' : 'card';
       db.prepare('DELETE FROM tips WHERE notes = ?').run(`Propina pedido #${order.id}`);
       db.prepare('INSERT INTO tips (date, employee_id, amount, method, shift_id, notes) VALUES (?, ?, ?, ?, ?, ?)')
         .run(today(db), b.tipTo === 'waiter' && fresh.waiter_id ? fresh.waiter_id : null, tip, tipMethod, shift ? shift.id : null, `Propina pedido #${order.id}`);
@@ -710,7 +709,7 @@ function cashPart(o) {
   if (o.payment_status !== 'paid') return 0;
   if (o.payment_method === 'cash') return o.total + (o.tip || 0);
   if (o.payment_method === 'mixed' && o.payment_split) {
-    try { const s = JSON.parse(o.payment_split); return (s.method1 === 'cash' ? Number(s.amount1) : 0) + (s.method2 === 'cash' ? Number(s.amount2) : 0); } catch { return 0; }
+    return require('../paymentSplit').cashOf(o.payment_split);
   }
   return 0;
 }

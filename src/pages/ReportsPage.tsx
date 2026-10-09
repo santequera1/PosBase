@@ -18,6 +18,7 @@ import { CHANNEL_LABEL } from '@/lib/restaurant';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { NiceSelect } from '@/components/ui/nice-select';
+import { splitParts } from '@/lib/paymentSplit';
 import {
   DEFAULT_FILTERS, PERIOD_LABEL, SALE_KIND_LABEL, STATUS_FILTER_LABEL, WEEKDAYS, PAY_LABEL, FLAG_LABEL,
   type SalesFilters, type PeriodKey, type SaleKind,
@@ -47,8 +48,8 @@ const statusInfo = (o: Order) => {
   return { label: 'Cerrada', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
 };
 const payLabel = (o: Order) => {
-  const s = o.paymentSplit;
-  if (o.paymentMethod === 'mixed' && s?.method1) return `${PAY_LABEL[s.method1] || s.method1} + ${PAY_LABEL[s.method2] || s.method2}`;
+  const sp = splitParts(o.paymentSplit);
+  if (o.paymentMethod === 'mixed' && sp.length) return sp.map(p => PAY_LABEL[p.method] || p.method).join(' + ');
   return PAY_LABEL[o.paymentMethod] || o.paymentMethod;
 };
 

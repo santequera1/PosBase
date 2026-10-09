@@ -1,3 +1,4 @@
+import { splitParts, PAY_NAMES } from '@/lib/paymentSplit';
 import { formatPrice, formatFullDate } from './format';
 import { getBusinessInfo, orderNumber } from './orderNumber';
 
@@ -148,8 +149,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
         </div>
         ${order.paymentSplit ? `
           <div style="font-size: 7.5px; padding-left: 3px;">
-            <div>• ${order.paymentSplit.method1 === 'cash' ? 'Efectivo' : order.paymentSplit.method1 === 'card_debit' ? 'T. Débito' : order.paymentSplit.method1 === 'card_credit' ? 'T. Crédito' : 'Transferencia'}: ${formatPrice(order.paymentSplit.amount1)}</div>
-            <div>• ${order.paymentSplit.method2 === 'cash' ? 'Efectivo' : order.paymentSplit.method2 === 'card_debit' ? 'T. Débito' : order.paymentSplit.method2 === 'card_credit' ? 'T. Crédito' : 'Transferencia'}: ${formatPrice(order.paymentSplit.amount2)}</div>
+            ${splitParts(order.paymentSplit).map(p => `<div>• ${PAY_NAMES[p.method] || p.method}: ${formatPrice(p.amount)}</div>`).join('')}
           </div>
         ` : ''}
         ${order.paymentMethod === 'cash' && order.cashReceived > 0 ? `

@@ -13,6 +13,8 @@ import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { Modal, INPUT as PINPUT, LABEL } from '@/components/common/Primitives';
 import { FilterBar, Kpi, DetailPane, ActionBtn, Row, SectionTitle, Empty, usePaged, MoreButton, statusStyle, dt, periodParams, METHOD_NAME, type Period, type FilterField } from './common';
 import { NiceSelect } from '@/components/ui/nice-select';
+import { MixedPayment, mixedState, type MixedLine } from '@/components/MixedPayment';
+import { splitParts } from '@/lib/paymentSplit';
 
 const INFO_TABS = [['methods', 'Medios de pago'], ['rooms', 'Salones'], ['cancel', 'Cancelaciones'], ['tips', 'Propinas'], ['delivery', 'Costos de envío']] as const;
 
@@ -227,15 +229,16 @@ const ReasonModal = ({ title, text, confirm, onClose, onConfirm }: { title: stri
   );
 };
 
-const PAY_METHODS: Array<[string, string]> = [['cash', 'Efectivo'], ['card_debit', 'Datáfono débito'], ['card_credit', 'Datáfono crédito'], ['transfer', 'Transferencia'], ['platform', 'Plataforma'], ['credit', 'A crédito'], ['mixed', 'Mixto (dos medios)']];
+const PAY_METHODS: Array<[string, string]> = [['cash', 'Efectivo'], ['card_debit', 'Datáfono débito'], ['card_credit', 'Datáfono crédito'], ['transfer', 'Transferencia'], ['platform', 'Plataforma'], ['credit', 'A crédito'], ['mixed', 'Varios medios (mixto)']];
 const EditPaymentModal = ({ o, onClose, onSaved }: { o: any; onClose: () => void; onSaved: () => void }) => {
   const due = o.total + (o.tip || 0);
   const [method, setMethod] = useState(o.paymentMethod);
-  const [m1, setM1] = useState(o.paymentSplit?.method1 || 'cash'); const [a1, setA1] = useState(String(o.paymentSplit?.amount1 ?? ''));
-  const [m2, setM2] = useState(o.paymentSplit?.method2 || 'transfer'); const [a2, setA2] = useState(String(o.paymentSplit?.amount2 ?? ''));
-  const ok = method !== 'mixed' || ((Number(a1) || 0) + (Number(a2) || 0) === due && m1 !== m2);
+  const prev = splitParts(o.paymentSplit);
+  const [mixLines, setMixLines] = useState<MixedLine[]>(prev.length >= 2 ? prev.map(p => ({ method: p.method, amount: String(p.amount) })) : [{ method: 'cash', amount: '' }, { method: 'transfer', amount: '' }]);
+  const mix = mixedState(mixLines, due);
+  const ok = method !== 'mixed' || mix.ok;
   const save = async () => {
-    try { await api.editSalePayment(o.id, { paymentMethod: method, paymentSplit: method === 'mixed' ? { method1: m1, amount1: Number(a1) || 0, method2: m2, amount2: Number(a2) || 0 } : undefined }); toast.success('Pago corregido'); onSaved(); }
+    try { await api.editSalePayment(o.id, { paymentMethod: method, paymentSplit: method === 'mixed' ? { parts: mix.parts } : undefined }); toast.success('Pago corregido'); onSaved(); }
     catch (e: any) { toast.error(e.message); }
   };
   const simple = PAY_METHODS.filter(([k]) => !['mixed', 'credit'].includes(k));
@@ -243,13 +246,7 @@ const EditPaymentModal = ({ o, onClose, onSaved }: { o: any; onClose: () => void
     <Modal title={`Editar pago · venta #${o.id}`} onClose={onClose}>
       <p className="text-xs text-muted-foreground">Total cobrado (venta + propina): <b>{formatPrice(due)}</b>. El cambio se refleja en el arqueo y en la contabilidad.</p>
       <div><label className={LABEL}>Medio de pago</label><NiceSelect value={method} onChange={e => setMethod(e.target.value)} className={PINPUT} data-pay-method>{PAY_METHODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</NiceSelect></div>
-      {method === 'mixed' && (
-        <div className="grid grid-cols-2 gap-2">
-          <div><NiceSelect value={m1} onChange={e => setM1(e.target.value)} className={PINPUT}>{simple.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</NiceSelect><input type="number" value={a1} onChange={e => { setA1(e.target.value); setA2(String(Math.max(0, due - (Number(e.target.value) || 0)))); }} className={cn(PINPUT, 'mt-1 font-mono')} data-pay-a1 /></div>
-          <div><NiceSelect value={m2} onChange={e => setM2(e.target.value)} className={PINPUT}>{simple.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</NiceSelect><input type="number" value={a2} onChange={e => setA2(e.target.value)} className={cn(PINPUT, 'mt-1 font-mono')} /></div>
-          <p className={cn('col-span-2 text-[11px]', ok ? 'text-emerald-700' : 'text-red-600')}>{ok ? 'Los dos medios suman el total.' : `Deben sumar ${formatPrice(due)}.`}</p>
-        </div>
-      )}
+      {method === 'mixed' && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} />}
       <button onClick={save} disabled={!ok} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-save-payment>Guardar pago</button>
     </Modal>
   );

@@ -56,7 +56,7 @@ function formatOrder(db, order) {
     paymentStatus: order.payment_status,
     cashReceived: order.cash_received || 0,
     cashChange: order.cash_change || 0,
-    paymentSplit: order.payment_split ? (typeof order.payment_split === 'string' ? JSON.parse(order.payment_split) : order.payment_split) : undefined,
+    paymentSplit: order.payment_split ? (() => { const ps = require('./paymentSplit'); const parts = ps.splitParts(order.payment_split); return parts.length ? { ...ps.makeSplit(parts), parts } : undefined; })() : undefined,
     createdAt: order.created_at,
     readyAt: order.ready_at || undefined,
     shippedAt: order.shipped_at || undefined,

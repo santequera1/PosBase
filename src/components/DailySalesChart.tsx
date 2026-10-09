@@ -1,3 +1,4 @@
+import { splitParts } from '@/lib/paymentSplit';
 import { BRAND } from '@/lib/theme';
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
@@ -73,16 +74,11 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
         totalSales += (o.total || 0);
 
         if (o.paymentMethod === 'mixed' && o.paymentSplit) {
-          const s = o.paymentSplit;
-          const a1 = Number(s.amount1) || 0;
-          const a2 = Number(s.amount2) || 0;
-          if (s.method1 === 'cash') cashSales += a1;
-          else if (s.method1 === 'card_debit' || s.method1 === 'card_credit') cardSales += a1;
-          else if (s.method1 === 'transfer') transferSales += a1;
-
-          if (s.method2 === 'cash') cashSales += a2;
-          else if (s.method2 === 'card_debit' || s.method2 === 'card_credit') cardSales += a2;
-          else if (s.method2 === 'transfer') transferSales += a2;
+          for (const p of splitParts(o.paymentSplit)) {
+            if (p.method === 'cash') cashSales += p.amount;
+            else if (p.method === 'card_debit' || p.method === 'card_credit') cardSales += p.amount;
+            else if (p.method === 'transfer') transferSales += p.amount;
+          }
         } else {
           if (o.paymentMethod === 'cash') cashSales += (o.total || 0);
           else if (o.paymentMethod === 'card_debit' || o.paymentMethod === 'card_credit') cardSales += (o.total || 0);

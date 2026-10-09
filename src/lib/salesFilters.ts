@@ -1,3 +1,4 @@
+import { splitParts } from '@/lib/paymentSplit';
 /**
  * Filtros y agregados de Ventas e ingresos (estilo Fudo): período, franja horaria, días de la semana, tipo de venta,
  * medio de pago, mesero, cajero, repartidor, mesa, canal, categoría, producto, estado y marcas (propina, descuento,
@@ -83,20 +84,19 @@ export const cashierOf = (o: Order) => o.closedBy || o.cashierName || '';
 /** Lo que entró por cada medio. En pagos mixtos se reparte según los dos valores (ajustado al total de la venta). */
 export function paymentParts(o: Order): Record<string, number> {
   const parts: Record<string, number> = {};
-  const s = o.paymentSplit;
-  if (o.paymentMethod === 'mixed' && s && s.method1) {
-    const a1 = Number(s.amount1) || 0, a2 = Number(s.amount2) || 0, sum = a1 + a2;
+  const sp = splitParts(o.paymentSplit);
+  if (o.paymentMethod === 'mixed' && sp.length) {
+    const sum = sp.reduce((a, p) => a + p.amount, 0);
     if (sum > 0) {
-      const p1 = Math.round((o.total * a1) / sum);
-      parts[s.method1] = (parts[s.method1] || 0) + p1;
-      if (s.method2) parts[s.method2] = (parts[s.method2] || 0) + (o.total - p1);
+      let given = 0;
+      sp.forEach((p, i) => { const v = i === sp.length - 1 ? o.total - given : Math.round((o.total * p.amount) / sum); given += v; parts[p.method] = (parts[p.method] || 0) + v; });
       return parts;
     }
   }
   parts[o.paymentMethod] = o.total;
   return parts;
 }
-export const usesMethod = (o: Order, m: string) => o.paymentMethod === m || (o.paymentMethod === 'mixed' && (o.paymentSplit?.method1 === m || o.paymentSplit?.method2 === m));
+export const usesMethod = (o: Order, m: string) => o.paymentMethod === m || (o.paymentMethod === 'mixed' && splitParts(o.paymentSplit).some(p => p.method === m));
 
 /* ---------------- aplicar filtros ---------------- */
 export interface FilterContext { today: string; categoryOf: Map<number, number> }

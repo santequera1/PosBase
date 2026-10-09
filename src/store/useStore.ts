@@ -15,6 +15,8 @@ export interface PaymentSplit {
   amount1: number;
   method2: PaymentMethod;
   amount2: number;
+  /** Pago con más de dos medios */
+  parts?: Array<{ method: string; amount: number }>;
 }
 
 export interface CashMovement {

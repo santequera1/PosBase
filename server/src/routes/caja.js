@@ -67,15 +67,15 @@ function inTurno(db, sc, ts) {
 }
 
 /** Lo cobrado de un pedido por medio (pagos mixtos en sus dos medios; la propina va al medio principal). */
+const PS = require('../paymentSplit');
 function paidParts(o) {
   const parts = {};
   if (o.payment_status !== 'paid') return parts;
   const due = (o.total || 0) + (o.tip || 0);
-  let sp = null; try { sp = o.payment_split ? JSON.parse(o.payment_split) : null; } catch { sp = null; }
-  if (sp && sp.method1) {
-    const a1 = Math.round(Number(sp.amount1) || 0), a2 = Math.round(Number(sp.amount2) || 0);
-    parts[sp.method1] = (parts[sp.method1] || 0) + a1 + (due - a1 - a2);
-    if (sp.method2) parts[sp.method2] = (parts[sp.method2] || 0) + a2;
+  const sp = PS.splitParts(o.payment_split);
+  if (sp.length) {
+    const sum = sp.reduce((a, p) => a + p.amount, 0);
+    sp.forEach((p, i) => { parts[p.method] = (parts[p.method] || 0) + p.amount + (i === 0 ? due - sum : 0); });
   } else parts[o.payment_method] = due;
   return parts;
 }
@@ -195,17 +195,15 @@ router.post('/sales/:id/payment', (req, res) => {
   const due = (o.total || 0) + (o.tip || 0);
   let split = null;
   if (method === 'mixed') {
-    const s = req.body.paymentSplit || {};
-    const a1 = Math.round(Number(s.amount1) || 0), a2 = Math.round(Number(s.amount2) || 0);
-    if (!METHODS.includes(s.method1) || !METHODS.includes(s.method2) || s.method1 === s.method2 || ['mixed', 'credit'].includes(s.method1) || ['mixed', 'credit'].includes(s.method2)) return res.status(400).json({ error: 'Elige dos medios distintos' });
-    if (a1 + a2 !== due) return res.status(400).json({ error: `Los dos medios deben sumar ${due}` });
-    split = { method1: s.method1, amount1: a1, method2: s.method2, amount2: a2 };
+    const r = PS.readSplitInput(req.body.paymentSplit, due, METHODS);
+    if (r.error) return res.status(400).json({ error: r.error });
+    split = r.split;
   }
   const paymentStatus = method === 'credit' ? 'pending' : 'paid';
   db.prepare('UPDATE orders SET payment_method = ?, payment_split = ?, payment_status = ?, cash_received = ?, cash_change = 0 WHERE id = ?')
-    .run(method, split ? JSON.stringify(split) : null, paymentStatus, method === 'cash' ? due : (split ? (split.method1 === 'cash' ? split.amount1 : split.method2 === 'cash' ? split.amount2 : 0) : 0), o.id);
+    .run(method, split ? JSON.stringify(split) : null, paymentStatus, method === 'cash' ? due : (split ? PS.cashOf(split) : 0), o.id);
   if (o.tip > 0) {
-    const tipMethod = method === 'cash' || (split && (split.method1 === 'cash' || split.method2 === 'cash')) ? 'cash' : method === 'transfer' ? 'transfer' : 'card';
+    const tipMethod = method === 'cash' || (split && PS.hasMethod(split, 'cash')) ? 'cash' : method === 'transfer' ? 'transfer' : 'card';
     db.prepare('UPDATE tips SET method = ? WHERE notes = ?').run(tipMethod, `Propina pedido #${o.id}`);
   }
   const fresh = formatOrder(db, db.prepare('SELECT * FROM orders WHERE id = ?').get(o.id));
@@ -292,15 +290,16 @@ router.post('/sales/:id/tip', (req, res) => {
   const tip = Math.max(0, Math.round(Number(req.body.tip) || 0));
   const tipTo = req.body.tipTo === 'waiter' && o.waiter_id ? 'waiter' : 'common';
   // En pagos mixtos la diferencia de la propina se carga al primer medio
-  let split = null; try { split = o.payment_split ? JSON.parse(o.payment_split) : null; } catch { split = null; }
-  if (split && split.method1) { split.amount1 = Math.max(0, Math.round(Number(split.amount1) || 0) + (tip - (o.tip || 0))); }
+  let split = null;
+  const sp = PS.splitParts(o.payment_split);
+  if (sp.length) { sp[0].amount = Math.max(0, sp[0].amount + (tip - (o.tip || 0))); split = PS.makeSplit(sp); }
   db.prepare('UPDATE orders SET tip = ?, tip_to = ?, payment_split = ?, cash_received = CASE WHEN payment_method = \'cash\' THEN total + ? ELSE cash_received END WHERE id = ?')
     .run(tip, tip > 0 ? tipTo : null, split ? JSON.stringify(split) : o.payment_split, tip, o.id);
   const prev = db.prepare('SELECT * FROM tips WHERE notes = ?').get(`Propina pedido #${o.id}`);
   db.prepare('DELETE FROM tips WHERE notes = ?').run(`Propina pedido #${o.id}`);
   if (tip > 0) {
     const m = o.payment_method;
-    const tipMethod = m === 'cash' || (split && (split.method1 === 'cash' || split.method2 === 'cash')) ? 'cash' : m === 'transfer' ? 'transfer' : 'card';
+    const tipMethod = m === 'cash' || (split && PS.hasMethod(split, 'cash')) ? 'cash' : m === 'transfer' ? 'transfer' : 'card';
     db.prepare('INSERT INTO tips (date, employee_id, amount, method, shift_id, notes) VALUES (?, ?, ?, ?, ?, ?)')
       .run(prev ? prev.date : String(o.closed_at || o.created_at).slice(0, 10), tipTo === 'waiter' ? o.waiter_id : null, tip, tipMethod, o.shift_id || null, `Propina pedido #${o.id}`);
   }

@@ -11,6 +11,7 @@ import { PAYMENT_LABEL } from '@/lib/restaurant';
 import { canDo } from '@/lib/permissions';
 import { printReceipt } from '@/lib/netPrint';
 import { NiceSelect } from '@/components/ui/nice-select';
+import { MixedPayment, mixedState, type MixedLine } from '@/components/MixedPayment';
 
 const METHODS = [
   { id: 'cash', label: 'Efectivo', icon: Banknote },
@@ -19,7 +20,7 @@ const METHODS = [
   { id: 'transfer', label: 'QR / Nequi', icon: QrCode },
   { id: 'platform', label: 'Plataforma', icon: Smartphone },
   { id: 'credit', label: 'A crédito', icon: Handshake },
-  { id: 'mixed', label: 'Mixto', icon: Split },
+  { id: 'mixed', label: 'Varios medios', icon: Split },
   { id: 'payroll', label: 'Nómina', icon: UserMinus },
 ];
 
@@ -38,8 +39,8 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const [tipTo, setTipTo] = useState<'common' | 'waiter'>(order.waiterId ? 'waiter' : 'common');
   const [method, setMethod] = useState<string>(order.paymentMethod && order.paymentMethod !== 'mixed' ? order.paymentMethod : 'cash');
   const [cashReceived, setCashReceived] = useState('');
-  const [m1, setM1] = useState('cash'); const [a1, setA1] = useState('');
-  const [m2, setM2] = useState('transfer'); const [a2, setA2] = useState('');
+  // Pago con varios medios (efectivo + Nequi + datáfono...)
+  const [mixLines, setMixLines] = useState<MixedLine[]>([{ method: 'cash', amount: '' }, { method: 'transfer', amount: '' }]);
   const [markDelivered, setMarkDelivered] = useState(order.type !== 'delivery' || order.status === 'shipped');
   // Descuento de nómina: empleado (por defecto el del descuento de trabajador, si lo hay) y en cuántas quincenas/meses
   const staffAll = restaurant?.staff.all || [];
@@ -56,8 +57,8 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const due = total + tip;
   const received = Math.round(Number(cashReceived) || 0);
   const change = method === 'cash' && received > due ? received - due : 0;
-  const splitSum = (Math.round(Number(a1) || 0)) + (Math.round(Number(a2) || 0));
-  const splitOk = method !== 'mixed' || (splitSum === due && Number(a1) > 0 && Number(a2) > 0 && m1 !== m2);
+  const mix = mixedState(mixLines, due);
+  const splitOk = method !== 'mixed' || mix.ok;
   const quick = useMemo(() => [due, Math.ceil(due / 5000) * 5000, Math.ceil(due / 10000) * 10000, Math.ceil(due / 50000) * 50000].filter((v, i, arr) => v >= due && arr.indexOf(v) === i).slice(0, 4), [due]);
 
   const submit = async () => {
@@ -68,7 +69,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
         ...(cat ? { discountId: cat.discountId, discountValue: cat.value, discountEmployeeId: cat.employeeId } : {}),
         cashReceived: method === 'cash' ? (received || due) : undefined,
         ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: payInst } : {}),
-        paymentSplit: method === 'mixed' ? { method1: m1, amount1: Math.round(Number(a1) || 0), method2: m2, amount2: Math.round(Number(a2) || 0) } : undefined,
+        paymentSplit: method === 'mixed' ? { parts: mix.parts } : undefined,
       });
       setDone(closed);
       onClosed(closed);
@@ -153,13 +154,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
               {change > 0 && <p className="text-sm font-bold text-emerald-700 mt-1">Vueltas: {formatPrice(change)}</p>}
             </div>
           )}
-          {method === 'mixed' && (
-            <div className="grid grid-cols-2 gap-2">
-              <div><label className={LABEL}>Medio 1</label><NiceSelect value={m1} onChange={e => setM1(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit', 'payroll'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a1} onChange={e => { setA1(e.target.value); setA2(String(Math.max(0, due - (Number(e.target.value) || 0)))); }} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
-              <div><label className={LABEL}>Medio 2</label><NiceSelect value={m2} onChange={e => setM2(e.target.value)} className={INPUT}>{METHODS.filter(m => !['mixed', 'credit', 'payroll'].includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</NiceSelect><input type="number" min={0} value={a2} onChange={e => setA2(e.target.value)} placeholder="Valor" className={cn(INPUT, 'font-mono mt-1')} /></div>
-              <p className={cn('col-span-2 text-[11px]', splitOk ? 'text-emerald-700' : 'text-red-600')}>{splitOk ? 'Los dos medios suman el total.' : `Deben sumar ${formatPrice(due)} (van ${formatPrice(splitSum)}).`}</p>
-            </div>
-          )}
+          {method === 'mixed' && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} />}
           {method === 'platform' && <p className="text-[11px] text-muted-foreground">La app (Rappi, DiDi) paga después; queda registrado como venta por plataforma, no entra a la caja en efectivo.</p>}
           {method === 'payroll' && (
             <div className="rounded-xl border border-brand-accent/40 bg-brand-card p-3 space-y-2" data-payroll-box>

@@ -1,3 +1,4 @@
+import { splitParts, PAY_NAMES } from '@/lib/paymentSplit';
 import React, { useState } from 'react';
 import { X, Printer, FileCheck2 } from 'lucide-react';
 import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
@@ -177,8 +178,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
                 </div>
                 {order.paymentSplit && (
                   <div className="text-[8.5px] text-gray-500 pl-2">
-                    <div>• {order.paymentSplit.method1 === 'cash' ? 'Efectivo' : order.paymentSplit.method1 === 'card_debit' ? 'T. Débito' : order.paymentSplit.method1 === 'card_credit' ? 'T. Crédito' : 'Transferencia'}: {formatPrice(order.paymentSplit.amount1)}</div>
-                    <div>• {order.paymentSplit.method2 === 'cash' ? 'Efectivo' : order.paymentSplit.method2 === 'card_debit' ? 'T. Débito' : order.paymentSplit.method2 === 'card_credit' ? 'T. Crédito' : 'Transferencia'}: {formatPrice(order.paymentSplit.amount2)}</div>
+                    {splitParts(order.paymentSplit).map((p, i) => <div key={i}>• {PAY_NAMES[p.method] || p.method}: {formatPrice(p.amount)}</div>)}
                   </div>
                 )}
               </div>

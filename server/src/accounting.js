@@ -42,7 +42,8 @@ function paymentParts(o) {
   if (o.payment_split) {
     try {
       const split = typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split;
-      if (split && split.method1 && split.amount1) { add(split.method1, Number(split.amount1)); if (split.method2 && split.amount2) add(split.method2, Number(split.amount2)); return parts; }
+      const sps = require('./paymentSplit').splitParts(split);
+      if (sps.length) { for (const p of sps) add(p.method, p.amount); return parts; }
     } catch { /* cae al método simple */ }
   }
   add(o.payment_method, o.total);

@@ -35,7 +35,7 @@ function getShiftLiveStats(db, shift) {
     totalSales += o.total;
     // Sin pagar (a crédito, domicilio por cobrar, cuenta en curso): no entra a ningún medio de pago todavía
     if (o.payment_status !== 'paid') { pendingSales += o.total; continue; }
-    if (o.tip > 0) { let m = o.payment_method; try { const sp = o.payment_split ? (typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split) : null; if (sp && sp.method1) m = sp.method1; } catch { /* medio principal */ } tips[tipKey(m)] += o.tip; }
+    if (o.tip > 0) { let m = o.payment_method; const sp0 = require('../paymentSplit').splitParts(o.payment_split); if (sp0.length) m = sp0[0].method; tips[tipKey(m)] += o.tip; }
     if (o.payment_split) {
       try {
         const split = typeof o.payment_split === 'string' ? JSON.parse(o.payment_split) : o.payment_split;
@@ -46,9 +46,8 @@ function getShiftLiveStats(db, shift) {
           else if (m === 'transfer') transferSales += amt;
           else if (m === 'platform') platformSales += amt;
         };
-        if (split.method1 && split.amount1) addSplit(split.method1, Number(split.amount1));
-        if (split.method2 && split.amount2) addSplit(split.method2, Number(split.amount2));
-        continue;
+        const sps = require('../paymentSplit').splitParts(split);
+        if (sps.length) { for (const p of sps) addSplit(p.method, p.amount); continue; }
       } catch (e) {
         // fallback
       }

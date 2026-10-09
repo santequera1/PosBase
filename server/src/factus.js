@@ -211,12 +211,14 @@ function buildBillV2(db, order, items, cfg) {
   const credit = order.payment_status !== 'paid' || order.payment_method === 'credit';
   const methodCode = m => codes.paymentMethods[m] || '10';
   let payments;
-  let split = null; try { split = order.payment_split ? JSON.parse(order.payment_split) : null; } catch { split = null; }
+  const sps = require('./paymentSplit').splitParts(order.payment_split);
   if (credit) payments = [{ payment_form: '2', payment_method_code: methodCode(order.payment_method === 'credit' ? 'cash' : order.payment_method), amount: total.toFixed(2), due_date: String(order.created_at || '').slice(0, 10) }];
-  else if (order.payment_method === 'mixed' && split && split.method1) {
-    const a2 = Math.min(total, Math.round(Number(split.amount2) || 0));
-    payments = [{ payment_form: '1', payment_method_code: methodCode(split.method1), amount: (total - a2).toFixed(2) }];
-    if (a2 > 0) payments.push({ payment_form: '1', payment_method_code: methodCode(split.method2), amount: a2.toFixed(2) });
+  else if (order.payment_method === 'mixed' && sps.length) {
+    // La factura no incluye la propina: el primer medio absorbe la diferencia para que sumen el total facturado
+    const others = sps.slice(1).map(p => ({ ...p }));
+    let restOthers = others.reduce((a, p) => a + p.amount, 0);
+    while (restOthers > total && others.length) { const p = others.pop(); restOthers -= p.amount; }
+    payments = [{ payment_form: '1', payment_method_code: methodCode(sps[0].method), amount: (total - restOthers).toFixed(2) }, ...others.map(p => ({ payment_form: '1', payment_method_code: methodCode(p.method), amount: p.amount.toFixed(2) }))];
   } else payments = [{ payment_form: '1', payment_method_code: methodCode(order.payment_method), amount: total.toFixed(2) }];
   const bill = {
     reference_code: v1.reference_code, document: '01', operation_type: '10', send_email: Boolean(customer.email),
