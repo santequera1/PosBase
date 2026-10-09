@@ -29,7 +29,7 @@ export const VentasTab = ({ period, setPeriod, shifts, selectedId, onSelect }: {
   const rows: any[] = data?.orders || [];
   const paged = usePaged(rows, JSON.stringify([period, f]));
   const fields: FilterField[] = [
-    { key: 'status', label: 'Estado de venta', options: [['cancelled', 'Eliminada'], ['closed', 'Cerrada'], ['shipped', 'Enviado'], ['active', 'En curso'], ['billing', 'Pagando'], ['ready', 'A entregar'], ['unpaid', 'Por cobrar']] },
+    { key: 'status', label: 'Estado de venta', options: [['cancelled', 'Cancelada'], ['closed', 'Cerrada'], ['shipped', 'Enviado'], ['active', 'En curso'], ['billing', 'Pagando'], ['ready', 'A entregar'], ['unpaid', 'Por cobrar']] },
     { key: 'type', label: 'Tipo de venta', options: [['dine-in', 'Mesas'], ['delivery', 'Domicilio'], ['pickup', 'Mostrador']] },
     { key: 'waiter', label: 'Cam / Rep', options: (data?.waiters || []).map((w: string) => [w, w]) },
     { key: 'customer', label: 'Cliente', type: 'text', placeholder: 'Nombre o teléfono', list: customers.slice(0, 300).map(c => c.name) },
@@ -132,7 +132,7 @@ export const SaleDetail = ({ id, onClose, onChanged }: { id: number | null; onCl
           {o.type === 'dine-in' && o.status !== 'cancelled' && <ActionBtn title="Imprimir control de mesa (precuenta)" onClick={() => printPreBill(o, restaurant?.tipDineIn ? restaurant.tipPercent : 0)} testId="print-prebill"><Receipt size={15} /></ActionBtn>}
           {o.status !== 'cancelled' && <ActionBtn title="Imprimir comanda completa" onClick={() => printKitchen(o, o.items, undefined, restaurant)} testId="print-kitchen"><ChefHat size={15} /></ActionBtn>}
           {active && <ActionBtn title="Editar venta" onClick={() => navigate(`/cuenta/${o.id}`)} testId="edit"><Pencil size={15} /></ActionBtn>}
-          {o.status !== 'cancelled' && canCancel && <ActionBtn title="Eliminar (anular) venta" onClick={() => setEdit('cancel')} testId="delete"><Trash2 size={15} /></ActionBtn>}
+          {o.status !== 'cancelled' && canCancel && <ActionBtn title="Cancelar (anular) venta" onClick={() => setEdit('cancel')} testId="delete"><Trash2 size={15} /></ActionBtn>}
         </>
       )}>
       {!o ? <p className="p-4 text-sm text-muted-foreground">Cargando...</p> : (
@@ -206,8 +206,8 @@ export const SaleDetail = ({ id, onClose, onChanged }: { id: number | null; onCl
       {edit === 'payment' && o && <EditPaymentModal o={o} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); changed(); }} />}
       {edit === 'details' && o && <EditDetailsModal o={o} invoiced={!!sm?.invoiced} onClose={() => setEdit(null)} onSaved={(fresh, reprint) => { setEdit(null); changed(); if (reprint) { if (fresh.status === 'delivered') printReceipt(fresh); else if (fresh.type === 'dine-in') printPreBill(fresh, restaurant?.tipDineIn ? restaurant.tipPercent : 0); } }} />}
       {edit === 'tip' && o && <EditTipModal o={o} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); changed(); }} />}
-      {edit === 'cancel' && o && <ReasonModal title={`Eliminar venta #${o.id}`} text="La venta queda como Eliminada (anulada): sale de los totales, se devuelve el inventario y se anula su asiento contable." confirm="Eliminar venta"
-        onClose={() => setEdit(null)} onConfirm={async r => { await api.cancelSale(o.id, r); toast.success('Venta eliminada'); setEdit(null); changed(); }} />}
+      {edit === 'cancel' && o && <ReasonModal title={`Cancelar venta #${o.id}`} text="La venta queda como Cancelada (no se borra): sale de los totales, se devuelve el inventario y se anula su asiento contable. Sigue visible en Ventas con el filtro Estado → Cancelada." confirm="Cancelar venta"
+        onClose={() => setEdit(null)} onConfirm={async r => { await api.cancelSale(o.id, r); toast.success('Venta cancelada'); setEdit(null); changed(); }} />}
       {edit && typeof edit === 'object' && 'item' in edit && o && <ReasonModal title={`Cancelar ${edit.item.quantity} × ${edit.item.name}`} text="La adición sale de la cuenta y queda registrada como cancelada (con quién y por qué)." confirm="Cancelar adición"
         onClose={() => setEdit(null)} onConfirm={async r => { await api.cancelItem(o.id, edit.item.id, r); toast.success('Adición cancelada'); setEdit(null); changed(); }} />}
     </DetailPane>

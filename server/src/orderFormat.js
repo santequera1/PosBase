@@ -71,6 +71,8 @@ function formatOrder(db, order) {
     shiftId: order.shift_id || undefined,
     cashierName: order.cashier_name || undefined,
     electronicInvoice: electronicInvoiceOf(order),
+    cancellations: db.prepare('SELECT id, name, quantity, price, was_sent AS wasSent, reason, cancelled_by AS cancelledBy, cancelled_at AS cancelledAt FROM order_item_cancellations WHERE order_id = ? ORDER BY id').all(order.id),
+    cancelReason: order.cancel_reason || undefined,
   };
 }
 

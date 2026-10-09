@@ -404,6 +404,37 @@ function enqueueSamples(db, printerId, user) {
   return n;
 }
 
+/**
+ * Aviso a cocina o barra cuando se cancela algo que ya se había enviado (para que no lo preparen).
+ * lines = [{ name, quantity, product_id, seat }]; whole = la cuenta completa se anuló.
+ */
+function enqueueCancel(db, orderId, lines, { reason = '', user = '', whole = false } = {}) {
+  if (printMode(db) !== 'agent' || !lines || !lines.length) return 0;
+  const order = orderRow(db, orderId);
+  if (!order) return 0;
+  const now = db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d;
+  const withStation = lines.map(l => ({ ...l, station: (db.prepare("SELECT COALESCE(station, 'cocina') AS s FROM products WHERE id = ?").get(l.product_id) || { s: 'cocina' }).s }));
+  let n = 0;
+  for (const st of ['cocina', 'barra']) {
+    const list = withStation.filter(l => l.station !== 'none' && (l.station === 'barra' ? 'barra' : 'cocina') === st);
+    if (!list.length) continue;
+    const targets = st === 'barra' ? (printersFor(db, 'barra', order.branch_id).length ? printersFor(db, 'barra', order.branch_id) : printersFor(db, 'caja', order.branch_id)) : printersFor(db, 'cocina', order.branch_id);
+    for (const p of targets) {
+      const t = ticketFor(p);
+      if (p.beep) t.beep(3);
+      t.align('center').size(2).bold().invert().line(whole ? ' CUENTA ANULADA ' : ' CANCELADO ').invert(false).size(1).bold(false);
+      t.size(2).bold().line(orderLabel(order)).size(1).bold(false).line(`Pedido #${order.id} · ${fmtDateTime(now)}`).align('left').sep('=');
+      for (const it of list) t.size('tall').bold().line(`-${it.quantity} x ${it.name}${it.seat ? '  [P' + it.seat + ']' : ''}`).size(1).bold(false);
+      t.sep('=');
+      if (reason) t.line(`Motivo: ${reason}`);
+      if (user) t.line(`Canceló: ${user}`);
+      t.align('center').bold().line('NO PREPARAR').bold(false);
+      n += enqueue(db, p, 'comanda', `Cancelado #${order.id}`, t.cut().buffer(), { orderId: order.id, user }).length;
+    }
+  }
+  return n;
+}
+
 /** Al enviar una tanda a cocina: si está activa la impresión en red y la impresión automática, sale sola. */
 function autoKitchen(db, orderId, batch, user) {
   try {
@@ -415,6 +446,6 @@ function autoKitchen(db, orderId, batch, user) {
 
 module.exports = {
   receiptLogo, initPrintingSchema, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
-  createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, enqueueSamples, autoKitchen,
+  createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, enqueueSamples, enqueueCancel, autoKitchen,
   kitchenTicket, receiptTicket, preBillTicket, testTicket, shiftReportTicket, biz,
 };

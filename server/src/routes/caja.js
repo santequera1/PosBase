@@ -22,7 +22,7 @@ router.use(L.syncOnWrite(getDb));
 
 const METHOD_LABEL = { cash: 'Efectivo', card_debit: 'Datáfono débito', card_credit: 'Datáfono crédito', card: 'Datáfono', transfer: 'Transferencia', platform: 'Plataforma', credit: 'A crédito', mixed: 'Mixto' };
 const TYPE_LABEL = { 'dine-in': 'Mesa', pickup: 'Mostrador', delivery: 'Domicilio' };
-const STATUS_LABEL = { cancelled: 'Eliminada', delivered: 'Cerrada', shipped: 'Enviado', open: 'En curso', pending: 'Pendiente', preparing: 'En curso', billing: 'Pagando', ready: 'A entregar' };
+const STATUS_LABEL = { cancelled: 'Cancelada', delivered: 'Cerrada', shipped: 'Enviado', open: 'En curso', pending: 'Pendiente', preparing: 'En curso', billing: 'Pagando', ready: 'A entregar' };
 const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
 const pad = n => String(n).padStart(2, '0');
 const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };

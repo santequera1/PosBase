@@ -313,6 +313,8 @@ router.delete('/orders/:id/items/:itemId', (req, res) => {
         INV.move(db, r.id, r.quantity * cancelQty * (1 + (r.w || 0) / 100), 'ajuste', { orderId: order.id, notes: `Producto cancelado: ${item.name}`, user: req.user?.name });
     } catch (e) { console.warn('Ingredientes del producto cancelado:', e.message); }
   }
+  // Si ya estaba en cocina, sale un ticket de cancelación para que no lo preparen
+  if (item.batch) { try { require('../printing').enqueueCancel(db, order.id, [{ ...item, quantity: cancelQty }], { reason: String(req.query.reason || req.body?.reason || ''), user: req.user?.name }); } catch (e) { console.warn('Ticket de cancelación:', e.message); } }
   if (cancelQty < item.quantity) db.prepare('UPDATE order_items SET quantity = quantity - ? WHERE id = ?').run(cancelQty, item.id);
   else db.prepare('DELETE FROM order_items WHERE id = ?').run(item.id);
   recomputeTotals(db, order.id);
@@ -435,6 +437,10 @@ router.post('/orders/:id/status', (req, res) => {
   if (status === 'cancelled') { sets.push('closed_at = ?', 'closed_by = ?', 'cancel_reason = ?'); vals.push(ts, req.user?.name || null, String(req.body.reason || '').trim().slice(0, 160) || null); }
   // Al marcar listo/enviado/entregado un pedido con productos sin comanda, se envían para que el inventario y la cocina queden al día
   if (['ready', 'shipped', 'delivered'].includes(status)) sendUnsent(db, req.app.io, order, req.user?.name);
+  // Cuenta anulada con productos ya en cocina: aviso para que no los preparen
+  if (status === 'cancelled' && ACTIVE.includes(order.status)) {
+    try { const sent = db.prepare('SELECT * FROM order_items WHERE order_id = ? AND batch IS NOT NULL').all(order.id); if (sent.length) require('../printing').enqueueCancel(db, order.id, sent, { reason: String(req.body.reason || ''), user: req.user?.name, whole: true }); } catch (e) { console.warn('Ticket de anulación:', e.message); }
+  }
   if (status === 'cancelled' && order.payment_method === 'payroll') {
     require('../payrollExtras').ensureConsumoCols(db);
     const c = db.prepare("SELECT id FROM employee_loans WHERE order_id = ? AND kind = 'consumo'").get(order.id);

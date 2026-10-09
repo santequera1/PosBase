@@ -232,7 +232,7 @@ export const MoreButton = ({ more, onClick, shown, total }: { more: boolean; onC
 
 export const STATUS_STYLE: Record<string, { label: string; chip: string; bar: string }> = {
   delivered: { label: 'Cerrada', chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500' },
-  cancelled: { label: 'Eliminada', chip: 'bg-red-100 text-red-700', bar: 'border-l-red-500' },
+  cancelled: { label: 'Cancelada', chip: 'bg-red-100 text-red-700', bar: 'border-l-red-500' },
   shipped: { label: 'Enviado', chip: 'bg-violet-100 text-violet-800', bar: 'border-l-violet-500' },
   billing: { label: 'Pagando', chip: 'bg-amber-100 text-amber-800', bar: 'border-l-amber-500' },
   ready: { label: 'A entregar', chip: 'bg-cyan-100 text-cyan-800', bar: 'border-l-cyan-500' },

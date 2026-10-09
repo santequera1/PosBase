@@ -243,6 +243,18 @@ const OpenOrderPage = () => {
               ))}
             </div>
           ))}
+          {(order as any).cancellations?.length > 0 && (
+            <div className="rounded-xl border border-red-200 bg-red-50/50" data-cancelled-items>
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-red-700">Cancelados</div>
+              {(order as any).cancellations.map((c: any) => (
+                <div key={c.id} className="px-3 py-1.5 border-t border-red-100 text-xs flex items-start gap-2 text-red-900/80">
+                  <span className="font-bold w-6 line-through">{c.quantity}x</span>
+                  <span className="flex-1 min-w-0"><span className="line-through">{c.name}</span><span className="block text-[10px] text-red-700/80">{c.wasSent ? 'Ya estaba en cocina' : 'Sin enviar'}{c.reason ? ` · ${c.reason}` : ''}{c.cancelledBy ? ` · ${c.cancelledBy}` : ''} · {String(c.cancelledAt || '').slice(11, 16)}</span></span>
+                  <span className="line-through">{formatPrice(c.price * c.quantity)}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {draft.length > 0 && (
             <div className="rounded-xl border border-amber-300 bg-amber-50/60">
               <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">Por enviar a cocina</div>
