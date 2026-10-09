@@ -37,9 +37,11 @@ const DeliveryPage = () => {
   const q = search.trim().toLowerCase();
   const matches = (o: Order) => !q || String(o.id).includes(q) || o.customer.name.toLowerCase().includes(q) || (o.customer.phone || '').includes(q) || (o.customer.address || '').toLowerCase().includes(q) || (o.label || '').toLowerCase().includes(q);
   const active = deliveries.filter(o => isActive(o) && matches(o));
-  const doneToday = deliveries.filter(o => o.status === 'delivered' && (o.deliveredAt || o.closedAt || o.createdAt).slice(0, 10) === today && matches(o)).sort((a, b) => (b.deliveredAt || b.createdAt).localeCompare(a.deliveredAt || a.createdAt)).slice(0, 15);
+  const doneToday = deliveries.filter(o => o.status === 'delivered' && (o.deliveredAt || o.closedAt || o.createdAt).slice(0, 10) === today && matches(o)).sort((a, b) => (b.deliveredAt || b.createdAt).localeCompare(a.deliveredAt || a.createdAt));
 
   const setStatus = async (o: Order, status: string, driverId?: number) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, status, driverId)); } catch (e: any) { toast.error(e.message); } };
+  // Pedido ya entregado: el repartidor se corrige como dato de la venta
+  const assignDone = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.editSaleDetails(o.id, { driverId: driverId || 0 })); toast.success(driverId ? 'Domiciliario asignado' : 'Domiciliario quitado'); } catch (e: any) { toast.error(e.message); } };
   const assign = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.updateOrderHeader(o.id, { driverId: driverId || null })); } catch (e: any) { toast.error(e.message); } };
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
   const actionsFor = (o: Order): CardAction[] => {
@@ -101,7 +103,7 @@ const DeliveryPage = () => {
                       <td className="px-3 py-1.5 font-semibold text-brand-dark">{orderTitle(o)} <span className="text-muted-foreground font-normal">#{o.id}</span></td>
                       <td className="px-3 py-1.5">{(o.deliveredAt || o.createdAt).slice(11, 16)}</td>
                       <td className="px-3 py-1.5 truncate max-w-[240px]">{o.customer.address}{o.customer.neighborhood ? ` · ${o.customer.neighborhood}` : ''}</td>
-                      <td className="px-3 py-1.5">{o.driverName || '—'}</td>
+                      <td className="px-2 py-1"><NiceSelect value={o.driverId || 0} onChange={e => assignDone(o, Number(e.target.value))} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] min-w-[8rem]" title="Domiciliario" data-done-driver={o.id}><option value={0}>— Sin asignar</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></td>
                       <td className="px-3 py-1.5">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
                       <td className="px-3 py-1.5 text-right">{formatPrice(o.deliveryFee || 0)}</td>
                       <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>

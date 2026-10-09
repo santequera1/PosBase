@@ -241,6 +241,10 @@ router.post('/sales/:id/details', (req, res) => {
   if (b.label !== undefined) set('sale_label', str(b.label, 80) || null);
   if (b.notes !== undefined) set('notes', str(b.notes, 300));
   if (b.people !== undefined) set('people', Math.max(0, Math.round(Number(b.people) || 0)));
+  if (b.driverId !== undefined) {
+    const d = Number(b.driverId) ? db.prepare('SELECT id, name FROM employees WHERE id = ?').get(Number(b.driverId)) : null;
+    set('driver_id', d ? d.id : null); set('driver_name', d ? d.name : null);
+  }
   if (b.waiterId !== undefined) {
     const w = Number(b.waiterId) ? db.prepare('SELECT id, name FROM employees WHERE id = ?').get(Number(b.waiterId)) : null;
     set('waiter_id', w ? w.id : null); set('waiter_name', w ? w.name : null);

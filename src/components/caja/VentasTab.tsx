@@ -258,6 +258,8 @@ const EditPaymentModal = ({ o, onClose, onSaved }: { o: any; onClose: () => void
 /** Editar los datos de una venta (no los valores) y, si se quiere, reimprimir el recibo ya corregido. */
 const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced: boolean; onClose: () => void; onSaved: (fresh: any, reprint: boolean) => void }) => {
   const waiters = useStore(s => s.restaurant?.staff.waiters || []);
+  const couriers = useStore(s => s.restaurant?.staff.couriers || []);
+  const [driverId, setDriverId] = useState<string>(String(o.driverId || 0));
   const customers = useStore(s => s.customers);
   const c = o.customer || {};
   const [customerId, setCustomerId] = useState<number>(o.customerId || 0);
@@ -278,6 +280,7 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
     setBusy(true);
     try {
       const body: any = { label: f.label, notes: f.notes, waiterId: Number(f.waiterId) || 0 };
+      if (o.type === 'delivery') body.driverId = Number(driverId) || 0;
       if (o.type === 'dine-in') body.people = Number(f.people) || 0;
       if (!invoiced) Object.assign(body, { customerName: f.customerName, customerDoc: f.customerDoc, customerEmail: f.customerEmail, customerPhone: f.customerPhone, customerAddress: f.customerAddress, customerNeighborhood: f.customerNeighborhood, customerId: customerId || undefined, saveCustomer, isCompany, dv });
       const fresh = await api.editSaleDetails(o.id, body);
@@ -321,6 +324,13 @@ const EditDetailsModal = ({ o, invoiced, onClose, onSaved }: { o: any; invoiced:
             <NiceSelect value={f.waiterId} onChange={e => set({ waiterId: e.target.value })} className={PINPUT} data-detail-waiter>
               <option value="0">Sin asignar</option>
               {waiters.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
+            </NiceSelect></div>
+        )}
+        {o.type === 'delivery' && (
+          <div className="col-span-2"><label className={LABEL}>Domiciliario</label>
+            <NiceSelect value={driverId} onChange={e => setDriverId(e.target.value)} className={PINPUT} data-detail-driver>
+              <option value="0">Sin asignar</option>
+              {couriers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
             </NiceSelect></div>
         )}
         {o.type === 'dine-in' && <div><label className={LABEL}>Personas</label><input type="number" min={0} value={f.people} onChange={e => set({ people: e.target.value })} className={cn(PINPUT, 'font-mono')} /></div>}
