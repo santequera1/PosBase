@@ -29,6 +29,7 @@ const TablesPage = () => {
   const [roomId, setRoomId] = useState<number | null>(null);
   const [selected, setSelected] = useState<RestaurantTable | null>(null);
   const [opening, setOpening] = useState<RestaurantTable | null>(null);
+  const [openingExtra, setOpeningExtra] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
   // Celular: cuadrícula grande (por defecto) o el plano del salón; se recuerda en este equipo
   const [mobileView, setMobileViewState] = useState<'grid' | 'plan'>(() => { try { return localStorage.getItem('tables-mobile-view') === 'plan' ? 'plan' : 'grid'; } catch { return 'grid'; } });
@@ -106,18 +107,20 @@ const TablesPage = () => {
   };
 
   /* ---------- acciones sobre una mesa ---------- */
-  const openAccount = (t: RestaurantTable) => { if (t.order) navigate(`/cuenta/${t.order.id}`); };
-  const prebill = async (t: RestaurantTable) => {
-    if (!t.order) return;
+  const openAccount = (t: RestaurantTable, id?: number) => { const oid = id || t.order?.id; if (oid) navigate(`/cuenta/${oid}`); };
+  const prebill = async (t: RestaurantTable, id?: number) => {
+    const oid = id || t.order?.id;
+    if (!oid) return;
     try {
-      const o = await api.setRestaurantStatus(t.order.id, 'billing');
+      const o = await api.setRestaurantStatus(oid, 'billing');
       printPreBill(o, restaurant?.tipDineIn ? restaurant.tipPercent : 0);
       load();
     } catch (e: any) { toast.error(e.message); }
   };
-  const startClose = async (t: RestaurantTable) => {
-    if (!t.order) return;
-    try { setClosing(await api.getOrder(t.order.id)); } catch (e: any) { toast.error(e.message); }
+  const startClose = async (t: RestaurantTable, id?: number) => {
+    const oid = id || t.order?.id;
+    if (!oid) return;
+    try { setClosing(await api.getOrder(oid)); } catch (e: any) { toast.error(e.message); }
   };
 
   return (
@@ -174,7 +177,7 @@ const TablesPage = () => {
                     data-table-tile={t.label}>
                     <span className="font-display font-bold text-2xl leading-none">{t.label}</span>
                     {st !== 'free' && t.order ? (
-                      <span className="text-[11px] leading-tight mt-1 text-center font-semibold">{formatPrice(t.order.total)}<br /><span className="font-normal opacity-90">{elapsedLabel(t.order.since)}{t.order.waiterName ? ` · ${t.order.waiterName.split(' ')[0]}` : ''}</span></span>
+                      <span className="text-[11px] leading-tight mt-1 text-center font-semibold">{formatPrice(t.totalAll ?? t.order.total)}{(t.accounts?.length || 0) > 1 ? ` · ${t.accounts!.length} cuentas` : ''}<br /><span className="font-normal opacity-90">{elapsedLabel(t.order.since)}{t.order.waiterName ? ` · ${t.order.waiterName.split(' ')[0]}` : ''}</span></span>
                     ) : (
                       <span className="text-[11px] mt-1 opacity-90 flex items-center gap-0.5"><Users size={11} /> {t.seats}</span>
                     )}
@@ -198,7 +201,7 @@ const TablesPage = () => {
                   style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%` }}>
                   <span className="font-display font-bold text-lg leading-none">{t.label}</span>
                   {st !== 'free' && t.order ? (
-                    <span className="text-[10px] leading-tight mt-1 text-center opacity-90">{formatPrice(t.order.total)}<br />{elapsedLabel(t.order.since)}</span>
+                    <span className="text-[10px] leading-tight mt-1 text-center opacity-90">{formatPrice(t.totalAll ?? t.order.total)}<br />{(t.accounts?.length || 0) > 1 ? `${t.accounts!.length} cuentas` : elapsedLabel(t.order.since)}</span>
                   ) : (
                     <span className="text-[10px] mt-0.5 opacity-80 flex items-center gap-0.5"><Icon size={9} /> {t.seats}</span>
                   )}
@@ -219,6 +222,24 @@ const TablesPage = () => {
                 <div><p className="font-display font-bold text-lg text-brand-dark">Mesa {selected.label}</p><p className="text-[11px] text-muted-foreground">{selected.order.status === 'billing' ? 'Pidiendo la cuenta' : 'Cuenta abierta'} · cuenta #{selected.order.id}</p></div>
                 <button onClick={() => setSelected(null)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center"><X size={14} /></button>
               </div>
+              {(selected.accounts?.length || 0) > 1 ? (
+                <div className="space-y-2" data-table-accounts>
+                  <p className="text-xs text-muted-foreground">{selected.accounts!.length} cuentas abiertas · total mesa <b className="text-brand-dark">{formatPrice(selected.totalAll || 0)}</b></p>
+                  {selected.accounts!.map(a => (
+                    <div key={a.id} className="rounded-xl border border-border p-2.5 space-y-2" data-table-account={a.id}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0"><p className="text-sm font-bold text-brand-dark truncate">{a.label || `Cuenta #${a.id}`}</p><p className="text-[11px] text-muted-foreground">#{a.id} · {a.items} producto(s){a.unsent ? ` · ${a.unsent} sin enviar` : ''}{a.waiterName ? ` · ${a.waiterName}` : ''}{a.status === 'billing' ? ' · pidiendo la cuenta' : ''}</p></div>
+                        <p className="text-sm font-bold text-brand-primary whitespace-nowrap">{formatPrice(a.total)}</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button onClick={() => openAccount(selected, a.id)} className="py-1.5 rounded-lg gradient-primary text-primary-foreground text-[11px] font-bold">Abrir</button>
+                        <button onClick={() => prebill(selected, a.id)} className="py-1.5 rounded-lg border border-border bg-white text-[11px] font-semibold">Precuenta</button>
+                        <button onClick={() => startClose(selected, a.id)} className="py-1.5 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold">Cobrar</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (<>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-brand-card rounded-lg p-2"><p className="text-muted-foreground flex items-center gap-1"><Users size={11} /> Personas</p><p className="font-bold text-brand-dark">{selected.order.people}</p></div>
                 <div className="bg-brand-card rounded-lg p-2"><p className="text-muted-foreground flex items-center gap-1"><Clock size={11} /> Tiempo</p><p className={cn('font-bold', minutesSince(selected.order.since) > 90 ? 'text-red-600' : 'text-brand-dark')}>{elapsedLabel(selected.order.since)}</p></div>
@@ -249,6 +270,8 @@ const TablesPage = () => {
                   <button onClick={() => startClose(selected)} className="py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1"><Wallet size={13} /> Cobrar</button>
                 </div>
               </div>
+              </>)}
+              <button onClick={() => { setOpeningExtra(true); setOpening(selected); }} className="w-full py-2 rounded-xl border border-dashed border-brand-primary/40 text-xs font-bold text-brand-primary flex items-center justify-center gap-1.5 hover:bg-brand-card" data-table-extra><Plus size={13} /> Otra cuenta en esta mesa</button>
             </div>
           ) : (
             <div className="bg-card rounded-xl border border-border shadow-card p-4 text-xs text-muted-foreground space-y-2">
@@ -262,7 +285,7 @@ const TablesPage = () => {
         </div>
       </div>
 
-      {opening && <NewOrderModal type="dine-in" tableId={opening.id} tableLabel={opening.label} onClose={() => setOpening(null)} onCreated={o => { setOpening(null); navigate(`/cuenta/${o.id}`); }} />}
+      {opening && <NewOrderModal type="dine-in" additional={openingExtra} tableId={opening.id} tableLabel={opening.label} onClose={() => { setOpening(null); setOpeningExtra(false); }} onCreated={o => { setOpening(null); setOpeningExtra(false); navigate(`/cuenta/${o.id}`); }} />}
       {closing && <CloseOrderModal order={closing} onClose={() => { setClosing(null); setSelected(null); load(); }} onClosed={() => load()} />}
       {tableForm && room && <TableFormModal room={room} rooms={rooms} table={tableForm.table} onClose={() => setTableForm(null)} onSaved={() => { setTableForm(null); load(); }} onDelete={t => { setTableForm(null); removeTable(t); }} />}
       {roomForm && <RoomFormModal room={roomForm.room} onClose={() => setRoomForm(null)} onSaved={r => { setRoomForm(null); load().then(() => setRoomId(r.id)); }} />}

@@ -10,6 +10,8 @@ import { NiceSelect } from '@/components/ui/nice-select';
 
 interface Props {
   type: OrderType;
+  /** Otra cuenta en una mesa que ya tiene cuenta abierta */
+  additional?: boolean;
   tableId?: number;
   tableLabel?: string;
   onClose: () => void;
@@ -33,7 +35,7 @@ const PersonPicker = ({ people, value, onChange, empty }: { people: Array<{ id: 
   );
 };
 
-export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }: Props) => {
+export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, additional }: Props) => {
   const { restaurant, customers, user } = useStore();
   const waiters = restaurant?.staff.waiters || [];
   const couriers = restaurant?.staff.couriers || [];
@@ -67,7 +69,7 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
   const submit = async () => {
     setSaving(true); setError('');
     try {
-      const payload: any = { type, channel, notes, label: label.trim() || undefined };
+      const payload: any = { type, channel, notes, label: label.trim() || undefined, additional: additional || undefined };
       if (type === 'dine-in') { payload.tableId = tableId; payload.people = Number(people) || 1; payload.waiterId = waiterId || undefined; payload.customer = { name: name.trim() }; }
       if (type === 'pickup') { payload.customer = { name: name.trim() || label.trim(), phone: phone.trim(), saveCustomer: saveCustomer && phone.trim().length >= 7 }; }
       if (type === 'delivery') {
@@ -80,7 +82,7 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated }:
     setSaving(false);
   };
   const canSubmit = type === 'dine-in' ? Number(people) >= 1 : type === 'pickup' ? (label.trim() || name.trim()).length > 0 : name.trim().length > 0 && address.trim().length > 3;
-  const title = type === 'dine-in' ? `Abrir mesa ${tableLabel || ''}` : type === 'pickup' ? 'Nuevo pedido para llevar' : 'Nuevo domicilio';
+  const title = type === 'dine-in' ? (additional ? `Otra cuenta en la mesa ${tableLabel || ''}` : `Abrir mesa ${tableLabel || ''}`) : type === 'pickup' ? 'Nuevo pedido para llevar' : 'Nuevo domicilio';
 
   return (
     <Modal title={title} onClose={onClose} wide={type === 'delivery'}>

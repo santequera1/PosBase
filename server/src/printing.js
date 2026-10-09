@@ -156,7 +156,7 @@ function listAgents(db) {
 /* ---------------- plantillas ---------------- */
 const STATION_TITLE = { cocina: 'COCINA', barra: 'BEBIDAS' };
 const fmtDateTime = ts => { const s = String(ts || ''); return s.length >= 16 ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)} ${s.slice(11, 16)}` : s; };
-const orderLabel = o => o.type === 'dine-in' ? `MESA ${o.table_label || o.table_number || ''}` : o.type === 'delivery' ? 'DOMICILIO' : `PARA LLEVAR${o.sale_label ? ': ' + o.sale_label : ''}`;
+const orderLabel = o => o.type === 'dine-in' ? `MESA ${o.table_label || o.table_number || ''}${/^cuenta \d+$/i.test(String(o.sale_label || '').trim()) ? ' · ' + String(o.sale_label).trim().toUpperCase() : ''}` : o.type === 'delivery' ? 'DOMICILIO' : `PARA LLEVAR${o.sale_label ? ': ' + o.sale_label : ''}`;
 
 function kitchenTicket(printer, order, items, { station, batch, now }) {
   const t = ticketFor(printer);

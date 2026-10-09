@@ -119,9 +119,12 @@ function tablesState(db) {
   const lineRows = active.length ? db.prepare(`SELECT order_id, name, quantity, batch FROM order_items WHERE order_id IN (${active.map(() => '?').join(',')}) ORDER BY id`).all(...active.map(a => a.id)) : [];
   for (const r of rooms) {
     for (const t of r.tables) {
-      const o = active.find(a => a.table_id === t.id);
+      const mine = active.filter(a => a.table_id === t.id).sort((a, b) => a.id - b.id);
+      const o = mine[0];
+      t.accounts = mine.map(a => ({ id: a.id, status: a.status, label: a.sale_label || a.customer_name || '', total: a.total || 0, people: a.people || 0, waiterName: a.waiter_name || '', since: a.created_at, items: countMap[a.id]?.items || 0, unsent: countMap[a.id]?.unsent || 0 }));
+      t.totalAll = mine.reduce((s, a) => s + (a.total || 0), 0);
       t.order = o ? { id: o.id, status: o.status, people: o.people || 0, waiterName: o.waiter_name || '', total: o.total || 0, since: o.created_at, items: countMap[o.id]?.items || 0, unsent: countMap[o.id]?.unsent || 0, label: o.sale_label || o.customer_name, notes: o.notes || '', lines: lineRows.filter(l => l.order_id === o.id).map(l => ({ name: l.name, qty: l.quantity, sent: l.batch !== null })) } : null;
-      t.state = !o ? 'free' : o.status === 'billing' ? 'billing' : 'occupied';
+      t.state = !o ? 'free' : mine.every(a => a.status === 'billing') ? 'billing' : 'occupied';
     }
   }
   return rooms;
@@ -217,7 +220,10 @@ router.post('/orders', (req, res) => {
   if (type === 'dine-in') {
     table = db.prepare('SELECT * FROM tables WHERE id = ? AND active = 1').get(Number(b.tableId));
     if (!table) return res.status(400).json({ error: 'Selecciona una mesa' });
-    if (activeOrderForTable(db, table.id)) return res.status(409).json({ error: `La mesa ${table.label} ya tiene una cuenta abierta` });
+    const openCount = db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE table_id = ? AND split_from IS NULL AND status IN (${ACTIVE_SQL})`).get(table.id).c;
+    if (openCount && !b.additional) return res.status(409).json({ error: `La mesa ${table.label} ya tiene una cuenta abierta`, code: 'TABLE_BUSY' });
+    // Varias cuentas en la misma mesa: cada una se nombra Cuenta 2, Cuenta 3... (si no traen nombre)
+    if (openCount && !String(b.label || '').trim()) b.label = `Cuenta ${openCount + 1}`;
   }
   const c = b.customer || {};
   const custName = String(c.name || '').trim() || (type === 'dine-in' ? 'Consumidor Final' : (String(b.label || '').trim() || 'Consumidor Final'));
