@@ -10,7 +10,9 @@ const { requireRole } = require('../auth');
 const P = require('../printing');
 
 const router = Router();
-const ADMIN = requireRole('admin');
+// Configuración de impresoras: el administrador o quien tenga el permiso "Configurar impresoras"
+const { hasAction } = require('../auth');
+const ADMIN = (req, res, next) => (req.user && (req.user.role === 'admin' || hasAction(req.user, 'manage_printers')) ? next() : res.status(403).json({ error: 'Necesitas el permiso "Configurar impresoras". Pídeselo al administrador.' }));
 const IP_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
 function printerPayload(b, cur = {}) {

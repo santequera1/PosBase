@@ -24,6 +24,7 @@ const ACTIONS = [
   { key: 'discounts', label: 'Aplicar descuentos' },
   { key: 'edit_menu', label: 'Crear y editar productos y precios' },
   { key: 'cash_withdrawals', label: 'Registrar retiros de caja' },
+  { key: 'manage_printers', label: 'Configurar impresoras' },
 ];
 const VIEW_KEYS = VIEWS.map(v => v.key);
 const ACTION_KEYS = ACTIONS.map(a => a.key);

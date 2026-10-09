@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -50,8 +50,10 @@ const DeliveryPage = () => {
     if (o.status === 'open') return [view];
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
     if (o.status === 'shipped') return [{ label: 'Entregado', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view, print];
-    if (o.status === 'ready') return [{ label: 'Enviar', icon: Bike, onClick: () => (o.driverId ? setStatus(o, 'shipped') : toast.error('Asigna un repartidor primero')), primary: true, disabled: !o.driverId }, pay, view, print];
-    return [{ label: 'Listo', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view, print];
+    // El repartidor se elige en la lista de la tarjeta; sin él no se puede despachar (se avisa en vez de dejar el botón apagado)
+    if (o.status === 'ready') return [{ label: o.driverId ? 'Enviar' : 'Enviar (elige repartidor)', icon: Bike, onClick: () => (o.driverId ? setStatus(o, 'shipped') : toast.error('Elige el repartidor en la lista "Sin repartidor" de esta tarjeta y luego toca Enviar')), primary: true }, pay, view, print];
+    if (o.status === 'preparing') return [{ label: 'Listo para enviar', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view, print];
+    return [{ label: 'A preparación', icon: ChefHat, onClick: () => setStatus(o, 'preparing'), primary: true }, pay, view, print];
   };
 
   return (

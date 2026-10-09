@@ -1,8 +1,8 @@
 /** Permisos por usuario (vistas y acciones). El administrador siempre tiene todo; el resto depende de su perfil o de su lista personalizada. */
-import { Store, LayoutGrid, ShoppingBag, Bike, ChefHat, Wallet, ClipboardList, BarChart3, Package, Users, Landmark, UsersRound, Settings, Ban, Percent, Pencil, HandCoins, ShieldCheck, ConciergeBell } from 'lucide-react';
+import { Printer, Store, LayoutGrid, ShoppingBag, Bike, ChefHat, Wallet, ClipboardList, BarChart3, Package, Users, Landmark, UsersRound, Settings, Ban, Percent, Pencil, HandCoins, ShieldCheck, ConciergeBell } from 'lucide-react';
 
 export type ViewKey = 'pos' | 'tables' | 'counter' | 'delivery' | 'kitchen' | 'courier' | 'shift' | 'orders' | 'reports' | 'menu' | 'customers' | 'finance' | 'staff' | 'settings';
-export type ActionKey = 'cancel_orders' | 'discounts' | 'edit_menu' | 'cash_withdrawals';
+export type ActionKey = 'cancel_orders' | 'discounts' | 'edit_menu' | 'cash_withdrawals' | 'manage_printers';
 export type ProfileKey = 'admin' | 'cashier' | 'waiter' | 'kitchen' | 'courier' | 'custom';
 export interface Perms { views: string[]; actions: string[] }
 export interface PermUser { name: string; role: string; profile?: string; perms?: Perms }
@@ -28,6 +28,7 @@ export const ACTIONS: Array<{ key: ActionKey; label: string; description: string
   { key: 'discounts', label: 'Aplicar descuentos', description: 'Puede dar descuentos al cobrar (con motivo).', icon: Percent },
   { key: 'edit_menu', label: 'Editar el menú', description: 'Crear y editar productos, precios y categorías.', icon: Pencil },
   { key: 'cash_withdrawals', label: 'Retiros de caja', description: 'Registrar retiros o gastos desde la caja abierta.', icon: HandCoins },
+  { key: 'manage_printers', label: 'Configurar impresoras', description: 'Agregar impresoras, cambiar su IP, buscarlas en la red e imprimir pruebas.', icon: Printer },
 ];
 export const PROFILES: Array<{ key: ProfileKey; label: string; description: string; icon: any; views: ViewKey[]; actions: ActionKey[] }> = [
   { key: 'admin', label: 'Administrador', description: 'Acceso total a todo el sistema.', icon: ShieldCheck, views: VIEWS.map(v => v.key), actions: ACTIONS.map(a => a.key) },
