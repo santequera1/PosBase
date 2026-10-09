@@ -235,7 +235,18 @@ async function issueInvoice(db, orderId, userName) {
   const cfg = readFeConfig(db, { masked: false });
   if (cfg.provider !== 'factus') throw new Error('El proveedor de facturación electrónica no es Factus');
   if (!cfg.configured) throw new Error('Faltan las credenciales de Factus (Ajustes → Facturación electrónica)');
-  if (!cfg.numberingRangeId) throw new Error('Selecciona el rango de numeración de Factus en Ajustes → Facturación electrónica');
+  // Sin rango elegido: se toma solo el rango de facturas activo (por ejemplo, apenas lo asocian en Factus)
+  if (!cfg.numberingRangeId) {
+    const version = await apiVersion(db, cfg);
+    const r = await call(db, cfg, 'GET', '/' + version + '/numbering-ranges');
+    const list = Array.isArray(r.data) ? r.data : (r.data && r.data.data) || [];
+    const inv = list.find(x => /factura/i.test(x.document || '') && x.is_active !== false && !x.is_expired);
+    if (!inv) throw new Error(cfg.env === 'production'
+      ? 'Factus todavía no tiene el rango de numeración de facturas: hay que asociarlo en app.factus.com.co (Rangos de numeración). Mientras tanto no se puede emitir la factura electrónica.'
+      : 'Factus no tiene un rango de numeración de facturas activo.');
+    db.prepare("INSERT INTO settings (key, value) VALUES ('factusNumberingRangeId', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(inv.id));
+    cfg.numberingRangeId = inv.id;
+  }
   const order = db.prepare('SELECT o.*, c.dv AS customer_dv, c.iva_responsible AS customer_iva_responsible, c.is_company FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.id = ?').get(orderId);
   if (!order) throw new Error('Pedido no encontrado');
   if (order.fe_provider === 'factus' && order.fe_cufe) return order;
