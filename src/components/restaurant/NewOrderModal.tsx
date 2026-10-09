@@ -140,7 +140,7 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
             <div><label className={LABEL}>Costo de envío</label><input type="number" min={0} value={fee} onChange={e => setFee(e.target.value)} className={cn(INPUT, 'font-mono')} /></div>
             <div><label className={LABEL}>Medio de pago previsto</label>
               <NiceSelect value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className={INPUT}>
-                <option value="cash">Efectivo contra entrega</option><option value="transfer">Transferencia / Nequi</option><option value="card_debit">Datáfono contra entrega</option><option value="platform">Paga la plataforma (Rappi / DiDi)</option>
+                <option value="cash">Efectivo contra entrega</option><option value="transfer">Transferencia / Nequi</option><option value="card">Datáfono contra entrega</option><option value="platform">Paga la plataforma (Rappi / DiDi)</option>
               </NiceSelect></div>
             <label className="sm:col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={saveCustomer} onChange={e => setSaveCustomer(e.target.checked)} /> Guardar cliente y dirección para la próxima vez</label>
           </>

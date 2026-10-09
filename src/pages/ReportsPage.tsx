@@ -127,7 +127,7 @@ export const ReportsPage: React.FC = () => {
     .filter(p => !f.categories.length || f.categories.includes(String(p.categoryId)))
     .map(p => ({ value: String(p.id), label: p.name, group: catName.get(p.categoryId) || 'Sin categoría' }))
     .sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.label.localeCompare(b.label));
-  const paymentOpts: FilterOption[] = ['cash', 'card_debit', 'card_credit', 'transfer', 'platform', 'credit'].map(v => ({ value: v, label: PAY_LABEL[v] }));
+  const paymentOpts: FilterOption[] = ['cash', 'card', 'transfer', 'platform', 'credit', 'card_debit', 'card_credit'].map(v => ({ value: v, label: PAY_LABEL[v] }));
   const kindOpts: FilterOption[] = (Object.keys(SALE_KIND_LABEL) as SaleKind[]).map(k => ({ value: k, label: SALE_KIND_LABEL[k] }));
 
   // Etiquetas de los filtros activos (para quitarlos con un toque)

@@ -73,6 +73,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
 
   let paymentMethodLabel = 'Efectivo';
   if (order.paymentMethod === 'mixed' || order.paymentSplit) paymentMethodLabel = 'Mixto / Combinado';
+  else if (order.paymentMethod === 'card') paymentMethodLabel = 'Datáfono';
   else if (order.paymentMethod === 'card_debit') paymentMethodLabel = 'T. Débito';
   else if (order.paymentMethod === 'card_credit') paymentMethodLabel = 'T. Crédito';
   else if (order.paymentMethod === 'transfer') paymentMethodLabel = 'QR / Nequi';

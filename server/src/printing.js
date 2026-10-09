@@ -200,7 +200,7 @@ function headerBlock(t, b) {
   if (b.address) t.line(b.address);
   if (b.phone) t.line(`Tel. ${b.phone}`);
 }
-const PAY = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', platform: 'Plataforma', credit: 'A crédito', mixed: 'Mixto' };
+const PAY = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Datáfono', transfer: 'Transferencia / QR', platform: 'Plataforma', credit: 'A crédito', mixed: 'Mixto' };
 
 function preBillTicket(printer, b, order, items, tipPct) {
   const t = ticketFor(printer);

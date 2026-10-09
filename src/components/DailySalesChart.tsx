@@ -76,12 +76,12 @@ export const DailySalesChart: React.FC<DailySalesChartProps> = ({
         if (o.paymentMethod === 'mixed' && o.paymentSplit) {
           for (const p of splitParts(o.paymentSplit)) {
             if (p.method === 'cash') cashSales += p.amount;
-            else if (p.method === 'card_debit' || p.method === 'card_credit') cardSales += p.amount;
+            else if (p.method === 'card' || p.method === 'card_debit' || p.method === 'card_credit') cardSales += p.amount;
             else if (p.method === 'transfer') transferSales += p.amount;
           }
         } else {
           if (o.paymentMethod === 'cash') cashSales += (o.total || 0);
-          else if (o.paymentMethod === 'card_debit' || o.paymentMethod === 'card_credit') cardSales += (o.total || 0);
+          else if (o.paymentMethod === 'card' || o.paymentMethod === 'card_debit' || o.paymentMethod === 'card_credit') cardSales += (o.total || 0);
           else if (o.paymentMethod === 'transfer') transferSales += (o.total || 0);
         }
       });

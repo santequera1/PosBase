@@ -15,8 +15,7 @@ import { MixedPayment, mixedState, type MixedLine } from '@/components/MixedPaym
 
 const METHODS = [
   { id: 'cash', label: 'Efectivo', icon: Banknote },
-  { id: 'card_debit', label: 'T. Débito', icon: CreditCard },
-  { id: 'card_credit', label: 'T. Crédito', icon: CreditCard },
+  { id: 'card', label: 'Datáfono', icon: CreditCard },
   { id: 'transfer', label: 'QR / Nequi', icon: QrCode },
   { id: 'platform', label: 'Plataforma', icon: Smartphone },
   { id: 'credit', label: 'A crédito', icon: Handshake },

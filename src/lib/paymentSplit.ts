@@ -13,5 +13,5 @@ export function splitParts(s: any): SplitPart[] {
   return out;
 }
 
-export const PAY_NAMES: Record<string, string> = { cash: 'Efectivo', card_debit: 'T. Débito', card_credit: 'T. Crédito', card: 'Tarjeta', transfer: 'Transferencia / Nequi', platform: 'Plataforma' };
+export const PAY_NAMES: Record<string, string> = { cash: 'Efectivo', card_debit: 'T. Débito', card_credit: 'T. Crédito', card: 'Datáfono', transfer: 'Transferencia / Nequi', platform: 'Plataforma' };
 export const splitLabel = (s: any) => splitParts(s).map(p => PAY_NAMES[p.method] || p.method).join(' + ');

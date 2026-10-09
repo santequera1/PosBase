@@ -5,7 +5,7 @@ import { NiceSelect } from '@/components/ui/nice-select';
 import { INPUT } from '@/components/common/Primitives';
 
 export interface MixedLine { method: string; amount: string }
-const OPTIONS: Array<[string, string]> = [['cash', 'Efectivo'], ['transfer', 'Transferencia / Nequi'], ['card_debit', 'Datáfono débito'], ['card_credit', 'Datáfono crédito'], ['platform', 'Plataforma']];
+const OPTIONS: Array<[string, string]> = [['cash', 'Efectivo'], ['transfer', 'Transferencia / Nequi'], ['card', 'Datáfono'], ['platform', 'Plataforma']];
 
 /** Valida las líneas del pago mixto: al menos dos medios con valor y que sumen el total. */
 export function mixedState(lines: MixedLine[], due: number) {

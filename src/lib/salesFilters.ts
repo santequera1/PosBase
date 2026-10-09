@@ -16,7 +16,7 @@ export type SaleKind = 'mesa' | 'llevar' | 'mostrador' | 'domicilio';
 export const SALE_KIND_LABEL: Record<SaleKind, string> = { mesa: 'Mesa (en el local)', llevar: 'Para llevar', mostrador: 'Mostrador (punto de venta)', domicilio: 'Domicilio' };
 export const STATUS_FILTER_LABEL: Record<string, string> = { closed: 'Cerradas', open: 'Abiertas (en curso)', cancelled: 'Anuladas', all: 'Todas' };
 export const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-export const PAY_LABEL: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', credit: 'A crédito', mixed: 'Mixto' };
+export const PAY_LABEL: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Datáfono', transfer: 'Transferencia / QR', platform: 'Plataforma (Rappi/DiDi)', credit: 'A crédito', mixed: 'Mixto' };
 export const FLAG_LABEL: Record<string, string> = { tip: 'Con propina', discount: 'Con descuento', staff: 'Descuento de trabajador', einvoice: 'Factura electrónica', pending: 'Por cobrar' };
 
 export interface SalesFilters {

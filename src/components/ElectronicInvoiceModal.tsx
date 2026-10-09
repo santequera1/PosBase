@@ -7,7 +7,7 @@ import { formatPrice } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
 import { cn } from '@/lib/utils';
 
-const PAYMENT: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Tarjeta', transfer: 'Transferencia / QR', mixed: 'Mixto' };
+const PAYMENT: Record<string, string> = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Datáfono', transfer: 'Transferencia / QR', mixed: 'Mixto' };
 
 /** Cuadrícula tipo QR generada a partir del CUFE (solo ilustrativa: es un documento de prueba). */
 const PseudoQr = ({ seed, size = 21 }: { seed: string; size?: number }) => {

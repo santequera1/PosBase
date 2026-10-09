@@ -229,7 +229,7 @@ const ReasonModal = ({ title, text, confirm, onClose, onConfirm }: { title: stri
   );
 };
 
-const PAY_METHODS: Array<[string, string]> = [['cash', 'Efectivo'], ['card_debit', 'Datáfono débito'], ['card_credit', 'Datáfono crédito'], ['transfer', 'Transferencia'], ['platform', 'Plataforma'], ['credit', 'A crédito'], ['mixed', 'Varios medios (mixto)']];
+const PAY_METHODS: Array<[string, string]> = [['cash', 'Efectivo'], ['card', 'Datáfono'], ['transfer', 'Transferencia'], ['platform', 'Plataforma'], ['credit', 'A crédito'], ['mixed', 'Varios medios (mixto)']];
 const EditPaymentModal = ({ o, onClose, onSaved }: { o: any; onClose: () => void; onSaved: () => void }) => {
   const due = o.total + (o.tip || 0);
   const [method, setMethod] = useState(o.paymentMethod);
