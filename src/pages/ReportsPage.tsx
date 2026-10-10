@@ -19,6 +19,7 @@ import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { splitParts } from '@/lib/paymentSplit';
+import { useColumnWidths } from '@/lib/useColumnWidths';
 import {
   DEFAULT_FILTERS, PERIOD_LABEL, SALE_KIND_LABEL, STATUS_FILTER_LABEL, WEEKDAYS, PAY_LABEL, FLAG_LABEL,
   type SalesFilters, type PeriodKey, type SaleKind,
@@ -88,6 +89,9 @@ export const ReportsPage: React.FC = () => {
   const [showMore, setShowMore] = useState(false);
   const [showPeriods, setShowPeriods] = useState(false);
   const [limit, setLimit] = useState(150);
+  // Columnas de Comprobantes: ancho ajustable arrastrando el borde del encabezado
+  const SALE_COLS = ['Fecha', 'N.º', 'Tipo', 'Mesero / repartidor', 'Cajero', 'Cliente', 'Pago', 'Propina', 'Desc.', 'Total', 'Estado', 'Acciones'];
+  const cols = useColumnWidths('ventas-col-widths', [96, 120, 130, 150, 150, 170, 120, 80, 80, 100, 90, 110]);
   const [selectedInvoice, setSelectedInvoice] = useState<Order | null>(null);
   const [feOrderId, setFeOrderId] = useState<number | null>(null);
   const [productSort, setProductSort] = useState<'qty' | 'total'>('total');
@@ -399,24 +403,22 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Comprobantes */}
+      {tab === 'ventas' && cols.changed && (
+        <div className="flex justify-end -mb-2"><button onClick={cols.resetAll} className="text-[11px] font-semibold text-brand-primary hover:underline" data-cols-reset>Restablecer anchos de columnas</button></div>
+      )}
       {tab === 'ventas' && (
         <div className="bg-white rounded-2xl border border-brand-primary/10 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse" data-report-table>
+            <table className="text-left text-xs border-collapse table-fixed [&_td]:overflow-hidden [&_td]:text-ellipsis [&_td]:whitespace-nowrap" style={{ width: cols.total }} data-report-table>
+              <colgroup>{cols.widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               <thead>
                 <tr className="bg-brand-surface text-brand-on-dark font-semibold">
-                  <th className="py-2.5 px-3">Fecha</th>
-                  <th className="py-2.5 px-3">N.º</th>
-                  <th className="py-2.5 px-3">Tipo</th>
-                  <th className="py-2.5 px-3">Mesero / repartidor</th>
-                  <th className="py-2.5 px-3">Cajero</th>
-                  <th className="py-2.5 px-3">Cliente</th>
-                  <th className="py-2.5 px-3">Pago</th>
-                  <th className="py-2.5 px-3 text-right">Propina</th>
-                  <th className="py-2.5 px-3 text-right">Desc.</th>
-                  <th className="py-2.5 px-3 text-right">Total</th>
-                  <th className="py-2.5 px-3">Estado</th>
-                  <th className="py-2.5 px-3 text-center">Acciones</th>
+                  {SALE_COLS.map((h, i) => (
+                    <th key={h} className={cn('relative py-2.5 px-3 overflow-hidden text-ellipsis whitespace-nowrap', ['Propina', 'Desc.', 'Total'].includes(h) && 'text-right', h === 'Acciones' && 'text-center')}>
+                      {h}
+                      <span onPointerDown={e => cols.startResize(i, e)} onDoubleClick={() => cols.resetOne(i)} onClick={e => e.stopPropagation()} title="Arrastra para cambiar el ancho (doble clic: ancho original)" className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-white/30 active:bg-white/50" data-col-resize={i} />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -437,7 +439,7 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2.5 px-3 whitespace-nowrap text-gray-600">{kindLabel(o)}{o.people ? <span className="text-gray-400"> · {o.people}p</span> : null}</td>
                       <td className="py-2.5 px-3 whitespace-nowrap text-gray-700">{o.waiterName || o.driverName || '—'}</td>
                       <td className="py-2.5 px-3 whitespace-nowrap text-gray-700">{cashierOf(o) || '—'}</td>
-                      <td className="py-2.5 px-3 truncate max-w-[140px] text-brand-dark font-semibold">{o.customer?.name || 'Consumidor Final'}</td>
+                      <td className="py-2.5 px-3 text-brand-dark font-semibold" title={o.customer?.name || ''}>{o.customer?.name || 'Consumidor Final'}</td>
                       <td className="py-2.5 px-3 whitespace-nowrap"><span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-brand-card text-brand-primary border border-brand-accent/40">{payLabel(o)}</span></td>
                       <td className="py-2.5 px-3 text-right whitespace-nowrap text-gray-600">{o.tip ? formatPrice(o.tip) : '—'}</td>
                       <td className="py-2.5 px-3 text-right whitespace-nowrap text-red-700" title={o.discountReason || ''}>{o.discount ? `− ${formatPrice(o.discount)}` : '—'}{o.discountKind === 'staff' && <span className="ml-1 text-[9px] font-bold text-emerald-700">TRAB.</span>}</td>
