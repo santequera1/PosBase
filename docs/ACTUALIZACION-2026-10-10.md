@@ -54,3 +54,12 @@ Respaldo previo: `/home/ubuntu/backups/posbase/data-antes-limpieza-20261010-0654
 - Usuarios de demostración `cajero`, `mesero` y `domiprueba` (borrados: la versión demo para otros restaurantes será aparte).
 - Clientes "Prueba para llevar" y "Pruebas 1.5". Las ventas anuladas en $0 #1095, 1096 y 1099 se conservaron sin cliente asociado.
 - No se tocaron la existencia de productos ni las ventas reales. El usuario `cocina` se conserva.
+
+### Recetas importadas desde Fudo (10-oct-2026)
+Respaldo previo: `data-antes-recetas-*.db`. Se cargaron 106 líneas de receta en 30 productos desde la exportación de Fudo
+(hoja "Recetas"); los archivos de Fudo están en `scripts/wonkas/` (fuera del repo).
+- Nombres emparejados a mano: "4 CHICKEN TENDER + PAPAS", "5 CHICKEN TENDERS + PAPAS", "6ALITAS", "MINI HAMBURGUESA + PAPAS" y "WONKA CRUNCH.".
+- Duplicados en Fudo: WONKA GLORIOSA usa la receta del producto activo ("WONKA GLORIOSA!"); WONKA CRUNCH usa la receta completa
+  del producto inactivo, porque el activo solo traía el pan (confirmar con el restaurante).
+- "CANASTA DE PATACON" no existe en el POS (en Fudo estaba inactivo). Los combos de Fudo armados con otros productos ("Subproductos") no se importaron.
+- Solo bajan las existencias de los ingredientes con **Controlar existencias** activo (hoy 13). Los demás registran el consumo pero no restan existencias.
