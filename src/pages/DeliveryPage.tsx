@@ -37,6 +37,9 @@ const DeliveryPage = () => {
   const q = search.trim().toLowerCase();
   const matches = (o: Order) => !q || String(o.id).includes(q) || o.customer.name.toLowerCase().includes(q) || (o.customer.phone || '').includes(q) || (o.customer.address || '').toLowerCase().includes(q) || (o.label || '').toLowerCase().includes(q);
   const active = deliveries.filter(o => isActive(o) && matches(o));
+  // Vista del tablero: columnas (tarjetas) o lista (tabla, se ven más pedidos a la vez). Se recuerda en este equipo.
+  const [view, setViewState] = useState<'board' | 'list'>(() => { try { return localStorage.getItem('delivery-view') === 'list' ? 'list' : 'board'; } catch { return 'board'; } });
+  const setView = (v: 'board' | 'list') => { setViewState(v); try { localStorage.setItem('delivery-view', v); } catch { /* sin almacenamiento */ } };
   const doneToday = deliveries.filter(o => o.status === 'delivered' && (o.deliveredAt || o.closedAt || o.createdAt).slice(0, 10) === today && matches(o)).sort((a, b) => (b.deliveredAt || b.createdAt).localeCompare(a.deliveredAt || a.createdAt));
 
   const setStatus = async (o: Order, status: string, driverId?: number) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, status, driverId)); } catch (e: any) { toast.error(e.message); } };
@@ -72,7 +75,42 @@ const DeliveryPage = () => {
 
       {tab === 'board' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="flex justify-end"><div className="inline-flex rounded-xl border border-border bg-white p-0.5 text-xs font-semibold" data-delivery-view>
+            <button onClick={() => setView('board')} className={cn('px-3 py-1.5 rounded-lg', view === 'board' ? 'bg-brand-button text-brand-on-button' : 'text-brand-dark')}>Tablero</button>
+            <button onClick={() => setView('list')} className={cn('px-3 py-1.5 rounded-lg', view === 'list' ? 'bg-brand-button text-brand-on-button' : 'text-brand-dark')} data-delivery-list>Lista</button>
+          </div></div>
+          {view === 'list' && (
+            <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden" data-delivery-table>
+              <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark">Domicilios en curso</p><span className="text-[11px] text-muted-foreground">{active.length} · {formatPrice(active.reduce((a, o) => a + o.total, 0))}</span></div>
+              {active.length === 0 ? <p className="p-4 text-xs text-muted-foreground">No hay domicilios en curso.</p> : (
+                <div className="overflow-x-auto"><table className="w-full text-xs">
+                  <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Pedido</th><th className="text-left px-3 py-1.5">Estado</th><th className="text-left px-3 py-1.5">Hora</th><th className="text-left px-3 py-1.5">Dirección</th><th className="text-left px-3 py-1.5">Repartidor</th><th className="text-left px-3 py-1.5">Pago</th><th className="text-right px-3 py-1.5">Total</th><th className="px-3 py-1.5" /></tr></thead>
+                  <tbody>
+                    {[...active].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(o => {
+                      const acts = actionsFor(o);
+                      const main = acts[0];
+                      const col = COLUMNS.find(c => c.match(o.status));
+                      return (
+                        <tr key={o.id} className="border-t border-border" data-delivery-row={o.id}>
+                          <td className="px-3 py-1.5 font-semibold text-brand-dark whitespace-nowrap">{orderTitle(o)} <span className="text-muted-foreground font-normal">#{o.id}</span></td>
+                          <td className="px-3 py-1.5 whitespace-nowrap"><span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', col?.cls)}>{col?.title || o.status}</span></td>
+                          <td className="px-3 py-1.5">{o.createdAt.slice(11, 16)}</td>
+                          <td className="px-3 py-1.5 truncate max-w-[220px]">{o.customer.address}{o.customer.neighborhood ? ` · ${o.customer.neighborhood}` : ''}</td>
+                          <td className="px-2 py-1"><NiceSelect value={o.driverId || 0} onChange={e => assign(o, Number(e.target.value))} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] min-w-[8rem]" title="Repartidor"><option value={0}>Sin repartidor</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></td>
+                          <td className="px-3 py-1.5 whitespace-nowrap">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
+                          <td className="px-2 py-1"><div className="flex gap-1 justify-end">
+                            {main && <button onClick={main.onClick} disabled={main.disabled} className="px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-bold whitespace-nowrap disabled:opacity-40" data-delivery-next={o.id}>{main.label}</button>}
+                            {acts.slice(1).map(a => <button key={a.label} onClick={a.onClick} disabled={a.disabled} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] font-semibold whitespace-nowrap disabled:opacity-40">{a.label}</button>)}
+                          </div></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody></table></div>
+              )}
+            </div>
+          )}
+          <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3', view === 'list' && 'hidden')}>
             {COLUMNS.map(col => {
               const list = active.filter(o => col.match(o.status));
               return (

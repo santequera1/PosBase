@@ -4,7 +4,7 @@
  */
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { requireRole, requirePerm, hasAction } = require('../auth');
+const { requireRole, requirePerm, hasAction, hasView } = require('../auth');
 const { formatOrder } = require('../orderFormat');
 const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, getProduct, emitProduct } = require('../stock');
 const { getOpenShift, now, today, isDate } = require('../cashHelpers');
@@ -470,6 +470,12 @@ router.post('/orders/:id/close', (req, res) => {
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
   if (order.status === 'cancelled') return res.status(400).json({ error: 'El pedido está anulado' });
   if (order.payment_status === 'paid' && order.status === 'delivered') return res.status(400).json({ error: 'El pedido ya está cobrado y cerrado' });
+  // Mesas: las cobra el mesero que la abrió (o el asignado), el cajero (quien maneja la caja) o el administrador
+  if (order.type === 'dine-in' && req.user && req.user.role !== 'admin' && !hasView(req.user, 'shift')) {
+    const emp = db.prepare('SELECT id FROM employees WHERE user_id = ?').get(req.user.id);
+    const mine = order.user_id === req.user.id || (emp && order.waiter_id === emp.id);
+    if (!mine) return res.status(403).json({ error: 'Esta mesa la abrió ' + (order.created_by || 'otro mesero') + ': solo ese mesero, el cajero o el administrador la pueden cobrar' });
+  }
   const b = req.body || {};
   const cfg = readRestaurantConfig(db);
   if (cfg.requireOpenShift && !getOpenShift(db)) return res.status(400).json({ error: 'Abre la caja antes de cobrar' });

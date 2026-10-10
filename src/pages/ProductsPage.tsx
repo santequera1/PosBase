@@ -346,7 +346,7 @@ const ProductsPage = () => {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 !m-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+            className="fixed inset-0 !m-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
               className={cn('bg-white rounded-3xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl border border-brand-primary/10', editingId ? 'max-w-5xl' : 'max-w-md')} onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
