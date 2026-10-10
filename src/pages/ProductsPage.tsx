@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { PackagePlus, AlertTriangle } from 'lucide-react';
 import { StockModal } from '@/components/StockModal';
 import { BRAND } from '@/lib/theme';
@@ -62,7 +63,7 @@ const ProductsPage = () => {
     await deleteCategory(c.id);
     if (selectedCategory === c.id) setSelectedCategory(null);
   };
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [] as { name: string; price: number }[], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', categoryId: categories[0]?.id || 1, image: '', available: true, sizes: [] as { name: string; price: number }[], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' });
   const [stockTarget, setStockTarget] = useState<number | null>(null);
   const lowStock = products.filter(p => p.trackStock && (Number(p.stock) || 0) <= (Number(p.minStock) || 0));
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
@@ -82,7 +83,12 @@ const ProductsPage = () => {
   };
 
   const handleSave = () => {
-    const data: any = { name: formData.name, description: formData.description, price: Number(formData.price), categoryId: formData.categoryId, image: formData.image, available: formData.available, trackStock: formData.trackStock, stock: formData.trackStock ? Number(formData.stock) || 0 : 0, minStock: formData.trackStock ? Number(formData.minStock) || 0 : 0, station: formData.station, cost: Number(formData.cost) || 0 };
+    // La categoría debe existir (antes quedaba la 1 por defecto y el producto nuevo no se guardaba)
+    const categoryId = categories.some(c => c.id === formData.categoryId) ? formData.categoryId : (selectedCategory || categories[0]?.id);
+    if (!formData.name.trim()) { toast.error('Escribe el nombre del producto'); return; }
+    if (!categoryId) { toast.error('Primero crea una categoría'); return; }
+    if (formData.price === '' || Number(formData.price) < 0) { toast.error('Escribe el precio'); return; }
+    const data: any = { name: formData.name.trim(), description: formData.description, price: Number(formData.price), categoryId, image: formData.image, available: formData.available, trackStock: formData.trackStock, stock: formData.trackStock ? Number(formData.stock) || 0 : 0, minStock: formData.trackStock ? Number(formData.minStock) || 0 : 0, station: formData.station, cost: Number(formData.cost) || 0 };
     data.sizes = formData.sizes.length > 0 ? formData.sizes : null;
     if (editingId) {
       updateProduct(editingId, data);
@@ -91,7 +97,7 @@ const ProductsPage = () => {
     }
     setShowForm(false);
     setEditingId(null);
-    setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' });
+    setFormData({ name: '', description: '', price: '', categoryId: categories[0]?.id || 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' });
   };
 
   const addSize = () => {
@@ -139,7 +145,7 @@ const ProductsPage = () => {
           <span className="hidden sm:inline">Galería de Fotos</span>
         </button>
         {canDo(user, 'edit_menu') && <button
-          onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' }); setShowForm(true); }}
+          onClick={() => { setEditingId(null); setFormData({ name: '', description: '', price: '', categoryId: selectedCategory || categories[0]?.id || 1, image: '', available: true, sizes: [], trackStock: false, stock: '', minStock: '', station: 'cocina', cost: '' }); setShowForm(true); }}
           className="h-10 px-4 rounded-xl bg-brand-button text-brand-on-button hover:bg-brand-surface text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
         >
           <Plus size={16} /> Agregar Producto

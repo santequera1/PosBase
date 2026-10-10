@@ -641,13 +641,14 @@ export const useStore = create<AppState>((set, get) => ({
 
   addProduct: (product) => {
     api.addProduct(product).then(created => {
-      set(s => ({ products: [...s.products, created] }));
-    }).catch(console.error);
+      set(s => ({ products: s.products.some(p => p.id === created.id) ? s.products : [...s.products, created] }));
+      toast.success('Producto agregado');
+    }).catch((e: any) => toast.error('No se pudo guardar el producto: ' + (e?.message || 'error')));
   },
 
   updateProduct: (id, data) => {
     set(s => ({ products: s.products.map(p => p.id === id ? { ...p, ...data } : p) }));
-    api.updateProduct(id, data).catch(console.error);
+    api.updateProduct(id, data).catch((e: any) => toast.error('No se pudo guardar el producto: ' + (e?.message || 'error')));
   },
 
   toggleProductAvailability: (id) => {

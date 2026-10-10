@@ -29,6 +29,7 @@ router.post('/', requirePerm('edit_menu'), (req, res) => {
     return res.status(400).json({ error: 'Campos requeridos: name, categoryId, price' });
   }
   const db = getDb();
+  if (!db.prepare('SELECT 1 FROM categories WHERE id = ?').get(Number(categoryId))) return res.status(400).json({ error: 'Elige una categoría válida' });
   const sizesJson = sizes ? JSON.stringify(sizes) : null;
   const ts = trackStock ? 1 : 0;
   const st = ts ? Math.max(0, Math.round(Number(stock) || 0)) : 0;
