@@ -22,6 +22,7 @@ Estado del sistema al cierre de esta sesión y cómo continuar si hace falta ret
 | **Varios medios de pago** (3 o más) y tarjeta como una sola opción **Datáfono** | `server/src/paymentSplit.js`, `src/components/MixedPayment.tsx` |
 | Asignar o cambiar el **domiciliario de un pedido ya entregado** | `DeliveryPage.tsx`, `routes/caja.js` (Editar datos) |
 | Cancelaciones visibles: la cuenta muestra los cancelados y cocina recibe **ticket CANCELADO / CUENTA ANULADA** | `printing.js` (enqueueCancel), `OpenOrderPage.tsx` |
+| **Factura electrónica con datos del cliente**: la ventana pide cédula o NIT (DV automático), nombre, correo, celular y dirección antes de emitir, y guarda el cliente en el directorio. Botón **Factura electrónica** al cobrar la mesa | `src/components/ElectronicInvoiceModal.tsx`, `CloseOrderModal.tsx`, `routes/caja.js` |
 
 Nota sobre la regla de meseros: hoy los meseros (Brayan, Katerin) tienen perfil **Cajero**, que ve Caja, así que
 pueden cobrar cualquier mesa. Para que la regla los restrinja hay que pasarlos al perfil **Mesero**
