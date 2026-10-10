@@ -110,7 +110,7 @@ router.post('/', async (req, res) => {
   let customerId = null;
   if (custDoc !== '222222222222' || (custPhone && custPhone.length >= 7)) {
     try {
-      const existing = db.prepare("SELECT id FROM customers WHERE (document_id = ? AND ? != '222222222222') OR (phone = ? AND ? != '') LIMIT 1").get(custDoc, custDoc, custPhone, custPhone);
+      const existing = (custDoc !== '222222222222' ? db.prepare('SELECT id FROM customers WHERE document_id = ? LIMIT 1').get(custDoc) : null) || require('../customerPhone').findCustomerByPhone(db, custPhone);
       if (!existing) {
         const r = db.prepare('INSERT INTO customers (name, document_id, email, phone, address, notes, is_company) VALUES (?, ?, ?, ?, ?, ?, ?)')
           .run(custName, custDoc, custEmail, custPhone, custAddress, isElectronicInvoice ? 'Creado desde POS (factura electrónica)' : 'Creado desde POS', customer.isCompany ? 1 : 0);

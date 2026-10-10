@@ -70,13 +70,15 @@ function sendUnsent(db, io, order, userName, out = {}) {
   return batch;
 }
 
+const { findCustomerByPhone } = require('../customerPhone');
 function upsertCustomer(db, c, save) {
   const phone = String(c.phone || '').trim();
   const doc = String(c.doc || '').trim() || '222222222222';
   if (!save) return null;
   if (phone.length < 7 && doc === '222222222222') return null;
   const name = String(c.name || '').trim() || 'Cliente';
-  const existing = db.prepare("SELECT id FROM customers WHERE (phone = ? AND ? != '') OR (document_id = ? AND ? != '222222222222') LIMIT 1").get(phone, phone, doc, doc);
+  // Mismo teléfono (aunque esté escrito distinto) o mismo documento = mismo cliente
+  const existing = findCustomerByPhone(db, phone) || (doc !== '222222222222' ? db.prepare('SELECT id FROM customers WHERE document_id = ? LIMIT 1').get(doc) : null);
   const addr = String(c.address || '').trim(), addr2 = String(c.address2 || '').trim(), hood = String(c.neighborhood || '').trim();
   if (existing) {
     db.prepare(`UPDATE customers SET name = ?, phone = CASE WHEN ? != '' THEN ? ELSE phone END,

@@ -102,8 +102,7 @@ router.post('/', (req, res) => {
   const db = getDb();
   const cleanPhone = phone?.trim() || '';
 
-  const existing = db.prepare(`SELECT * FROM customers WHERE (phone = ? AND ? != '') OR (document_id = ? AND ? != '222222222222')`)
-    .get(cleanPhone, cleanPhone, documentId, documentId);
+  const existing = require('../customerPhone').findCustomerByPhone(db, cleanPhone) || (documentId && documentId !== '222222222222' ? db.prepare('SELECT * FROM customers WHERE document_id = ?').get(documentId) : null);
 
   if (existing) {
     // Update existing customer seamlessly
