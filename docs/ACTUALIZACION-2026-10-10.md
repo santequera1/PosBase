@@ -34,18 +34,22 @@ pueden cobrar cualquier mesa. Para que la regla los restrinja hay que pasarlos a
 
 ## Facturación electrónica (Factus, API v2)
 - El sistema está en **producción** con las credenciales reales de WONKAS BURGER S.A.S (NIT 902065145-0).
-- **Pendiente:** en Factus producción todavía no aparece el rango de numeración. La DIAN ya asoció el prefijo **WONK**
-  (vigente hasta 31-07-2028); falta traerlo a Factus en `app.factus.com.co` → Rangos de numeración.
-  El sistema **toma solo** el rango de facturas activo en la siguiente emisión (no hay que configurar nada).
-  Mientras no exista, muestra un aviso y no emite.
+- Rangos registrados en Factus producción el 10-oct: **WONK** (Factura de Venta, 1–1000, vence 31-07-2028) y **DS** (Documento Soporte, vence 03-08-2028).
 - Cada factura emitida guarda **PDF y XML** en `server/einvoices/` (fuera del repo) y aparece en **Caja → Facturas electrónicas**
   (descargar, compartir PDF, WhatsApp, correo).
 - **Pendiente con el contador:** en Factus la empresa figura "No responsable" (R-99-PN) y el sistema cobra **INC 8 %**.
   Confirmar el régimen antes de la primera factura real (Configuración → Negocio → Impuesto).
 
 ## Datos de prueba
-La operación real empezó el **8-oct-2026**. Lo identificado como prueba (pendiente de confirmar y borrar):
-ventas anteriores al 8-oct, ventas de prueba 1031/1095/1096/1099, caja #1, gasto "Gasto de prueba",
-colaborador "Ariel prueba" (y sus asistencias, novedades, anticipo, préstamos y propinas de prueba),
-"Domiciliario Prueba", usuarios de demostración (`cajero`, `mesero`, `domiprueba`) y clientes "Prueba…".
-Ver el registro de la limpieza al final de este archivo cuando se ejecute.
+La operación real empezó el **8-oct-2026**.
+
+### Limpieza ejecutada el 10-oct-2026 (aprobada por Stiven)
+Respaldo previo: `/home/ubuntu/backups/posbase/data-antes-limpieza-20261010-065455.db`.
+- Ventas borradas: todas las anteriores al 8-oct (#1001, 1003, 1004, 1005, 1006, 1024, 1026, 1027) y #1031
+  (prueba con Ariel, junto con su factura de prueba SETP990024078: PDF y XML).
+- 16 asientos contables de esas ventas y de ventas de prueba ya borradas antes, del gasto de prueba, de su pago, del anticipo y del préstamo de Ariel.
+- Caja #1 (7-oct) y el gasto "Gasto de prueba" ($120.000).
+- Colaboradores "Ariel prueba" y "Domiciliario Prueba", con sus asistencias, novedades, anticipo, préstamos y propinas.
+- Usuarios de demostración `cajero`, `mesero` y `domiprueba` (borrados: la versión demo para otros restaurantes será aparte).
+- Clientes "Prueba para llevar" y "Pruebas 1.5". Las ventas anuladas en $0 #1095, 1096 y 1099 se conservaron sin cliente asociado.
+- No se tocaron la existencia de productos ni las ventas reales. El usuario `cocina` se conserva.
