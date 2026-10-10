@@ -220,13 +220,15 @@ router.post('/sales/:id/details', (req, res) => {
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(req.params.id));
   if (!o) return res.status(404).json({ error: 'Venta no encontrada' });
   if (o.status === 'cancelled') return res.status(400).json({ error: 'La venta está anulada' });
-  if (o.status === 'delivered' && !canEditSale(db, req.user, o)) return res.status(403).json({ error: 'La caja de esta venta ya está cerrada: solo un administrador puede editar sus datos' });
   const b = req.body || {};
+  const customerKeys = ['customerName', 'customerDoc', 'customerEmail', 'customerPhone', 'customerAddress', 'customerNeighborhood'];
+  // Los datos del cliente (para la factura electrónica) se pueden completar aunque la caja ya esté cerrada: no tocan valores
+  const onlyCustomer = Object.keys(b).every(k => customerKeys.includes(k) || ['customerId', 'saveCustomer', 'isCompany', 'dv'].includes(k));
+  if (o.status === 'delivered' && !onlyCustomer && !canEditSale(db, req.user, o)) return res.status(403).json({ error: 'La caja de esta venta ya está cerrada: solo un administrador puede editar sus datos' });
   const str = (v, max) => String(v === undefined || v === null ? '' : v).trim().slice(0, max);
   const invoiced = Boolean(o.fe_cufe || o.fe_number);
   const sets = [], vals = [];
   const set = (col, v) => { sets.push(col + ' = ?'); vals.push(v); };
-  const customerKeys = ['customerName', 'customerDoc', 'customerEmail', 'customerPhone', 'customerAddress', 'customerNeighborhood'];
   if (invoiced && customerKeys.some(k => b[k] !== undefined && str(b[k], 160) !== str(o[k.replace(/[A-Z]/g, m => '_' + m.toLowerCase())], 160))) {
     return res.status(400).json({ error: 'Esta venta ya tiene factura electrónica: los datos del cliente no se pueden cambiar' });
   }

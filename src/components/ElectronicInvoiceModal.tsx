@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Printer, FileCheck2, AlertTriangle, Download, MessageCircle, Mail, Share2, ExternalLink } from 'lucide-react';
 import { downloadInvoiceFile, openInvoicePdf, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
 import { useStore } from '@/store/useStore';
+import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
 import { cn } from '@/lib/utils';
@@ -47,11 +48,49 @@ const PseudoQr = ({ seed, size = 21 }: { seed: string; size?: number }) => {
   );
 };
 
+/** Dígito de verificación de un NIT (algoritmo de la DIAN). */
+export const nitDv = (nit: string) => {
+  const d = nit.replace(/\D/g, '');
+  if (!d) return '';
+  const primes = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+  let sum = 0;
+  for (let i = 0; i < d.length && i < primes.length; i++) sum += Number(d[d.length - 1 - i]) * primes[i];
+  const r = sum % 11;
+  return String(r > 1 ? 11 - r : r);
+};
+
+const FIELD = 'w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-primary/30';
+const FLABEL = 'block text-[11px] font-semibold text-gray-500 mb-1';
+
 export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose: () => void }) => {
-  const { businessName, businessNit, businessAddress, businessPhone, businessSlogan, dianResolution, taxType, taxRate, issueTestInvoice } = useStore();
-  const live = useStore(s => s.orders.find(o => o.id === order?.id)) || order;
+  const { businessName, businessNit, businessAddress, businessPhone, businessSlogan, dianResolution, taxType, taxRate } = useStore();
+  const customers = useStore(s => s.customers);
+  // La venta puede no estar en la lista del día (p. ej. una venta de días anteriores): se lleva una copia local al día
+  const storeOrder = useStore(s => s.orders.find(o => o.id === order?.id));
+  const [cur, setCur] = useState<any>(order);
+  useEffect(() => { if (storeOrder) setCur((c: any) => ({ ...c, ...storeOrder })); }, [storeOrder]);
+  const live = cur;
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState('');
+
+  // Datos del adquiriente: se completan aquí mismo antes de emitir
+  const c0 = order?.customer || {};
+  const dirC0: any = order?.customerId ? customers.find((x: any) => x.id === order.customerId) : null;
+  const [customerId, setCustomerId] = useState<number>(order?.customerId || 0);
+  const [isCompany, setIsCompany] = useState<boolean>(Boolean(dirC0?.isCompany));
+  const [cf, setCf] = useState({
+    name: c0.name && c0.name !== 'Consumidor Final' ? c0.name : '',
+    doc: c0.doc && c0.doc !== '222222222222' ? c0.doc : '',
+    dv: dirC0?.dv || '', email: c0.email || '', phone: c0.phone || '', address: c0.address || '',
+  });
+  const setC = (p: Partial<typeof cf>) => setCf(x => ({ ...x, ...p }));
+  const [search, setSearch] = useState('');
+  const matches = search.trim().length >= 2 ? customers.filter((x: any) => `${x.name} ${x.documentId || ''} ${x.phone || ''}`.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6) : [];
+  const pick = (x: any) => {
+    setCustomerId(x.id); setIsCompany(Boolean(x.isCompany));
+    setCf({ name: x.name || '', doc: x.documentId && x.documentId !== '222222222222' ? x.documentId : '', dv: x.dv || '', email: x.email || '', phone: x.phone || '', address: x.address || '' });
+    setSearch('');
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -72,12 +111,30 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
   const tax = total - base;
   const taxLabel = taxType === 'iva' ? 'IVA' : taxType === 'inc' ? 'INC' : 'Impuesto';
   const issued = fe?.issuedAt || live.createdAt || '';
-  const cust = live.customer || {};
+  // Antes de emitir, la vista previa muestra lo que se está escribiendo
+  const cust = fe ? (live.customer || {}) : { name: cf.name || 'Consumidor Final', doc: cf.doc ? cf.doc + (isCompany && cf.dv ? '-' + cf.dv : '') : '', isCompany, email: cf.email, phone: cf.phone, address: cf.address };
 
   const issue = async () => {
-    setIssuing(true);
     setError('');
-    try { await issueTestInvoice(live.id); } catch (e: any) { setError(e.message || 'No se pudo generar el documento'); }
+    const doc = cf.doc.replace(/[^0-9A-Za-z]/g, '');
+    if (isCompany && !doc) { setError('Escribe el NIT de la empresa'); return; }
+    if (doc && cf.name.trim().length < 2) { setError(isCompany ? 'Escribe la razón social de la empresa' : 'Escribe el nombre del cliente'); return; }
+    if (doc && !isCompany && doc.length < 5) { setError('Revisa la cédula: parece incompleta'); return; }
+    if (cf.email.trim() && !/^\S+@\S+\.\S+$/.test(cf.email.trim())) { setError('Revisa el correo del cliente'); return; }
+    setIssuing(true);
+    try {
+      // 1) Se guardan los datos del cliente en la venta (y en el directorio, si tiene documento)
+      const fresh = await api.editSaleDetails(live.id, {
+        customerName: doc ? cf.name.trim() : 'Consumidor Final', customerDoc: doc, customerEmail: cf.email.trim(), customerPhone: cf.phone.trim(), customerAddress: cf.address.trim(),
+        customerId: doc && customerId ? customerId : undefined, saveCustomer: Boolean(doc), isCompany, dv: isCompany ? (cf.dv || nitDv(doc)) : '',
+      });
+      setCur((c: any) => ({ ...c, ...fresh }));
+      // 2) Se emite la factura con esos datos
+      const updated = await api.issueTestInvoice(live.id);
+      setCur((c: any) => ({ ...c, ...updated }));
+      useStore.setState(s => ({ orders: s.orders.map(o => (o.id === live.id ? { ...o, ...updated } : o)) }));
+      if (doc) { try { useStore.setState({ customers: await api.getCustomers() }); } catch { /* el directorio se recarga al entrar a Clientes */ } }
+    } catch (e: any) { setError(e.message || 'No se pudo generar el documento'); }
     setIssuing(false);
   };
   const print = () => {
@@ -90,7 +147,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
 
   // Se dibuja directo en <body>: así el encabezado y las pestañas de la página no tapan la barra de botones
   return createPortal(
-    <div className="print-overlay fixed inset-0 !m-0 z-[200] bg-black/60 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6 overflow-y-auto" onClick={onClose}>
+    <div className="print-overlay fixed inset-0 !m-0 z-[200] bg-black/60 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6 overflow-y-auto">
       <div className="w-full max-w-4xl" onClick={e => e.stopPropagation()}>
         {/* Barra de acciones: estado de la factura a la izquierda, acciones a la derecha (siempre visible) */}
         <div className="sticky top-0 z-10 mb-3 print:hidden" data-fe-toolbar>
@@ -128,6 +185,60 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
           </div>
         </div>
         {(error || feError) && <p className="text-xs text-red-800 mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2 print:hidden">{error || `El proveedor rechazó la factura: ${feError}`}</p>}
+
+        {/* Datos del cliente: se llenan aquí antes de emitir (sin documento sale a Consumidor Final) */}
+        {!fe && (
+          <div className="mb-3 bg-white rounded-2xl shadow-xl border border-black/5 p-4 space-y-3 print:hidden" data-fe-customer>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold text-gray-900">¿A nombre de quién sale la factura?</p>
+              <div className="inline-flex rounded-xl border border-gray-200 p-0.5 text-xs font-semibold">
+                <button type="button" onClick={() => setIsCompany(false)} className={cn('px-3 py-1.5 rounded-lg', !isCompany ? 'bg-brand-button text-brand-on-button' : 'text-gray-700')}>Persona (cédula)</button>
+                <button type="button" onClick={() => setIsCompany(true)} className={cn('px-3 py-1.5 rounded-lg', isCompany ? 'bg-brand-button text-brand-on-button' : 'text-gray-700')} data-fe-company>Empresa (NIT)</button>
+              </div>
+            </div>
+            <div className="relative">
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente guardado: nombre, cédula/NIT o celular" className={FIELD} data-fe-search />
+              {matches.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  {matches.map((x: any) => (
+                    <button key={x.id} type="button" onClick={() => pick(x)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex justify-between gap-2">
+                      <span className="font-semibold truncate">{x.name}{x.isCompany ? ' · empresa' : ''}</span><span className="text-gray-500 shrink-0">{x.documentId && x.documentId !== '222222222222' ? x.documentId : x.phone || ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <div className={isCompany ? 'col-span-1 sm:col-span-2' : 'col-span-2 sm:col-span-2'}>
+                <label className={FLABEL}>{isCompany ? 'NIT (sin dígito de verificación)' : 'Cédula'}</label>
+                <input inputMode="numeric" value={cf.doc} onChange={e => setC({ doc: e.target.value.replace(/[^0-9A-Za-z]/g, ''), ...(isCompany ? { dv: '' } : {}) })} placeholder={isCompany ? '900123456' : '1047123456'} className={cn(FIELD, 'font-mono')} data-fe-doc />
+              </div>
+              {isCompany && (
+                <div className="col-span-1">
+                  <label className={FLABEL}>DV</label>
+                  <input inputMode="numeric" value={cf.dv || nitDv(cf.doc)} onChange={e => setC({ dv: e.target.value.replace(/\D/g, '').slice(0, 1) })} className={cn(FIELD, 'font-mono text-center')} data-fe-dv />
+                </div>
+              )}
+              <div className={isCompany ? 'col-span-2 sm:col-span-3' : 'col-span-2 sm:col-span-4'}>
+                <label className={FLABEL}>{isCompany ? 'Razón social' : 'Nombre completo'}</label>
+                <input value={cf.name} onChange={e => setC({ name: e.target.value })} placeholder={isCompany ? 'Empresa S.A.S.' : 'Nombre y apellido'} className={FIELD} data-fe-name />
+              </div>
+              <div className="col-span-2 sm:col-span-3">
+                <label className={FLABEL}>Correo (le llega la factura)</label>
+                <input type="email" value={cf.email} onChange={e => setC({ email: e.target.value })} placeholder="cliente@correo.com" className={FIELD} data-fe-email />
+              </div>
+              <div className="col-span-1 sm:col-span-1">
+                <label className={FLABEL}>Celular</label>
+                <input inputMode="tel" value={cf.phone} onChange={e => setC({ phone: e.target.value })} className={FIELD} data-fe-phone />
+              </div>
+              <div className="col-span-1 sm:col-span-2">
+                <label className={FLABEL}>Dirección</label>
+                <input value={cf.address} onChange={e => setC({ address: e.target.value })} className={FIELD} data-fe-address />
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-500">{cf.doc ? 'Al emitir, el cliente queda guardado en el directorio para la próxima vez.' : 'Sin cédula ni NIT la factura sale a nombre de Consumidor Final (222222222222).'}</p>
+          </div>
+        )}
 
         {/* Documento */}
         <div className="print-area paper bg-white rounded-2xl shadow-2xl p-6 sm:p-8 text-[12px] text-gray-800 font-sans relative overflow-hidden">

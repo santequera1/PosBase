@@ -199,8 +199,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
             <span>✓ Siguiente Venta</span>
           </button>
           {(order.customer?.isElectronicInvoice || order.electronicInvoice) && (
-            <button onClick={() => setShowFe(true)} className="flex-1 py-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all" title="Factura electrónica en modo pruebas">
-              <FileCheck2 size={15} /> <span>F.E. (prueba)</span>
+            <button onClick={() => setShowFe(true)} className="flex-1 py-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all" title="Factura electrónica">
+              <FileCheck2 size={15} /> <span>Factura electrónica</span>
             </button>
           )}
           <button

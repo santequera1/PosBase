@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2, UserMinus } from 'lucide-react';
+import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2, UserMinus, FileCheck2 } from 'lucide-react';
+import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
 import type { Order } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
@@ -48,6 +49,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<Order | null>(null);
+  const [showFe, setShowFe] = useState(false);
 
   const base = order.subtotal + (order.deliveryFee || 0);
   const disc = cat ? Math.min(base, cat.amount) : Math.min(base, Math.max(0, Math.round(Number(discount) || 0)));
@@ -86,10 +88,12 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           <p className="text-xs text-muted-foreground">{PAYMENT_LABEL[done.paymentMethod] || done.paymentMethod}{done.paymentStatus === 'pending' ? ' · queda por cobrar' : ''}{done.cashChange ? ` · vueltas ${formatPrice(done.cashChange)}` : ''}</p>
           {done.tip ? <p className="text-xs text-muted-foreground">Propina {formatPrice(done.tip)} registrada en Personal.</p> : null}
         </div>
-        <div className="flex gap-2">
-          <button onClick={print} className="flex-1 py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-brand-dark flex items-center justify-center gap-1.5"><Printer size={15} /> Imprimir factura</button>
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold">Listo</button>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={print} className="py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-brand-dark flex items-center justify-center gap-1.5"><Printer size={15} /> Imprimir recibo</button>
+          <button onClick={() => setShowFe(true)} className="py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-900 flex items-center justify-center gap-1.5" data-close-fe><FileCheck2 size={15} /> Factura electrónica</button>
+          <button onClick={onClose} className="col-span-2 py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold">Listo</button>
         </div>
+        {showFe && <ElectronicInvoiceModal order={done} onClose={() => setShowFe(false)} />}
       </Modal>
     );
   }
