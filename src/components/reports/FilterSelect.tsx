@@ -12,6 +12,7 @@ export const FilterSelect = ({ label, options, value, onChange, icon: Icon, test
   label: string; options: FilterOption[]; value: string[]; onChange: (v: string[]) => void; icon?: any; testId?: string; single?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -29,7 +30,7 @@ export const FilterSelect = ({ label, options, value, onChange, icon: Icon, test
   let lastGroup = '';
   return (
     <div className="relative" ref={ref} data-filter={testId}>
-      <button type="button" onClick={() => setOpen(o => !o)}
+      <button type="button" onClick={() => { const r = ref.current?.getBoundingClientRect(); setAlignRight(!!r && r.left + 260 > window.innerWidth - 8 && r.right >= 260); setOpen(o => !o); }}
         className={cn('flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-xl text-xs border transition-all whitespace-nowrap max-w-[230px]',
           value.length ? 'bg-brand-button text-brand-on-button border-brand-primary font-bold' : 'bg-white text-brand-dark border-border hover:bg-muted/40 font-semibold')}>
         {Icon && <Icon size={13} className="shrink-0" />}
@@ -38,7 +39,7 @@ export const FilterSelect = ({ label, options, value, onChange, icon: Icon, test
         <ChevronDown size={13} className={cn('shrink-0 transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="absolute z-40 mt-1 left-0 w-[260px] max-w-[calc(100vw-32px)] bg-white rounded-xl border border-border shadow-xl p-1.5">
+        <div className={cn('absolute z-40 mt-1 w-[260px]', alignRight ? 'right-0' : 'left-0', ' max-w-[calc(100vw-32px)] bg-white rounded-xl border border-border shadow-xl p-1.5')}>
           {options.length > 7 && (
             <div className="relative mb-1">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />

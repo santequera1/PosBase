@@ -87,6 +87,9 @@ export const ReportsPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('ventas');
   const [f, setF] = useState<SalesFilters>(loadFilters);
   const [showMore, setShowMore] = useState(false);
+  // Celular: los filtros van plegados en un botón; en computador se ven siempre
+  const [showFilters, setShowFilters] = useState(false);
+  const [periodsRight, setPeriodsRight] = useState(true);
   const [showPeriods, setShowPeriods] = useState(false);
   const [limit, setLimit] = useState(150);
   // Columnas de Comprobantes: ancho ajustable arrastrando el borde del encabezado
@@ -229,9 +232,14 @@ export const ReportsPage: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-4 font-sans">
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="font-sans font-bold text-2xl lg:text-3xl text-brand-dark">Ventas e ingresos</h1>
-          <p className="text-xs text-brand-muted mt-0.5">{periodLabel} · {m.count} venta(s){nActive ? ` · ${nActive} filtro(s)` : ''}</p>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="font-sans font-bold text-2xl lg:text-3xl text-brand-dark">Ventas e ingresos</h1>
+            <p className="text-xs text-brand-muted mt-0.5">{periodLabel} · {m.count} venta(s){nActive ? ` · ${nActive} filtro(s)` : ''}</p>
+          </div>
+          <button onClick={exportXlsx} className="sm:hidden shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-brand-primary/20 text-xs font-bold text-brand-primary shadow-sm" data-export-mobile>
+            <Download size={14} /> Excel
+          </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex bg-brand-card p-1 rounded-2xl border border-brand-primary/10 overflow-x-auto no-scrollbar">
@@ -249,7 +257,7 @@ export const ReportsPage: React.FC = () => {
               {branches.filter(b => b.id !== branchId).map(b => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
             </NiceSelect>
           )}
-          <button onClick={exportXlsx} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-brand-primary/20 text-xs font-bold text-brand-primary hover:bg-brand-card shadow-sm">
+          <button onClick={exportXlsx} className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-brand-primary/20 text-xs font-bold text-brand-primary hover:bg-brand-card shadow-sm">
             <Download size={14} /><span className="hidden sm:inline">Excel</span>
           </button>
         </div>
@@ -273,12 +281,12 @@ export const ReportsPage: React.FC = () => {
               </button>
             ))}
             <div className="relative">
-              <button onClick={() => setShowPeriods(s => !s)} data-period-more
+              <button onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setPeriodsRight(r.right >= 208); setShowPeriods(s => !s); }} data-period-more
                 className={cn('px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1', MORE_PERIODS.includes(f.period) ? 'bg-brand-button text-brand-on-button shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                 <Calendar size={13} /> {MORE_PERIODS.includes(f.period) ? PERIOD_LABEL[f.period] : 'Más fechas'} <ChevronDown size={12} />
               </button>
               {showPeriods && (
-                <div className="absolute z-40 right-0 mt-1 w-52 bg-white rounded-xl border border-border shadow-xl p-1">
+                <div className={cn('absolute z-40 mt-1 w-52 bg-white rounded-xl border border-border shadow-xl p-1', periodsRight ? 'right-0' : 'left-0')} data-period-menu>
                   {MORE_PERIODS.map(p => (
                     <button key={p} onClick={() => { set({ period: p, ...(p === 'custom' && !f.from ? { from: range.from, to: range.to } : {}) }); setShowPeriods(false); }} data-period={p}
                       className={cn('w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-muted/50', f.period === p && 'bg-brand-card font-bold')}>{PERIOD_LABEL[p]}</button>
@@ -298,7 +306,11 @@ export const ReportsPage: React.FC = () => {
           </div>
         )}
 
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <button onClick={() => setShowFilters(s => !s)} className={cn('sm:hidden w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border', showFilters || nActive ? 'bg-brand-card border-brand-primary/30 text-brand-dark' : 'bg-white border-border text-brand-dark')} data-filters-toggle>
+          <span className="flex items-center gap-1.5"><SlidersHorizontal size={13} /> Filtros{nActive ? ` · ${nActive} activo(s)` : ''}</span>
+          <ChevronDown size={14} className={cn(showFilters && 'rotate-180')} />
+        </button>
+        <div className={cn('flex-wrap gap-1.5 items-center', showFilters ? 'flex' : 'hidden sm:flex')} data-filter-chips>
           <FilterSelect testId="kinds" label="Tipo de venta" icon={Utensils} options={kindOpts} value={f.kinds} onChange={v => set({ kinds: v as SaleKind[] })} />
           <FilterSelect testId="payments" label="Pago" icon={CreditCard} options={paymentOpts} value={f.payments} onChange={v => set({ payments: v })} />
           <FilterSelect testId="waiters" label="Mesero" icon={UserRound} options={opts.waiters} value={f.waiters} onChange={v => set({ waiters: v })} />
@@ -314,7 +326,7 @@ export const ReportsPage: React.FC = () => {
           </button>
         </div>
 
-        {showMore && (
+        {showMore && (showFilters || typeof window === 'undefined' || window.innerWidth >= 640) && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs" data-filters-more-panel>
             <div>
               <p className="font-bold text-brand-dark mb-1 flex items-center gap-1"><Clock size={12} /> Franja horaria</p>
