@@ -252,6 +252,8 @@ router.post('/orders', (req, res) => {
     b.estimatedMinutes ? Math.round(Number(b.estimatedMinutes)) : null,
   );
   db.prepare('UPDATE orders SET created_by = COALESCE(created_by, ?), branch_id = ? WHERE id = ?').run(req.user?.name || null, currentBranch(), info.lastInsertRowid);
+  // Domicilio en efectivo: con cuánto paga el cliente (para que el repartidor lleve el vuelto)
+  if (type === 'delivery' && paymentMethod === 'cash' && Number(b.payWith) > 0) db.prepare('UPDATE orders SET cash_received = ? WHERE id = ?').run(Math.round(Number(b.payWith)), info.lastInsertRowid);
   const formatted = fmt(db, info.lastInsertRowid);
   emit(req, 'order:new', formatted);
   res.status(201).json(formatted);
@@ -362,6 +364,7 @@ router.patch('/orders/:id', (req, res) => {
   if (b.estimatedMinutes !== undefined) set('estimated_minutes', b.estimatedMinutes ? Math.round(Number(b.estimatedMinutes)) : null);
   if (b.deliveryFee !== undefined && order.type === 'delivery') set('delivery_fee', Math.max(0, Math.round(Number(b.deliveryFee) || 0)));
   if (b.paymentMethod !== undefined && ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'].includes(b.paymentMethod) && order.payment_status !== 'paid') set('payment_method', b.paymentMethod);
+  if (b.payWith !== undefined && order.payment_status !== 'paid') set('cash_received', Math.max(0, Math.round(Number(b.payWith) || 0)));
   if (b.customer && typeof b.customer === 'object') {
     const c = b.customer;
     if (c.name !== undefined) set('customer_name', String(c.name).trim() || 'Consumidor Final');
@@ -392,7 +395,10 @@ router.get('/my-deliveries', requirePerm('courier'), (req, res) => {
   const delivered = db.prepare("SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND date(COALESCE(delivered_at, created_at)) = ? ORDER BY delivered_at DESC").all(emp.id, t).map(r => fmt(db, r.id));
   const due = o => (o.paymentStatus === 'paid' || o.paymentMethod === 'platform' ? 0 : (o.amountDue ?? o.total));
   const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(COALESCE(delivered_at, created_at)) = ?").get(emp.id, t).s;
-  res.json({ linked: true, courier: emp, active, delivered, cashToCollect: active.reduce((a, o) => a + due(o), 0), cashCollected: collected });
+  // El domiciliario gana el valor del envío: lo entregado hoy y lo que tiene en curso
+  const feesToday = delivered.reduce((a, o) => a + (o.deliveryFee || 0), 0);
+  const feesPending = active.reduce((a, o) => a + (o.deliveryFee || 0), 0);
+  res.json({ linked: true, courier: emp, active, delivered, cashToCollect: active.reduce((a, o) => a + due(o), 0), cashCollected: collected, feesToday, feesPending });
 });
 // El repartidor marca "voy en camino" o "entregado"; al entregar un pedido que se paga contra entrega, queda cobrado con el medio que indique
 router.post('/my-deliveries/:id/:action', requirePerm('courier'), (req, res) => {

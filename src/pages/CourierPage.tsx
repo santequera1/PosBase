@@ -53,6 +53,10 @@ const CourierPage = () => {
         <button onClick={() => { setLoading(true); load(); }} className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center" title="Actualizar"><RefreshCw size={16} className={cn(loading && 'animate-spin')} /></button>
       </div>
 
+      <div className="rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-2.5 flex items-center justify-between gap-2" data-courier-fees>
+        <div><p className="text-[10px] font-semibold uppercase text-violet-800">Mis envíos hoy</p><p className="font-display font-bold text-2xl text-violet-900">{formatPrice(data?.feesToday || 0)}</p></div>
+        <div className="text-right text-xs text-violet-900"><p><b>{delivered.length}</b> entregado(s)</p>{(data?.feesPending || 0) > 0 && <p>+ {formatPrice(data.feesPending)} en curso</p>}</div>
+      </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-card rounded-xl border border-border p-2.5 text-center"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Por entregar</p><p className="font-display font-bold text-xl text-brand-dark">{active.length}</p></div>
         <div className="bg-amber-50 rounded-xl border border-amber-200 p-2.5 text-center"><p className="text-[10px] font-semibold uppercase text-amber-800">Por cobrar</p><p className="font-display font-bold text-lg text-amber-800">{formatPrice(data?.cashToCollect || 0)}</p></div>
@@ -87,7 +91,13 @@ const CourierPage = () => {
                 <div className="rounded-xl bg-amber-100 border-2 border-amber-300 px-3 py-2.5">
                   <p className="text-[11px] font-bold uppercase text-amber-900 flex items-center gap-1"><Banknote size={13} /> Cobrar al entregar</p>
                   <p className="font-display font-bold text-2xl text-amber-900">{formatPrice(due)}</p>
-                  <p className="text-xs text-amber-900">{PAYMENT_LABEL[o.paymentMethod] || 'Efectivo'}{changeFor ? ` · paga con ${formatPrice(changeFor)}: lleva ${formatPrice(changeFor - due)} de cambio` : ''}</p>
+                  <p className="text-xs text-amber-900">{PAYMENT_LABEL[o.paymentMethod] || 'Efectivo'}{o.paymentMethod === 'cash' && !changeFor ? ' · paga exacto (o pregúntale con cuánto paga)' : ''}</p>
+                  {changeFor > 0 && (
+                    <div className="mt-2 grid grid-cols-2 gap-2" data-courier-change={o.id}>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5"><p className="text-[10px] font-bold uppercase text-amber-900">Paga con</p><p className="font-bold text-lg text-amber-950">{formatPrice(changeFor)}</p></div>
+                      <div className="rounded-lg bg-emerald-600 text-white px-2 py-1.5"><p className="text-[10px] font-bold uppercase">Lleva de vuelto</p><p className="font-bold text-lg">{formatPrice(changeFor - due)}</p></div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
@@ -116,7 +126,7 @@ const CourierPage = () => {
           {delivered.map(o => (
             <div key={o.id} className="px-4 py-2 border-t border-border flex items-center justify-between text-xs">
               <span><b>#{o.id}</b> · {o.customer.name}</span>
-              <span className="font-semibold">{formatPrice(o.total)} · {PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod}</span>
+              <span className="font-semibold text-right">{formatPrice(o.total)} · {PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod}{o.deliveryFee ? <span className="block text-[10px] text-violet-700">envío {formatPrice(o.deliveryFee)}</span> : null}</span>
             </div>
           ))}
         </div>

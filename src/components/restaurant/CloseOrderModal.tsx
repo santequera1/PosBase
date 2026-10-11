@@ -38,7 +38,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const [tipCustom, setTipCustom] = useState(String(order.tip || ''));
   const [tipTo, setTipTo] = useState<'common' | 'waiter'>(order.waiterId ? 'waiter' : 'common');
   const [method, setMethod] = useState<string>(order.paymentMethod && order.paymentMethod !== 'mixed' ? order.paymentMethod : 'cash');
-  const [cashReceived, setCashReceived] = useState('');
+  const [cashReceived, setCashReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
   // Pago con varios medios (efectivo + Nequi + datáfono...)
   const [mixLines, setMixLines] = useState<MixedLine[]>([{ method: 'cash', amount: '' }, { method: 'transfer', amount: '' }]);
   const [markDelivered, setMarkDelivered] = useState(order.type !== 'delivery' || order.status === 'shipped');

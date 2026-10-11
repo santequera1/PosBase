@@ -328,6 +328,7 @@ const EditHeaderModal = ({ order, onClose, onSaved }: { order: Order; onClose: (
     people: String(order.people || ''), waiterId: order.waiterId || 0, driverId: order.driverId || 0, label: order.label || '', channel: order.channel || 'local', notes: order.notes || '',
     name: order.customer.name === 'Consumidor Final' ? '' : order.customer.name, phone: order.customer.phone || '', address: order.customer.address || '', address2: order.customer.address2 || '', neighborhood: order.customer.neighborhood || '',
     estimatedMinutes: order.estimatedMinutes || 0, deliveryFee: String(order.deliveryFee || 0), saveCustomer: false,
+    payWith: order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '',
   });
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const [saving, setSaving] = useState(false);
@@ -337,7 +338,7 @@ const EditHeaderModal = ({ order, onClose, onSaved }: { order: Order; onClose: (
     try {
       const body: any = { label: f.label, channel: f.channel, notes: f.notes, customer: { name: f.name || 'Consumidor Final', phone: f.phone, address: f.address, address2: f.address2, neighborhood: f.neighborhood, saveCustomer: f.saveCustomer } };
       if (order.type === 'dine-in') { body.people = Number(f.people) || 1; body.waiterId = f.waiterId || null; }
-      if (order.type === 'delivery') { body.driverId = f.driverId || null; body.estimatedMinutes = f.estimatedMinutes || null; body.deliveryFee = Number(f.deliveryFee) || 0; }
+      if (order.type === 'delivery') { body.driverId = f.driverId || null; body.estimatedMinutes = f.estimatedMinutes || null; body.deliveryFee = Number(f.deliveryFee) || 0; if (order.paymentStatus !== 'paid') body.payWith = Number(f.payWith) || 0; }
       onSaved(await api.updateOrderHeader(order.id, body));
     } catch (e: any) { setError(e.message); }
     setSaving(false);
@@ -360,6 +361,7 @@ const EditHeaderModal = ({ order, onClose, onSaved }: { order: Order; onClose: (
           <div><label className={LABEL}>Repartidor</label><NiceSelect value={f.driverId} onChange={e => set({ driverId: Number(e.target.value) })} className={INPUT}><option value={0}>— Sin asignar —</option>{(restaurant?.staff.couriers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></div>
           <div><label className={LABEL}>Tiempo estimado</label><div className="flex flex-wrap gap-1.5">{(restaurant?.deliveryTimes || [15, 30, 45, 60]).map(m => <Chip key={m} active={f.estimatedMinutes === m} onClick={() => set({ estimatedMinutes: m })}>{m} min</Chip>)}</div></div>
           <div><label className={LABEL}>Costo de envío</label><input type="number" min={0} value={f.deliveryFee} onChange={e => set({ deliveryFee: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
+          {order.paymentStatus !== 'paid' && order.paymentMethod === 'cash' && <div><label className={LABEL}>¿Con cuánto paga? (efectivo)</label><input type="number" min={0} value={f.payWith} onChange={e => set({ payWith: e.target.value })} placeholder="Exacto" className={cn(INPUT, 'font-mono')} data-edit-pay-with /></div>}
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={f.saveCustomer} onChange={e => set({ saveCustomer: e.target.checked })} /> Actualizar la dirección del cliente guardado</label>
         </>}
         <div className="sm:col-span-2"><label className={LABEL}>Comentario</label><input value={f.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} /></div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Users, Phone, MapPin, Bike, Clock, MessageSquare, UserRound } from 'lucide-react';
+import { Users, Phone, MapPin, Bike, Clock, MessageSquare, UserRound, Banknote } from 'lucide-react';
 import { useStore, type Order, type OrderType } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
@@ -53,6 +53,7 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
   const [minutes, setMinutes] = useState<number>(restaurant?.deliveryTimes?.[1] || restaurant?.deliveryTimes?.[0] || 30);
   const [fee, setFee] = useState(String(restaurant?.deliveryFee ?? 5000));
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [payWith, setPayWith] = useState('');
   const [notes, setNotes] = useState('');
   const [saveCustomer, setSaveCustomer] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -75,6 +76,7 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
       if (type === 'delivery') {
         payload.customer = { name: name.trim(), phone: phone.trim(), address: address.trim(), address2: address2.trim(), neighborhood: neighborhood.trim(), saveCustomer };
         payload.driverId = driverId || undefined; payload.estimatedMinutes = minutes; payload.deliveryFee = Number(fee) || 0; payload.paymentMethod = paymentMethod;
+        if (paymentMethod === 'cash' && Number(payWith) > 0) payload.payWith = Number(payWith);
       }
       const order = await api.openRestaurantOrder(payload);
       onCreated(order);
@@ -142,6 +144,14 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
               <NiceSelect value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className={INPUT}>
                 <option value="cash">Efectivo contra entrega</option><option value="transfer">Transferencia / Nequi</option><option value="card">Datáfono contra entrega</option><option value="platform">Paga la plataforma (Rappi / DiDi)</option>
               </NiceSelect></div>
+            {paymentMethod === 'cash' && (
+              <div className="sm:col-span-2" data-pay-with><label className={cn(LABEL, 'flex items-center gap-1')}><Banknote size={12} /> ¿Con cuánto paga? (para llevar el vuelto)</label>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Chip active={!payWith} onClick={() => setPayWith('')}>Exacto / no sabe</Chip>
+                  {[20000, 50000, 100000].map(v => <Chip key={v} active={payWith === String(v)} onClick={() => setPayWith(String(v))}>{formatPrice(v)}</Chip>)}
+                  <input type="number" min={0} value={payWith} onChange={e => setPayWith(e.target.value)} placeholder="Otro valor" className={cn(INPUT, 'w-32 font-mono')} />
+                </div></div>
+            )}
             <label className="sm:col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={saveCustomer} onChange={e => setSaveCustomer(e.target.checked)} /> Guardar cliente y dirección para la próxima vez</label>
           </>
         )}
