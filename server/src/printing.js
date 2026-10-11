@@ -214,10 +214,14 @@ function preBillTicket(printer, b, order, items, tipPct) {
   const subtotal = order.subtotal || 0;
   if (order.delivery_fee) t.pair('Envío', money(order.delivery_fee));
   if (order.discount) t.pair('Descuento', '-' + money(order.discount));
-  t.bold().size('tall').pair('TOTAL', money(order.total)).size(1).bold(false);
+  // Como en Fudo: el número grande es el total con la propina sugerida (el consumo va en tamaño normal)
   if (tipPct > 0) {
     const tip = Math.round((order.total * tipPct) / 100);
-    t.nl().pair(`Propina sugerida ${tipPct}% (voluntaria)`, money(tip)).bold().pair('Total con propina', money(order.total + tip)).bold(false);
+    t.pair('Subtotal', money(order.total)).pair(`Propina sugerida ${tipPct}%`, money(tip)).sep();
+    t.bold().size('tall').pair('TOTAL', money(order.total + tip)).size(1).bold(false);
+    t.line('La propina es voluntaria.');
+  } else {
+    t.bold().size('tall').pair('TOTAL', money(order.total)).size(1).bold(false);
   }
   void subtotal;
   t.nl().align('center').line('Este documento no es una factura.').line('Gracias por tu visita');
