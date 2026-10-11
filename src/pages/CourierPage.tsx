@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { elapsedLabel, PAYMENT_LABEL } from '@/lib/restaurant';
 
 const toDue = (o: Order) => (o.paymentStatus === 'paid' || o.paymentMethod === 'platform' ? 0 : (o.amountDue ?? o.total));
+// Domicilio en efectivo que la caja ya registró como cobrado: el cliente igual paga al recibir
+const cashAtDoor = (o: Order) => (o.paymentStatus === 'paid' && o.paymentMethod === 'cash' ? o.total + (o.tip || 0) : 0);
 const waPhone = (p?: string) => { const d = String(p || '').replace(/\D/g, ''); return d.length === 10 ? '57' + d : d; };
 
 /** Pantalla del repartidor (celular): sus pedidos asignados con datos del cliente y lo que debe cobrar. */
@@ -66,7 +68,8 @@ const CourierPage = () => {
       {active.length === 0 && <div className="bg-card rounded-2xl border border-border p-8 text-center text-muted-foreground"><PackageCheck size={30} className="mx-auto mb-2 text-emerald-500" /><p className="text-sm">No tienes pedidos asignados en este momento.</p></div>}
 
       {active.map(o => {
-        const due = toDue(o);
+        const pending = toDue(o);
+        const due = pending || cashAtDoor(o);
         const addr = [o.customer.address, o.customer.address2, o.customer.neighborhood].filter(Boolean).join(', ');
         const changeFor = o.cashReceived && o.cashReceived > due ? o.cashReceived : 0;
         return (
@@ -91,7 +94,7 @@ const CourierPage = () => {
                 <div className="rounded-xl bg-amber-100 border-2 border-amber-300 px-3 py-2.5">
                   <p className="text-[11px] font-bold uppercase text-amber-900 flex items-center gap-1"><Banknote size={13} /> Cobrar al entregar</p>
                   <p className="font-display font-bold text-2xl text-amber-900">{formatPrice(due)}</p>
-                  <p className="text-xs text-amber-900">{PAYMENT_LABEL[o.paymentMethod] || 'Efectivo'}{o.paymentMethod === 'cash' && !changeFor ? ' · paga exacto (o pregúntale con cuánto paga)' : ''}</p>
+                  <p className="text-xs text-amber-900">{PAYMENT_LABEL[o.paymentMethod] || 'Efectivo'}{o.paymentMethod === 'cash' && !changeFor ? ' · paga exacto (o pregúntale con cuánto paga)' : ''}{!pending ? ' · ya registrado en caja: recoge el efectivo' : ''}</p>
                   {changeFor > 0 && (
                     <div className="mt-2 grid grid-cols-2 gap-2" data-courier-change={o.id}>
                       <div className="rounded-lg bg-white/70 px-2 py-1.5"><p className="text-[10px] font-bold uppercase text-amber-900">Paga con</p><p className="font-bold text-lg text-amber-950">{formatPrice(changeFor)}</p></div>
@@ -113,7 +116,7 @@ const CourierPage = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => act(o, 'shipped')} disabled={o.status === 'shipped'} className="py-3 rounded-xl border border-brand-primary/30 bg-white text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-40"><Navigation size={16} /> {o.status === 'shipped' ? 'En camino' : 'Voy en camino'}</button>
-                <button onClick={() => (due > 0 ? setDelivering(o) : act(o, 'delivered'))} className="py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5"><PackageCheck size={16} /> Entregado</button>
+                <button onClick={() => (pending > 0 ? setDelivering(o) : act(o, 'delivered'))} className="py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5"><PackageCheck size={16} /> Entregado</button>
               </div>
             </div>
           </div>

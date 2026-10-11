@@ -158,6 +158,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
             </div>
           )}
           {method === 'mixed' && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} />}
+          {method === 'cash' && order.type === 'delivery' && !['shipped', 'delivered'].includes(order.status) && <p className="text-[11px] text-amber-700" data-delivery-cash-note>Si el cliente paga en efectivo al recibir, no hace falta cobrar aquí: el domiciliario lo cobra al entregar (con el vuelto). Si lo cobras ahora, igual le aparecerá para recoger el efectivo.</p>}
           {method === 'platform' && <p className="text-[11px] text-muted-foreground">La app (Rappi, DiDi) paga después; queda registrado como venta por plataforma, no entra a la caja en efectivo.</p>}
           {method === 'payroll' && (
             <div className="rounded-xl border border-brand-accent/40 bg-brand-card p-3 space-y-2" data-payroll-box>
