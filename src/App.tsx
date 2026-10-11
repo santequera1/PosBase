@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { UpdateNotifier } from "@/components/UpdateNotifier";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useStore } from "@/store/useStore";
@@ -111,6 +112,7 @@ const App = () => (
       <BrandingLoader />
       <SessionRestorer />
       <SocketProvider />
+      <UpdateNotifier />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

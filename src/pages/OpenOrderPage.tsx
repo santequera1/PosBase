@@ -288,6 +288,9 @@ const OpenOrderPage = () => {
             {order.deliveryFee ? <div className="flex justify-between text-brand-muted"><span>Envío</span><span>{formatPrice(order.deliveryFee)}</span></div> : null}
             {order.discount ? <div className="flex justify-between text-red-700"><span>Descuento</span><span>− {formatPrice(order.discount)}</span></div> : null}
             <div className="flex justify-between text-base font-bold text-brand-dark"><span>Total</span><span>{formatPrice(total)}</span></div>
+            {order.type === 'delivery' && order.paymentMethod === 'cash' && order.paymentStatus !== 'paid' && !closed && total > 0 && (
+              <PayWithBox order={order} total={total} onSaved={o => setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] })} />
+            )}
             {anySeat && <div className="flex flex-wrap gap-1.5 pt-1" data-seat-totals>{seatTotals.map(([s, v]) => <span key={s} className={cn('px-2 py-0.5 rounded-md text-[11px] font-semibold border', s ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-gray-50 text-gray-600 border-gray-200')}>{s ? `Persona ${s}` : 'Mesa'}: {formatPrice(v)}</span>)}</div>}
           </div>
           {!closed && (
@@ -317,6 +320,31 @@ const OpenOrderPage = () => {
       {splitChild && <CloseOrderModal order={splitChild} onClose={afterSplit} onClosed={() => { splitPaid.current = true; }} />}
       {showEdit && <EditHeaderModal order={order} onClose={() => setShowEdit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowEdit(false); }} />}
       {showMove && <MoveTableModal mode={showMove} order={order} onClose={() => setShowMove(null)} onDone={(o, merged) => { setShowMove(null); if (merged) navigate(`/cuenta/${o.id}`); else setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); }} />}
+    </div>
+  );
+};
+
+/* ---------- Domicilio en efectivo: ¿con cuánto paga? (el domiciliario lleva el vuelto) ---------- */
+const PayWithBox = ({ order, total, onSaved }: { order: Order; total: number; onSaved: (o: Order) => void }) => {
+  const [val, setVal] = useState(order.cashReceived ? String(order.cashReceived) : '');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setVal(order.cashReceived ? String(order.cashReceived) : ''); }, [order.cashReceived]);
+  const save = async (v: number) => {
+    setSaving(true);
+    try { const o = await api.updateOrderHeader(order.id, { payWith: v }); onSaved(o); setVal(v ? String(v) : ''); } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+  const quick = [Math.ceil(total / 10000) * 10000, Math.ceil(total / 20000) * 20000, Math.ceil(total / 50000) * 50000, 100000].filter((v, i, a) => v > total && a.indexOf(v) === i).slice(0, 3);
+  const n = Math.round(Number(val) || 0);
+  return (
+    <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 p-2 space-y-1.5" data-paywith-box>
+      <p className="text-[11px] font-bold text-amber-900">¿Con cuánto paga? (el domiciliario lleva el vuelto)</p>
+      <div className="flex flex-wrap items-center gap-1">
+        <Chip active={!order.cashReceived} onClick={() => save(0)}>Exacto</Chip>
+        {quick.map(v => <Chip key={v} active={order.cashReceived === v} onClick={() => save(v)}>{formatPrice(v)}</Chip>)}
+        <input type="number" min={0} value={val} onChange={e => setVal(e.target.value)} onBlur={() => n !== (order.cashReceived || 0) && save(n)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder="Otro" className={cn(INPUT, 'w-24 py-1 font-mono text-xs')} disabled={saving} data-paywith-input />
+      </div>
+      {order.cashReceived && order.cashReceived > total ? <p className="text-xs font-bold text-emerald-700" data-paywith-change>Vuelto: {formatPrice(order.cashReceived - total)}</p> : order.cashReceived && order.cashReceived < total ? <p className="text-xs font-semibold text-red-600">Es menos que el total</p> : null}
     </div>
   );
 };
