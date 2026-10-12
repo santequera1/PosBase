@@ -25,6 +25,14 @@ async function viaNet(send: () => Promise<any>, fallback: () => any, what: strin
 export const printReceipt = (order: Order) =>
   viaNet(() => api.netPrint('receipt', { orderId: order.id }), () => printThermal(generateSalesTicketHtml(order), `Factura-${order.id}`), 'Factura');
 
+/** Propina sugerida según el tipo de venta (Configuración → Restaurante: mesas, para llevar, domicilios). */
+export const suggestedTipPct = (order: Order) => {
+  const r = useStore.getState().restaurant;
+  if (!r) return 0;
+  const on = order.type === 'dine-in' ? r.tipDineIn : order.type === 'pickup' ? r.tipCounter : r.tipDelivery;
+  return on ? r.tipPercent || 0 : 0;
+};
+
 export const printPreBill = (order: Order, tipPct = 0) =>
   viaNet(() => api.netPrint('prebill', { orderId: order.id, tipPct }), () => printThermal(generatePreBillHtml(order, tipPct), `Precuenta-${order.id}`), 'Precuenta');
 

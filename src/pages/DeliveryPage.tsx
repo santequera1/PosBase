@@ -11,7 +11,7 @@ import { NewOrderModal } from '@/components/restaurant/NewOrderModal';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle, PAYMENT_LABEL } from '@/lib/restaurant';
-import { printReceipt } from '@/lib/netPrint';
+import { printReceipt, printPreBill, suggestedTipPct } from '@/lib/netPrint';
 import { NiceSelect } from '@/components/ui/nice-select';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
@@ -49,7 +49,8 @@ const DeliveryPage = () => {
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
   const actionsFor = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
-    const print: CardAction = { label: 'Ticket', icon: Printer, onClick: () => printReceipt(o) };
+    // Antes de cobrar: precuenta; ya cobrado: el ticket
+    const print: CardAction = o.paymentStatus === 'paid' ? { label: 'Ticket', icon: Printer, onClick: () => printReceipt(o) } : { label: 'Precuenta', icon: Printer, onClick: () => { printPreBill(o, suggestedTipPct(o)).catch(() => {}); } };
     // Con productos agregados pero sin enviar: se confirman a cocina desde aquí (queda En preparación)
     const confirm: CardAction = { label: 'Confirmar a cocina', icon: ChefHat, onClick: () => setStatus(o, 'preparing').then(() => toast.success('Pedido confirmado a cocina')), primary: true };
     if (o.status === 'open') return (o.unsentCount || 0) > 0 ? [confirm, view] : [view];

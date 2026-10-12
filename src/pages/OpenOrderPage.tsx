@@ -11,7 +11,7 @@ import { ProductPicker } from '@/components/restaurant/ProductPicker';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { orderTitle, statusLabel, STATUS_CLASS, elapsedLabel, CHANNEL_LABEL, TYPE_LABEL, type Channel, isActive } from '@/lib/restaurant';
 import { printKitchenTickets } from '@/lib/restaurantPrint';
-import { printPreBill, printKitchen, netPrintOn } from '@/lib/netPrint';
+import { printPreBill, printKitchen, netPrintOn, suggestedTipPct } from '@/lib/netPrint';
 import { canDo } from '@/lib/permissions';
 import { NiceSelect } from '@/components/ui/nice-select';
 
@@ -137,7 +137,7 @@ const OpenOrderPage = () => {
       if (draftRef.current.length) { const r = await api.sendToKitchen(orderId); setDraft([]); draftRef.current = []; setOrder(r.order); }
       const o = order.type === 'dine-in' ? await api.setRestaurantStatus(orderId, 'billing') : await api.getOrder(orderId);
       setOrder(o);
-      await printPreBill(o, restaurant?.tipDineIn && o.type === 'dine-in' ? restaurant.tipPercent : 0);
+      await printPreBill(o, suggestedTipPct(o));
       // Impresa la precuenta, la mesa queda "pidiendo la cuenta" y se vuelve al plano
       if (o.type === 'dine-in') navigate(backPath(o));
     } catch (e: any) { toast.error(e.message); }

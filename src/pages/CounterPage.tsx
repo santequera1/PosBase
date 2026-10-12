@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -11,7 +11,7 @@ import { NewOrderModal } from '@/components/restaurant/NewOrderModal';
 import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle } from '@/lib/restaurant';
-import { printReceipt } from '@/lib/netPrint';
+import { printReceipt, printPreBill, suggestedTipPct } from '@/lib/netPrint';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
   { key: 'pending', title: 'Pendientes', match: s => s === 'open' || s === 'pending', cls: 'border-amber-200 bg-amber-50/50' },
@@ -42,9 +42,11 @@ const CounterPage = () => {
     const toKitchen: CardAction = { label: (o.unsentCount || 0) > 0 ? 'Confirmar a cocina' : 'A preparación', icon: ChefHat, onClick: () => setStatus(o, 'preparing').then(() => toast.success('Pedido en preparación')), primary: true };
     if (o.status === 'open') return (o.unsentCount || 0) > 0 ? [toKitchen, view] : [view];
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
-    if (o.status === 'ready') return [{ label: 'Entregar', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view];
-    if (o.status === 'preparing') return [{ label: 'Listo', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view];
-    return [toKitchen, pay, view];
+    // Precuenta antes de cobrar (con la propina sugerida si está activa para Para llevar)
+    const pre: CardAction = { label: 'Precuenta', icon: Receipt, onClick: () => { printPreBill(o, suggestedTipPct(o)).catch(() => {}); }, disabled: o.paymentStatus === 'paid' };
+    if (o.status === 'ready') return [{ label: 'Entregar', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, pre, view];
+    if (o.status === 'preparing') return [{ label: 'Listo', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, pre, view];
+    return [toKitchen, pay, pre, view];
   };
 
   return (
