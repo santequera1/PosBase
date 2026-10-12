@@ -50,12 +50,15 @@ const DeliveryPage = () => {
   const actionsFor = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
     const print: CardAction = { label: 'Ticket', icon: Printer, onClick: () => printReceipt(o) };
-    if (o.status === 'open') return [view];
+    // Con productos agregados pero sin enviar: se confirman a cocina desde aquí (queda En preparación)
+    const confirm: CardAction = { label: 'Confirmar a cocina', icon: ChefHat, onClick: () => setStatus(o, 'preparing').then(() => toast.success('Pedido confirmado a cocina')), primary: true };
+    if (o.status === 'open') return (o.unsentCount || 0) > 0 ? [confirm, view] : [view];
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
     if (o.status === 'shipped') return [{ label: 'Entregado', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view, print];
     // El repartidor se elige en la lista de la tarjeta; sin él no se puede despachar (se avisa en vez de dejar el botón apagado)
     if (o.status === 'ready') return [{ label: o.driverId ? 'Enviar' : 'Enviar (elige repartidor)', icon: Bike, onClick: () => (o.driverId ? setStatus(o, 'shipped') : toast.error('Elige el repartidor en la lista "Sin repartidor" de esta tarjeta y luego toca Enviar')), primary: true }, pay, view, print];
     if (o.status === 'preparing') return [{ label: 'Listo para enviar', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view, print];
+    if ((o.unsentCount || 0) > 0) return [confirm, pay, view, print];
     return [{ label: 'A preparación', icon: ChefHat, onClick: () => setStatus(o, 'preparing'), primary: true }, pay, view, print];
   };
 

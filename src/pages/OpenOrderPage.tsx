@@ -123,6 +123,7 @@ const OpenOrderPage = () => {
   };
   // Salir de la cuenta sin cobrar: lo que no se ha enviado queda guardado en la cuenta
   const leave = async () => {
+    if (order && order.type !== 'dine-in' && draftRef.current.length && window.confirm(`Tienes ${draftRef.current.length} producto(s) sin enviar a cocina.\n\n¿Confirmar el pedido a cocina ahora?`)) { await send(); return; }
     try { await flush(); } catch { /* se reintenta al volver */ }
     if (order && draftRef.current.length) toast.info(`${draftRef.current.length} producto(s) quedaron guardados sin enviar a cocina`);
     if (order) navigate(backPath(order));

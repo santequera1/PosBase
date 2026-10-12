@@ -451,7 +451,10 @@ router.post('/orders/:id/status', (req, res) => {
   if (status === 'delivered') { sets.push('delivered_at = ?', 'closed_at = ?', 'closed_by = ?'); vals.push(ts, ts, req.user?.name || null); }
   if (status === 'cancelled') { sets.push('closed_at = ?', 'closed_by = ?', 'cancel_reason = ?'); vals.push(ts, req.user?.name || null, String(req.body.reason || '').trim().slice(0, 160) || null); }
   // Al marcar listo/enviado/entregado un pedido con productos sin comanda, se envían para que el inventario y la cocina queden al día
-  if (['ready', 'shipped', 'delivered'].includes(status)) sendUnsent(db, req.app.io, order, req.user?.name);
+  // "A preparación" también: así se confirma el pedido a cocina desde la tarjeta, sin volver a entrar a la cuenta
+  let sentBatch = null;
+  if (['preparing', 'ready', 'shipped', 'delivered'].includes(status)) sentBatch = sendUnsent(db, req.app.io, order, req.user?.name);
+  if (sentBatch) emit(req, 'kitchen:new', { orderId: order.id, batch: sentBatch });
   // Cuenta anulada con productos ya en cocina: aviso para que no los preparen
   if (status === 'cancelled' && ACTIVE.includes(order.status)) {
     try { const sent = db.prepare('SELECT * FROM order_items WHERE order_id = ? AND batch IS NOT NULL').all(order.id); if (sent.length) require('../printing').enqueueCancel(db, order.id, sent, { reason: String(req.body.reason || ''), user: req.user?.name, whole: true }); } catch (e) { console.warn('Ticket de anulación:', e.message); }
