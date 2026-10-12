@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -38,10 +38,13 @@ const CounterPage = () => {
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
   const actionsFor = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
-    if (o.status === 'open') return [view];
+    // Pendiente → A preparación (envía la comanda a cocina) → Listo → Entregar
+    const toKitchen: CardAction = { label: (o.unsentCount || 0) > 0 ? 'Confirmar a cocina' : 'A preparación', icon: ChefHat, onClick: () => setStatus(o, 'preparing').then(() => toast.success('Pedido en preparación')), primary: true };
+    if (o.status === 'open') return (o.unsentCount || 0) > 0 ? [toKitchen, view] : [view];
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
     if (o.status === 'ready') return [{ label: 'Entregar', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view];
-    return [{ label: 'Listo', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view];
+    if (o.status === 'preparing') return [{ label: 'Listo', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view];
+    return [toKitchen, pay, view];
   };
 
   return (
