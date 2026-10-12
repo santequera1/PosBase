@@ -394,8 +394,10 @@ router.get('/my-deliveries', requirePerm('courier'), (req, res) => {
   const active = db.prepare(`SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status IN (${ACTIVE_SQL}) ORDER BY created_at`).all(emp.id).map(r => fmt(db, r.id));
   const delivered = db.prepare("SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND date(COALESCE(delivered_at, created_at)) = ? ORDER BY delivered_at DESC").all(emp.id, t).map(r => fmt(db, r.id));
   // Efectivo: si ya se registró en caja, el cliente igual le paga al domiciliario al recibir
-  const due = o => (o.paymentMethod === 'platform' ? 0 : o.paymentStatus === 'paid' ? (o.paymentMethod === 'cash' ? (o.total || 0) + (o.tip || 0) : 0) : (o.amountDue ?? o.total));
-  const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(COALESCE(delivered_at, created_at)) = ?").get(emp.id, t).s;
+  const { cashOf } = require('../paymentSplit');
+  const due = o => (o.paymentMethod === 'platform' ? 0 : o.paymentStatus === 'paid' ? (o.paymentMethod === 'cash' ? (o.total || 0) + (o.tip || 0) : o.paymentMethod === 'mixed' ? cashOf(o.paymentSplit) : 0) : (o.amountDue ?? o.total));
+  const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(COALESCE(delivered_at, created_at)) = ?").get(emp.id, t).s
+    + db.prepare("SELECT payment_split FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'mixed' AND date(COALESCE(delivered_at, created_at)) = ?").all(emp.id, t).reduce((a, r) => { try { return a + require('../paymentSplit').cashOf(JSON.parse(r.payment_split || 'null')); } catch { return a; } }, 0);
   // El domiciliario gana el valor del envío: lo entregado hoy y lo que tiene en curso
   const feesToday = delivered.reduce((a, o) => a + (o.deliveryFee || 0), 0);
   const feesPending = active.reduce((a, o) => a + (o.deliveryFee || 0), 0);

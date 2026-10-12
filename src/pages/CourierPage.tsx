@@ -6,10 +6,13 @@ import { useStore, type Order } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { elapsedLabel, PAYMENT_LABEL } from '@/lib/restaurant';
+import { splitParts, PAY_NAMES } from '@/lib/paymentSplit';
 
 const toDue = (o: Order) => (o.paymentStatus === 'paid' || o.paymentMethod === 'platform' ? 0 : (o.amountDue ?? o.total));
 // Domicilio en efectivo que la caja ya registró como cobrado: el cliente igual paga al recibir
-const cashAtDoor = (o: Order) => (o.paymentStatus === 'paid' && o.paymentMethod === 'cash' ? o.total + (o.tip || 0) : 0);
+// Pago mixto registrado en caja (efectivo + transferencia...): el domiciliario cobra solo la parte en efectivo
+const cashPart = (o: Order) => splitParts(o.paymentSplit).filter(p => p.method === 'cash').reduce((a, p) => a + p.amount, 0);
+const cashAtDoor = (o: Order) => (o.paymentStatus !== 'paid' ? 0 : o.paymentMethod === 'cash' ? o.total + (o.tip || 0) : o.paymentMethod === 'mixed' ? cashPart(o) : 0);
 const waPhone = (p?: string) => { const d = String(p || '').replace(/\D/g, ''); return d.length === 10 ? '57' + d : d; };
 
 /** Pantalla del repartidor (celular): sus pedidos asignados con datos del cliente y lo que debe cobrar. */
@@ -95,6 +98,7 @@ const CourierPage = () => {
                   <p className="text-[11px] font-bold uppercase text-amber-900 flex items-center gap-1"><Banknote size={13} /> Cobrar al entregar</p>
                   <p className="font-display font-bold text-2xl text-amber-900">{formatPrice(due)}</p>
                   <p className="text-xs text-amber-900">{PAYMENT_LABEL[o.paymentMethod] || 'Efectivo'}{o.paymentMethod === 'cash' && !changeFor ? ' · paga exacto (o pregúntale con cuánto paga)' : ''}{!pending ? ' · ya registrado en caja: recoge el efectivo' : ''}</p>
+                  {!pending && o.paymentMethod === 'mixed' && <p className="text-xs text-amber-900 mt-0.5" data-courier-mixed={o.id}>Pago mixto: {splitParts(o.paymentSplit).map(p => `${PAY_NAMES[p.method] || p.method} ${formatPrice(p.amount)}`).join(' + ')}. <b>Solo cobra el efectivo.</b></p>}
                   {changeFor > 0 && (
                     <div className="mt-2 grid grid-cols-2 gap-2" data-courier-change={o.id}>
                       <div className="rounded-lg bg-white/70 px-2 py-1.5"><p className="text-[10px] font-bold uppercase text-amber-900">Paga con</p><p className="font-bold text-lg text-amber-950">{formatPrice(changeFor)}</p></div>
