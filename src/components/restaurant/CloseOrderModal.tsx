@@ -72,7 +72,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
         cashReceived: method === 'cash' ? (received || due) : undefined,
         ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: payInst } : {}),
         paymentSplit: method === 'mixed' ? { parts: mix.parts } : undefined,
-        ...(method === 'mixed' && Number(mixReceived) > 0 ? { cashReceived: Math.round(Number(mixReceived)) } : {}),
+        ...(method === 'mixed' && mix.change > 0 ? { cashReceived: mix.cashReceived } : method === 'mixed' && Number(mixReceived) > 0 ? { cashReceived: Math.round(Number(mixReceived)) } : {}),
       });
       setDone(closed);
       onClosed(closed);

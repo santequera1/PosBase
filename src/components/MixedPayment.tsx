@@ -7,11 +7,26 @@ import { INPUT } from '@/components/common/Primitives';
 export interface MixedLine { method: string; amount: string }
 const OPTIONS: Array<[string, string]> = [['cash', 'Efectivo'], ['transfer', 'Transferencia / Nequi'], ['card', 'Datáfono'], ['platform', 'Plataforma']];
 
-/** Valida las líneas del pago mixto: al menos dos medios con valor y que sumen el total. */
+/**
+ * Valida las líneas del pago mixto: al menos dos medios con valor y que sumen el total.
+ * Si lo escrito en Efectivo hace que sobre (el cliente pagó con un billete más grande), el sobrante es el VUELTO:
+ * la parte en efectivo que se registra es la que falta y lo recibido queda como "paga con".
+ */
 export function mixedState(lines: MixedLine[], due: number) {
   const valid = lines.filter(l => l.method && Number(l.amount) > 0);
   const sum = valid.reduce((a, l) => a + Math.round(Number(l.amount) || 0), 0);
-  return { sum, rest: due - sum, ok: valid.length >= 2 && sum === due, parts: valid.map(l => ({ method: l.method, amount: Math.round(Number(l.amount)) })) };
+  let parts = valid.map(l => ({ method: l.method, amount: Math.round(Number(l.amount)) }));
+  const cashTyped = parts.filter(p => p.method === 'cash').reduce((a, p) => a + p.amount, 0);
+  const excess = sum - due;
+  let change = 0, cashReceived = 0;
+  if (excess > 0 && cashTyped > excess) {
+    // Se descuenta el sobrante de la(s) línea(s) de efectivo
+    let left = excess;
+    parts = parts.map(p => { if (p.method !== 'cash' || !left) return p; const cut = Math.min(left, p.amount); left -= cut; return { ...p, amount: p.amount - cut }; }).filter(p => p.amount > 0);
+    change = excess; cashReceived = cashTyped;
+  }
+  const ok = valid.length >= 2 && parts.length >= 2 && (sum === due || change > 0);
+  return { sum, rest: change > 0 ? 0 : due - sum, ok, parts, change, cashReceived };
 }
 
 /**
@@ -21,7 +36,7 @@ export function mixedState(lines: MixedLine[], due: number) {
 export const MixedPayment = ({ due, lines, setLines, cashReceived, setCashReceived }: { due: number; lines: MixedLine[]; setLines: (l: MixedLine[]) => void; cashReceived?: string; setCashReceived?: (v: string) => void }) => {
   const st = mixedState(lines, due);
   // Parte en efectivo: el cliente puede pagarla con un billete más grande → vuelto
-  const cashPart = st.parts.filter(p => p.method === 'cash').reduce((a, p) => a + p.amount, 0);
+  const cashPart = st.change > 0 ? 0 : st.parts.filter(p => p.method === 'cash').reduce((a, p) => a + p.amount, 0);
   const received = Math.round(Number(cashReceived) || 0);
   const update = (k: number, p: Partial<MixedLine>) => {
     const next = lines.map((l, i) => (i === k ? { ...l, ...p } : l));
@@ -59,7 +74,7 @@ export const MixedPayment = ({ due, lines, setLines, cashReceived, setCashReceiv
       )}
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={add} className="text-xs font-semibold text-brand-primary flex items-center gap-1" data-mixed-add><Plus size={13} /> Agregar otro medio de pago</button>
-        <span className={cn('text-[11px] font-semibold', st.ok ? 'text-emerald-700' : 'text-red-600')}>{st.ok ? `Suma ${formatPrice(st.sum)} ✓` : st.rest > 0 ? `Faltan ${formatPrice(st.rest)}` : st.rest < 0 ? `Sobran ${formatPrice(-st.rest)}` : 'Usa al menos dos medios'}</span>
+        <span className={cn('text-[11px] font-semibold', st.ok ? 'text-emerald-700' : 'text-red-600')} data-mixed-status>{st.ok && st.change > 0 ? `Efectivo recibido ${formatPrice(st.cashReceived)} · vuelto ${formatPrice(st.change)} ✓` : st.ok ? `Suma ${formatPrice(st.sum)} ✓` : st.rest > 0 ? `Faltan ${formatPrice(st.rest)}` : st.rest < 0 ? `Sobran ${formatPrice(-st.rest)}` : 'Usa al menos dos medios'}</span>
       </div>
     </div>
   );
