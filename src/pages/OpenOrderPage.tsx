@@ -216,8 +216,8 @@ const OpenOrderPage = () => {
             {showMenu && (
               <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-xl shadow-elevated z-30 overflow-hidden text-sm" onMouseLeave={() => setShowMenu(false)}>
                 <button onClick={() => { setShowMenu(false); setShowEdit(true); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Pencil size={14} /> Editar datos del pedido</button>
-                {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); setShowMove('move'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><ArrowLeftRight size={14} /> Cambiar de mesa</button>}
-                {order.type === 'dine-in' && <button onClick={() => { setShowMenu(false); setShowMove('merge'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Merge size={14} /> Unir con otra mesa</button>}
+                {(order.type === 'dine-in' || order.type === 'pickup') && <button onClick={() => { setShowMenu(false); setShowMove('move'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-move-table><ArrowLeftRight size={14} /> {order.type === 'pickup' ? 'Pasar a una mesa' : 'Cambiar de mesa'}</button>}
+                {(order.type === 'dine-in' || order.type === 'pickup') && <button onClick={() => { setShowMenu(false); setShowMove('merge'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Merge size={14} /> {order.type === 'pickup' ? 'Unir a una mesa ocupada' : 'Unir con otra mesa'}</button>}
                 {<button onClick={() => { setShowMenu(false); openSplit(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-split-menu><Split size={14} /> Cuentas separadas</button>}
                 {lastBatch.current && <button onClick={() => { setShowMenu(false); printLastBatch(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Printer size={14} /> Reimprimir última comanda</button>}
                 {canDo(user, 'cancel_orders') && <button onClick={() => { setShowMenu(false); cancel(); }} className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"><Ban size={14} /> Anular cuenta</button>}
@@ -414,8 +414,8 @@ const MoveTableModal = ({ mode, order, onClose, onDone }: { mode: 'move' | 'merg
     } catch (e: any) { setError(e.message); }
   };
   return (
-    <Modal title={mode === 'move' ? 'Cambiar de mesa' : 'Unir con otra mesa'} onClose={onClose}>
-      <p className="text-xs text-muted-foreground">{mode === 'move' ? 'Elige una mesa libre.' : 'Elige la mesa ocupada a la que se une esta cuenta.'}</p>
+    <Modal title={mode === 'move' ? (order.type === 'pickup' ? 'Pasar a una mesa' : 'Cambiar de mesa') : 'Unir con otra mesa'} onClose={onClose}>
+      <p className="text-xs text-muted-foreground">{mode === 'move' ? (order.type === 'pickup' ? 'Elige una mesa libre: el pedido pasa a ser la cuenta de esa mesa (lo enviado a cocina sigue igual).' : 'Elige una mesa libre.') : 'Elige la mesa ocupada a la que se une esta cuenta.'}</p>
       {rooms.map(r => (
         <div key={r.id}>
           <p className="text-[10px] font-bold uppercase text-brand-muted mb-1">{r.name}</p>

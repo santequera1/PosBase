@@ -570,13 +570,18 @@ router.post('/orders/:id/close', (req, res) => {
 router.post('/orders/:id/move', (req, res) => {
   const db = getDb();
   const order = getOrder(db, req.params.id);
-  if (!order || order.type !== 'dine-in') return res.status(404).json({ error: 'Cuenta de mesa no encontrada' });
+  // Mesas: cambiar de mesa. Para llevar (mostrador): el pedido pasa a una mesa libre y queda como cuenta de mesa
+  if (!order || !['dine-in', 'pickup'].includes(order.type)) return res.status(404).json({ error: 'Cuenta no encontrada' });
   if (!ACTIVE.includes(order.status)) return res.status(400).json({ error: 'La cuenta ya está cerrada' });
   const table = db.prepare('SELECT * FROM tables WHERE id = ? AND active = 1').get(Number(req.body.tableId));
   if (!table) return res.status(400).json({ error: 'Mesa no encontrada' });
   const busy = activeOrderForTable(db, table.id);
   if (busy && busy.id !== order.id) return res.status(409).json({ error: `La mesa ${table.label} está ocupada` });
   db.prepare('UPDATE orders SET table_id = ?, table_label = ?, table_number = ? WHERE id = ?').run(table.id, table.label, parseInt(table.label, 10) || null, order.id);
+  if (order.type === 'pickup') {
+    // Lo que ya se envió a cocina sigue igual; la cuenta queda abierta en la mesa (el nombre del pedido queda como etiqueta)
+    db.prepare("UPDATE orders SET type = 'dine-in', status = CASE WHEN status IN ('pending', 'preparing', 'ready') THEN 'open' ELSE status END, people = CASE WHEN COALESCE(people, 0) < 1 THEN 1 ELSE people END, sale_label = COALESCE(sale_label, NULLIF(customer_name, 'Consumidor Final')) WHERE id = ?").run(order.id);
+  }
   const formatted = fmt(db, order.id);
   emit(req, 'order:updated', formatted);
   res.json(formatted);
