@@ -130,10 +130,17 @@ const CurrentArqueo = ({ live, reload, onClose, onClosed }: { live: any; reload:
   const egreso = live.totalWithdrawals || 0;
   const sysTotal = exp.cash + exp.transfer + exp.card;
   const userTotal = ARQUEO.reduce((a, m) => a + (Math.round(Number(counted[m.key]) || 0)), 0);
-  const allFilled = ARQUEO.every(m => counted[m.key] !== '');
+  // Si el sistema no espera nada en un medio (p. ej. no hubo transferencias), dejarlo vacío cuenta como 0
+  const allFilled = ARQUEO.every(m => counted[m.key] !== '' || !exp[m.key]);
+  const missing = ARQUEO.filter(m => counted[m.key] === '' && exp[m.key]).map(m => m.label);
+  const emptyShift = !live.totalOrders && !(live.movements || []).length && !(live.totalTips || 0) && !(live.cashSales || live.transferSales || live.debitSales || live.creditSales);
+  const annul = async () => {
+    if (!window.confirm(`¿Anular el arqueo #${live.id}? No tiene ventas: se borra como si no se hubiera abierto.`)) return;
+    try { await api.deleteShift(live.id); await refreshCurrentShift(); reload(); toast.success('Arqueo anulado'); onClose?.(); } catch (e: any) { toast.error(e.message); }
+  };
   const diff = userTotal - sysTotal;
   const close = async () => {
-    if (!allFilled) { toast.error('Ingresa lo contado en cada medio de pago'); return; }
+    if (!allFilled) { toast.error('Ingresa lo contado en: ' + missing.join(', ')); return; }
     setClosing(true);
     try {
       const r = await api.closeShift({ counted: { cash: Number(counted.cash) || 0, transfer: Number(counted.transfer) || 0, card: Number(counted.card) || 0 }, notes } as any);
@@ -181,7 +188,9 @@ const CurrentArqueo = ({ live, reload, onClose, onClosed }: { live: any; reload:
         <div className={cn('px-4 py-3 flex justify-between text-white font-bold', diff === 0 && allFilled ? 'bg-emerald-600' : 'bg-red-500')} data-diferencia><span>Diferencia</span><span className="text-lg">{diff > 0 ? '+' : ''}{formatPrice(diff)}</span></div>
         <div className="p-4 space-y-2 border-t border-border">
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones del cierre" className={cn(INPUT, 'h-16 text-xs')} />
+          {!allFilled && <p className="text-[11px] text-red-600">Falta ingresar lo contado en: {missing.join(', ')}</p>}
           <button onClick={close} disabled={closing || !allFilled} className="w-full py-3 rounded-xl bg-brand-surface text-brand-on-dark font-bold flex items-center justify-center gap-2 disabled:opacity-40" data-cerrar-caja><Lock size={16} /> {closing ? 'Cerrando...' : 'Cerrar caja'}</button>
+          {emptyShift && <button onClick={annul} className="w-full py-2 rounded-xl border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50" data-anular-arqueo>Anular arqueo (se abrió por error, sin ventas)</button>}
           <p className="text-[10px] text-muted-foreground flex items-start gap-1"><Info size={11} className="mt-0.5 shrink-0" /> El sistema suma lo cobrado en cada medio, incluidas las propinas. Cuenta el efectivo, revisa transferencias y datáfono e ingrésalos.</p>
         </div>
       </div>

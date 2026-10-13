@@ -118,6 +118,7 @@ export const api = {
 
   // Shifts / Cierre de Caja
   getCurrentShift: () => request<any>('/shifts/current'),
+  deleteShift: (id: number) => request<any>(`/shifts/${id}`, { method: 'DELETE' }),
   openShift: (data: { initialCash: number; cashierName?: string; notes?: string }) =>
     request<any>('/shifts/open', { method: 'POST', body: JSON.stringify(data) }),
   getShiftReport: (id: number) => request<any>(`/shifts/${id}/report`),

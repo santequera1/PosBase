@@ -188,6 +188,23 @@ router.post('/open', requirePerm('shift'), (req, res) => {
   res.json(getShiftLiveStats(db, shift));
 });
 
+// Anular un arqueo abierto por error: solo si sigue abierto y no tiene ventas, movimientos de caja ni propinas
+router.delete('/:id', requirePerm('shift'), (req, res) => {
+  const db = getDb();
+  const s = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Arqueo no encontrado' });
+  if (s.status !== 'open') return res.status(400).json({ error: 'Solo se puede anular un arqueo abierto' });
+  const used = db.prepare('SELECT COUNT(*) AS n FROM orders WHERE shift_id = ?').get(s.id).n
+    + db.prepare('SELECT COUNT(*) AS n FROM cash_movements WHERE shift_id = ?').get(s.id).n
+    + db.prepare('SELECT COUNT(*) AS n FROM tips WHERE shift_id = ?').get(s.id).n;
+  if (used) return res.status(400).json({ error: 'Este arqueo ya tiene ventas o movimientos: ciérralo normalmente con lo contado' });
+  db.transaction(() => {
+    db.prepare('UPDATE attendance SET shift_id = NULL WHERE shift_id = ?').run(s.id);
+    db.prepare('DELETE FROM cash_shifts WHERE id = ?').run(s.id);
+  })();
+  res.json({ success: true });
+});
+
 // Close shift (Arqueo / Cierre Z)
 router.post('/close', requirePerm('shift'), (req, res) => {
   const { shiftId, notes = '' } = req.body;
