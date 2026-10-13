@@ -64,7 +64,7 @@ export const DiscountPicker = ({ items, value, onChange }: { items: Item[]; valu
       {pending && (
         <div className="rounded-xl border border-border p-2.5 space-y-1.5 bg-white">
           {pending.requiresEmployee && (
-            <NiceSelect autoFocus value={emp} onChange={e => setEmp(Number(e.target.value))} className="w-full px-2 py-2 rounded-lg border border-input text-xs" data-staff-select>
+            <NiceSelect autoFocus value={emp} onChange={e => { const id = Number(e.target.value); setEmp(id); if (id && pending.value !== null) apply(pending, id); }} className="w-full px-2 py-2 rounded-lg border border-input text-xs" data-staff-select>
               <option value={0}>¿A qué trabajador?</option>
               {staff.map(s => <option key={s.id} value={s.id}>{s.name}{s.position ? ` · ${s.position}` : ''}</option>)}
             </NiceSelect>

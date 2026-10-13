@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Banknote, CreditCard, QrCode, Smartphone, Handshake, Split, Printer, CheckCircle2, UserMinus, FileCheck2 } from 'lucide-react';
 import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
 import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
@@ -47,6 +47,8 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const staffAll = restaurant?.staff.all || [];
   const [payEmp, setPayEmp] = useState<number>(order.discountEmployeeId || 0);
   const [payInst, setPayInst] = useState(1);
+  // El trabajador al que se le hizo el descuento es, por defecto, a quien se le carga a la nómina
+  useEffect(() => { if (cat?.employeeId && !payEmp) setPayEmp(cat.employeeId); }, [cat?.employeeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<Order | null>(null);
@@ -89,6 +91,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           <p className="text-2xl font-bold text-brand-dark">{formatPrice(done.amountDue || done.total)}</p>
           <p className="text-xs text-muted-foreground">{PAYMENT_LABEL[done.paymentMethod] || done.paymentMethod}{done.paymentStatus === 'pending' ? ' · queda por cobrar' : ''}{done.cashChange ? ` · vueltas ${formatPrice(done.cashChange)}` : ''}</p>
           {done.tip ? <p className="text-xs text-muted-foreground">Propina {formatPrice(done.tip)} registrada en Personal.</p> : null}
+          {done.paymentMethod === 'payroll' && <p className="text-xs font-semibold text-emerald-700" data-payroll-done>Cargado a la nómina de {staffAll.find(e => e.id === payEmp)?.name || 'el empleado'}{payInst > 1 ? ` en ${payInst} cuotas` : ''}: queda en su perfil (Personal → Préstamos y consumos).</p>}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={print} className="py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-brand-dark flex items-center justify-center gap-1.5"><Printer size={15} /> Imprimir recibo</button>
