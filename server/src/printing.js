@@ -158,6 +158,21 @@ const STATION_TITLE = { cocina: 'COCINA', barra: 'BEBIDAS' };
 const fmtDateTime = ts => { const s = String(ts || ''); return s.length >= 16 ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)} ${s.slice(11, 16)}` : s; };
 const orderLabel = o => o.type === 'dine-in' ? `MESA ${o.table_label || o.table_number || ''}${/^cuenta \d+$/i.test(String(o.sale_label || '').trim()) ? ' · ' + String(o.sale_label).trim().toUpperCase() : ''}` : o.type === 'delivery' ? 'DOMICILIO' : `PARA LLEVAR${o.sale_label ? ': ' + o.sale_label : ''}`;
 
+/** Datos del cliente para domicilios (y nombre/teléfono en para llevar): nombre, teléfono, dirección, referencia y barrio. */
+function customerBlock(t, order) {
+  const name = order.customer_name && order.customer_name !== 'Consumidor Final' ? order.customer_name : '';
+  if (order.type === 'delivery') {
+    if (name) t.bold().line(`Cliente: ${name}`).bold(false);
+    if (order.customer_phone) t.line(`Tel: ${order.customer_phone}`);
+    if (order.customer_address) t.bold().line(`Dir: ${order.customer_address}`).bold(false);
+    if (order.customer_address2) t.line(`   ${order.customer_address2}`);
+    if (order.customer_neighborhood) t.line(`Barrio: ${order.customer_neighborhood}`);
+  } else if (order.type === 'pickup') {
+    if (name && name !== order.sale_label) t.line(`Cliente: ${name}`);
+    if (order.customer_phone) t.line(`Tel: ${order.customer_phone}`);
+  }
+}
+
 function kitchenTicket(printer, order, items, { station, batch, now }) {
   const t = ticketFor(printer);
   if (printer.beep) t.beep(2);
@@ -169,9 +184,10 @@ function kitchenTicket(printer, order, items, { station, batch, now }) {
   const info = [`Pedido #${order.id}`, batch ? `tanda ${batch}` : '', order.people ? `${order.people} pers.` : ''].filter(Boolean).join(' · ');
   t.line(info);
   if (order.waiter_name) t.line(`Mesero: ${order.waiter_name}`);
-  if (order.type === 'delivery' && order.customer_name) t.line(`Cliente: ${order.customer_name}`);
   if (order.channel && order.channel !== 'local') t.line(`Canal: ${order.channel}`);
-  t.line(fmtDateTime(now)).align('left').sep('=');
+  t.line(fmtDateTime(now)).align('left');
+  customerBlock(t, order);
+  t.sep('=');
   for (const it of items) {
     t.size('tall').bold().line(`${it.quantity} x ${it.name}${it.size ? ' (' + it.size + ')' : ''}${it.seat ? '  [P' + it.seat + ']' : ''}`).size(1).bold(false);
     if (it.flavors) t.line(`   ${it.flavors}`);
@@ -208,7 +224,9 @@ function preBillTicket(printer, b, order, items, tipPct) {
   t.nl().size(2).bold().line('PRECUENTA').size(1).bold(false).line(orderLabel(order));
   if (packBanner(order)) t.size(2).bold().invert().line(` ${packBanner(order)} `).invert(false).size(1).bold(false);
   if (order.waiter_name) t.line(`Atiende: ${order.waiter_name}${order.people ? ` · ${order.people} personas` : ''}`);
-  t.line(fmtDateTime(order.now)).align('left').sep();
+  t.line(`Pedido #${order.id} · ${fmtDateTime(order.now)}`).align('left');
+  customerBlock(t, order);
+  t.sep();
   itemsBlock(t, items);
   t.sep();
   const subtotal = order.subtotal || 0;
@@ -238,7 +256,10 @@ function receiptTicket(printer, b, order, items) {
   t.line(`Cliente: ${order.customer_name || 'Consumidor Final'}`);
   if (order.customer_doc && order.customer_doc !== '222222222222') t.line(`C.C./NIT: ${order.customer_doc}`);
   if (order.type === 'dine-in') t.line(`${orderLabel(order)}${order.waiter_name ? ' · Atiende: ' + order.waiter_name : ''}`);
-  if (order.type === 'delivery') t.line(`Domicilio: ${[order.customer_address, order.customer_neighborhood].filter(Boolean).join(' · ')}`);
+  if (order.type === 'delivery') {
+    if (order.customer_phone) t.line(`Tel: ${order.customer_phone}`);
+    t.line(`Domicilio: ${[order.customer_address, order.customer_address2, order.customer_neighborhood].filter(Boolean).join(' · ')}`);
+  }
   if (order.type === 'pickup') t.line(`Para llevar${order.sale_label ? ': ' + order.sale_label : ''}`);
   t.sep();
   itemsBlock(t, items);

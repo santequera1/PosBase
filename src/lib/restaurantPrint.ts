@@ -6,6 +6,17 @@ import { orderTitle, TYPE_LABEL, CHANNEL_LABEL, STATION_LABEL, PRINT_STATIONS, t
 import { printThermal } from '@/lib/thermalPrint';
 
 const esc = (s: any) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
+/** Datos del cliente en domicilios (y nombre/teléfono en para llevar). */
+const customerHtml = (order: Order, size = 8.5) => {
+  const c: any = order.customer || {};
+  const name = c.name && c.name !== 'Consumidor Final' ? c.name : '';
+  if (order.type === 'delivery') {
+    const addr = [c.address, c.address2].filter(Boolean).join(' · ');
+    return `<div style="font-size: ${size}px; margin: 2px 0;">${name ? `<div><b>Cliente:</b> ${esc(name)}</div>` : ''}${c.phone ? `<div><b>Tel:</b> ${esc(c.phone)}</div>` : ''}${addr ? `<div><b>Dir:</b> ${esc(addr)}</div>` : ''}${c.neighborhood ? `<div><b>Barrio:</b> ${esc(c.neighborhood)}</div>` : ''}</div><div class="divider"></div>`;
+  }
+  if (order.type === 'pickup' && (c.phone || (name && name !== order.label))) return `<div style="font-size: ${size}px; margin: 2px 0;">${name && name !== order.label ? `<div><b>Cliente:</b> ${esc(name)}</div>` : ''}${c.phone ? `<div><b>Tel:</b> ${esc(c.phone)}</div>` : ''}</div><div class="divider"></div>`;
+  return '';
+};
 const nowLabel = () => new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 /** Comanda: solo lo que cocina necesita, en letra grande. Con `station` se imprime solo esa estación (cocina o barra) con su título. */
@@ -22,6 +33,7 @@ export function generateKitchenTicketHtml(order: Order, items: OrderItem[], batc
         <p style="font-size: 8px;">${nowLabel()}</p>
       </div>
       <div class="divider"></div>
+      ${customerHtml(order, 9)}
       ${items.map(i => `
         <div style="margin: 4px 0;">
           <div class="row" style="font-size: 11px; font-weight: bold;"><span style="width: 22px;">${i.quantity}x</span><span style="flex: 1; text-align: left;">${esc(i.name)}</span></div>
@@ -82,6 +94,7 @@ export function generatePreBillHtml(order: Order, tipPercent = 0): string {
         <p style="font-size: 7.5px;">${nowLabel()}${people ? ` · ${people} personas` : ''}${order.waiterName ? ` · Atiende: ${esc(order.waiterName)}` : ''}</p>
       </div>
       <div class="divider"></div>
+      ${customerHtml(order)}
       ${order.items.map(i => `
         <div class="row" style="font-size: 8.5px; margin: 2px 0;">
           <span style="width: 18px; font-weight: bold;">${i.quantity}x</span>
