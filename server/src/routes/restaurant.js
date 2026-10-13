@@ -538,8 +538,10 @@ router.post('/orders/:id/close', (req, res) => {
     split = r.split;
   }
   const paymentStatus = method === 'credit' ? 'pending' : 'paid';
-  const cashReceived = method === 'cash' ? Math.max(due, Math.round(Number(b.cashReceived) || due)) : (method === 'mixed' ? require('../paymentSplit').cashOf(split) : 0);
-  const cashChange = method === 'cash' ? Math.max(0, cashReceived - due) : 0;
+  // Mixto: lo recibido en efectivo puede ser más que la parte en efectivo (paga con un billete grande) → vuelto
+  const cashPart = method === 'mixed' ? require('../paymentSplit').cashOf(split) : 0;
+  const cashReceived = method === 'cash' ? Math.max(due, Math.round(Number(b.cashReceived) || due)) : (method === 'mixed' ? Math.max(cashPart, Math.round(Number(b.cashReceived) || 0)) : 0);
+  const cashChange = method === 'cash' ? Math.max(0, cashReceived - due) : (method === 'mixed' ? Math.max(0, cashReceived - cashPart) : 0);
   const ts = now(db);
   const closeNow = fresh.type !== 'delivery' || Boolean(b.markDelivered) || fresh.status === 'delivered';
   const sets = ['payment_method = ?', 'payment_split = ?', 'payment_status = ?', 'cash_received = ?', 'cash_change = ?', 'closed_by = ?', 'payroll_employee_id = ?'];

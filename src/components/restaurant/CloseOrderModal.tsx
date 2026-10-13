@@ -41,6 +41,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const [cashReceived, setCashReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
   // Pago con varios medios (efectivo + Nequi + datáfono...)
   const [mixLines, setMixLines] = useState<MixedLine[]>([{ method: 'cash', amount: '' }, { method: 'transfer', amount: '' }]);
+  const [mixReceived, setMixReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
   const [markDelivered, setMarkDelivered] = useState(order.type !== 'delivery' || order.status === 'shipped');
   // Descuento de nómina: empleado (por defecto el del descuento de trabajador, si lo hay) y en cuántas quincenas/meses
   const staffAll = restaurant?.staff.all || [];
@@ -71,6 +72,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
         cashReceived: method === 'cash' ? (received || due) : undefined,
         ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: payInst } : {}),
         paymentSplit: method === 'mixed' ? { parts: mix.parts } : undefined,
+        ...(method === 'mixed' && Number(mixReceived) > 0 ? { cashReceived: Math.round(Number(mixReceived)) } : {}),
       });
       setDone(closed);
       onClosed(closed);
@@ -157,7 +159,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
               {change > 0 && <p className="text-sm font-bold text-emerald-700 mt-1">Vueltas: {formatPrice(change)}</p>}
             </div>
           )}
-          {method === 'mixed' && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} />}
+          {method === 'mixed' && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} cashReceived={mixReceived} setCashReceived={setMixReceived} />}
           {method === 'cash' && order.type === 'delivery' && !['shipped', 'delivered'].includes(order.status) && <p className="text-[11px] text-amber-700" data-delivery-cash-note>Si el cliente paga en efectivo al recibir, no hace falta cobrar aquí: el domiciliario lo cobra al entregar (con el vuelto). Si lo cobras ahora, igual le aparecerá para recoger el efectivo.</p>}
           {method === 'platform' && <p className="text-[11px] text-muted-foreground">La app (Rappi, DiDi) paga después; queda registrado como venta por plataforma, no entra a la caja en efectivo.</p>}
           {method === 'payroll' && (
