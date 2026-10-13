@@ -123,6 +123,11 @@ const CurrentArqueo = ({ live, reload, onClose, onClosed }: { live: any; reload:
   const [openIn, setOpenIn] = useState(false);
   const [openOut, setOpenOut] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [editOpen, setEditOpen] = useState<{ openedAt: string; initialCash: string; cashierName: string } | null>(null);
+  const saveOpening = async () => {
+    if (!editOpen || !live) return;
+    try { await api.updateShiftOpening(live.id, { openedAt: editOpen.openedAt, initialCash: Number(editOpen.initialCash) || 0, cashierName: editOpen.cashierName }); await refreshCurrentShift(); reload(); setEditOpen(null); toast.success('Apertura corregida'); } catch (e: any) { toast.error(e.message); }
+  };
   if (!live) return <DetailPane open onClose={onClose} title="ARQUEO DE CAJA"><p className="p-4 text-sm text-muted-foreground">Cargando...</p></DetailPane>;
   const exp = live.expectedByMethod || { cash: 0, transfer: 0, card: 0 };
   const tips = live.tips || { cash: 0, transfer: 0, card: 0, platform: 0 };
@@ -152,7 +157,17 @@ const CurrentArqueo = ({ live, reload, onClose, onClosed }: { live: any; reload:
   return (
     <DetailPane open onClose={onClose} title="ARQUEO DE CAJA" actions={<><ActionBtn title="Actualizar" onClick={reload}><RefreshCw size={15} /></ActionBtn><ActionBtn title="Imprimir corte parcial (X)" onClick={printX}><Printer size={15} /></ActionBtn></>}>
       <div data-arqueo>
-        <div className="py-1"><Row k="Hora de apertura" v={dt(live.opened_at || live.openedAt)} /><Row k="Creado por" v={live.cashierName} /><Row k="Estado" v={`Abierto · turno #${live.id}`} /></div>
+        <div className="py-1"><Row k="Hora de apertura" v={dt(live.opened_at || live.openedAt)} /><Row k="Creado por" v={live.cashierName} /><Row k="Estado" v={`Abierto · turno #${live.id}`} />
+          {!editOpen && <button onClick={() => setEditOpen({ openedAt: String(live.opened_at || live.openedAt || '').replace(' ', 'T').slice(0, 16), initialCash: String(live.initialCash || 0), cashierName: live.cashierName || '' })} className="mx-4 my-1 text-xs font-semibold text-brand-primary underline" data-edit-opening>Corregir apertura (hora, base o responsable)</button>}
+          {editOpen && (
+            <div className="mx-4 my-2 p-3 rounded-xl border border-border bg-muted/30 space-y-2 text-xs" data-edit-opening-form>
+              <div><label className={LBL}>Hora de apertura</label><input type="datetime-local" value={editOpen.openedAt} onChange={e => setEditOpen({ ...editOpen, openedAt: e.target.value })} className={INPUT} data-opening-time /></div>
+              <div><label className={LBL}>Monto inicial (base)</label><input type="number" value={editOpen.initialCash} onChange={e => setEditOpen({ ...editOpen, initialCash: e.target.value })} className={cn(INPUT, 'font-mono')} data-opening-base /></div>
+              <div><label className={LBL}>Responsable</label><input value={editOpen.cashierName} onChange={e => setEditOpen({ ...editOpen, cashierName: e.target.value })} className={INPUT} /></div>
+              <div className="flex gap-2"><button onClick={() => setEditOpen(null)} className="flex-1 py-2 rounded-lg border border-border font-semibold">Cancelar</button><button onClick={saveOpening} className="flex-1 py-2 rounded-lg bg-brand-button text-brand-on-button font-bold" data-opening-save>Guardar</button></div>
+            </div>
+          )}
+        </div>
         <div className="text-sm">
           <div className="px-4 py-2.5 flex justify-between border-t border-border font-bold"><span>MONTO INICIAL</span><span>{formatPrice(live.initialCash)}</span></div>
           <button onClick={() => setOpenIn(v => !v)} className="w-full px-4 py-2.5 flex justify-between border-t border-border font-bold"><span className="flex items-center gap-1">{openIn ? <ChevronUp size={14} /> : <ChevronDown size={14} />} INGRESOS</span><span>{formatPrice(ingreso)}</span></button>

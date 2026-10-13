@@ -174,8 +174,9 @@ router.post('/open', requirePerm('shift'), (req, res) => {
   const { initialCash = 0, cashierName, notes = '' } = req.body;
   const db = getDb();
 
-  // Close any previously open shift first
-  db.prepare("UPDATE cash_shifts SET status = 'closed', closed_at = datetime('now', '-5 hours') WHERE status = 'open' AND COALESCE(branch_id, 1) = ?").run(currentBranch());
+  // Si ya hay una caja abierta no se abre otra (antes la anterior se cerraba sola, sin contar el dinero)
+  const already = db.prepare("SELECT id, cashier_name FROM cash_shifts WHERE status = 'open' AND COALESCE(branch_id, 1) = ?").get(currentBranch());
+  if (already) return res.status(409).json({ error: `Ya hay una caja abierta (arqueo #${already.id}, ${already.cashier_name}). Ciérrala o anúlala antes de abrir otra.` });
 
   const name = cashierName || req.user?.name || 'Caja';
   const result = db.prepare(`
@@ -186,6 +187,28 @@ router.post('/open', requirePerm('shift'), (req, res) => {
   const shift = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(result.lastInsertRowid);
   registerAttendanceForShift(db, shift, req.user);
   res.json(getShiftLiveStats(db, shift));
+});
+
+// Corregir la apertura de la caja abierta: hora de apertura y monto inicial
+router.patch('/:id', requirePerm('shift'), (req, res) => {
+  const db = getDb();
+  const s = db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Arqueo no encontrado' });
+  if (s.status !== 'open') return res.status(400).json({ error: 'Solo se corrige la apertura de la caja abierta' });
+  const b = req.body || {};
+  const sets = [], vals = [];
+  if (b.openedAt !== undefined) {
+    const v = String(b.openedAt).trim().replace('T', ' ').slice(0, 16);
+    if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(v)) return res.status(400).json({ error: 'Hora de apertura inválida' });
+    const now = db.prepare("SELECT datetime('now', '-5 hours') AS n").get().n;
+    if (v + ':00' > now) return res.status(400).json({ error: 'La hora de apertura no puede ser en el futuro' });
+    sets.push('opened_at = ?'); vals.push(v + ':00');
+  }
+  if (b.initialCash !== undefined) { sets.push('initial_cash = ?'); vals.push(Math.max(0, Math.round(Number(b.initialCash) || 0))); }
+  if (b.cashierName !== undefined && String(b.cashierName).trim()) { sets.push('cashier_name = ?'); vals.push(String(b.cashierName).trim().slice(0, 80)); }
+  if (!sets.length) return res.status(400).json({ error: 'No hay cambios' });
+  db.prepare(`UPDATE cash_shifts SET ${sets.join(', ')} WHERE id = ?`).run(...vals, s.id);
+  res.json(getShiftLiveStats(db, db.prepare('SELECT * FROM cash_shifts WHERE id = ?').get(s.id)));
 });
 
 // Anular un arqueo abierto por error: solo si sigue abierto y no tiene ventas, movimientos de caja ni propinas
