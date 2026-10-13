@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Phone, Mail, IdCard, Landmark, CalendarDays, Link2, Pencil } from 'lucide-react';
+import { Plus, Phone, Mail, IdCard, Landmark, CalendarDays, Link2, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
@@ -44,6 +45,22 @@ export const EmployeeDetail = ({ employee, onClose, onEdit }: { employee: any; o
   const [error, setError] = useState('');
 
   const loadLoans = () => api.getLoans({ employeeId: employee.id }).then(d => setLoans(d.loans)).catch(e => setError(e.message));
+  // Quitar un préstamo o un consumo cargado por error (si aún no se ha descontado en una liquidación)
+  const removeRow = async (r: any) => {
+    try {
+      if (r.kind === 'consumo' && r.orderId) {
+        const reason = window.prompt(`Quitar el consumo de la venta #${r.orderId} (${formatPrice(r.amount)}).\n\nSe anula esa venta: sale de los totales, se devuelve el inventario y deja de descontarse de la nómina.\n\nMotivo:`, 'Se cargó por error');
+        if (reason === null) return;
+        if (reason.trim().length < 3) { toast.error('Escribe el motivo'); return; }
+        await api.cancelSale(r.orderId, reason.trim());
+      } else {
+        if (!window.confirm(`¿Eliminar este préstamo de ${formatPrice(r.amount)}?`)) return;
+        await api.deleteLoan(r.id);
+      }
+      toast.success(r.kind === 'consumo' ? 'Consumo quitado (venta anulada)' : 'Préstamo eliminado');
+      loadLoans(); loadPreview();
+    } catch (e: any) { toast.error(e.message); }
+  };
   const loadPreview = () => api.previewSettlement(employee.id, period.from, period.to).then(setPreview).catch(e => { setPreview(null); setError(e.message); });
   useEffect(() => {
     loadLoans();
@@ -122,7 +139,7 @@ export const EmployeeDetail = ({ employee, onClose, onEdit }: { employee: any; o
         <Section title="Préstamos y consumos por nómina" right={<button onClick={() => setNewLoan(true)} className="px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold flex items-center gap-1" data-account-new-loan><Plus size={12} /> Nuevo préstamo</button>}>
           {!loans ? <p className="p-3 text-xs text-muted-foreground">Cargando…</p> : rows.length === 0 ? <p className="p-3 text-xs text-muted-foreground text-center">Sin préstamos ni consumos.</p> : (
             <div className="overflow-x-auto"><table className="w-full text-xs">
-              <thead className="text-muted-foreground"><tr><th className="text-left px-3 py-1.5">Fecha</th><th className="text-left px-3 py-1.5">Concepto</th><th className="text-right px-3 py-1.5">Valor</th><th className="text-right px-3 py-1.5">Cuota</th><th className="text-right px-3 py-1.5">Pagado</th><th className="text-right px-3 py-1.5">Saldo</th></tr></thead>
+              <thead className="text-muted-foreground"><tr><th className="text-left px-3 py-1.5">Fecha</th><th className="text-left px-3 py-1.5">Concepto</th><th className="text-right px-3 py-1.5">Valor</th><th className="text-right px-3 py-1.5">Cuota</th><th className="text-right px-3 py-1.5">Pagado</th><th className="text-right px-3 py-1.5">Saldo</th><th className="px-2 py-1.5" /></tr></thead>
               <tbody>{rows.map(r => (
                 <tr key={r.id} className={cn('border-t border-border', r.status !== 'active' && 'opacity-50')} data-account-row={r.kind}>
                   <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.date)}</td>
@@ -131,11 +148,14 @@ export const EmployeeDetail = ({ employee, onClose, onEdit }: { employee: any; o
                   <td className="px-3 py-1.5 text-right">{formatPrice(r.installmentAmount)}</td>
                   <td className="px-3 py-1.5 text-right">{formatPrice(r.paidTotal)}</td>
                   <td className="px-3 py-1.5 text-right font-bold">{formatPrice(r.balance)}</td>
+                  <td className="px-2 py-1 text-right">{r.paidTotal > 0
+                    ? <span className="text-[10px] text-muted-foreground" title="Ya tiene cuotas descontadas en una liquidación">—</span>
+                    : <button onClick={() => removeRow(r)} className="p-1.5 rounded-lg text-red-600 hover:bg-red-50" title={r.kind === 'consumo' ? 'Quitar este consumo (anula la venta)' : 'Eliminar este préstamo'} data-remove-loan={r.id}><Trash2 size={13} /></button>}</td>
                 </tr>
               ))}</tbody>
             </table></div>
           )}
-          <p className="px-3 py-2 text-[11px] text-muted-foreground">Las cuotas se descuentan solas en cada liquidación. Los consumos salen de ventas cobradas con <b>Descuento de nómina</b>; para quitar uno, anula la venta en Caja → Ventas.</p>
+          <p className="px-3 py-2 text-[11px] text-muted-foreground">Las cuotas se descuentan solas en cada liquidación. Los consumos salen de ventas cobradas con <b>Nómina</b>. Si uno se cargó por error, quítalo con el ícono de la papelera (anula esa venta). Lo que ya se descontó en una liquidación no se puede quitar.</p>
         </Section>
 
         <div className="grid sm:grid-cols-2 gap-3">
