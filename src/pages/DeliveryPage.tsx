@@ -169,20 +169,32 @@ const DeliveryPage = () => {
 };
 
 /* ---------- Cuadre por repartidor ---------- */
-const CouriersReport = ({ today }: { today: string }) => {
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
+/** Jornada actual (corte a las 5 a. m.): a la 1 a. m. sigue siendo "la noche de ayer". */
+const jornadaHoy = () => new Date(Date.now() - 10 * 3600e3).toISOString().slice(0, 10);
+const CouriersReport = (_: { today: string }) => {
+  // El período sigue la fecha actual aunque la página lleve abierta desde ayer (antes se quedaba en el día en que se abrió)
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 60000); return () => clearInterval(t); }, []);
+  const today = jornadaHoy();
+  const [preset, setPreset] = useState<string>('Hoy');
+  const [custom, setCustom] = useState<{ from: string; to: string }>({ from: today, to: today });
+  const presetRange = (l: string): [string, string] => l === 'Ayer' ? [shiftDate(today, -1), shiftDate(today, -1)] : l === '7 días' ? [shiftDate(today, -6), today] : l === 'Este mes' ? [today.slice(0, 7) + '-01', today] : [today, today];
+  const [from, to] = preset === 'custom' ? [custom.from, custom.to] : presetRange(preset);
+  const setFrom = (v: string) => { setCustom({ from: v, to }); setPreset('custom'); };
+  const setTo = (v: string) => { setCustom({ from, to: v }); setPreset('custom'); };
   const [stats, setStats] = useState<any>(null);
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => { setLoading(true); api.getRestaurantStats(from, to).then(setStats).catch(() => {}).finally(() => setLoading(false)); setDetail(null); }, [from, to]);
+  // Se refresca cada minuto mientras está abierto (los domiciliarios siguen entregando)
+  useEffect(() => { if (tick) api.getRestaurantStats(from, to).then(setStats).catch(() => {}); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const openDetail = async (driverId: number | null) => { if (!driverId) return; try { setDetail(await api.getCourierReport(driverId, from, to)); } catch (e: any) { toast.error(e.message); } };
   const presets = [['Hoy', today, today], ['Ayer', shiftDate(today, -1), shiftDate(today, -1)], ['7 días', shiftDate(today, -6), today], ['Este mes', today.slice(0, 7) + '-01', today]];
   const dl = stats?.byType?.find((t: any) => t.type === 'delivery');
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {presets.map(([l, f, t]) => <Chip key={l} active={from === f && to === t} onClick={() => { setFrom(f); setTo(t); }}>{l}</Chip>)}
+        {presets.map(([l]) => <Chip key={l} active={preset === l} onClick={() => setPreset(l)}>{l}</Chip>)}
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} /><span className="text-xs text-muted-foreground">a</span><input type="date" value={to} onChange={e => setTo(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} />
       </div>
       {dl && (
@@ -194,14 +206,14 @@ const CouriersReport = ({ today }: { today: string }) => {
         </div>
       )}
       <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-border bg-brand-card"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Users size={13} /> Por repartidor · toca uno para ver el detalle y cuadrarle la caja</p></div>
+        <div className="px-4 py-2.5 border-b border-border bg-brand-card"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5" data-courier-period><Users size={13} /> Por repartidor · {from === to ? `jornada del ${fmtDate(from)}` : `${fmtDate(from)} – ${fmtDate(to)}`} · toca uno para ver el detalle y cuadrarle la caja</p><p className="text-[10px] text-muted-foreground">La jornada va hasta las 5 a. m.: lo entregado después de medianoche cuenta en la misma noche, igual que en el celular del domiciliario.</p></div>
         {loading ? <p className="p-4 text-xs text-muted-foreground">Cargando...</p> : !stats?.byCourier?.length ? <p className="p-4 text-xs text-muted-foreground">Sin domicilios en el período.</p> : (
           <table className="w-full text-xs">
-            <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Repartidor</th><th className="text-right px-3 py-1.5">Pedidos</th><th className="text-right px-3 py-1.5">Entregados</th><th className="text-right px-3 py-1.5">Ventas</th><th className="text-right px-3 py-1.5">Envíos</th><th className="text-right px-3 py-1.5">Efectivo que entrega</th><th className="text-right px-3 py-1.5">Plataforma</th><th className="text-right px-3 py-1.5">Por cobrar</th></tr></thead>
+            <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Repartidor</th><th className="text-right px-3 py-1.5">Pedidos</th><th className="text-right px-3 py-1.5">Entregados</th><th className="text-right px-3 py-1.5">Ventas</th><th className="text-right px-3 py-1.5">Envíos ganados</th><th className="text-right px-3 py-1.5">Efectivo que entrega</th><th className="text-right px-3 py-1.5">Plataforma</th><th className="text-right px-3 py-1.5">Por cobrar</th></tr></thead>
             <tbody>
               {stats.byCourier.map((c: any) => (
                 <tr key={c.courier} onClick={() => openDetail(c.driverId)} className={cn('border-t border-border', c.driverId && 'cursor-pointer hover:bg-brand-button/5')}>
-                  <td className="px-3 py-1.5 font-semibold text-brand-dark">{c.courier}</td><td className="px-3 py-1.5 text-right">{c.orders}</td><td className="px-3 py-1.5 text-right">{c.delivered}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.total)}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.deliveryFees)}</td><td className="px-3 py-1.5 text-right font-bold text-emerald-700">{formatPrice(c.cashCollected)}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.platform)}</td><td className="px-3 py-1.5 text-right text-amber-700">{formatPrice(c.pending)}</td>
+                  <td className="px-3 py-1.5 font-semibold text-brand-dark">{c.courier}</td><td className="px-3 py-1.5 text-right">{c.orders}</td><td className="px-3 py-1.5 text-right">{c.delivered}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.total)}</td><td className="px-3 py-1.5 text-right" data-courier-fees={c.courier}><b>{formatPrice(c.feesDelivered ?? c.deliveryFees)}</b>{(c.deliveryFees - (c.feesDelivered ?? c.deliveryFees)) > 0 && <span className="block text-[10px] text-muted-foreground">+ {formatPrice(c.deliveryFees - c.feesDelivered)} en curso</span>}</td><td className="px-3 py-1.5 text-right font-bold text-emerald-700">{formatPrice(c.cashCollected)}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.platform)}</td><td className="px-3 py-1.5 text-right text-amber-700">{formatPrice(c.pending)}</td>
                 </tr>
               ))}
             </tbody>
@@ -210,7 +222,7 @@ const CouriersReport = ({ today }: { today: string }) => {
       </div>
       {detail && (
         <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Banknote size={13} /> {detail.driver?.name}: {detail.totals.orders} pedidos · entrega en efectivo {formatPrice(detail.totals.cash)} · envíos {formatPrice(detail.totals.deliveryFees)}</p><button onClick={() => setDetail(null)} className="text-[11px] text-brand-primary">Cerrar</button></div>
+          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Banknote size={13} /> {detail.driver?.name}: {detail.totals.orders} pedidos · entrega en efectivo {formatPrice(detail.totals.cash)} · envíos ganados {formatPrice(detail.totals.feesDelivered ?? detail.totals.deliveryFees)}</p><button onClick={() => setDetail(null)} className="text-[11px] text-brand-primary">Cerrar</button></div>
           <table className="w-full text-xs">
             <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Pedido</th><th className="text-left px-3 py-1.5">Fecha</th><th className="text-left px-3 py-1.5">Cliente / dirección</th><th className="text-left px-3 py-1.5">Pago</th><th className="text-right px-3 py-1.5">Envío</th><th className="text-right px-3 py-1.5">Total</th><th className="text-right px-3 py-1.5">Efectivo</th></tr></thead>
             <tbody>{detail.orders.map((o: any) => (

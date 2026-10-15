@@ -390,14 +390,15 @@ router.get('/my-deliveries', requirePerm('courier'), (req, res) => {
   const db = getDb();
   const emp = courierEmployee(db, req.user.id);
   if (!emp) return res.json({ linked: false, courier: null, active: [], delivered: [], cashToCollect: 0, cashCollected: 0 });
-  const t = today(db);
+  // Jornada: lo entregado después de medianoche (hasta las 5 a. m.) cuenta para la noche anterior, igual que en el cuadre de la caja
+  const t = db.prepare("SELECT date(datetime('now', '-10 hours')) AS d").get().d;
   const active = db.prepare(`SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status IN (${ACTIVE_SQL}) ORDER BY created_at`).all(emp.id).map(r => fmt(db, r.id));
-  const delivered = db.prepare("SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND date(COALESCE(delivered_at, created_at)) = ? ORDER BY delivered_at DESC").all(emp.id, t).map(r => fmt(db, r.id));
+  const delivered = db.prepare("SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND date(datetime(COALESCE(delivered_at, created_at), '-5 hours')) = ? ORDER BY delivered_at DESC").all(emp.id, t).map(r => fmt(db, r.id));
   // Efectivo: si ya se registró en caja, el cliente igual le paga al domiciliario al recibir
   const { cashOf } = require('../paymentSplit');
   const due = o => (o.paymentMethod === 'platform' ? 0 : o.paymentStatus === 'paid' ? (o.paymentMethod === 'cash' ? (o.total || 0) + (o.tip || 0) : o.paymentMethod === 'mixed' ? cashOf(o.paymentSplit) : 0) : (o.amountDue ?? o.total));
-  const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(COALESCE(delivered_at, created_at)) = ?").get(emp.id, t).s
-    + db.prepare("SELECT payment_split FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'mixed' AND date(COALESCE(delivered_at, created_at)) = ?").all(emp.id, t).reduce((a, r) => { try { return a + require('../paymentSplit').cashOf(JSON.parse(r.payment_split || 'null')); } catch { return a; } }, 0);
+  const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(datetime(COALESCE(delivered_at, created_at), '-5 hours')) = ?").get(emp.id, t).s
+    + db.prepare("SELECT payment_split FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'mixed' AND date(datetime(COALESCE(delivered_at, created_at), '-5 hours')) = ?").all(emp.id, t).reduce((a, r) => { try { return a + require('../paymentSplit').cashOf(JSON.parse(r.payment_split || 'null')); } catch { return a; } }, 0);
   // El domiciliario gana el valor del envío: lo entregado hoy y lo que tiene en curso
   const feesToday = delivered.reduce((a, o) => a + (o.deliveryFee || 0), 0);
   const feesPending = active.reduce((a, o) => a + (o.deliveryFee || 0), 0);
@@ -767,12 +768,14 @@ router.get('/stats', requireRole('admin', 'cashier'), (req, res) => {
       const w = byWaiter[wn] || (byWaiter[wn] = { waiter: wn, orders: 0, people: 0, total: 0, tips: 0 });
       w.orders++; w.people += o.people || 0; w.total += o.total; w.tips += o.tip || 0;
     }
-    if (o.type === 'delivery') {
-      const dn = o.driver_name || 'Sin repartidor';
-      const d = byCourier[dn] || (byCourier[dn] = { courier: dn, driverId: o.driver_id || null, orders: 0, delivered: 0, total: 0, deliveryFees: 0, cashCollected: 0, platform: 0, pending: 0 });
-      d.orders++; if (o.status === 'delivered') d.delivered++; d.total += o.total; d.deliveryFees += o.delivery_fee || 0; d.cashCollected += cashPart(o);
-      if (o.payment_method === 'platform') d.platform += o.total; if (o.payment_status !== 'paid') d.pending += o.total;
-    }
+  }
+  // Repartidores por jornada (corte a las 5 a. m.), como lo ve cada domiciliario en su celular
+  const jornada = db.prepare(`SELECT * FROM orders WHERE type = 'delivery' AND status != 'cancelled' AND date(datetime(created_at, '-5 hours')) BETWEEN ? AND ?${bw.sql}`).all(from, to, ...bw.params);
+  for (const o of jornada) {
+    const dn = o.driver_name || 'Sin repartidor';
+    const d = byCourier[dn] || (byCourier[dn] = { courier: dn, driverId: o.driver_id || null, orders: 0, delivered: 0, total: 0, deliveryFees: 0, feesDelivered: 0, cashCollected: 0, platform: 0, pending: 0 });
+    d.orders++; if (o.status === 'delivered') { d.delivered++; d.feesDelivered += o.delivery_fee || 0; } d.total += o.total; d.deliveryFees += o.delivery_fee || 0; d.cashCollected += cashPart(o);
+    if (o.payment_method === 'platform') d.platform += o.total; if (o.payment_status !== 'paid') d.pending += o.total;
   }
   const sales = orders.reduce((a, o) => a + o.total, 0);
   res.json({
@@ -788,9 +791,9 @@ router.get('/stats', requireRole('admin', 'cashier'), (req, res) => {
 router.get('/couriers/:driverId', requireRole('admin', 'cashier'), (req, res) => {
   const db = getDb();
   const { from, to } = range(req);
-  const rows = db.prepare("SELECT * FROM orders WHERE type = 'delivery' AND status != 'cancelled' AND driver_id = ? AND date(created_at) BETWEEN ? AND ? ORDER BY created_at").all(Number(req.params.driverId), from, to);
+  const rows = db.prepare("SELECT * FROM orders WHERE type = 'delivery' AND status != 'cancelled' AND driver_id = ? AND date(datetime(created_at, '-5 hours')) BETWEEN ? AND ? ORDER BY created_at").all(Number(req.params.driverId), from, to);
   const orders = rows.map(o => ({ id: o.id, createdAt: o.created_at, status: o.status, customer: o.customer_name, address: o.customer_address, neighborhood: o.customer_neighborhood, total: o.total, deliveryFee: o.delivery_fee || 0, paymentMethod: o.payment_method, paymentStatus: o.payment_status, cash: cashPart(o) }));
-  res.json({ period: { from, to }, driver: employee(db, req.params.driverId), orders, totals: { orders: orders.length, total: orders.reduce((a, o) => a + o.total, 0), deliveryFees: orders.reduce((a, o) => a + o.deliveryFee, 0), cash: orders.reduce((a, o) => a + o.cash, 0), pending: orders.filter(o => o.paymentStatus !== 'paid').reduce((a, o) => a + o.total, 0) } });
+  res.json({ period: { from, to }, driver: employee(db, req.params.driverId), orders, totals: { orders: orders.length, total: orders.reduce((a, o) => a + o.total, 0), deliveryFees: orders.reduce((a, o) => a + o.deliveryFee, 0), feesDelivered: orders.filter(o => o.status === 'delivered').reduce((a, o) => a + o.deliveryFee, 0), cash: orders.reduce((a, o) => a + o.cash, 0), pending: orders.filter(o => o.paymentStatus !== 'paid').reduce((a, o) => a + o.total, 0) } });
 });
 
 module.exports = router;
