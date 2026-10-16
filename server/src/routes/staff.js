@@ -11,6 +11,8 @@ const router = Router();
 // Personal completo exige la sección 'Personal'; quien maneja la caja puede registrar propinas, anticipos y asistencia y consultar la lista de colaboradores
 const CASH_OPS = ['GET /employees', 'GET /tips', 'POST /tips', 'GET /advances', 'POST /advances', 'GET /attendance', 'POST /attendance', 'GET /tips/config', 'GET /tips/statement', 'GET /tips/payouts', 'POST /tips/payouts'];
 router.use((req, res, next) => {
+  // Mi cuenta: cualquier usuario con sesión ve solo sus propios datos (la ruta filtra por su usuario)
+  if (req.method === 'GET' && req.path.replace(/[/]+$/, '') === '/me') return next();
   if (hasView(req.user, 'staff')) return next();
   if (hasView(req.user, 'shift') && CASH_OPS.includes(req.method + ' ' + req.path.replace(/[/]+$/, ''))) return next();
   return res.status(403).json({ error: 'No tienes permiso para esta sección o acción. Pídele acceso al administrador.', permission: 'staff' });
@@ -673,6 +675,49 @@ router.get('/holidays/:year', STAFF, (req, res) => {
   const year = Number(req.params.year);
   if (!Number.isInteger(year) || year < 2000 || year > 2100) return res.status(400).json({ error: 'Año inválido' });
   res.json([...payroll.colombianHolidays(year)].sort());
+});
+
+/* ------------------------------------------------------------------ */
+/* Mi cuenta: cada colaborador ve SOLO lo suyo (comprobantes, consumos, préstamos, propinas, próxima liquidación) */
+/* ------------------------------------------------------------------ */
+router.get('/me', (req, res) => {
+  const db = getDb();
+  PX.ensureConsumoCols(db);
+  const emp = req.user && db.prepare(`${EMP_SELECT} WHERE user_id = ? AND active = 1 ORDER BY id LIMIT 1`).get(req.user.id);
+  if (!emp) return res.json({ linked: false });
+  // Período en curso: el mes para sueldo mensual; la quincena para los demás
+  const t = today(db);
+  const day = Number(t.slice(8, 10));
+  const lastDay = new Date(Date.UTC(Number(t.slice(0, 4)), Number(t.slice(5, 7)), 0)).getUTCDate();
+  const monthly = emp.payMode === 'monthly';
+  const from = monthly || day <= 15 ? `${t.slice(0, 7)}-01` : `${t.slice(0, 7)}-16`;
+  const to = monthly || day > 15 ? `${t.slice(0, 7)}-${String(lastDay).padStart(2, '0')}` : `${t.slice(0, 7)}-15`;
+  let preview = null;
+  try {
+    const c = computeSettlement(db, emp, from, to);
+    preview = { periodStart: from, periodEnd: to, units: c.units, unitLabel: c.unitLabel, baseTotal: c.baseTotal, extrasTotal: c.extrasTotal, allowanceTotal: c.allowanceTotal,
+      tipsTotal: c.tipsTotal, tipsAccrued: c.tipsAccrued, tipsSeparate: c.tipsSeparate, advancesTotal: c.advancesTotal, loansTotal: c.loansTotal, legalDeductionsTotal: c.legalDeductionsTotal,
+      noveltiesExtras: c.noveltiesExtras, noveltiesBonus: c.noveltiesBonus, noveltiesAbsence: c.noveltiesAbsence, noveltiesDeductions: c.noveltiesDeductions, subtotal: c.subtotal,
+      attendance: c.attendance.length };
+  } catch (e) { preview = null; }
+  const loans = db.prepare(`${LOAN_SELECT} WHERE l.employee_id = ? ORDER BY (l.status = 'active') DESC, l.date DESC, l.id DESC LIMIT 200`).all(emp.id).map(mapLoan);
+  // Consumos: qué productos fueron (de la venta cobrada por nómina)
+  const itemsOf = db.prepare('SELECT name, size, quantity, price FROM order_items WHERE order_id = ? ORDER BY id');
+  const orderOf = db.prepare('SELECT subtotal, discount, total, created_at AS createdAt, sale_label AS label FROM orders WHERE id = ?');
+  for (const l of loans) if (l.kind === 'consumo' && l.orderId) { l.order = orderOf.get(l.orderId) || null; l.items = itemsOf.all(l.orderId); }
+  const settlements = db.prepare(`${SET_SELECT} WHERE s.employee_id = ? ORDER BY s.period_end DESC, s.id DESC LIMIT 60`).all(emp.id).map(mapSet);
+  const advances = db.prepare(`${ADV_SELECT} WHERE a.employee_id = ? AND a.settled = 0 ORDER BY a.date DESC`).all(emp.id).map(mapAdv);
+  const { bankAccount, notes, ...pub } = mapEmp(emp); void notes;
+  res.json({
+    linked: true,
+    employee: { ...pub, bankAccountLast4: bankAccount ? String(bankAccount).slice(-4) : '' },
+    preview, loans, settlements, advances,
+    balances: {
+      consumos: loans.filter(l => l.kind === 'consumo' && l.status === 'active').reduce((a, l) => a + l.balance, 0),
+      loans: loans.filter(l => l.kind !== 'consumo' && l.status === 'active').reduce((a, l) => a + l.balance, 0),
+      advances: advances.reduce((a, r) => a + r.amount, 0),
+    },
+  });
 });
 
 module.exports = router;

@@ -19,6 +19,7 @@ import MenuModulePage from "@/pages/MenuModulePage";
 import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import ReportsPage from "@/pages/ReportsPage";
+import MyAccountPage from "@/pages/MyAccountPage";
 import SettingsPage from "@/pages/SettingsPage";
 import StaffPage from "@/pages/StaffPage";
 import FinancePage from "@/pages/FinancePage";
@@ -135,6 +136,8 @@ const App = () => (
             <Route path="/customers" element={<Guard view="customers"><CustomersPage /></Guard>} />
             <Route path="/customers/:id" element={<Guard view="customers"><CustomerDetailPage /></Guard>} />
             <Route path="/staff" element={<Guard view="staff"><StaffPage /></Guard>} />
+            {/* Mi cuenta: cualquier usuario ve solo sus propios datos de nómina */}
+            <Route path="/mi-cuenta" element={<MyAccountPage />} />
             <Route path="/finance" element={<Guard view="finance"><FinancePage /></Guard>} />
             <Route path="/reports" element={<Guard view="reports"><ReportsPage /></Guard>} />
             <Route path="/settings" element={<Guard view="settings"><SettingsPage /></Guard>} />

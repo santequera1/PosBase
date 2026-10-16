@@ -6,6 +6,7 @@ import {
 import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal, LoansPanel } from '@/components/staff/StaffExtras';
 import { EmployeeDetail } from '@/components/staff/EmployeeDetail';
 import { downloadXlsx } from '@/lib/xlsx';
+import { openPayslip } from '@/lib/payslip';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
@@ -594,6 +595,7 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     <p className="text-sm font-semibold text-brand-dark truncate">{s.employeeName}</p>
                     {s.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1"><CheckCircle2 size={10} /> Pagada</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold flex items-center gap-1"><Clock size={10} /> Pendiente</span>}
                   </div>
+                  <button onClick={() => { const e = employees.find(x => x.id === s.employeeId); openPayslip(s, e ? { name: e.name, document: (e as any).document, position: e.position } : undefined); }} className="float-right ml-2 px-2 py-1 rounded-lg border border-border bg-white text-[11px] font-semibold" data-admin-payslip={s.id}>Comprobante</button>
                   <p className="text-[11px] text-muted-foreground">{fmtDate(s.periodStart)} – {fmtDate(s.periodEnd)} · base {formatPrice(s.baseTotal)}{s.extrasTotal ? ` + extras ${formatPrice(s.extrasTotal)}` : ''}{s.allowanceTotal ? ` + auxilio ${formatPrice(s.allowanceTotal)}` : ''} + propinas {formatPrice(s.tipsTotal)}{s.advancesTotal ? ` − anticipos ${formatPrice(s.advancesTotal)}` : ''}{s.legalDeductionsTotal ? ` − salud/pensión ${formatPrice(s.legalDeductionsTotal)}` : ''}{s.deductions ? ` − descuentos ${formatPrice(s.deductions)}` : ''}{s.bonuses ? ` + bonos ${formatPrice(s.bonuses)}` : ''}{(s.noveltiesExtras || 0) + (s.noveltiesBonus || 0) ? ` + novedades ${formatPrice((s.noveltiesExtras || 0) + (s.noveltiesBonus || 0))}` : ''}{(s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0) ? ` − novedades ${formatPrice((s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0))}` : ''}{s.loansTotal ? ` − préstamos ${formatPrice(s.loansTotal)}` : ''}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-brand-primary">{formatPrice(s.total)}</p>

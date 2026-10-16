@@ -19,7 +19,7 @@ import {
   Landmark,
   Sun,
   Moon,
-  LayoutGrid, ShoppingBag, Bike, ChefHat, ChevronDown,
+  LayoutGrid, ShoppingBag, Bike, ChefHat, ChevronDown, IdCard,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { BranchSwitcher } from '@/components/BranchSwitcher';
@@ -44,6 +44,7 @@ const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: bool
   { path: '/finance', label: 'Finanzas', icon: Landmark, view: 'finance' },
   { path: '/staff', label: 'Personal & Nómina', icon: UsersRound, view: 'staff' },
   { path: '/settings', label: 'Configuración', icon: Settings, view: 'settings' },
+  { path: '/mi-cuenta', label: 'Mi cuenta', icon: IdCard },
 ];
 
 const visibleFor = (items: NavItem[], user?: PermUser | null) => {
@@ -279,6 +280,10 @@ export const AppLayout = () => {
                 <p className="text-sm font-bold font-serif text-brand-primary">{user?.name}</p>
                 <p className="text-xs text-brand-muted capitalize">{user?.role}</p>
               </div>
+              <button onClick={() => { navigate('/mi-cuenta'); setShowUserMenu(false); }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-brand-card transition-colors flex items-center gap-2 text-brand-primary" data-menu-my-account>
+                <IdCard size={14} /> Mi cuenta (nómina)
+              </button>
               <button onClick={() => { navigate('/settings'); setShowUserMenu(false); }}
                 className="w-full px-3 py-2 text-left text-sm hover:bg-brand-card transition-colors flex items-center gap-2 text-brand-primary">
                 <Settings size={14} /> Configuración
@@ -333,6 +338,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
     { path: '/finance', label: 'Finanzas', icon: Landmark, view: 'finance' },
     { path: '/staff', label: 'Personal', icon: UsersRound, view: 'staff' },
     { path: '/settings', label: 'Config', icon: Settings, view: 'settings' },
+    { path: '/mi-cuenta', label: 'Mi cuenta', icon: IdCard },
   ], user);
 
   return (
