@@ -158,6 +158,8 @@ export interface Order {
   paymentSplit?: PaymentSplit;
   paymentStatus: 'pending' | 'paid';
   cashReceived?: number;
+  /** Abono de reserva ya pagado (se descuenta al cobrar) */
+  deposit?: { amount: number; method: string; note?: string; at?: string | null; by?: string | null };
   cashChange?: number;
   createdAt: string;
   driverId?: number;

@@ -291,6 +291,13 @@ function migrateSchema() {
   addCol('orders', 'fe_issued_at', 'TEXT');
   addCol('orders', 'cashier_name', 'TEXT');
   addCol('orders', 'user_id', 'INTEGER');
+  // Abono de reserva: pagado antes de cerrar la cuenta (se descuenta al cobrar)
+  addCol('orders', 'deposit_amount', 'INTEGER DEFAULT 0');
+  addCol('orders', 'deposit_method', 'TEXT');
+  addCol('orders', 'deposit_note', 'TEXT');
+  addCol('orders', 'deposit_at', 'TEXT');
+  addCol('orders', 'deposit_by', 'TEXT');
+  addCol('orders', 'deposit_movement_id', 'INTEGER');
   backfillOrderCashier(db);
 
   // Clientes: el teléfono deja de ser obligatorio y único (basta con cédula/NIT para el directorio y la F.E.)

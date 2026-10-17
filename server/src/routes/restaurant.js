@@ -39,6 +39,32 @@ function recomputeTotals(db, orderId) {
  * Consumo del empleado por una venta cobrada con descuento de nómina: un "préstamo" de tipo consumo atado a la venta,
  * que se descuenta en las próximas liquidaciones. Si la venta deja de ser por nómina, el consumo sin cuotas se elimina.
  */
+/**
+ * Descuento de la cuenta (manual con motivo, o del catálogo: Empleados, Clientes...). Se usa al cobrar y también antes
+ * de imprimir la precuenta. Guarda el descuento en la cuenta y recalcula el total. Devuelve { ok } o { error, status }.
+ */
+function applyDiscount(db, req, order, b) {
+  let discount = Math.max(0, Math.round(Number(b.discount ?? order.discount) || 0));
+  let discountReason = discount > 0 ? String(b.discountReason || order.discount_reason || '').trim() : null;
+  let dk = discount > 0 ? 'manual' : null, dId = null, dName = null, empId = null, empName = null;
+  // Se conserva el descuento del catálogo que ya tenía la cuenta si no llega uno nuevo
+  if (b.discountId === undefined && b.staffDiscountEmployeeId === undefined && discount > 0 && discount === (order.discount || 0) && order.discount_kind && order.discount_kind !== 'manual') {
+    dk = order.discount_kind; dId = order.discount_id; dName = order.discount_name; empId = order.discount_employee_id; empName = order.discount_employee_name;
+  }
+  const catId = b.discountId ? Number(b.discountId) : (b.staffDiscountEmployeeId ? D.staffDiscountId(db) : null);
+  if (catId) {
+    const items = db.prepare('SELECT product_id AS productId, price, quantity FROM order_items WHERE order_id = ?').all(order.id);
+    const r = D.computeDiscount(db, catId, items, { value: b.discountValue, employeeId: b.discountEmployeeId || b.staffDiscountEmployeeId });
+    if (r.error) return { error: r.error };
+    discount = r.amount; discountReason = r.reason; dk = r.kind; dId = r.discount.id; dName = r.discount.name; empId = r.employee ? r.employee.id : null; empName = r.employee ? r.employee.name : null;
+  }
+  if (discount > 0 && discount !== (order.discount || 0) && !hasAction(req.user, 'discounts')) return { error: 'No tienes permiso para aplicar descuentos. Pídele a un administrador.', status: 403 };
+  if (discount > 0 && dk === 'manual' && !discountReason) return { error: 'Escribe el motivo del descuento' };
+  db.prepare('UPDATE orders SET discount = ?, discount_reason = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ?, discount_id = ?, discount_name = ? WHERE id = ?')
+    .run(discount, discount > 0 ? discountReason : null, discount > 0 ? dk : null, discount > 0 ? empId : null, discount > 0 ? empName : null, discount > 0 ? dId : null, discount > 0 ? dName : null, order.id);
+  return { ok: true };
+}
+
 function syncPayrollConsumo(db, orderId, emp, installments, userName) {
   require('../payrollExtras').ensureConsumoCols(db);
   const cur = db.prepare("SELECT * FROM employee_loans WHERE order_id = ? AND kind = 'consumo'").get(orderId);
@@ -347,6 +373,50 @@ router.post('/orders/:id/send', (req, res) => {
   res.json({ order: formatted, batch, items: batch ? formatted.items.filter(i => i.batch === batch) : [], printed: out.printed || 0 });
 });
 
+// Descuento antes de la precuenta (queda en la cuenta y el cobro lo trae)
+router.post('/orders/:id/discount', (req, res) => {
+  const db = getDb();
+  const order = getOrder(db, req.params.id);
+  if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+  if (!ACTIVE.includes(order.status) || order.payment_status === 'paid') return res.status(400).json({ error: 'La cuenta ya está cobrada' });
+  const r = applyDiscount(db, req, order, req.body || {});
+  if (r.error) return res.status(r.status || 400).json({ error: r.error });
+  recomputeTotals(db, order.id);
+  const formatted = fmt(db, order.id);
+  emit(req, 'order:updated', formatted);
+  res.json(formatted);
+});
+
+// Abono de reserva: se registra lo que el cliente ya pagó; al cobrar solo se cobra el saldo.
+// En efectivo entra a la caja abierta en ese momento (y al cobrar no se cuenta dos veces).
+router.post('/orders/:id/deposit', (req, res) => {
+  const db = getDb();
+  const order = getOrder(db, req.params.id);
+  if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+  if (!ACTIVE.includes(order.status) || order.payment_status === 'paid') return res.status(400).json({ error: 'La cuenta ya está cobrada' });
+  const b = req.body || {};
+  const amount = Math.max(0, Math.round(Number(b.amount) || 0));
+  const method = ['cash', 'transfer', 'card'].includes(b.method) ? b.method : 'transfer';
+  const note = String(b.note || '').trim().slice(0, 120);
+  const { removeCashMovementIfOpen, getOpenShift } = require('../cashHelpers');
+  // Si cambia el abono, se quita el ingreso de efectivo anterior (si su caja sigue abierta)
+  if (order.deposit_movement_id) {
+    if (!removeCashMovementIfOpen(db, order.deposit_movement_id) && order.deposit_method === 'cash' && (amount !== order.deposit_amount || method !== 'cash')) return res.status(400).json({ error: 'El abono en efectivo se registró en una caja que ya se cerró: no se puede cambiar' });
+  }
+  let movementId = null;
+  if (amount > 0 && method === 'cash') {
+    const shift = getOpenShift(db);
+    if (!shift) return res.status(400).json({ error: 'Abre la caja para recibir un abono en efectivo' });
+    movementId = Number(db.prepare("INSERT INTO cash_movements (shift_id, type, amount, reason, cashier_name, created_at) VALUES (?, 'deposit', ?, ?, ?, datetime('now', '-5 hours'))")
+      .run(shift.id, amount, `Abono reserva cuenta #${order.id}${note ? ' · ' + note : ''}`.slice(0, 120), req.user?.name || 'Caja').lastInsertRowid);
+  }
+  db.prepare('UPDATE orders SET deposit_amount = ?, deposit_method = ?, deposit_note = ?, deposit_at = ?, deposit_by = ?, deposit_movement_id = ? WHERE id = ?')
+    .run(amount, amount ? method : null, amount ? note : null, amount ? now(db) : null, amount ? (req.user?.name || null) : null, movementId, order.id);
+  const formatted = fmt(db, order.id);
+  emit(req, 'order:updated', formatted);
+  res.json(formatted);
+});
+
 // Datos de cabecera: personas, mesero, cliente, etiqueta, canal, comentario, repartidor, tiempo, envío
 router.patch('/orders/:id', (req, res) => {
   const db = getDb();
@@ -498,31 +568,19 @@ router.post('/orders/:id/close', (req, res) => {
   if (!itemsCount) return res.status(400).json({ error: 'La cuenta no tiene productos' });
 
   sendUnsent(db, req.app.io, order, req.user?.name);
-  let discount = Math.max(0, Math.round(Number(b.discount ?? order.discount) || 0));
-  let discountReason = discount > 0 ? String(b.discountReason || order.discount_reason || '').trim() : null;
-  let dk = discount > 0 ? 'manual' : null, dId = null, dName = null, empId = null, empName = null;
-  // Se conserva el descuento del catálogo que ya tenía la cuenta si no llega uno nuevo
-  if (b.discountId === undefined && b.staffDiscountEmployeeId === undefined && discount > 0 && discount === (order.discount || 0) && order.discount_kind && order.discount_kind !== 'manual') {
-    dk = order.discount_kind; dId = order.discount_id; dName = order.discount_name; empId = order.discount_employee_id; empName = order.discount_employee_name;
-  }
-  // Descuento del catálogo (Empleados, Clientes...): el servidor calcula el valor sobre los productos de la cuenta
-  const catId = b.discountId ? Number(b.discountId) : (b.staffDiscountEmployeeId ? D.staffDiscountId(db) : null);
-  if (catId) {
-    const items = db.prepare('SELECT product_id AS productId, price, quantity FROM order_items WHERE order_id = ?').all(order.id);
-    const r = D.computeDiscount(db, catId, items, { value: b.discountValue, employeeId: b.discountEmployeeId || b.staffDiscountEmployeeId });
-    if (r.error) return res.status(400).json({ error: r.error });
-    discount = r.amount; discountReason = r.reason; dk = r.kind; dId = r.discount.id; dName = r.discount.name; empId = r.employee ? r.employee.id : null; empName = r.employee ? r.employee.name : null;
-  }
-  if (discount > 0 && discount !== (order.discount || 0) && !hasAction(req.user, 'discounts')) return res.status(403).json({ error: 'No tienes permiso para aplicar descuentos. Pídele a un administrador.' });
+  const dr = applyDiscount(db, req, order, b);
+  if (dr.error) return res.status(dr.status || 400).json({ error: dr.error });
   // Venta por descuento de nómina: nunca lleva propina (se valida antes de guardar nada)
   if (b.paymentMethod === 'payroll' && Math.round(Number(b.tip) || 0) > 0) return res.status(400).json({ error: 'Las ventas por descuento de nómina no llevan propina' });
   const tip = b.paymentMethod === 'payroll' ? 0 : Math.max(0, Math.round(Number(b.tip ?? order.tip) || 0));
-  db.prepare('UPDATE orders SET discount = ?, discount_reason = ?, tip = ?, tip_to = ?, discount_kind = ?, discount_employee_id = ?, discount_employee_name = ?, discount_id = ?, discount_name = ? WHERE id = ?')
-    .run(discount, discount > 0 ? discountReason : null, tip, tip > 0 ? (b.tipTo === 'waiter' ? 'waiter' : 'common') : null,
-      discount > 0 ? dk : null, discount > 0 ? empId : null, discount > 0 ? empName : null, discount > 0 ? dId : null, discount > 0 ? dName : null, order.id);
+  db.prepare('UPDATE orders SET tip = ?, tip_to = ? WHERE id = ?').run(tip, tip > 0 ? (b.tipTo === 'waiter' ? 'waiter' : 'common') : null, order.id);
   recomputeTotals(db, order.id);
   const fresh = getOrder(db, order.id);
   const due = fresh.total + tip;
+  // Abono de reserva: ya pagado; aquí se cobra solo el saldo
+  const deposit = Math.max(0, fresh.deposit_amount || 0);
+  if (deposit > due) return res.status(400).json({ error: `El abono (${deposit}) es mayor que el total a pagar (${due}). Corrige el abono antes de cobrar.` });
+  const rest = due - deposit;
 
   const method = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed', 'payroll'].includes(b.paymentMethod) ? b.paymentMethod : (fresh.payment_method || 'cash');
   // Descuento de nómina: no entra a la caja; queda como consumo del empleado y se descuenta en su liquidación
@@ -534,23 +592,38 @@ router.post('/orders/:id/close', (req, res) => {
   }
   let split = null;
   if (method === 'mixed') {
-    const r = require('../paymentSplit').readSplitInput(b.paymentSplit, due);
+    const r = require('../paymentSplit').readSplitInput(b.paymentSplit, rest);
     if (r.error) return res.status(400).json({ error: r.error });
     split = r.split;
   }
   const paymentStatus = method === 'credit' ? 'pending' : 'paid';
   // Mixto: lo recibido en efectivo puede ser más que la parte en efectivo (paga con un billete grande) → vuelto
   const cashPart = method === 'mixed' ? require('../paymentSplit').cashOf(split) : 0;
-  const cashReceived = method === 'cash' ? Math.max(due, Math.round(Number(b.cashReceived) || due)) : (method === 'mixed' ? Math.max(cashPart, Math.round(Number(b.cashReceived) || 0)) : 0);
-  const cashChange = method === 'cash' ? Math.max(0, cashReceived - due) : (method === 'mixed' ? Math.max(0, cashReceived - cashPart) : 0);
+  let cashReceived = method === 'cash' ? Math.max(rest, Math.round(Number(b.cashReceived) || rest)) : (method === 'mixed' ? Math.max(cashPart, Math.round(Number(b.cashReceived) || 0)) : 0);
+  const cashChange = method === 'cash' ? Math.max(0, cashReceived - rest) : (method === 'mixed' ? Math.max(0, cashReceived - cashPart) : 0);
+  // Con abono: la venta queda con el abono como uno de sus medios de pago (efectivo + transferencia...)
+  let finalMethod = method, finalSplit = split;
+  if (deposit > 0 && !['credit', 'payroll'].includes(method)) {
+    const PS = require('../paymentSplit');
+    const dm = fresh.deposit_method || 'transfer';
+    const parts = [{ method: dm, amount: deposit }, ...(method === 'mixed' ? PS.splitParts(split) : rest > 0 ? [{ method, amount: rest }] : [])];
+    const merged = []; for (const p of parts) { const m = merged.find(x => x.method === p.method); if (m) m.amount += p.amount; else merged.push({ ...p }); }
+    if (merged.length === 1) { finalMethod = merged[0].method; finalSplit = null; } else { finalMethod = 'mixed'; finalSplit = PS.makeSplit(merged); }
+    if (dm === 'cash') cashReceived += deposit;
+  } else if (deposit > 0) return res.status(400).json({ error: 'Una cuenta con abono no se puede dejar a crédito ni cargar a nómina: quita el abono o cóbrala con otro medio' });
   const ts = now(db);
   const closeNow = fresh.type !== 'delivery' || Boolean(b.markDelivered) || fresh.status === 'delivered';
   const sets = ['payment_method = ?', 'payment_split = ?', 'payment_status = ?', 'cash_received = ?', 'cash_change = ?', 'closed_by = ?', 'payroll_employee_id = ?'];
-  const vals = [method, split ? JSON.stringify(split) : null, paymentStatus, cashReceived, cashChange, req.user?.name || null, payrollEmp ? payrollEmp.id : null];
+  const vals = [finalMethod, finalSplit ? JSON.stringify(finalSplit) : null, paymentStatus, cashReceived, cashChange, req.user?.name || null, payrollEmp ? payrollEmp.id : null];
   if (closeNow) { sets.push('status = ?', 'delivered_at = COALESCE(delivered_at, ?)', 'closed_at = ?'); vals.push('delivered', ts, ts); }
   vals.push(order.id);
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
   syncPayrollConsumo(db, order.id, payrollEmp, payrollInstallments, req.user?.name);
+  // El abono en efectivo ya entró a la caja cuando se recibió: se compensa para no contarlo dos veces
+  if (deposit > 0 && fresh.deposit_method === 'cash') {
+    const w = require('../cashHelpers').registerCashWithdrawal(db, deposit, `Abono ya recibido antes · cuenta #${order.id}`, req.user?.name);
+    if (w.error) console.warn('Abono en efectivo:', w.error);
+  }
 
   // Propina → módulo de personal (directa al mesero o común)
   if (tip > 0) {

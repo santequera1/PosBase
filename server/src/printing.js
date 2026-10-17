@@ -231,16 +231,20 @@ function preBillTicket(printer, b, order, items, tipPct) {
   t.sep();
   const subtotal = order.subtotal || 0;
   if (order.delivery_fee) t.pair('Envío', money(order.delivery_fee));
-  if (order.discount) t.pair('Descuento', '-' + money(order.discount));
+  if (order.discount) t.pair(`Descuento${order.discount_name ? ' ' + order.discount_name : ''}`, '-' + money(order.discount));
   // Como en Fudo: el número grande es el total con la propina sugerida (el consumo va en tamaño normal)
-  if (tipPct > 0) {
-    const tip = Math.round((order.total * tipPct) / 100);
-    t.pair('Subtotal', money(order.total)).pair(`Propina sugerida ${tipPct}%`, money(tip)).sep();
-    t.bold().size('tall').pair('TOTAL', money(order.total + tip)).size(1).bold(false);
-    t.line('La propina es voluntaria.');
+  const deposit = order.deposit_amount || 0;
+  const tipV = tipPct > 0 ? Math.round((order.total * tipPct) / 100) : 0;
+  if (tipPct > 0) t.pair('Subtotal', money(order.total)).pair(`Propina sugerida ${tipPct}%`, money(tipV)).sep();
+  if (deposit > 0) {
+    // Reserva con abono: se muestra lo ya pagado y el saldo (el número grande es lo que falta por pagar)
+    t.bold().pair('TOTAL', money(order.total + tipV)).bold(false);
+    t.pair(`Abono${order.deposit_note ? ' (' + order.deposit_note + ')' : ' (reserva)'}`, '-' + money(deposit));
+    t.bold().size('tall').pair('SALDO A PAGAR', money(Math.max(0, order.total + tipV - deposit))).size(1).bold(false);
   } else {
-    t.bold().size('tall').pair('TOTAL', money(order.total)).size(1).bold(false);
+    t.bold().size('tall').pair('TOTAL', money(order.total + tipV)).size(1).bold(false);
   }
+  if (tipPct > 0) t.line('La propina es voluntaria.');
   void subtotal;
   t.nl().align('center').line('Este documento no es una factura.').line('Gracias por tu visita');
   return t.cut().buffer();

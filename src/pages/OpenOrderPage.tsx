@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split } from 'lucide-react';
+import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split, BadgePercent, PiggyBank } from 'lucide-react';
+import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
 import { toast } from 'sonner';
 import { useStore, type Order, type OrderItem } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -35,6 +36,8 @@ const OpenOrderPage = () => {
   const [mobileView, setMobileView] = useState<'catalog' | 'account'>('catalog');
   const [showClose, setShowClose] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
   const [showMove, setShowMove] = useState<'move' | 'merge' | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [noteEdit, setNoteEdit] = useState<number | null>(null);
@@ -289,6 +292,10 @@ const OpenOrderPage = () => {
             {order.deliveryFee ? <div className="flex justify-between text-brand-muted"><span>Envío</span><span>{formatPrice(order.deliveryFee)}</span></div> : null}
             {order.discount ? <div className="flex justify-between text-red-700"><span>Descuento</span><span>− {formatPrice(order.discount)}</span></div> : null}
             <div className="flex justify-between text-base font-bold text-brand-dark"><span>Total</span><span>{formatPrice(total)}</span></div>
+            {order.deposit?.amount ? <>
+              <div className="flex justify-between text-emerald-700" data-deposit-line><span>Abono{order.deposit.note ? ` (${order.deposit.note})` : ''} · {PAY_SHORT[order.deposit.method] || order.deposit.method}</span><span>− {formatPrice(order.deposit.amount)}</span></div>
+              <div className="flex justify-between font-bold text-brand-dark"><span>Saldo a pagar</span><span>{formatPrice(Math.max(0, total - order.deposit.amount))}</span></div>
+            </> : null}
             {order.type === 'delivery' && order.paymentMethod === 'cash' && order.paymentStatus !== 'paid' && !closed && total > 0 && (
               <PayWithBox order={order} total={total} onSaved={o => setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] })} />
             )}
@@ -300,6 +307,10 @@ const OpenOrderPage = () => {
               <button onClick={send} disabled={busy || draft.length === 0} className="py-2.5 rounded-xl bg-brand-surface text-brand-on-dark text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Enviar a cocina solo lo nuevo"><ChefHat size={16} />{order.type === 'dine-in' ? 'A cocina' : 'Confirmar'}</button>
               <button onClick={prebill} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl bg-white border border-brand-primary/20 text-brand-primary text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Imprimir precuenta"><Receipt size={16} />Precuenta</button>
               <button onClick={openClose} disabled={busy || (sentGroups.length === 0 && draft.length === 0)} className="py-2.5 rounded-xl gradient-primary text-primary-foreground text-xs font-bold flex flex-col items-center gap-1 disabled:opacity-40" title="Cobrar y cerrar"><Wallet size={16} />Cobrar</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setShowDiscount(true)} disabled={busy || total <= 0} className={cn('py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-brand-card disabled:opacity-40', order.discount ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-border text-brand-dark')} data-open-discount><BadgePercent size={13} /> {order.discount ? `Descuento −${formatPrice(order.discount)}` : 'Descuento'}</button>
+              <button onClick={() => setShowDeposit(true)} disabled={busy} className={cn('py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-brand-card disabled:opacity-40', order.deposit?.amount ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-border text-brand-dark')} data-open-deposit><PiggyBank size={13} /> {order.deposit?.amount ? `Abono ${formatPrice(order.deposit.amount)}` : 'Abono (reserva)'}</button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {true ? <button onClick={openSplit} disabled={busy || allLines.reduce((n, i) => n + i.quantity, 0) < 2} className="py-2 rounded-xl border border-border text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5 hover:bg-brand-card disabled:opacity-40" data-split><Split size={13} /> Cuentas separadas</button> : <span />}
@@ -319,6 +330,8 @@ const OpenOrderPage = () => {
       {showClose && <CloseOrderModal order={{ ...order, subtotal, total }} onClose={() => { setShowClose(false); if (!isActive(order)) navigate(backPath(order)); }} onClosed={o => { setOrder(o); setDraft([]); draftRef.current = []; }} />}
       {splitOpen && <SplitModal order={order} onClose={() => setSplitOpen(false)} onSplit={child => { setSplitOpen(false); splitPaid.current = false; setSplitChild(child); }} />}
       {splitChild && <CloseOrderModal order={splitChild} onClose={afterSplit} onClosed={() => { splitPaid.current = true; }} />}
+      {showDiscount && <OrderDiscountModal order={order} onClose={() => setShowDiscount(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowDiscount(false); }} flush={flush} />}
+      {showDeposit && <DepositModal order={order} total={total} onClose={() => setShowDeposit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowDeposit(false); }} />}
       {showEdit && <EditHeaderModal order={order} onClose={() => setShowEdit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowEdit(false); }} />}
       {showMove && <MoveTableModal mode={showMove} order={order} onClose={() => setShowMove(null)} onDone={(o, merged) => { setShowMove(null); if (merged) navigate(`/cuenta/${o.id}`); else setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); }} />}
     </div>
@@ -347,6 +360,81 @@ const PayWithBox = ({ order, total, onSaved }: { order: Order; total: number; on
       </div>
       {order.cashReceived && order.cashReceived > total ? <p className="text-xs font-bold text-emerald-700" data-paywith-change>Vuelto: {formatPrice(order.cashReceived - total)}</p> : order.cashReceived && order.cashReceived < total ? <p className="text-xs font-semibold text-red-600">Es menos que el total</p> : null}
     </div>
+  );
+};
+
+const PAY_SHORT: Record<string, string> = { cash: 'efectivo', transfer: 'transferencia', card: 'datáfono' };
+
+/* ---------- Descuento antes de la precuenta ---------- */
+const OrderDiscountModal = ({ order, onClose, onSaved, flush }: { order: Order; onClose: () => void; onSaved: (o: Order) => void; flush: () => Promise<void> }) => {
+  const [cat, setCat] = useState<DiscountSel | null>(null);
+  const [value, setValue] = useState(order.discount && !order.discountId ? String(order.discount) : '');
+  const [reason, setReason] = useState(order.discountReason || '');
+  const [saving, setSaving] = useState(false);
+  const save = async (remove = false) => {
+    setSaving(true);
+    try {
+      await flush();
+      const body: any = remove ? { discount: 0 } : cat ? { discount: cat.amount, discountId: cat.discountId, discountValue: cat.value, discountEmployeeId: cat.employeeId } : { discount: Math.round(Number(value) || 0), discountReason: reason.trim() };
+      const o = await api.setOrderDiscount(order.id, body);
+      toast.success(remove ? 'Descuento quitado' : 'Descuento aplicado: la precuenta ya sale con el descuento');
+      onSaved(o);
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+  const manualOk = Number(value) > 0 && reason.trim().length >= 3;
+  return (
+    <Modal title="Descuento de la cuenta" onClose={onClose}>
+      {order.discount ? <p className="text-xs rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2">Descuento actual: <b>− {formatPrice(order.discount)}</b>{order.discountName ? ` · ${order.discountName}` : ''}{order.discountReason ? ` · ${order.discountReason}` : ''}</p> : null}
+      <DiscountPicker items={order.items} value={cat} onChange={setCat} />
+      {!cat && (
+        <div className="space-y-2">
+          <label className={LABEL}>Otro descuento (valor en pesos)</label>
+          <input type="number" min={0} value={value} onChange={e => setValue(e.target.value)} placeholder="Ej. 10000" className={cn(INPUT, 'font-mono')} data-discount-value />
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo (obligatorio): cortesía, cliente frecuente..." className={INPUT} data-discount-reason />
+        </div>
+      )}
+      <div className="flex gap-2">
+        {order.discount ? <button onClick={() => save(true)} disabled={saving} className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-700 text-sm font-semibold">Quitar descuento</button> : null}
+        <button onClick={() => save(false)} disabled={saving || (!cat && !manualOk)} className="flex-1 py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-save-discount>Aplicar descuento</button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">Queda guardado en la cuenta: la precuenta sale con el descuento y al cobrar ya viene aplicado.</p>
+    </Modal>
+  );
+};
+
+/* ---------- Abono de reserva ---------- */
+const DepositModal = ({ order, total, onClose, onSaved }: { order: Order; total: number; onClose: () => void; onSaved: (o: Order) => void }) => {
+  const d = order.deposit;
+  const [amount, setAmount] = useState(d?.amount ? String(d.amount) : '');
+  const [method, setMethod] = useState(d?.method || 'transfer');
+  const [note, setNote] = useState(d?.note || '');
+  const [saving, setSaving] = useState(false);
+  const save = async (remove = false) => {
+    setSaving(true);
+    try {
+      const o = await api.setOrderDeposit(order.id, remove ? { amount: 0 } : { amount: Math.round(Number(amount) || 0), method, note: note.trim() });
+      toast.success(remove ? 'Abono quitado' : 'Abono registrado: al cobrar solo se cobra el saldo');
+      onSaved(o);
+    } catch (e: any) { toast.error(e.message); }
+    setSaving(false);
+  };
+  const n = Math.round(Number(amount) || 0);
+  return (
+    <Modal title="Abono de reserva" onClose={onClose}>
+      <p className="text-xs text-muted-foreground">Lo que el cliente ya pagó (por ejemplo al reservar). La precuenta muestra el abono y el <b>saldo a pagar</b>; al cobrar solo se cobra el saldo.</p>
+      <div><label className={LABEL}>Valor del abono</label><input autoFocus type="number" min={0} value={amount} onChange={e => setAmount(e.target.value)} placeholder="Ej. 50000" className={cn(INPUT, 'font-mono text-lg')} data-deposit-amount /></div>
+      <div><label className={LABEL}>¿Cómo lo pagó?</label>
+        <div className="flex flex-wrap gap-1.5">{(['transfer', 'cash', 'card'] as const).map(m => <Chip key={m} active={method === m} onClick={() => setMethod(m)}>{m === 'transfer' ? 'Transferencia / Nequi' : m === 'cash' ? 'Efectivo' : 'Datáfono'}</Chip>)}</div>
+        {method === 'cash' && <p className="text-[11px] text-amber-700 mt-1">El efectivo entra a la caja abierta ahora mismo (y al cobrar no se cuenta dos veces).</p>}
+      </div>
+      <div><label className={LABEL}>Nota (opcional)</label><input value={note} onChange={e => setNote(e.target.value)} placeholder="Ej. reserva cumpleaños Ana, comprobante 1234" className={INPUT} /></div>
+      {n > 0 && <p className="text-sm font-semibold text-brand-dark">Saldo a pagar: {formatPrice(Math.max(0, total - n))}{n > total ? <span className="text-amber-700 text-xs font-normal"> · el abono es mayor que lo consumido hasta ahora</span> : null}</p>}
+      <div className="flex gap-2">
+        {d?.amount ? <button onClick={() => save(true)} disabled={saving} className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-700 text-sm font-semibold">Quitar abono</button> : null}
+        <button onClick={() => save(false)} disabled={saving || n <= 0} className="flex-1 py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-save-deposit>Guardar abono</button>
+      </div>
+    </Modal>
   );
 };
 

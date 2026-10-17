@@ -106,9 +106,10 @@ export function generatePreBillHtml(order: Order, tipPercent = 0): string {
         <div class="row"><span>Subtotal:</span><span>${formatPrice(order.subtotal)}</span></div>
         ${order.deliveryFee ? `<div class="row"><span>Envío:</span><span>${formatPrice(order.deliveryFee)}</span></div>` : ''}
         ${order.discount ? `<div class="row"><span>Descuento:</span><span>-${formatPrice(order.discount)}</span></div>` : ''}
-        ${tip > 0
-          ? `<div class="row" style="font-size: 8px;"><span>Propina sugerida (${tipPercent}%):</span><span>${formatPrice(tip)}</span></div><div class="row font-bold" style="font-size: 10px; border-top: 1px solid #000; padding-top: 2px; margin-top: 2px;"><span>TOTAL:</span><span>${formatPrice(total + tip)}</span></div><p style="font-size: 6.5px; text-align: center; margin-top: 2px;">La propina es voluntaria (Ley 1935 de 2018).</p>`
-          : `<div class="row font-bold" style="font-size: 10px; border-top: 1px solid #000; padding-top: 2px; margin-top: 2px;"><span>TOTAL:</span><span>${formatPrice(total)}</span></div>`}
+        ${tip > 0 ? `<div class="row" style="font-size: 8px;"><span>Propina sugerida (${tipPercent}%):</span><span>${formatPrice(tip)}</span></div>` : ''}
+        <div class="row font-bold" style="font-size: 10px; border-top: 1px solid #000; padding-top: 2px; margin-top: 2px;"><span>TOTAL:</span><span>${formatPrice(total + tip)}</span></div>
+        ${order.deposit?.amount ? `<div class="row" style="font-size: 8.5px;"><span>Abono${order.deposit.note ? ' (' + esc(order.deposit.note) + ')' : ' (reserva)'}:</span><span>-${formatPrice(order.deposit.amount)}</span></div><div class="row font-bold" style="font-size: 11px;"><span>SALDO A PAGAR:</span><span>${formatPrice(Math.max(0, total + tip - order.deposit.amount))}</span></div>` : ''}
+        ${tip > 0 ? '<p style="font-size: 6.5px; text-align: center; margin-top: 2px;">La propina es voluntaria (Ley 1935 de 2018).</p>' : ''}
         ${people > 1 ? `<div class="row" style="font-size: 7.5px; margin-top: 2px;"><span>Por persona (${people}):</span><span>${formatPrice(Math.ceil((total + tip) / people))}</span></div>` : ''}
       </div>
       <div class="dashed" style="margin-top: 5px;"></div>

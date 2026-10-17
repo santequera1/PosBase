@@ -58,7 +58,9 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
   const disc = cat ? Math.min(base, cat.amount) : Math.min(base, Math.max(0, Math.round(Number(discount) || 0)));
   const total = base - disc;
   const tip = tipMode === 'none' || method === 'payroll' ? 0 : tipMode === 'suggested' ? Math.round((total * tipPct) / 100) : Math.max(0, Math.round(Number(tipCustom) || 0));
-  const due = total + tip;
+  const deposit = order.deposit?.amount || 0;
+  // Con abono de reserva: solo se cobra el saldo
+  const due = Math.max(0, total + tip - deposit);
   const received = Math.round(Number(cashReceived) || 0);
   const change = method === 'cash' && received > due ? received - due : 0;
   const mix = mixedState(mixLines, due);
@@ -113,6 +115,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
             {disc > 0 && <div className="flex justify-between text-red-700"><span>{cat ? cat.name : 'Descuento'}</span><span>− {formatPrice(disc)}</span></div>}
             <div className="flex justify-between font-semibold border-t border-border pt-1"><span>Total</span><span>{formatPrice(total)}</span></div>
             {tip > 0 && <div className="flex justify-between"><span>Propina</span><span>+ {formatPrice(tip)}</span></div>}
+            {deposit > 0 && <div className="flex justify-between text-emerald-700" data-close-deposit><span>Abono ya pagado{order.deposit?.note ? ` (${order.deposit.note})` : ''}</span><span>− {formatPrice(deposit)}</span></div>}
             <div className="flex justify-between text-base font-bold text-brand-dark border-t border-border pt-1"><span>A pagar</span><span>{formatPrice(due)}</span></div>
           </div>
           {canDo(user, 'discounts') && (
@@ -146,7 +149,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
           <div>
             <label className={LABEL}>Medio de pago</label>
             <div className="grid grid-cols-4 gap-1.5">
-              {METHODS.filter(m => m.id !== 'payroll' || staffAll.length > 0).map(m => (
+              {METHODS.filter(m => (m.id !== 'payroll' || staffAll.length > 0) && !(deposit > 0 && (m.id === 'payroll' || m.id === 'credit'))).map(m => (
                 <button key={m.id} onClick={() => setMethod(m.id)} className={cn('py-2.5 px-1 rounded-xl text-[11px] font-bold flex flex-col items-center gap-1 border transition-all', method === m.id ? 'bg-brand-button text-brand-on-button border-brand-primary shadow-md' : 'bg-white text-brand-primary border-brand-primary/15 hover:bg-brand-card')}>
                   <m.icon size={17} />{m.label}
                 </button>

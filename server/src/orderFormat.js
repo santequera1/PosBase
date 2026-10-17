@@ -56,6 +56,7 @@ function formatOrder(db, order) {
     paymentStatus: order.payment_status,
     cashReceived: order.cash_received || 0,
     cashChange: order.cash_change || 0,
+    deposit: order.deposit_amount ? { amount: order.deposit_amount, method: order.deposit_method || 'transfer', note: order.deposit_note || '', at: order.deposit_at || null, by: order.deposit_by || null } : undefined,
     paymentSplit: order.payment_split ? (() => { const ps = require('./paymentSplit'); const parts = ps.splitParts(order.payment_split); return parts.length ? { ...ps.makeSplit(parts), parts } : undefined; })() : undefined,
     createdAt: order.created_at,
     readyAt: order.ready_at || undefined,
