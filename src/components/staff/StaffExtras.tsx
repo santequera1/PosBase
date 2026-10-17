@@ -293,18 +293,28 @@ export const NoveltiesTab = ({ employees }: { employees: Array<{ id: number; nam
       <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
         {rows.length === 0 ? <p className="p-6 text-center text-xs text-muted-foreground">Sin novedades en el período.</p> : (
           <ul className="divide-y divide-border">
-            {rows.map(n => (
-              <li key={n.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', n.sign > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')}><ClipboardList size={16} /></div>
+            {rows.map(n => {
+              // Estado claro: lo que resta "Por descontar" / "Descontada"; lo que suma "Por pagar" / "Pagada" (en la liquidación)
+              const st = n.settlementId ? (n.sign < 0 ? 'Descontada' : 'Pagada') : (n.sign < 0 ? 'Por descontar' : 'Por pagar');
+              const extra = [fmtDate(n.date), n.unit !== 'valor' && n.quantity ? `${n.quantity} ${n.unit}` : '', n.pct ? `${n.pct}%` : '', n.notes && !String(n.label).includes(n.notes) ? n.notes : ''].filter(Boolean).join(' · ');
+              return (
+              <li key={n.id} className="flex items-start gap-3 px-4 py-3" data-novelty-row>
+                <div className={cn('hidden sm:flex w-9 h-9 rounded-lg items-center justify-center shrink-0', n.sign > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')}><ClipboardList size={16} /></div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-brand-dark">{n.label} <span className="font-normal text-muted-foreground">· {n.employeeName}</span></p>
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(n.date)}{n.unit !== 'valor' && n.quantity ? ` · ${n.quantity} ${n.unit}` : ''}{n.pct ? ` · ${n.pct}%` : ''}{n.notes ? ` · ${n.notes}` : ''}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-brand-dark leading-snug">{n.label}</p>
+                    <p className={cn('text-sm font-bold whitespace-nowrap', n.sign > 0 ? 'text-emerald-700' : 'text-red-700')}>{n.sign > 0 ? '+' : '−'} {formatPrice(n.amount)}</p>
+                  </div>
+                  <p className="text-xs text-brand-dark">{n.employeeName}</p>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                    <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-semibold', n.settlementId ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')} title={n.settlementId ? 'Ya se incluyó en una liquidación' : 'Se incluye sola en la próxima liquidación'}>{st}</span>
+                    <span className="text-[11px] text-muted-foreground">{extra}</span>
+                  </div>
                 </div>
-                {n.settlementId ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Liquidada</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">Pendiente</span>}
-                <p className={cn('text-sm font-bold w-28 text-right', n.sign > 0 ? 'text-emerald-700' : 'text-red-700')}>{n.sign > 0 ? '+' : '−'} {formatPrice(n.amount)}</p>
-                {!n.settlementId && <button onClick={() => remove(n)} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={14} /></button>}
+                {!n.settlementId && <button onClick={() => remove(n)} className="p-1.5 -mr-1.5 text-muted-foreground hover:text-red-600" title="Eliminar"><Trash2 size={14} /></button>}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>
