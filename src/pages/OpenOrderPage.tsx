@@ -47,6 +47,7 @@ const OpenOrderPage = () => {
   const [splitOpen, setSplitOpen] = useState(false);
   const [splitChild, setSplitChild] = useState<Order | null>(null);
   const splitPaid = useRef(false);
+  const splitKeep = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef<OrderItem[]>([]);
   const lastBatch = useRef<{ batch: number; items: OrderItem[] } | null>(null);
@@ -158,8 +159,10 @@ const OpenOrderPage = () => {
   const afterSplit = async () => {
     const child = splitChild;
     setSplitChild(null);
-    if (child && !splitPaid.current) { try { await api.unsplitOrder(child.id); toast.info('Cuenta separada sin cobrar: los productos volvieron a la mesa'); } catch (e: any) { toast.error(e.message); } }
-    splitPaid.current = false;
+    if (child && !splitPaid.current && splitKeep.current) {
+      try { const k = await api.keepSeparate(child.id); toast.success(`Precuenta impresa: la cuenta separada quedó abierta en la mesa como "${k.label || 'otra cuenta'}" para cobrarla después`); } catch (e: any) { toast.error(e.message); }
+    } else if (child && !splitPaid.current) { try { await api.unsplitOrder(child.id); toast.info('Cuenta separada sin cobrar: los productos volvieron a la mesa'); } catch (e: any) { toast.error(e.message); } }
+    splitPaid.current = false; splitKeep.current = false;
     load();
   };
 
@@ -328,8 +331,8 @@ const OpenOrderPage = () => {
       </div>
 
       {showClose && <CloseOrderModal order={{ ...order, subtotal, total }} onClose={() => { setShowClose(false); if (!isActive(order)) navigate(backPath(order)); }} onClosed={o => { setOrder(o); setDraft([]); draftRef.current = []; }} />}
-      {splitOpen && <SplitModal order={order} onClose={() => setSplitOpen(false)} onSplit={child => { setSplitOpen(false); splitPaid.current = false; setSplitChild(child); }} />}
-      {splitChild && <CloseOrderModal order={splitChild} onClose={afterSplit} onClosed={() => { splitPaid.current = true; }} />}
+      {splitOpen && <SplitModal order={order} onClose={() => setSplitOpen(false)} onSplit={child => { setSplitOpen(false); splitPaid.current = false; splitKeep.current = false; setSplitChild(child); }} />}
+      {splitChild && <CloseOrderModal order={splitChild} onClose={afterSplit} onClosed={() => { splitPaid.current = true; }} onPrebill={() => { splitKeep.current = true; }} />}
       {showDiscount && <OrderDiscountModal order={order} onClose={() => setShowDiscount(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowDiscount(false); }} flush={flush} />}
       {showDeposit && <DepositModal order={order} total={total} onClose={() => setShowDeposit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowDeposit(false); }} />}
       {showEdit && <EditHeaderModal order={order} onClose={() => setShowEdit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowEdit(false); }} />}

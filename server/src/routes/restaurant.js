@@ -373,6 +373,19 @@ router.post('/orders/:id/send', (req, res) => {
   res.json({ order: formatted, batch, items: batch ? formatted.items.filter(i => i.batch === batch) : [], printed: out.printed || 0 });
 });
 
+// Cuenta separada que se deja abierta (p. ej. se imprimió su precuenta y se cobra después): pasa a ser otra cuenta de la mesa
+router.post('/orders/:id/keep-separate', (req, res) => {
+  const db = getDb();
+  const child = getOrder(db, req.params.id);
+  if (!child || !child.split_from) return res.status(404).json({ error: 'Cuenta separada no encontrada' });
+  if (!ACTIVE.includes(child.status) || child.payment_status === 'paid') return res.status(400).json({ error: 'La cuenta ya está cobrada' });
+  const openCount = child.table_id ? db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE table_id = ? AND split_from IS NULL AND status IN (${ACTIVE_SQL})`).get(child.table_id).c : 0;
+  db.prepare('UPDATE orders SET split_from = NULL, sale_label = ? WHERE id = ?').run(`Cuenta ${openCount + 1}`, child.id);
+  const formatted = fmt(db, child.id);
+  emit(req, 'order:updated', formatted);
+  res.json(formatted);
+});
+
 // Descuento antes de la precuenta (queda en la cuenta y el cobro lo trae)
 router.post('/orders/:id/discount', (req, res) => {
   const db = getDb();

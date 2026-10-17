@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Modal, Chip, INPUT, LABEL } from '@/components/common/Primitives';
 import { PAYMENT_LABEL } from '@/lib/restaurant';
 import { canDo } from '@/lib/permissions';
-import { printReceipt } from '@/lib/netPrint';
+import { printReceipt, printPreBill, suggestedTipPct } from '@/lib/netPrint';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { MixedPayment, mixedState, type MixedLine } from '@/components/MixedPayment';
 
@@ -25,7 +25,7 @@ const METHODS = [
 ];
 
 /** Cobro de una cuenta: descuento con motivo, propina, uno o dos medios de pago, vueltas. */
-export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; onClose: () => void; onClosed: (o: Order) => void }) => {
+export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order: Order; onClose: () => void; onClosed: (o: Order) => void; onPrebill?: () => void }) => {
   const restaurant = useStore(s => s.restaurant);
   const user = useStore(s => s.user);
   const tipEnabled = restaurant ? (order.type === 'dine-in' ? restaurant.tipDineIn : order.type === 'pickup' ? restaurant.tipCounter : restaurant.tipDelivery) : false;
@@ -185,6 +185,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed }: { order: Order; on
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={markDelivered} onChange={e => setMarkDelivered(e.target.checked)} /> Marcar también como entregado</label>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
+          <button type="button" onClick={async () => { try { await printPreBill(order, suggestedTipPct(order)); onPrebill?.(); } catch (e: any) { setError(e.message); } }} className="w-full py-2 rounded-xl border border-border bg-white text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5" data-close-prebill><Printer size={14} /> Imprimir precuenta de esta cuenta</button>
           <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !cat && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due) || (method === 'payroll' && !payEmp)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
             {saving ? 'Registrando...' : `Cobrar ${formatPrice(due)}`}
           </button>

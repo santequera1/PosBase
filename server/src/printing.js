@@ -275,8 +275,12 @@ function receiptTicket(printer, b, order, items) {
     const base = Math.round(order.total / (1 + b.taxRate / 100));
     t.pair('Base', money(base)).pair(`${b.taxType === 'iva' ? 'IVA' : 'INC'} ${b.taxRate}% incluido`, money(order.total - base));
   }
-  t.bold().size('tall').pair('TOTAL', money(order.total)).size(1).bold(false);
-  if (order.tip) t.pair('Propina (voluntaria)', money(order.tip)).bold().pair('TOTAL PAGADO', money(order.total + order.tip)).bold(false);
+  if (order.tip) {
+    t.bold().pair('Total consumo', money(order.total)).bold(false).pair('Propina (voluntaria)', money(order.tip));
+    t.bold().size('tall').pair('TOTAL PAGADO', money(order.total + order.tip)).size(1).bold(false);
+  } else {
+    t.bold().size('tall').pair('TOTAL', money(order.total)).size(1).bold(false);
+  }
   t.nl();
   const sps = require('./paymentSplit').splitParts(order.payment_split);
   if (order.payment_method === 'mixed' && sps.length) { for (const p of sps) t.pair(PAY[p.method] || p.method, money(p.amount)); }
