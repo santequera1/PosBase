@@ -367,7 +367,7 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
           {pv && !pv.error && <p className="text-[11px] text-emerald-700 mt-1">Calculado: <b>{formatPrice(pv.suggested)}</b>{pv.pct ? ` (${pv.pct}%)` : ''}</p>}
           {pv?.warnings?.map((w: string) => <p key={w} className="text-[11px] text-amber-700 mt-1 flex gap-1"><AlertTriangle size={12} className="shrink-0 mt-0.5" /> {w}</p>)}
         </div>
-        <div className="col-span-2"><label className={LABEL}>Notas</label><input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} placeholder="Ej. 20 de julio, meta de ventas, cuota 2 de 5" /></div>
+        <div className="col-span-2"><label className={LABEL}>{form.type === 'operational' ? 'Concepto (obligatorio)' : 'Notas'}</label><input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} placeholder={form.type === 'operational' ? 'Ej. domicilio repetido: pedido incompleto #1234' : 'Ej. 20 de julio, meta de ventas, cuota 2 de 5'} data-novelty-notes /></div>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button onClick={save} disabled={saving || !form.employeeId || (!t?.auto && !(Number(form.amount) > 0))} data-novelty-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Guardando...' : 'Guardar novedad'}</button>

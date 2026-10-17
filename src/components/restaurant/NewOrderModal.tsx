@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Users, Phone, MapPin, Bike, Clock, MessageSquare, UserRound, Banknote } from 'lucide-react';
 import { useStore, type Order, type OrderType } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -60,11 +60,16 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
   const [error, setError] = useState('');
 
   // Clientes guardados que coinciden con el teléfono o el nombre escritos
+  // Se compara solo por los dígitos: "+57 314 647 0733", "3146470733" y "314-647-0733" son el mismo cliente
+  const digits = (s?: string) => String(s || '').replace(/\D/g, '');
   const matches = useMemo(() => {
-    const q = (phone || name).trim().toLowerCase();
-    if (q.length < 3) return [];
-    return customers.filter(c => (c.phone || '').includes(q) || c.name.toLowerCase().includes(q)).slice(0, 5);
+    const qd = digits(phone).replace(/^57(?=\d{10}$)/, '');
+    const qn = name.trim().toLowerCase();
+    if (qd.length < 3 && qn.length < 3) return [];
+    return customers.filter(c => (qd.length >= 3 && digits(c.phone).includes(qd)) || (qn.length >= 3 && c.name.toLowerCase().includes(qn))).slice(0, 5);
   }, [customers, phone, name]);
+  // El directorio se refresca al abrir (los clientes creados en otros equipos o en pedidos anteriores aparecen de una)
+  useEffect(() => { if (type !== 'dine-in') api.getCustomers().then(cs => useStore.setState({ customers: cs })).catch(() => {}); }, [type]);
   const useCustomer = (c: any) => { setName(c.name); setPhone(c.phone || ''); setAddress(c.address || ''); setAddress2(c.address2 || ''); setNeighborhood(c.neighborhood || ''); };
 
   const submit = async () => {

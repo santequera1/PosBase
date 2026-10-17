@@ -30,6 +30,7 @@ export function payslipHtml(s: any, emp?: { name?: string; document?: string; po
   const totalDed = ded.reduce((a, [, v]) => a + v, 0);
   const loanLines = (det.loans || []).map((l: any) => `<li>${esc(l.notes || (l.number ? 'Préstamo #' + l.number : 'Préstamo / consumo'))}: ${formatPrice(l.amount)}${l.balance > 0 ? ` · queda ${formatPrice(l.balance)}` : ''}</li>`).join('');
   const legalLines = (det.legalDeductions || []).map((l: any) => `<li>${esc(l.label)}: ${formatPrice(l.amount)}</li>`).join('');
+  const novLines = (det.novelties || []).map((n: any) => `<li>${esc(n.label || n.type)}${n.notes && !String(n.label || '').includes(n.notes) ? ' · ' + esc(n.notes) : ''}: ${['absence', 'deduction'].includes(n.group) ? '−' : '+'}${formatPrice(n.amount)}</li>`).join('');
   const name = emp?.name || s.employeeName || '';
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante de nómina · ${esc(name)} · ${d(s.periodStart)} a ${d(s.periodEnd)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -57,7 +58,7 @@ export function payslipHtml(s: any, emp?: { name?: string; document?: string; po
   </div>
   <h2>Devengado</h2><table>${rows(earn)}<tr class="tot"><td>Total devengado</td><td class="n">${formatPrice(totalEarn)}</td></tr></table>
   <h2>Deducciones</h2><table>${rows(ded)}<tr class="tot"><td>Total deducciones</td><td class="n">${formatPrice(totalDed)}</td></tr></table>
-  ${legalLines ? `<ul>${legalLines}</ul>` : ''}${loanLines ? `<ul>${loanLines}</ul>` : ''}
+  ${legalLines ? `<ul>${legalLines}</ul>` : ''}${loanLines ? `<ul>${loanLines}</ul>` : ''}${novLines ? `<ul>${novLines}</ul>` : ''}
   ${det.tipsSeparate ? '<p class="muted" style="font-size:12px;margin-top:8px">Las propinas se pagan aparte (no van en este comprobante).</p>' : ''}
   <div class="neto"><span>NETO A PAGAR</span><span>${formatPrice(s.total || 0)}</span></div>
   ${s.notes ? `<p class="muted" style="margin-top:8px">Nota: ${esc(s.notes)}</p>` : ''}

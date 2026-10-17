@@ -613,12 +613,15 @@ function noveltyInput(db, body, preview = false) {
   const amount = manual !== null && Number.isFinite(manual) ? manual : auto.amount;
   if (preview && t.auto && amount === 0) return { emp, type, t, date, quantity, amount: 0, pct: auto.pct, suggested: 0, warnings: ['Este colaborador no tiene valor base (sueldo o valor por día) en su ficha; edítalo o escribe el valor a mano.'] };
   if (amount === null || !Number.isFinite(amount) || amount <= 0) return { error: t.auto ? 'Indica la cantidad (días u horas) o el valor' : 'Indica el valor' };
+  // Novedad operativa: el concepto es obligatorio y queda como nombre de la novedad
+  const concept = String(body.notes || '').trim();
+  if (type === 'operational' && concept.length < 3 && !preview) return { error: 'Escribe el concepto (ej. domicilio repetido: pedido incompleto #1234)' };
   if (t.unit !== 'valor' && quantity <= 0 && manual === null) return { error: `Indica la cantidad de ${t.unit}` };
   // Aviso: si el colaborador tiene extras/recargos automáticos por asistencia, un festivo con asistencia ya se paga solo
   const warnings = [];
   if (type === 'holiday_worked' && emp.overtime && db.prepare('SELECT id FROM attendance WHERE employee_id = ? AND date = ?').get(emp.id, date) && payroll.isSundayOrHoliday(date))
     warnings.push('Ese día tiene asistencia y el colaborador tiene activos los recargos automáticos: el recargo festivo ya se calcula solo en la liquidación. Revisa que no se pague dos veces.');
-  return { emp, type, t, date, quantity, amount, pct: manual === null ? auto.pct : null, suggested: auto.amount, warnings, label: task ? task.name : null };
+  return { emp, type, t, date, quantity, amount, pct: manual === null ? auto.pct : null, suggested: auto.amount, warnings, label: task ? task.name : type === 'operational' ? concept.slice(0, 120) : null };
 }
 
 router.post('/novelties/preview', ADMIN, (req, res) => {

@@ -98,7 +98,8 @@ function sendUnsent(db, io, order, userName, out = {}) {
 
 const { findCustomerByPhone } = require('../customerPhone');
 function upsertCustomer(db, c, save) {
-  const phone = String(c.phone || '').trim();
+  const rawPhone = String(c.phone || '').trim();
+  const phone = require('../customerPhone').phoneKey(rawPhone).length >= 7 ? require('../customerPhone').phoneKey(rawPhone) : rawPhone;
   const doc = String(c.doc || '').trim() || '222222222222';
   if (!save) return null;
   if (phone.length < 7 && doc === '222222222222') return null;
@@ -382,6 +383,19 @@ router.post('/orders/:id/keep-separate', (req, res) => {
   const openCount = child.table_id ? db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE table_id = ? AND split_from IS NULL AND status IN (${ACTIVE_SQL})`).get(child.table_id).c : 0;
   db.prepare('UPDATE orders SET split_from = NULL, sale_label = ? WHERE id = ?').run(`Cuenta ${openCount + 1}`, child.id);
   const formatted = fmt(db, child.id);
+  emit(req, 'order:updated', formatted);
+  res.json(formatted);
+});
+
+// Domicilio marcado como entregado por error: vuelve a "En camino" (el pago registrado se conserva)
+router.post('/orders/:id/undeliver', requireRole('admin', 'cashier'), (req, res) => {
+  const db = getDb();
+  const order = getOrder(db, req.params.id);
+  if (!order || order.type !== 'delivery') return res.status(404).json({ error: 'Domicilio no encontrado' });
+  if (order.status !== 'delivered') return res.status(400).json({ error: 'El domicilio no está marcado como entregado' });
+  db.prepare("UPDATE orders SET status = 'shipped', delivered_at = NULL, closed_at = NULL, notes = TRIM(COALESCE(notes, '') || ?) WHERE id = ?")
+    .run(` · Entrega deshecha por ${req.user?.name || 'caja'}`, order.id);
+  const formatted = fmt(db, order.id);
   emit(req, 'order:updated', formatted);
   res.json(formatted);
 });

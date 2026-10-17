@@ -44,6 +44,11 @@ const DeliveryPage = () => {
 
   const setStatus = async (o: Order, status: string, driverId?: number) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, status, driverId)); } catch (e: any) { toast.error(e.message); } };
   // Pedido ya entregado: el repartidor se corrige como dato de la venta
+  // Marcado como entregado por error: vuelve a "En camino" (sigue en el celular del domiciliario)
+  const undeliver = async (o: Order) => {
+    if (!window.confirm(`¿El domicilio #${o.id} (${o.customer.name}) aún NO se ha entregado?\n\nVuelve a "En camino" y le aparece otra vez al domiciliario para marcarlo cuando lo entregue.`)) return;
+    try { handleOrderEvent(await api.undeliverOrder(o.id)); toast.success('Domicilio de nuevo en camino'); } catch (e: any) { toast.error(e.message); }
+  };
   const assignDone = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.editSaleDetails(o.id, { driverId: driverId || 0 })); toast.success(driverId ? 'Domiciliario asignado' : 'Domiciliario quitado'); } catch (e: any) { toast.error(e.message); } };
   const assign = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.updateOrderHeader(o.id, { driverId: driverId || null })); } catch (e: any) { toast.error(e.message); } };
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
@@ -151,7 +156,7 @@ const DeliveryPage = () => {
                       <td className="px-3 py-1.5">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
                       <td className="px-3 py-1.5 text-right">{formatPrice(o.deliveryFee || 0)}</td>
                       <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
-                      <td className="px-3 py-1.5 text-right">{o.paymentStatus !== 'paid' ? <button onClick={() => setClosing(o)} className="text-brand-primary font-semibold hover:underline">Cobrar</button> : <button onClick={() => printReceipt(o)} className="text-brand-primary hover:underline flex items-center gap-1 ml-auto"><Printer size={12} /> Ticket</button>}</td>
+                      <td className="px-3 py-1.5 text-right"><div className="flex items-center justify-end gap-2">{o.paymentStatus !== 'paid' ? <button onClick={() => setClosing(o)} className="text-brand-primary font-semibold hover:underline">Cobrar</button> : <button onClick={() => printReceipt(o)} className="text-brand-primary hover:underline flex items-center gap-1"><Printer size={12} /> Ticket</button>}<button onClick={() => undeliver(o)} className="text-amber-700 hover:underline whitespace-nowrap" title="Se marcó como entregado pero aún no se ha entregado" data-undeliver={o.id}>No entregado</button></div></td>
                     </tr>
                   ))}
                 </tbody></table></div>

@@ -251,6 +251,7 @@ const NOVELTY_TYPES = {
   loan: { label: 'Cuota de préstamo', group: 'deduction', unit: 'valor' },
   damage: { label: 'Descuento autorizado (daños, faltantes)', group: 'deduction', unit: 'valor' },
   other_deduction: { label: 'Otro descuento', group: 'deduction', unit: 'valor' },
+  operational: { label: 'Novedad operativa', group: 'deduction', unit: 'valor', help: 'Se le cobra al colaborador (p. ej. domicilio repetido por pedido incompleto). Escribe el concepto.' },
 };
 const SIGN = { extras: 1, bonus: 1, absence: -1, deduction: -1 };
 

@@ -281,6 +281,7 @@ export const api = {
   setOrderItems: (id: number, items: any[]) => request<any>(`/restaurant/orders/${id}/items`, { method: 'PUT', body: JSON.stringify({ items }) }),
   removeSentItem: (id: number, itemId: number, quantity?: number, reason?: string) => request<any>(`/restaurant/orders/${id}/items/${itemId}${qstr({ quantity, reason })}`, { method: 'DELETE' }),
   sendToKitchen: (id: number) => request<any>(`/restaurant/orders/${id}/send`, { method: 'POST' }),
+  undeliverOrder: (id: number) => request<any>(`/restaurant/orders/${id}/undeliver`, { method: 'POST' }),
   keepSeparate: (id: number) => request<any>(`/restaurant/orders/${id}/keep-separate`, { method: 'POST' }),
   setOrderDiscount: (id: number, data: any) => request<any>(`/restaurant/orders/${id}/discount`, { method: 'POST', body: JSON.stringify(data) }),
   setOrderDeposit: (id: number, data: { amount: number; method?: string; note?: string }) => request<any>(`/restaurant/orders/${id}/deposit`, { method: 'POST', body: JSON.stringify(data) }),
