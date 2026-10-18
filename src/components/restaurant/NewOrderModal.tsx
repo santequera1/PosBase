@@ -65,8 +65,10 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
   const matches = useMemo(() => {
     const qd = digits(phone).replace(/^57(?=\d{10}$)/, '');
     const qn = name.trim().toLowerCase();
+    // Con teléfono escrito (7+ dígitos) solo cuenta el teléfono: un homónimo con otro número no es el mismo cliente
+    if (qd.length >= 7) return customers.filter(c => digits(c.phone).replace(/^57(?=\d{10}$)/, '').includes(qd)).slice(0, 5);
     if (qd.length < 3 && qn.length < 3) return [];
-    return customers.filter(c => (qd.length >= 3 && digits(c.phone).includes(qd)) || (qn.length >= 3 && c.name.toLowerCase().includes(qn))).slice(0, 5);
+    return customers.filter(c => (qd.length >= 3 && digits(c.phone).includes(qd)) || (!qd && qn.length >= 3 && c.name.toLowerCase().includes(qn))).slice(0, 5);
   }, [customers, phone, name]);
   // El directorio se refresca al abrir (los clientes creados en otros equipos o en pedidos anteriores aparecen de una)
   useEffect(() => { if (type !== 'dine-in') api.getCustomers().then(cs => useStore.setState({ customers: cs })).catch(() => {}); }, [type]);
