@@ -36,6 +36,9 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
   const [cat, setCat] = useState<DiscountSel | null>(order.discountId && order.discount ? { discountId: order.discountId, name: order.discountName || 'Descuento', amount: order.discount, employeeId: order.discountEmployeeId, employeeName: order.discountEmployeeName } : null);
   const [tipMode, setTipMode] = useState<'none' | 'suggested' | 'custom'>(order.tip ? 'custom' : tipEnabled ? 'suggested' : 'none');
   const [tipCustom, setTipCustom] = useState(String(order.tip || ''));
+  // Si el restaurante reparte todo en común (Personal → Propinas), no se ofrece "para el mesero"
+  const [tipsAllCommon, setTipsAllCommon] = useState(false);
+  useEffect(() => { api.getTipsConfig().then((c: any) => { if (c?.allCommon) { setTipsAllCommon(true); setTipTo('common'); } }).catch(() => {}); }, []);
   const [tipTo, setTipTo] = useState<'common' | 'waiter'>(order.waiterId ? 'waiter' : 'common');
   const [method, setMethod] = useState<string>(order.paymentMethod && order.paymentMethod !== 'mixed' ? order.paymentMethod : 'cash');
   const [cashReceived, setCashReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
@@ -139,7 +142,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
                 <Chip active={tipMode === 'custom'} onClick={() => setTipMode('custom')}>Otro valor</Chip>
               </div>
               {tipMode === 'custom' && <input type="number" min={0} value={tipCustom} onChange={e => setTipCustom(e.target.value)} className={cn(INPUT, 'font-mono mt-1.5 w-32')} placeholder="Valor" />}
-              {tip > 0 && order.waiterId && (
+              {tip > 0 && order.waiterId && !tipsAllCommon && (
                 <div className="flex gap-1.5 mt-1.5"><Chip active={tipTo === 'waiter'} onClick={() => setTipTo('waiter')}>Para {order.waiterName}</Chip><Chip active={tipTo === 'common'} onClick={() => setTipTo('common')}>Propina común</Chip></div>
               )}
             </div>

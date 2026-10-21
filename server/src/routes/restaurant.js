@@ -658,8 +658,10 @@ router.post('/orders/:id/close', (req, res) => {
       const shift = getOpenShift(db);
       const tipMethod = method === 'cash' || (split && require('../paymentSplit').hasMethod(split, 'cash')) ? 'cash' : method === 'transfer' ? 'transfer' : 'card';
       db.prepare('DELETE FROM tips WHERE notes = ?').run(`Propina pedido #${order.id}`);
+      const allCommon = require('../payrollExtras').readTipsConfig(db).allCommon;
       db.prepare('INSERT INTO tips (date, employee_id, amount, method, shift_id, notes) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(today(db), b.tipTo === 'waiter' && fresh.waiter_id ? fresh.waiter_id : null, tip, tipMethod, shift ? shift.id : null, `Propina pedido #${order.id}`);
+        .run(today(db), !allCommon && b.tipTo === 'waiter' && fresh.waiter_id ? fresh.waiter_id : null, tip, tipMethod, shift ? shift.id : null, `Propina pedido #${order.id}`);
+      if (allCommon) db.prepare("UPDATE orders SET tip_to = 'common' WHERE id = ?").run(order.id);
     } catch (e) { console.warn('No se pudo registrar la propina:', e.message); }
   }
   const formatted = fmt(db, order.id);

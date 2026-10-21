@@ -711,6 +711,8 @@ router.get('/me', (req, res) => {
   const settlements = db.prepare(`${SET_SELECT} WHERE s.employee_id = ? ORDER BY s.period_end DESC, s.id DESC LIMIT 60`).all(emp.id).map(mapSet);
   const advances = db.prepare(`${ADV_SELECT} WHERE a.employee_id = ? AND a.settled = 0 ORDER BY a.date DESC`).all(emp.id).map(mapAdv);
   const { bankAccount, notes, ...pub } = mapEmp(emp); void notes;
+  // Propinas ocultas al personal: no se muestran ni se suman en la estimación que ve el colaborador
+  if (preview && PX.readTipsConfig(db).hideFromStaff) { preview.subtotal -= preview.tipsTotal || 0; preview.tipsTotal = 0; preview.tipsAccrued = null; preview.tipsHidden = true; }
   res.json({
     linked: true,
     employee: { ...pub, bankAccountLast4: bankAccount ? String(bankAccount).slice(-4) : '' },

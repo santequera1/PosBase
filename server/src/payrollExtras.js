@@ -153,16 +153,22 @@ function readTipsConfig(db) {
   try { const r = db.prepare("SELECT value FROM settings WHERE key = 'tipsConfig'").get(); if (r && r.value) saved = JSON.parse(r.value) || {}; } catch { saved = {}; }
   return {
     payout: saved.payout === 'separate' ? 'separate' : 'payroll',
-    commonSplit: ['equal', 'hours', 'points'].includes(saved.commonSplit) ? saved.commonSplit : 'equal',
+    commonSplit: ['equal', 'hours', 'points', 'all'].includes(saved.commonSplit) ? saved.commonSplit : 'equal',
     period: saved.period === 'monthly' ? 'monthly' : 'biweekly',
+    // Todas las propinas van a la bolsa común (no hay propina "para el mesero")
+    allCommon: Boolean(saved.allCommon),
+    // Los colaboradores no ven en "Mi cuenta" cuánto llevan de propina
+    hideFromStaff: Boolean(saved.hideFromStaff),
   };
 }
 function saveTipsConfig(db, body) {
   const cur = readTipsConfig(db);
   const next = {
     payout: body.payout !== undefined ? (body.payout === 'separate' ? 'separate' : 'payroll') : cur.payout,
-    commonSplit: body.commonSplit !== undefined ? (['equal', 'hours', 'points'].includes(body.commonSplit) ? body.commonSplit : 'equal') : cur.commonSplit,
+    commonSplit: body.commonSplit !== undefined ? (['equal', 'hours', 'points', 'all'].includes(body.commonSplit) ? body.commonSplit : 'equal') : cur.commonSplit,
     period: body.period !== undefined ? (body.period === 'monthly' ? 'monthly' : 'biweekly') : cur.period,
+    allCommon: body.allCommon !== undefined ? Boolean(body.allCommon) : cur.allCommon,
+    hideFromStaff: body.hideFromStaff !== undefined ? Boolean(body.hideFromStaff) : cur.hideFromStaff,
   };
   db.prepare("INSERT INTO settings (key, value) VALUES ('tipsConfig', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(next));
   return readTipsConfig(db);
@@ -175,6 +181,16 @@ function saveTipsConfig(db, body) {
 function shareCommonDay(db, date, amount, cfg) {
   const pts = db.prepare('SELECT id, active, COALESCE(tip_points, 1) AS points FROM employees').all();
   const pointsOf = new Map(pts.map(e => [e.id, Number(e.points)]));
+  // "Entre todo el personal": el acumulado se divide en partes iguales entre todos los activos (con puntos > 0), sin depender de la asistencia
+  if (cfg.commonSplit === 'all') {
+    const all = pts.filter(e => e.active && Number(e.points) > 0);
+    const out = new Map();
+    if (!all.length) return out;
+    const each = Math.floor(amount / all.length);
+    let rest = amount - each * all.length;
+    for (const e of all) { out.set(e.id, each + (rest > 0 ? 1 : 0)); if (rest > 0) rest--; }
+    return out;
+  }
   let people = db.prepare('SELECT employee_id AS id, COALESCE(SUM(hours), 0) AS hours FROM attendance WHERE date = ? GROUP BY employee_id').all(date)
     .filter(p => (pointsOf.get(p.id) ?? 1) > 0);
   if (!people.length) people = pts.filter(e => e.active && Number(e.points) > 0).map(e => ({ id: e.id, hours: 0 }));

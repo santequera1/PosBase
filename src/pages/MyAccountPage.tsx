@@ -59,7 +59,7 @@ const MyAccountPage = () => {
         <Kpi label="Próxima liquidación (estimada)" value={formatPrice(p?.subtotal || 0)} sub={p ? `${fmtDate(p.periodStart)} – ${fmtDate(p.periodEnd)}` : ''} tone="bg-emerald-50 border-emerald-200" />
         <Kpi label="Consumos por descontar" value={formatPrice(balances.consumos)} sub={`${consumos.filter((c: any) => c.status === 'active').length} pendiente(s)`} tone={balances.consumos ? 'bg-amber-50 border-amber-200' : undefined} />
         <Kpi label="Préstamos (saldo)" value={formatPrice(balances.loans)} />
-        <Kpi label="Propinas del período" value={formatPrice(p?.tipsAccrued || 0)} sub={p?.tipsSeparate ? 'se pagan aparte' : 'van en la liquidación'} />
+        {!p?.tipsHidden && <Kpi label="Propinas del período" value={formatPrice(p?.tipsAccrued || 0)} sub={p?.tipsSeparate ? 'se pagan aparte' : 'van en la liquidación'} />}
       </div>
 
       {p && (

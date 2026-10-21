@@ -94,12 +94,17 @@ export const TipsAccountPanel = ({ isAdmin }: { isAdmin: boolean }) => {
           <div>
             <p className="font-bold text-brand-dark mb-1">La propina común se reparte</p>
             <div className="flex flex-wrap gap-1.5">
-              <Chip active={cfg.commonSplit === 'equal'} onClick={() => saveCfg({ commonSplit: 'equal' })}>En partes iguales</Chip>
+              <Chip active={cfg.commonSplit === 'all'} onClick={() => saveCfg({ commonSplit: 'all' })}>Entre todo el personal, en partes iguales</Chip>
+              <Chip active={cfg.commonSplit === 'equal'} onClick={() => saveCfg({ commonSplit: 'equal' })}>En partes iguales (quienes asistieron)</Chip>
               <Chip active={cfg.commonSplit === 'hours'} onClick={() => saveCfg({ commonSplit: 'hours' })}>Por horas trabajadas</Chip>
               <Chip active={cfg.commonSplit === 'points'} onClick={() => saveCfg({ commonSplit: 'points' })}>Por puntos</Chip>
             </div>
           </div>
-          <p className="md:col-span-2 text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> Se reparte cada día entre quienes tienen asistencia ese día. Los puntos se ponen en cada colaborador (por ejemplo mesero 2, cocina 1); con 0 puntos no participa. Las propinas directas (cuenta del mesero) son solo de esa persona.</p>
+          <div className="md:col-span-2 flex flex-wrap gap-x-4 gap-y-1.5">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!cfg.allCommon} onChange={e => saveCfg({ allCommon: e.target.checked })} data-tips-allcommon /> Todas las propinas son comunes (no hay propina "para el mesero")</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!cfg.hideFromStaff} onChange={e => saveCfg({ hideFromStaff: e.target.checked })} data-tips-hide /> Ocultar a los colaboradores cuánto llevan de propina (en "Mi cuenta")</label>
+          </div>
+          <p className="md:col-span-2 text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> {cfg.commonSplit === 'all' ? 'El acumulado se divide en partes iguales entre todo el personal activo, sin depender de la asistencia.' : 'Se reparte cada día entre quienes tienen asistencia ese día.'} Con 0 puntos un colaborador no participa (se pone en su ficha). Las propinas directas (cuenta del mesero) son solo de esa persona.</p>
         </div>
       )}
 
