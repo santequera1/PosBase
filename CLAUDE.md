@@ -41,6 +41,7 @@ Registro de instalaciones en el VPS: `/home/ubuntu/apps/pos-instancias.tsv` (slu
 - Antes de tocar datos de una instalación en producción: respaldo con better-sqlite3 `.backup()` en `/home/ubuntu/backups/...`. Preguntar antes de borrar o cambiar datos reales.
 - No emitir facturas electrónicas reales (Factus producción va a la DIAN) sin el usuario.
 - Diferencias entre clientes = configuración (Configuración, módulos, Personal → Propinas…), nunca código aparte.
+- Paquetes de demostración (`server/src/demoPacks.js`, solo con `DEMO_MODE=1`): borran ventas/menú/clientes; nunca activar `DEMO_MODE` en un cliente.
 - Desplegar primero a la demo, probar, y luego a los clientes (`actualizar.sh demo`, luego `actualizar.sh wonkas`).
 - Probar antes de desplegar: el chequeo de tipos real es `npx tsc --noEmit -p tsconfig.app.json` (el `tsconfig.json` raíz no revisa nada). Hay errores de tipo viejos en CheckoutModal, InventoryModule, POSPage y ProductsPage que no afectan el build.
 - Pruebas: los scripts de prueba levantan el servidor con `DB_PATH` apuntando a una copia de la base (o restauran la base al terminar) y Playwright contra Vite. Nunca probar contra producción.

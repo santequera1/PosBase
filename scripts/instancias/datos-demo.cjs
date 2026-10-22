@@ -12,6 +12,7 @@ const path = require('path');
 const BASE = (process.argv[2] || 'http://127.0.0.1:3100').replace(/\/$/, '') + '/api';
 const ADMIN_USER = process.argv[3] || 'admin';
 const ADMIN_PASS = process.argv[4];
+const ONLY_USERS = process.argv.includes('--solo-usuarios');
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data.db');
 if (!ADMIN_PASS) { console.log('Uso: node datos-demo.cjs <url> <usuario-admin> <clave-admin>'); process.exit(1); }
 
@@ -47,6 +48,7 @@ const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
     if (u && !emps.some(e => e.userId === u.id)) await call('POST', '/staff/employees', admin, { name, position, payMode: 'per_shift', baseAmount: position === 'Domiciliario' ? 40000 : 55000, userId: u.id, document: String(rnd(1000000000, 1099999999)) });
   }
   console.log('✓ usuarios y colaboradores');
+  if (ONLY_USERS) { console.log('Usuarios de prueba (clave Demo2026*): ' + people.map(p => p[0]).join(', ')); return; }
 
   // Caja abierta
   try { await call('POST', '/shifts/open', admin, { initialCash: 200000, cashierName: 'Laura Caja' }); } catch { /* ya abierta */ }

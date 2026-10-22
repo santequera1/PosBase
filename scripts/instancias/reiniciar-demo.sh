@@ -10,8 +10,8 @@ SNAP="/home/ubuntu/backups/pos/$SLUG/foto-demo.db"
 mkdir -p "$(dirname "$SNAP")"
 if [[ "${1:-}" == "--foto" ]]; then
   (cd "$DIR/server" && node -e "require('better-sqlite3')('$DIR/server/data.db').backup('$SNAP').then(()=>console.log('foto guardada: $SNAP'))")
-  if ! crontab -l 2>/dev/null | grep -q "reiniciar-demo.sh"; then
-    (crontab -l 2>/dev/null; echo "0 3 * * * bash $(cd "$(dirname "$0")" && pwd)/reiniciar-demo.sh >> /home/ubuntu/apps/pos-demo-reinicio.log 2>&1") | crontab -
+  if ! crontab -l 2>/dev/null | grep -q "DEMO_SLUG=$SLUG "; then
+    (crontab -l 2>/dev/null; echo "0 3 * * * DEMO_SLUG=$SLUG bash $(cd "$(dirname "$0")" && pwd)/reiniciar-demo.sh >> /home/ubuntu/apps/pos-demo-reinicio.log 2>&1") | crontab -
     echo "cron instalado (3:00 a. m.)"
   fi
   exit 0

@@ -66,6 +66,8 @@ app.use('/api/accounting', authMiddleware, require('./routes/accounting'));
 app.use('/api/einvoicing', authMiddleware, require('./routes/einvoicing'));
 app.use('/api/caja', authMiddleware, require('./routes/caja'));
 app.use('/api/branches', authMiddleware, require('./routes/branches'));
+// Modo demostración (paquetes de negocio ficticio): solo actúa con DEMO_MODE=1
+app.use('/api/demo', authMiddleware, require('./routes/demo'));
 // Impresión en red: configuración (usuarios) y agente del restaurante (token propio)
 const printingRoutes = require('./routes/printing');
 app.use('/api/printing', authMiddleware, printingRoutes.router);

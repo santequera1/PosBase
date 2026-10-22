@@ -11,9 +11,10 @@ import EinvoicingPanel from '@/components/settings/EinvoicingPanel';
 import SectionsPanel from '@/components/settings/SectionsPanel';
 import PrintersPanel from '@/components/settings/PrintersPanel';
 import BranchesPanel from '@/components/settings/BranchesPanel';
+import DemoPacksPanel from '@/components/settings/DemoPacksPanel';
 import { NiceSelect } from '@/components/ui/nice-select';
 
-type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'sedes' | 'impresoras' | 'facturacion' | 'integracion';
+type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'sedes' | 'impresoras' | 'facturacion' | 'integracion' | 'demo';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -157,6 +158,10 @@ const SettingsPage = () => {
     }
   };
 
+  // ¿Es una instalación de demostración? (muestra la pestaña Modo demostración)
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  useEffect(() => { api.getDemoPacks().then(r => setDemoEnabled(Boolean(r?.enabled))).catch(() => {}); }, []);
+
   const tabs: Array<{ id: Tab; label: string; icon: any; adminOnly?: boolean }> = [
     { id: 'negocio', label: 'Negocio', icon: Store },
     { id: 'marca', label: 'Marca', icon: Palette, adminOnly: true },
@@ -168,6 +173,8 @@ const SettingsPage = () => {
     { id: 'secciones', label: 'Secciones', icon: ListChecks, adminOnly: true },
     { id: 'facturacion', label: 'Factura electrónica', icon: FileCheck2, adminOnly: true },
     { id: 'integracion', label: 'IA WhatsApp', icon: Bot, adminOnly: true },
+    // Solo en instalaciones de demostración
+    ...(demoEnabled ? [{ id: 'demo' as Tab, label: 'Modo demostración', icon: Sparkles, adminOnly: true }] : []),
   ];
 
   return (
@@ -338,6 +345,7 @@ const SettingsPage = () => {
       {tab === 'restaurante' && isAdmin && <RestaurantPanel />}
       {tab === 'sedes' && isAdmin && <BranchesPanel />}
       {tab === 'impresoras' && (isAdmin || canDo(user, 'manage_printers')) && <PrintersPanel />}
+      {tab === 'demo' && isAdmin && demoEnabled && <DemoPacksPanel />}
       {tab === 'facturacion' && isAdmin && <EinvoicingPanel />}
       {tab === 'secciones' && isAdmin && <SectionsPanel />}
 

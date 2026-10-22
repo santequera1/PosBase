@@ -336,6 +336,8 @@ export const api = {
     request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}&skipLoans=${(loans.skipLoans || []).join(',')}&payoffLoans=${(loans.payoffLoans || []).join(',')}`),
   getMyAccount: () => request<any>('/staff/me'),
   getSetupStatus: () => request<any>('/setup/status'),
+  getDemoPacks: () => request<any>('/demo/packs'),
+  applyDemoPack: (pack: string) => request<any>('/demo/apply', { method: 'POST', body: JSON.stringify({ pack }) }),
   runSetup: (data: any) => request<any>('/setup', { method: 'POST', body: JSON.stringify(data) }),
   getLoans: (params: Record<string, any> = {}) => request<any>(`/staff/loans${qstr(params)}`),
   addLoan: (data: any) => request<any>('/staff/loans', { method: 'POST', body: JSON.stringify(data) }),

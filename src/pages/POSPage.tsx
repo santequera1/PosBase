@@ -838,7 +838,7 @@ export const POSPage: React.FC = () => {
                 )}
               >
                 <span>{cat.emoji}</span>
-                <span>{cat.id === 4 ? 'Bebidas' : cat.id === 5 ? 'Toppings' : cat.name}</span>
+                <span>{cat.name}</span>
               </button>
             ))}
 

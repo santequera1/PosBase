@@ -57,7 +57,13 @@ if (!OLD || !fs.existsSync(OLD)) { console.log('Uso: node migrar-pos-viejo.cjs <
     if (tableCount > 0) {
       const room = db.prepare('SELECT id FROM rooms ORDER BY id LIMIT 1').get();
       const existing = db.prepare('SELECT id, label FROM tables').all();
-      for (let n = 1; n <= tableCount; n++) if (!existing.some(t => t.label === String(n)) && room) db.prepare('INSERT INTO tables (room_id, label, shape, seats, x, y, w, h, sort_order) VALUES (?, ?, \'square\', 4, ?, ?, 1, 1, ?)').run(room.id, String(n), (n - 1) % 4, Math.floor((n - 1) / 4), n);
+      // Mesas que falten, en cuadrícula del plano (posiciones en porcentaje, como las crea el sistema)
+      const cols = tableCount <= 8 ? 4 : tableCount <= 15 ? 5 : 6, rows = Math.ceil(tableCount / cols), colW = 90 / cols, rowH = 88 / rows;
+      for (let n = 1; n <= tableCount; n++) if (!existing.some(t => t.label === String(n)) && room) {
+        const i = n - 1;
+        db.prepare('INSERT INTO tables (room_id, label, shape, seats, x, y, w, h, sort_order) VALUES (?, ?, \'square\', 4, ?, ?, ?, ?, ?)')
+          .run(room.id, String(n), Math.round(5 + (i % cols) * colW), Math.round(6 + Math.floor(i / cols) * rowH), Math.round(colW * 0.55), Math.round(Math.min(16, rowH * 0.65)), n);
+      }
       for (const t of existing) if (Number(t.label) > tableCount) db.prepare('DELETE FROM tables WHERE id = ?').run(t.id);
     }
     const tableId = new Map(db.prepare('SELECT id, label FROM tables').all().map(t => [t.label, t.id]));

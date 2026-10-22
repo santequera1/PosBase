@@ -46,6 +46,19 @@ dependencias solo si cambiaron, compilan, reinician y verifican `/api/health`. L
 - Usuarios de prueba (clave `Demo2026*`): `caja`, `mesero1`, `mesero2`, `cocina`, `domi1`, `domi2`. El administrador de la
   demo está en `documentacionyclaves.md`.
 
+### Paquetes de demostración (cambiar de negocio ficticio)
+- Con `DEMO_MODE=1` en `server/.env` aparece **Configuración → Modo demostración**: 6 negocios ficticios (hamburguesería,
+  heladería, italiana, café, comida típica, mariscos). Cada uno trae marca, colores, letras, menú, mesas, una semana de
+  ventas y 3 mesas ocupadas. Al aplicarlo se borran ventas, menú y clientes de la instalación; usuarios y personal se quedan.
+- En una instalación normal (sin `DEMO_MODE`) la pestaña no existe y la API responde 403.
+- Los paquetes están en `server/src/demoPacks.js`. Logos y fotos (los hace el diseñador) van en
+  `public/demo-packs/<id>/`: `logo`, `logo-login` y una foto por producto con el nombre en minúsculas y guiones
+  (`Pizza margarita` → `pizza-margarita`), en `.webp`, `.png`, `.jpg` o `.svg`. Si no hay archivo, se usa el nombre o un ícono.
+- Después de cambiar de paquete en una demo con reinicio nocturno, volver a tomar la foto (`reiniciar-demo.sh --foto`),
+  o a las 3:00 a. m. vuelve al paquete anterior.
+- Demo fija de un paquete: `nueva-instancia.sh <slug> <slug>.stiven.app`, configuración inicial, `DEMO_MODE=1`,
+  `datos-demo.cjs ... --solo-usuarios`, aplicar el paquete y `DEMO_SLUG=<slug> reiniciar-demo.sh --foto` (cada demo tiene su cron).
+
 ## Migrar desde la versión vieja del POS
 `scripts/instancias/migrar-pos-viejo.cjs` pasa usuarios (con sus mismas contraseñas), categorías, productos, mesas,
 ventas cerradas con sus productos y el nombre del negocio. Lee la base vieja en solo lectura. Uso: crear la instalación,
