@@ -23,6 +23,10 @@ export interface ThemeInput {
   card?: string;
   muted?: string;
   wine?: string;
+  /** Colores propios del modo oscuro (si no se eligen, se derivan del color principal). */
+  darkSurface?: string;
+  darkBackground?: string;
+  darkCard?: string;
   fontHeading?: string;
   fontBody?: string;
   fontScript?: string;
@@ -66,7 +70,7 @@ export interface ContrastCheck {
   ok: boolean;
 }
 
-export const DEFAULT_THEME: Required<ThemeInput> = {
+export const DEFAULT_THEME: Required<Omit<ThemeInput, 'darkSurface' | 'darkBackground' | 'darkCard'>> = {
   primary: '#364266',
   accent: '#C6BF81',
   background: '#FEF3DE',
@@ -236,6 +240,15 @@ export function constrainInput(input: ThemeInput): ThemeInput {
   if (out.card) out.card = normalizeHex(out.card, '');
   if (out.muted) out.muted = normalizeHex(out.muted, '');
   if (out.wine) out.wine = normalizeHex(out.wine, '');
+  // Modo oscuro: se respetan los colores elegidos, oscureciéndolos lo justo para que el texto claro se lea
+  const cap = (hex: string | undefined, maxL: number) => {
+    const n = hex ? normalizeHex(hex, '') : '';
+    if (!n) return undefined;
+    return hexToHsl(n).l > maxL ? withLightness(n, maxL) : n;
+  };
+  out.darkSurface = cap(input.darkSurface, 40);
+  out.darkBackground = cap(input.darkBackground, 18);
+  out.darkCard = cap(input.darkCard, 28);
   return out;
 }
 
@@ -262,14 +275,18 @@ function resolveDark(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fo
   const base = hexToHsl(input.primary);
   const h = base.h;
   const s = Math.max(8, Math.min(40, base.s));
-  const background = hslToHex({ h, s: s * 0.6, l: 9 });
+  // Colores elegidos para el modo oscuro (barra lateral, fondo, tarjetas); si no hay, se derivan del color principal.
+  const background = input.darkBackground || hslToHex({ h, s: s * 0.6, l: 9 });
+  const bgHsl = hexToHsl(background);
   // Los ajustes avanzados guardados para el modo claro (tarjetas crema, texto oscuro) no sirven en oscuro:
   // solo se respetan si realmente son colores oscuros; si no, se derivan del color principal.
   const darkEnough = (hex: string | undefined, maxL: number) => !!hex && hexToHsl(hex).l <= maxL;
-  const surface = darkEnough(input.dark, 35) ? (input.dark as string) : hslToHex({ h, s: s * 0.7, l: 6 });
-  const card = darkEnough(input.card, 30) ? (input.card as string) : hslToHex({ h, s: s * 0.55, l: 13 });
-  const card2 = hslToHex({ h, s: s * 0.5, l: 18 });
-  const pill = hslToHex({ h, s: s * 0.5, l: 23 });
+  const surface = input.darkSurface || (darkEnough(input.dark, 35) ? (input.dark as string) : hslToHex({ h, s: s * 0.7, l: 6 }));
+  const fromBg = (dl: number) => input.darkBackground ? hslToHex({ ...bgHsl, l: Math.min(40, bgHsl.l + dl) }) : null;
+  const card = input.darkCard || fromBg(4) || (darkEnough(input.card, 30) ? (input.card as string) : hslToHex({ h, s: s * 0.55, l: 13 }));
+  const cardHsl = hexToHsl(card);
+  const card2 = input.darkCard || input.darkBackground ? hslToHex({ ...cardHsl, l: Math.min(45, cardHsl.l + 5) }) : hslToHex({ h, s: s * 0.5, l: 18 });
+  const pill = input.darkCard || input.darkBackground ? hslToHex({ ...cardHsl, l: Math.min(50, cardHsl.l + 10) }) : hslToHex({ h, s: s * 0.5, l: 23 });
   const dark = hslToHex({ h, s: 15, l: 94 });
   const primary = ensureContrast(withLightness(input.primary, 78), background, 4.5, 1);
   let button = withLightness(input.primary, 52);
@@ -282,12 +299,12 @@ function resolveDark(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fo
   muted = ensureContrast(muted, background, 3.5, 1);
   const wineBase = input.wine || DEFAULT_THEME.wine;
   const wine = ensureContrast(wineBase, background, 3, 1);
-  const onDark = hslToHex({ h, s: 15, l: 92 });
+  const onDark = bestTextOn(surface, [hslToHex({ h, s: 15, l: 92 }), '#FFFFFF']);
   return { mode: 'dark', primary, primaryStrong: button, button, onButton, surface, dark, accent, background, card, card2, pill, muted, wine, onPrimary: onButton, onDark, onAccent };
 }
 
 export function resolveTheme(raw: ThemeInput | null | undefined): ResolvedTheme {
-  const input = constrainInput({ ...DEFAULT_THEME, ...(raw || {}), dark: raw?.dark, card: raw?.card, muted: raw?.muted, wine: raw?.wine });
+  const input = constrainInput({ ...DEFAULT_THEME, ...(raw || {}), dark: raw?.dark, card: raw?.card, muted: raw?.muted, wine: raw?.wine, darkSurface: raw?.darkSurface, darkBackground: raw?.darkBackground, darkCard: raw?.darkCard });
   const colors = input.mode === 'dark' ? resolveDark(input) : resolveLight(input);
   return {
     ...colors,
@@ -326,6 +343,8 @@ export function autoFixTheme(raw: ThemeInput): ThemeInput {
       if (failing.some(l => l.startsWith('Texto secundario')) && input.muted) input.muted = adjustLightness(input.muted, 4);
       if (failing.some(l => l.startsWith('Títulos')) && input.card) input.card = adjustLightness(input.card, -4);
       if (failing.some(l => l.startsWith('Texto sobre la barra')) && input.dark) input.dark = adjustLightness(input.dark, -4);
+      if (failing.some(l => l.startsWith('Texto sobre la barra') || l.startsWith('Acento sobre la barra')) && input.darkSurface) input.darkSurface = adjustLightness(input.darkSurface, -4);
+      if (failing.some(l => l.startsWith('Títulos')) && input.darkCard) input.darkCard = adjustLightness(input.darkCard, -4);
       continue;
     }
     if (failing.some(l => l.startsWith('Texto principal') || l.startsWith('Títulos') || l.startsWith('Texto sobre botones'))) {

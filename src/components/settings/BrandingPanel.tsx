@@ -72,6 +72,39 @@ const ThemePreview = ({ theme }: { theme: ThemeInput }) => {
   );
 };
 
+/* ---------- Logos ---------- */
+type LogoKind = 'logo' | 'logoDark' | 'logoSmall' | 'logoLogin';
+const LOGO_KEY: Record<LogoKind, 'logoUrl' | 'logoDarkUrl' | 'logoSmallUrl' | 'logoLoginUrl'> = {
+  logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl',
+};
+
+const LogoSlot = ({ kind, title, hint, src, own, bg, light, small, busy, onFile, onRemove }: {
+  kind: LogoKind; title: string; hint: string; src: string; own: boolean; bg?: string; light?: boolean; small?: boolean;
+  busy: boolean; onFile: (f: File | undefined) => void; onRemove: () => void;
+}) => {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-2" data-logo-slot={kind}>
+      <p className="text-xs font-medium text-muted-foreground">{title}</p>
+      <div className={cn('h-28 rounded-lg flex items-center justify-center p-3', light && 'border border-border bg-white paper')} style={bg ? { background: bg } : undefined}>
+        {small ? (
+          <span className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ background: bg ? 'rgba(255,255,255,0.06)' : undefined }}>
+            <img src={src} alt={title} className="max-h-12 max-w-[48px] object-contain" />
+          </span>
+        ) : <img src={src} alt={title} className={cn('max-h-full max-w-full object-contain', !own && 'opacity-60')} />}
+      </div>
+      <input ref={ref} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={e => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
+      <div className="flex gap-2">
+        <button type="button" disabled={busy} onClick={() => ref.current?.click()} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50">
+          <Upload size={13} /> {busy ? 'Subiendo...' : 'Subir'}
+        </button>
+        {own && <button type="button" onClick={onRemove} title="Quitar" className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-snug">{hint}</p>
+    </div>
+  );
+};
+
 /* ---------- Panel principal ---------- */
 const BrandingPanel = () => {
   const branding = useStore(s => s.branding);
@@ -88,11 +121,12 @@ const BrandingPanel = () => {
   const [fontFamilyName, setFontFamilyName] = useState('');
   const [faviconBg, setFaviconBg] = useState<'transparent' | 'dark'>('dark');
   const fontFileRef = useRef<HTMLInputElement>(null);
-  const logoRef = useRef<HTMLInputElement>(null);
-  const logoLightRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
 
   const resolved = useMemo(() => resolveTheme(theme), [theme]);
+  // Fondos reales de cada modo, para ver cada logo donde va a quedar
+  const lightResolved = useMemo(() => resolveTheme({ ...theme, mode: 'light' }), [theme]);
+  const darkResolved = useMemo(() => resolveTheme({ ...theme, mode: 'dark' }), [theme]);
   const checks = useMemo(() => contrastChecks(resolved), [resolved]);
   const allOk = checks.every(c => c.ok);
   const dirty = JSON.stringify(theme) !== JSON.stringify(savedTheme);
@@ -110,8 +144,8 @@ const BrandingPanel = () => {
     setSaving(true);
     setError('');
     try {
+      // Lo que esté en "Automático" no se guarda (queda undefined) y se deriva al aplicar
       const clean: ThemeInput = { ...theme, mode };
-      if (!advanced) { delete clean.dark; delete clean.card; delete clean.muted; }
       const r = await api.saveTheme(clean);
       setBranding({ theme: r.theme });
       setSaved(true);
@@ -122,20 +156,21 @@ const BrandingPanel = () => {
     setSaving(false);
   };
 
-  const uploadImage = async (kind: 'logo' | 'logoLogin' | 'favicon' | 'appleIcon', file: File) => {
+  const uploadImage = async (kind: LogoKind | 'favicon' | 'appleIcon', file: File) => {
     const data = await fileToDataUrl(file);
     const r = await api.uploadBrandingImage(kind, file.name, data);
     return { url: r.url, data };
   };
 
-  const onLogoFile = async (file: File | undefined, kind: 'logo' | 'logoLogin') => {
+  const onLogoFile = async (file: File | undefined, kind: LogoKind) => {
     if (!file) return;
     setBusy(kind);
     setError('');
     try {
       const { url, data } = await uploadImage(kind, file);
-      const patch: any = { [kind === 'logo' ? 'logoUrl' : 'logoLoginUrl']: url };
-      if (kind === 'logo') {
+      const patch: any = { [LOGO_KEY[kind]]: url };
+      // El favicon sale del logo pequeño (es cuadrado); si no hay, del logo principal
+      if (kind === 'logoSmall' || (kind === 'logo' && !branding.logoSmallUrl)) {
         const bg = faviconBg === 'dark' ? resolved.surface : undefined;
         const fav = await generateIconFromImage(data, 64, bg);
         const apple = await generateIconFromImage(data, 180, resolved.surface);
@@ -152,7 +187,7 @@ const BrandingPanel = () => {
   };
 
   const regenerateFavicon = async () => {
-    const src = branding.logoUrl;
+    const src = branding.logoSmallUrl || branding.logoUrl;
     if (!src) { setError('Primero sube el logo principal'); return; }
     setBusy('favicon');
     setError('');
@@ -185,11 +220,11 @@ const BrandingPanel = () => {
     setBusy('');
   };
 
-  const removeImage = async (kind: 'logo' | 'logoLogin' | 'favicon') => {
+  const removeImage = async (kind: LogoKind | 'favicon') => {
     try {
       await api.removeBrandingImage(kind);
       if (kind === 'favicon') { await api.removeBrandingImage('appleIcon'); setBranding({ faviconUrl: '', appleIconUrl: '' }); }
-      else setBranding({ [kind === 'logo' ? 'logoUrl' : 'logoLoginUrl']: '' } as any);
+      else setBranding({ [LOGO_KEY[kind]]: '' } as any);
     } catch (e: any) {
       setError(e.message);
     }
@@ -250,7 +285,7 @@ const BrandingPanel = () => {
             const pt = resolveTheme(p.theme);
             const active = p.theme.primary === theme.primary && p.theme.accent === theme.accent && (p.theme.background === theme.background || mode === 'dark');
             return (
-              <button key={p.name} type="button" onClick={() => update({ primary: p.theme.primary, accent: p.theme.accent, background: p.theme.background, mode: p.theme.mode || 'light', dark: undefined, card: undefined, muted: undefined })}
+              <button key={p.name} type="button" onClick={() => update({ primary: p.theme.primary, accent: p.theme.accent, background: p.theme.background, mode: p.theme.mode || 'light', dark: p.theme.dark, card: p.theme.card, muted: p.theme.muted, wine: p.theme.wine, darkSurface: undefined, darkBackground: undefined, darkCard: undefined })}
                 className={cn('rounded-lg border p-2 text-left transition-all hover:shadow-card', active ? 'border-brand-primary ring-2 ring-brand-primary/20' : 'border-border')}>
                 <div className="flex gap-1 mb-1.5">
                   {[pt.surface, pt.button, pt.accent, pt.background].map((c, i) => <span key={i} className="w-5 h-5 rounded-full border border-black/10" style={{ background: c }} />)}
@@ -262,21 +297,28 @@ const BrandingPanel = () => {
           })}
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-3">
-          <ColorField label="Color principal" hint={mode === 'dark' ? 'Define el tono de fondos, botones y textos del modo oscuro' : 'Botones, títulos y barra lateral (siempre oscuro)'} value={theme.primary} onChange={v => update({ primary: v })} />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" data-color-fields>
+          <ColorField label="Color principal" hint={mode === 'dark' ? 'Tono de botones y textos del modo oscuro' : 'Botones, títulos y textos fuertes'} value={theme.primary} onChange={v => update({ primary: v })} />
           <ColorField label="Color de acento" hint="Detalles, resaltados y botón secundario" value={theme.accent} onChange={v => update({ accent: v })} />
           {mode === 'light' ? (
-            <ColorField label="Fondo" hint="Fondo general de la app (siempre claro)" value={theme.background} onChange={v => update({ background: v })} />
+            <>
+              <ColorField label="Fondo" hint="Fondo general de la app (siempre claro)" value={theme.background} onChange={v => update({ background: v })} />
+              <ColorField label="Barra lateral" hint="Menú de la izquierda y encabezados" value={theme.dark || resolved.surface}
+                auto={!theme.dark} onAutoChange={a => update({ dark: a ? undefined : resolved.surface })} onChange={v => update({ dark: v })} />
+            </>
           ) : (
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Fondo (modo oscuro)</label>
-              <div className="flex items-center gap-2">
-                <span className="w-11 h-10 rounded-lg border border-input" style={{ background: resolved.background }} />
-                <div className="text-[11px] text-muted-foreground leading-tight">Se deriva del tono del color principal para que todo combine. Afínalo en ajustes avanzados.</div>
-              </div>
-            </div>
+            <>
+              <ColorField label="Fondo (modo oscuro)" hint="Si es muy claro, se oscurece lo justo" value={theme.darkBackground || resolved.background}
+                auto={!theme.darkBackground} onAutoChange={a => update({ darkBackground: a ? undefined : resolved.background })} onChange={v => update({ darkBackground: v })} />
+              <ColorField label="Barra lateral (modo oscuro)" hint="Menú de la izquierda y encabezados" value={theme.darkSurface || resolved.surface}
+                auto={!theme.darkSurface} onAutoChange={a => update({ darkSurface: a ? undefined : resolved.surface })} onChange={v => update({ darkSurface: v })} />
+            </>
           )}
         </div>
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Los colores del modo claro y del oscuro se guardan por separado: cada persona puede cambiar de modo con el ícono de la luna del encabezado.
+          El modo que dejes elegido arriba es el que ven todos al entrar.
+        </p>
 
         {mode === 'light' && (!bgLight || !primaryDark) && (
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-1.5">
@@ -286,14 +328,17 @@ const BrandingPanel = () => {
         )}
 
         <button type="button" onClick={() => setAdvanced(a => !a)} className="text-xs text-brand-primary font-semibold hover:underline">
-          {advanced ? 'Ocultar ajustes avanzados' : 'Ajustes avanzados (barra lateral, tarjetas, texto secundario)'}
+          {advanced ? 'Ocultar ajustes avanzados' : 'Ajustes avanzados (tarjetas, texto secundario)'}
         </button>
         {advanced && (
-          <div className="grid sm:grid-cols-3 gap-3">
-            <ColorField label="Barra lateral y encabezados" hint="Superficies oscuras" value={theme.dark || resolved.surface}
-              auto={!theme.dark} onAutoChange={a => update({ dark: a ? undefined : resolved.surface })} onChange={v => update({ dark: v })} />
-            <ColorField label="Tarjetas" hint="Fondo de tarjetas y paneles" value={theme.card || resolved.card}
-              auto={!theme.card} onAutoChange={a => update({ card: a ? undefined : resolved.card })} onChange={v => update({ card: v })} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            {mode === 'light' ? (
+              <ColorField label="Tarjetas" hint="Fondo de tarjetas y paneles" value={theme.card || resolved.card}
+                auto={!theme.card} onAutoChange={a => update({ card: a ? undefined : resolved.card })} onChange={v => update({ card: v })} />
+            ) : (
+              <ColorField label="Tarjetas (modo oscuro)" hint="Fondo de tarjetas y paneles" value={theme.darkCard || resolved.card}
+                auto={!theme.darkCard} onAutoChange={a => update({ darkCard: a ? undefined : resolved.card })} onChange={v => update({ darkCard: v })} />
+            )}
             <ColorField label="Texto secundario" hint="Descripciones y ayudas" value={theme.muted || resolved.muted}
               auto={!theme.muted} onAutoChange={a => update({ muted: a ? undefined : resolved.muted })} onChange={v => update({ muted: v })} />
           </div>
@@ -392,38 +437,22 @@ const BrandingPanel = () => {
       <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-4">
         <div>
           <h3 className="font-bold text-sm flex items-center gap-1.5"><ImageIcon size={15} /> Logo y favicon</h3>
-          <p className="text-xs text-muted-foreground">Al subir el logo principal, el sistema genera automáticamente el favicon y el ícono para móviles.</p>
+          <p className="text-xs text-muted-foreground">Cada logo se ve sobre su fondo real. El favicon y el ícono para móviles se generan solos del logo pequeño (o del principal si no hay pequeño).</p>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-3">
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Logo principal (barra lateral)</p>
-            <div className="h-28 rounded-lg flex items-center justify-center p-3" style={{ background: resolved.surface }}>
-              <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt="Logo" className="max-h-full max-w-full object-contain" />
-            </div>
-            <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={e => { onLogoFile(e.target.files?.[0], 'logo'); e.target.value = ''; }} />
-            <div className="flex gap-2">
-              <button type="button" disabled={busy === 'logo'} onClick={() => logoRef.current?.click()} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50">
-                <Upload size={13} /> {busy === 'logo' ? 'Subiendo...' : 'Subir'}
-              </button>
-              {branding.logoUrl && <button type="button" onClick={() => removeImage('logo')} className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Logo para fondos claros (acceso)</p>
-            <div className="h-28 rounded-lg flex items-center justify-center p-3 border border-border bg-white paper">
-              <img src={branding.logoLoginUrl || branding.logoUrl || '/logo/logo-login.svg'} alt="Logo claro" className="max-h-full max-w-full object-contain" />
-            </div>
-            <input ref={logoLightRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={e => { onLogoFile(e.target.files?.[0], 'logoLogin'); e.target.value = ''; }} />
-            <div className="flex gap-2">
-              <button type="button" disabled={busy === 'logoLogin'} onClick={() => logoLightRef.current?.click()} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50">
-                <Upload size={13} /> {busy === 'logoLogin' ? 'Subiendo...' : 'Subir'}
-              </button>
-              {branding.logoLoginUrl && <button type="button" onClick={() => removeImage('logoLogin')} className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
-            </div>
-            <p className="text-[10px] text-muted-foreground">Si no subes uno, se usa el logo principal.</p>
-          </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <LogoSlot kind="logo" title="Barra lateral · modo claro" hint="Logo principal. Se usa también donde falte otro."
+            src={branding.logoUrl || '/logo/logo-dark.svg'} own={!!branding.logoUrl} bg={lightResolved.surface}
+            busy={busy === 'logo'} onFile={f => onLogoFile(f, 'logo')} onRemove={() => removeImage('logo')} />
+          <LogoSlot kind="logoDark" title="Barra lateral · modo oscuro" hint={branding.logoDarkUrl ? 'Se muestra cuando la pantalla está en modo oscuro.' : 'Si no subes uno, se usa el del modo claro.'}
+            src={branding.logoDarkUrl || branding.logoUrl || '/logo/logo-dark.svg'} own={!!branding.logoDarkUrl} bg={darkResolved.surface}
+            busy={busy === 'logoDark'} onFile={f => onLogoFile(f, 'logoDark')} onRemove={() => removeImage('logoDark')} />
+          <LogoSlot kind="logoSmall" title="Menú recogido (logo pequeño)" hint="Ícono o inicial de la marca, idealmente cuadrado. Se ve al recoger el menú y en tabletas." small
+            src={branding.logoSmallUrl || branding.logoUrl || '/logo/logo-dark.svg'} own={!!branding.logoSmallUrl} bg={resolved.surface}
+            busy={busy === 'logoSmall'} onFile={f => onLogoFile(f, 'logoSmall')} onRemove={() => removeImage('logoSmall')} />
+          <LogoSlot kind="logoLogin" title="Inicio de sesión" hint="Pantalla de acceso y encabezados claros (fondo blanco). Si no subes uno, se usa el principal." light
+            src={branding.logoLoginUrl || branding.logoUrl || '/logo/logo-login.svg'} own={!!branding.logoLoginUrl}
+            busy={busy === 'logoLogin'} onFile={f => onLogoFile(f, 'logoLogin')} onRemove={() => removeImage('logoLogin')} />
 
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">Favicon (pestaña del navegador)</p>
@@ -438,7 +467,7 @@ const BrandingPanel = () => {
             </div>
             <input ref={faviconRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={e => { onFaviconFile(e.target.files?.[0]); e.target.value = ''; }} />
             <div className="flex gap-2">
-              <button type="button" disabled={busy === 'favicon' || !branding.logoUrl} onClick={regenerateFavicon} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50">
+              <button type="button" disabled={busy === 'favicon' || !(branding.logoSmallUrl || branding.logoUrl)} onClick={regenerateFavicon} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50">
                 <RefreshCw size={13} /> {busy === 'favicon' ? 'Generando...' : 'Generar del logo'}
               </button>
               <button type="button" onClick={() => faviconRef.current?.click()} className="px-3 py-2 rounded-lg border border-border text-xs text-brand-dark hover:bg-muted/30" title="Subir favicon propio"><Upload size={13} /></button>

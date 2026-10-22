@@ -298,6 +298,8 @@ function migrateSchema() {
   addCol('orders', 'deposit_at', 'TEXT');
   addCol('orders', 'deposit_by', 'TEXT');
   addCol('orders', 'deposit_movement_id', 'INTEGER');
+  // Foto de la categoría (opcional; reemplaza al emoji donde se muestra)
+  addCol('categories', 'image', 'TEXT');
   backfillOrderCashier(db);
 
   // Clientes: el teléfono deja de ser obligatorio y único (basta con cédula/NIT para el directorio y la F.E.)

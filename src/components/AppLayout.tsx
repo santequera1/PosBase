@@ -58,6 +58,10 @@ export const AppLayout = () => {
   const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride, restaurant, hiddenViews } = useStore();
   void hiddenViews; // re-render del menú al cambiar las secciones visibles
   const isDark = (modeOverride ?? branding.theme?.mode ?? 'light') === 'dark';
+  // Logos: barra lateral según el modo, uno pequeño para el menú recogido y uno para fondos claros
+  const sideLogo = (isDark && branding.logoDarkUrl) || branding.logoUrl || '/logo/logo-dark.svg';
+  const smallLogo = branding.logoSmallUrl || sideLogo;
+  const lightBgLogo = (isDark ? sideLogo : branding.logoLoginUrl || branding.logoUrl) || '/logo/logo-login.svg';
   // El personal de cocina solo ve el monitor de cocina
   const visibleNav = visibleFor(navFor(restaurant?.modules), user);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
@@ -101,7 +105,7 @@ export const AppLayout = () => {
             className="flex items-center justify-center flex-1 py-1 hover:opacity-90 transition-opacity"
             title={businessName}
           >
-            <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className={cn('w-auto object-contain transition-all', sidebarCollapsed ? 'h-8' : 'h-14')} />
+            <img src={sidebarCollapsed ? smallLogo : sideLogo} alt={businessName} className={cn('w-auto object-contain transition-all', sidebarCollapsed ? 'h-10 max-w-[44px]' : 'h-14')} data-sidebar-logo />
           </button>
 
           <button
@@ -169,7 +173,7 @@ export const AppLayout = () => {
       {/* Tablet Sidebar (icons only) */}
       <aside className="hidden md:flex lg:hidden flex-col fixed left-0 top-0 bottom-0 w-16 bg-brand-surface text-brand-on-dark z-40 items-center border-r border-white/10 shadow-2xl">
         <div className="p-3 mt-2 flex items-center justify-center">
-          <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" />
+          <img src={smallLogo} alt={businessName} className="h-9 max-w-[44px] w-auto object-contain" />
         </div>
         <nav className="flex-1 flex flex-col items-center gap-1.5 mt-4">
           {visibleNav.map(item => {
@@ -200,7 +204,7 @@ export const AppLayout = () => {
           {topNav ? (
             <div className="flex-1 md:hidden flex items-center gap-2 min-w-0" data-top-nav>
               {/* Encabezado claro: logo para fondo claro (en modo oscuro, el de fondo oscuro) */}
-              <img src={(isDark ? branding.logoUrl : branding.logoLoginUrl || branding.logoUrl) || '/logo/logo-login.svg'} alt={businessName} className="h-9 w-auto max-w-[56px] object-contain shrink-0" data-header-logo />
+              <img src={lightBgLogo} alt={businessName} className="h-9 w-auto max-w-[56px] object-contain shrink-0" data-header-logo />
               <div className="relative min-w-0">
                 <button onClick={() => setShowModules(v => !v)} className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-xl bg-orange-500 text-white text-sm font-bold max-w-[190px]" data-module-switch>
                   {currentModule ? <currentModule.icon size={16} className="shrink-0" /> : null}<span className="truncate">{currentModule ? currentModule.label : 'Menú'}</span><ChevronDown size={15} className={cn('shrink-0 transition-transform', showModules && 'rotate-180')} />
@@ -221,7 +225,7 @@ export const AppLayout = () => {
             </div>
           ) : (
           <button onClick={() => navigate('/pos')} className="font-serif font-bold text-base tracking-wide flex-1 md:hidden flex items-center gap-2 text-brand-primary">
-            <img src={branding.logoUrl || '/logo/logo-dark.svg'} alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
+            <img src={lightBgLogo} alt={businessName} className="h-7 w-auto object-contain" /> {businessName}
           </button>
           )}
           {/* En escritorio el encabezado muestra el nombre del negocio; el título de cada sección lo pone la propia página */}

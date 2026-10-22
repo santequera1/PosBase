@@ -13,6 +13,7 @@ import PrintersPanel from '@/components/settings/PrintersPanel';
 import BranchesPanel from '@/components/settings/BranchesPanel';
 import DemoPacksPanel from '@/components/settings/DemoPacksPanel';
 import { NiceSelect } from '@/components/ui/nice-select';
+import { CategoryIcon, CategoryIconPicker } from '@/components/common/CategoryIcon';
 
 type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'sedes' | 'impresoras' | 'facturacion' | 'integracion' | 'demo';
 
@@ -76,6 +77,7 @@ const SettingsPage = () => {
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
   const [catName, setCatName] = useState('');
   const [catEmoji, setCatEmoji] = useState('');
+  const [catImage, setCatImage] = useState<string | null>(null);
   const [catColor, setCatColor] = useState('#6B7280');
 
   useEffect(() => {
@@ -133,22 +135,25 @@ const SettingsPage = () => {
     if (!c) return;
     setCatName(c.name);
     setCatEmoji(c.emoji);
+    setCatImage(c.image || null);
     setCatColor(c.color);
     setEditingCatId(id);
     setShowCatForm(true);
   };
 
   const handleSaveCat = () => {
-    if (!catName || !catEmoji) return;
+    if (!catName.trim()) return;
+    const icon = { emoji: catImage ? '' : (catEmoji || '🍽️'), image: catImage };
     if (editingCatId) {
-      updateCategory(editingCatId, { name: catName, emoji: catEmoji, color: catColor });
+      updateCategory(editingCatId, { name: catName, ...icon, color: catColor });
     } else {
-      addCategory({ name: catName, emoji: catEmoji, color: catColor });
+      addCategory({ name: catName, ...icon, color: catColor });
     }
     setShowCatForm(false);
     setEditingCatId(null);
     setCatName('');
     setCatEmoji('');
+    setCatImage(null);
     setCatColor('#6B7280');
   };
 
@@ -292,7 +297,7 @@ const SettingsPage = () => {
         <section className="max-w-lg bg-card rounded-xl border border-border p-4 shadow-card space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-sans font-bold text-sm">📂 Categorías</h3>
-            <button onClick={() => { setEditingCatId(null); setCatName(''); setCatEmoji(''); setCatColor('#6B7280'); setShowCatForm(true); }}
+            <button onClick={() => { setEditingCatId(null); setCatName(''); setCatEmoji('🍽️'); setCatImage(null); setCatColor('#6B7280'); setShowCatForm(true); }}
               className="text-xs text-primary font-medium flex items-center gap-1 font-sans">
               <Plus size={14} /> Agregar
             </button>
@@ -300,7 +305,7 @@ const SettingsPage = () => {
           <div className="space-y-2">
             {categories.map(c => (
               <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
-                <span className="text-lg">{c.emoji}</span>
+                <span className="w-7 flex justify-center"><CategoryIcon cat={c} size={24} /></span>
                 <span className="text-sm font-medium flex-1 font-sans">{c.name}</span>
                 <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                 <button onClick={() => openEditCat(c.id)} className="text-muted-foreground hover:text-primary"><Edit2 size={14} /></button>
@@ -317,9 +322,8 @@ const SettingsPage = () => {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[10px] text-muted-foreground mb-0.5 block">Emoji</label>
-                  <input value={catEmoji} onChange={e => setCatEmoji(e.target.value)} placeholder="🍨"
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-card text-sm text-center outline-none font-sans" />
+                  <label className="text-[10px] text-muted-foreground mb-0.5 block">Emoji o foto</label>
+                  <CategoryIconPicker emoji={catEmoji} image={catImage} onChange={v => { setCatEmoji(v.emoji); setCatImage(v.image); }} />
                 </div>
                 <div className="col-span-2">
                   <label className="text-[10px] text-muted-foreground mb-0.5 block">Nombre</label>
@@ -332,7 +336,7 @@ const SettingsPage = () => {
                 <input type="color" value={catColor} onChange={e => setCatColor(e.target.value)}
                   className="w-full h-8 rounded-lg border border-input cursor-pointer" />
               </div>
-              <button onClick={handleSaveCat} disabled={!catName || !catEmoji}
+              <button onClick={handleSaveCat} disabled={!catName.trim()}
                 className="w-full py-2 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold disabled:opacity-40 font-sans">
                 {editingCatId ? 'Guardar cambios' : 'Crear categoría'}
               </button>

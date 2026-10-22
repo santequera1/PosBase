@@ -34,6 +34,8 @@ export interface Category {
   name: string;
   emoji: string;
   color: string;
+  /** Foto de la categoría (reemplaza al emoji donde se muestra) */
+  image?: string | null;
 }
 
 export interface ProductSize {
@@ -205,6 +207,10 @@ export interface Branch { id: number; name: string; address: string; phone: stri
 
 export interface Branding {
   logoUrl: string;
+  /** Barra lateral en modo oscuro (si no hay, se usa logoUrl) */
+  logoDarkUrl: string;
+  /** Menú recogido / tableta (si no hay, se usa el de la barra) */
+  logoSmallUrl: string;
   logoLoginUrl: string;
   faviconUrl: string;
   appleIconUrl: string;
@@ -212,7 +218,7 @@ export interface Branding {
   customFonts: CustomFont[];
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [] };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [] };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -224,6 +230,8 @@ function parseJson<T>(value: unknown, fallback: T): T {
 export function brandingFromSettings(s: any): Branding {
   return {
     logoUrl: s?.logoUrl ? String(s.logoUrl) : '',
+    logoDarkUrl: s?.logoDarkUrl ? String(s.logoDarkUrl) : '',
+    logoSmallUrl: s?.logoSmallUrl ? String(s.logoSmallUrl) : '',
     logoLoginUrl: s?.logoLoginUrl ? String(s.logoLoginUrl) : '',
     faviconUrl: s?.faviconUrl ? String(s.faviconUrl) : '',
     appleIconUrl: s?.appleIconUrl ? String(s.appleIconUrl) : '',

@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MediaManagerModal } from '@/components/MediaManagerModal';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { RecipePanel } from '@/components/inventory/InventoryModule';
+import { CategoryIcon, CategoryIconPicker } from '@/components/common/CategoryIcon';
 
 const StockBadge = ({ p, onAdjust }: { p: any; onAdjust?: () => void }) => {
   if (!p.trackStock) return <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">∞ Siempre disponible</span>;
@@ -34,6 +35,7 @@ const ProductsPage = () => {
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
   const [newCatName, setNewCatName] = useState('');
   const [newCatEmoji, setNewCatEmoji] = useState('');
+  const [newCatImage, setNewCatImage] = useState<string | null>(null);
   const [newCatColor, setNewCatColor] = useState(BRAND.primary);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [search, setSearch] = useState('');
@@ -49,10 +51,11 @@ const ProductsPage = () => {
   }, [showForm]);
 
   const productCountByCat = (id: number) => products.filter(p => p.categoryId === id).length;
-  const openCatForm = (c?: { id: number; name: string; emoji: string; color: string }) => {
+  const openCatForm = (c?: { id: number; name: string; emoji: string; color: string; image?: string | null }) => {
     setEditingCatId(c ? c.id : null);
     setNewCatName(c ? c.name : '');
-    setNewCatEmoji(c ? c.emoji : '');
+    setNewCatEmoji(c ? c.emoji : '🍽️');
+    setNewCatImage(c?.image || null);
     setNewCatColor(c ? c.color : BRAND.primary);
     setShowCatForm(true);
   };
@@ -168,7 +171,7 @@ const ProductsPage = () => {
           return (
             <div key={c.id} className={cn('flex items-stretch rounded-xl shadow-sm shrink-0 overflow-hidden', active ? 'bg-brand-button text-brand-on-button' : 'bg-white text-brand-primary border border-brand-primary/10 hover:bg-brand-card')}>
               <button onClick={() => setSelectedCategory(c.id)} className="px-3.5 py-1.5 text-xs font-bold whitespace-nowrap flex items-center gap-1">
-                <span>{c.emoji}</span>
+                <CategoryIcon cat={c} size={16} />
                 <span>{c.name}</span>
               </button>
               {active && isAdmin && (
@@ -195,9 +198,8 @@ const ProductsPage = () => {
         <div className="flex gap-2 items-end flex-wrap bg-brand-card rounded-2xl border border-brand-accent/50 p-3 shadow-sm">
           <p className="w-full text-[11px] font-bold text-brand-primary -mb-1">{editingCatId ? 'Editar categoría' : 'Nueva categoría'}</p>
           <div>
-            <label className="text-[10px] text-brand-muted font-bold block mb-0.5">Emoji</label>
-            <input value={newCatEmoji} onChange={e => setNewCatEmoji(e.target.value)} placeholder="🍦"
-              className="w-14 px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm text-center outline-none" />
+            <label className="text-[10px] text-brand-muted font-bold block mb-0.5">Emoji o foto</label>
+            <CategoryIconPicker emoji={newCatEmoji} image={newCatImage} onChange={v => { setNewCatEmoji(v.emoji); setNewCatImage(v.image); }} />
           </div>
           <div className="flex-1 min-w-[140px]">
             <label className="text-[10px] text-brand-muted font-bold block mb-0.5">Nombre</label>
@@ -210,12 +212,13 @@ const ProductsPage = () => {
               className="w-10 h-8 rounded border border-gray-200 cursor-pointer bg-white" />
           </div>
           <button onClick={() => {
-            if (newCatName && newCatEmoji) {
-              if (editingCatId) updateCategory(editingCatId, { name: newCatName.trim(), emoji: newCatEmoji.trim(), color: newCatColor });
-              else addCategory({ name: newCatName.trim(), emoji: newCatEmoji.trim(), color: newCatColor });
+            if (newCatName.trim()) {
+              const icon = { emoji: newCatImage ? '' : (newCatEmoji.trim() || '🍽️'), image: newCatImage };
+              if (editingCatId) updateCategory(editingCatId, { name: newCatName.trim(), ...icon, color: newCatColor });
+              else addCategory({ name: newCatName.trim(), ...icon, color: newCatColor });
               setNewCatName(''); setNewCatEmoji(''); setNewCatColor(BRAND.primary); setShowCatForm(false); setEditingCatId(null);
             }
-          }} disabled={!newCatName || !newCatEmoji}
+          }} disabled={!newCatName.trim()}
             className="px-4 py-2 rounded-xl bg-brand-button text-brand-on-button text-xs font-bold disabled:opacity-40 shadow-sm">
             {editingCatId ? 'Guardar' : 'Crear'}
           </button>
@@ -252,7 +255,7 @@ const ProductsPage = () => {
                       <img src={p.image} alt={p.name} className="w-full aspect-square object-contain bg-brand-card/60 p-1.5 transition-transform duration-300 group-hover/img:scale-105" />
                     ) : (
                       <div className="w-full h-24 flex items-center justify-center text-3xl bg-brand-card transition-transform duration-300 group-hover/img:scale-105">
-                        {cat?.emoji || '🍨'}
+                        {cat?.image ? <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover" /> : (cat?.emoji || '🍽️')}
                       </div>
                     )}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white text-[11px] font-bold gap-1 rounded-xl">
@@ -312,7 +315,7 @@ const ProductsPage = () => {
                     <img src={p.image} alt={p.name} className="w-12 h-12 object-contain bg-brand-card p-1 transition-transform group-hover/listimg:scale-105" />
                   ) : (
                     <div className="w-12 h-12 flex items-center justify-center text-xl shrink-0 bg-brand-card transition-transform group-hover/listimg:scale-105">
-                      {cat?.emoji || '🍨'}
+                      {cat?.image ? <img src={cat.image} alt={cat.name} className="w-9 h-9 rounded-lg object-cover" /> : (cat?.emoji || '🍽️')}
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/listimg:opacity-100 flex items-center justify-center transition-opacity text-white rounded-xl">

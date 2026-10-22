@@ -3,6 +3,7 @@ import { catalogAmount } from '@/components/DiscountPicker';
 import { formatTime } from '@/lib/format';
 import { orderNumber } from '@/lib/orderNumber';
 import { BRAND } from '@/lib/theme';
+import { CategoryIcon } from '@/components/common/CategoryIcon';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ShoppingCart,
@@ -815,7 +816,7 @@ export const POSPage: React.FC = () => {
             {hasGelato && <button
               onClick={() => { setCatalogTab('gelato'); setFirstFlavor(null); }}
               className={cn(
-                'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm font-sans',
+                'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-sm font-display',
                 catalogTab === 'gelato'
                   ? 'bg-brand-button text-brand-on-button shadow-md scale-[1.01]'
                   : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
@@ -831,13 +832,13 @@ export const POSPage: React.FC = () => {
                 key={cat.id}
                 onClick={() => { setCatalogTab(cat.id); setFirstFlavor(null); }}
                 className={cn(
-                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-sans',
+                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all font-display',
                   catalogTab === cat.id
                     ? 'bg-brand-button text-brand-on-button shadow-md scale-[1.01]'
                     : 'bg-white hover:bg-brand-card text-brand-primary border border-brand-primary/10'
                 )}
               >
-                <span>{cat.emoji}</span>
+                <CategoryIcon cat={cat} size={16} />
                 <span>{cat.name}</span>
               </button>
             ))}
@@ -1047,7 +1048,7 @@ export const POSPage: React.FC = () => {
                       {/* Details */}
                       <div>
                         <div className="flex items-center justify-between gap-1">
-                          <h3 className="font-sans font-bold text-sm lg:text-base text-brand-dark leading-tight truncate">
+                          <h3 className="font-display font-bold text-sm lg:text-base text-brand-dark leading-tight truncate">
                             {flavor.name}
                           </h3>
                         </div>
@@ -1100,7 +1101,7 @@ export const POSPage: React.FC = () => {
                   >
                     <div>
                       <div className="flex justify-between items-start">
-                        <h3 className="font-sans font-bold text-brand-primary text-sm lg:text-base leading-tight">{prod.name}</h3>
+                        <h3 className="font-display font-bold text-brand-primary text-sm lg:text-base leading-tight">{prod.name}</h3>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

@@ -159,6 +159,8 @@ function applyPack(db, packId, userName = 'Demo') {
     setSetting(db, 'deliveryFee', p.deliveryFee);
     setSetting(db, 'mobileNav', 'top');
     setSetting(db, 'logoUrl', asset(p.id, 'logo') || '');
+    setSetting(db, 'logoDarkUrl', asset(p.id, 'logo-oscuro') || '');
+    setSetting(db, 'logoSmallUrl', asset(p.id, 'logo-pequeno') || '');
     setSetting(db, 'logoLoginUrl', asset(p.id, 'logo-login') || asset(p.id, 'logo') || '');
     setSetting(db, 'demoPack', p.id);
     setSetting(db, 'invoicePrefix', p.brand.businessName.normalize('NFKD').replace(/[^A-Za-z ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 3) || 'POS');

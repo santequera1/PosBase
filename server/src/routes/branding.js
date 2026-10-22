@@ -9,7 +9,8 @@ const router = Router();
 const PUBLIC_DIR = path.resolve(__dirname, '../../../public');
 const DIST_DIR = path.resolve(__dirname, '../../../dist');
 
-const IMAGE_KINDS = { logo: 'logoUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl' };
+// logo: barra lateral (modo claro) · logoDark: barra lateral (modo oscuro) · logoSmall: menú recogido · logoLogin: inicio de sesión
+const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl' };
 const IMAGE_EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/svg+xml': '.svg', 'image/webp': '.webp' };
 const FONT_EXTS = ['.ttf', '.otf', '.woff', '.woff2'];
 
@@ -46,7 +47,7 @@ function parseDataUrl(data) {
 router.put('/theme', requireRole('admin'), (req, res) => {
   const theme = req.body && req.body.theme;
   if (!theme || typeof theme !== 'object') return res.status(400).json({ error: 'Tema inválido' });
-  const allowed = ['primary', 'accent', 'background', 'dark', 'card', 'muted', 'wine', 'fontHeading', 'fontBody', 'fontScript', 'mode'];
+  const allowed = ['primary', 'accent', 'background', 'dark', 'card', 'muted', 'wine', 'darkSurface', 'darkBackground', 'darkCard', 'fontHeading', 'fontBody', 'fontScript', 'mode'];
   const clean = {};
   for (const k of allowed) {
     const v = theme[k];

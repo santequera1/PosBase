@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CategoryIcon } from '@/components/common/CategoryIcon';
 import { Search, Plus, X } from 'lucide-react';
 import { useStore, type OrderItem, type Product } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
@@ -50,8 +51,8 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
           <button onClick={() => { setSearch(''); setCategory(null); }} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border', !category || searching ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>Todo</button>
           {categories.map(c => (
-            <button key={c.id} onClick={() => { if (searching) { setSearch(''); setCategory(c.id); } else setCategory(category === c.id ? null : c.id); }} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border flex items-center gap-1', category === c.id && !searching ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>
-              <span>{c.emoji}</span>{c.name}
+            <button key={c.id} onClick={() => { if (searching) { setSearch(''); setCategory(c.id); } else setCategory(category === c.id ? null : c.id); }} className={cn('px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border flex items-center gap-1 font-display', category === c.id && !searching ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'bg-white text-brand-primary border-brand-primary/10')}>
+              <CategoryIcon cat={c} size={16} />{c.name}
             </button>
           ))}
         </div>
@@ -69,7 +70,7 @@ export const ProductPicker = ({ onAdd }: { onAdd: (item: OrderItem) => void }) =
                 </div>
               ) : null}
               <div className="p-2.5 h-full flex flex-col justify-between min-h-[64px]">
-                <p className="text-xs font-bold text-brand-dark leading-tight line-clamp-2">{p.name}</p>
+                <p className="font-display text-xs font-bold text-brand-dark leading-tight line-clamp-2">{p.name}</p>
                 {searching && catName[p.categoryId] && <p className="text-[10px] text-brand-muted truncate">{catName[p.categoryId]}</p>}
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[11px] font-semibold text-brand-primary">{p.sizes && p.sizes.length ? `Desde ${formatPrice(Math.min(...p.sizes.map(s => s.price)))}` : formatPrice(p.price)}</span>
