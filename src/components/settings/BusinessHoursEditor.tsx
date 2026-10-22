@@ -18,9 +18,14 @@ const MODE_LABEL: Record<Mode, string> = { same: 'Igual todos los días', weekWe
 
 export const DEFAULT_SCHEDULE: WeekSchedule = DAYS.map(() => ({ open: '17:00', close: '22:00', closed: false }));
 
+/** Lo guardado: la lista de 7 días, o { days, holidays } cuando los festivos van con el horario del domingo. */
+export function parseHolidays(raw: unknown): boolean {
+  try { const v: any = typeof raw === 'string' ? JSON.parse(raw) : raw; return !!(v && !Array.isArray(v) && v.holidays); } catch { return false; }
+}
 export function parseSchedule(raw: unknown): WeekSchedule | null {
   try {
-    const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    let v: any = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (v && !Array.isArray(v) && Array.isArray(v.days)) v = v.days;
     if (Array.isArray(v) && v.length === 7) return v.map((d: any) => ({ open: String(d?.open || '17:00'), close: String(d?.close || '22:00'), closed: !!d?.closed }));
   } catch { /* texto viejo */ }
   return null;
@@ -38,14 +43,16 @@ function fmtTime(t: string): string {
 const dayText = (d: DayHours) => (d.closed ? 'cerrado' : `${fmtTime(d.open)} – ${fmtTime(d.close)}`);
 
 /** Texto para los recibos: agrupa los días seguidos con el mismo horario ("Lun a Vie 5 p.m. – 10 p.m. · Sáb y Dom …"). */
-export function scheduleText(s: WeekSchedule): string {
+/** holidays: los festivos se atienden con el horario del domingo ("Sáb, Dom y festivos …"). */
+export function scheduleText(s: WeekSchedule, holidays = false): string {
   const parts: string[] = [];
   let i = 0;
   while (i < 7) {
     let j = i;
     while (j + 1 < 7 && dayText(s[j + 1]) === dayText(s[i])) j++;
-    const days = i === j ? SHORT[i] : j === i + 1 ? `${SHORT[i]} y ${SHORT[j]}` : `${SHORT[i]} a ${SHORT[j]}`;
-    parts.push(i === 0 && j === 6 ? `Todos los días ${dayText(s[i])}` : `${days} ${dayText(s[i])}`);
+    let days = i === j ? SHORT[i] : j === i + 1 ? `${SHORT[i]} y ${SHORT[j]}` : `${SHORT[i]} a ${SHORT[j]}`;
+    if (holidays && j === 6) days = i === j ? `${days} y festivos` : j === i + 1 ? `${SHORT[i]}, ${SHORT[j]} y festivos` : `${days} y festivos`;
+    parts.push(i === 0 && j === 6 ? `Todos los días${holidays ? ' (también festivos)' : ''} ${dayText(s[i])}` : `${days} ${dayText(s[i])}`);
     i = j + 1;
   }
   // Los días cerrados se nombran al final en una sola frase
@@ -66,12 +73,12 @@ function guessMode(s: WeekSchedule): Mode {
  * Editor del horario de atención: atajos (igual todos los días, Lun–Vie + fin de semana, Lun–Vie + sábado + domingo,
  * cada día) y horas por grupo. Devuelve el horario por día y el texto que sale en los recibos.
  */
-export const BusinessHoursEditor = ({ value, legacyText, onChange }: {
-  value: WeekSchedule | null; legacyText?: string; onChange: (schedule: WeekSchedule, text: string) => void;
+export const BusinessHoursEditor = ({ value, holidays = false, legacyText, onChange }: {
+  value: WeekSchedule | null; holidays?: boolean; legacyText?: string; onChange: (schedule: WeekSchedule, text: string, holidays: boolean) => void;
 }) => {
   const schedule = value || DEFAULT_SCHEDULE;
   const [mode, setMode] = useState<Mode>(() => (value ? guessMode(value) : 'weekWeekend'));
-  const text = useMemo(() => scheduleText(schedule), [schedule]);
+  const text = useMemo(() => scheduleText(schedule, holidays), [schedule, holidays]);
   // El horario guardado llega después de montar: el atajo se deduce la primera vez que aparece
   const guessed = useRef(!!value);
   useEffect(() => { if (value && !guessed.current) { guessed.current = true; setMode(guessMode(value)); } }, [value]);
@@ -79,7 +86,7 @@ export const BusinessHoursEditor = ({ value, legacyText, onChange }: {
   const setGroup = (days: number[], patch: Partial<DayHours>) => {
     guessed.current = true; // lo que edita la persona manda sobre la deducción
     const next = schedule.map((d, i) => (days.includes(i) ? { ...d, ...patch } : d));
-    onChange(next, scheduleText(next));
+    onChange(next, scheduleText(next, holidays), holidays);
   };
   // Al cambiar de atajo, cada grupo toma el horario de su primer día
   const changeMode = (m: Mode) => {
@@ -87,7 +94,7 @@ export const BusinessHoursEditor = ({ value, legacyText, onChange }: {
     setMode(m);
     const next = [...schedule];
     for (const g of GROUPS[m]) for (const i of g.days) next[i] = { ...schedule[g.days[0]] };
-    onChange(next, scheduleText(next));
+    onChange(next, scheduleText(next, holidays), holidays);
   };
   const INPUT = 'px-2 py-1.5 rounded-lg border border-input bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-40';
 
@@ -117,6 +124,9 @@ export const BusinessHoursEditor = ({ value, legacyText, onChange }: {
           );
         })}
       </div>
+      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+        <input type="checkbox" checked={holidays} onChange={e => onChange(schedule, scheduleText(schedule, e.target.checked), e.target.checked)} data-hours-holidays /> Los festivos se atienden con el horario del domingo
+      </label>
       <p className="text-[11px] text-muted-foreground">
         En el recibo sale: <span className="font-semibold text-brand-dark" data-hours-text>{value ? text : (legacyText || 'sin horario')}</span>
       </p>

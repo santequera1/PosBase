@@ -114,7 +114,7 @@ export const AppLayout = () => {
             className="flex items-center justify-center flex-1 py-1 hover:opacity-90 transition-opacity"
             title={businessName}
           >
-            <img src={sidebarCollapsed ? smallLogo : sideLogo} alt={businessName} className={cn('w-auto object-contain transition-all', sidebarCollapsed ? 'h-10 max-w-[44px]' : 'h-14')} data-sidebar-logo />
+            <img src={sidebarCollapsed ? smallLogo : sideLogo} alt={businessName} className={cn('transition-all', sidebarCollapsed ? (branding.logoSmallRound ? 'w-10 h-10 rounded-full object-cover' : 'h-10 max-w-[44px] w-auto object-contain') : 'h-14 w-auto object-contain')} data-sidebar-logo />
           </button>
 
           <button
@@ -183,7 +183,7 @@ export const AppLayout = () => {
       {/* Tablet Sidebar (icons only) */}
       <aside className="hidden md:flex lg:hidden flex-col fixed left-0 top-0 bottom-0 w-16 bg-brand-surface text-brand-on-dark z-40 items-center border-r border-white/10 shadow-2xl">
         <div className="p-3 mt-2 flex items-center justify-center">
-          <img src={smallLogo} alt={businessName} className="h-9 max-w-[44px] w-auto object-contain" />
+          <img src={smallLogo} alt={businessName} className={branding.logoSmallRound ? 'w-10 h-10 rounded-full object-cover' : 'h-9 max-w-[44px] w-auto object-contain'} />
         </div>
         <nav className="flex-1 flex flex-col items-center gap-1.5 mt-4">
           {visibleNav.map(item => {

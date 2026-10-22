@@ -79,8 +79,8 @@ const LOGO_KEY: Record<LogoKind, 'logoUrl' | 'logoDarkUrl' | 'logoSmallUrl' | 'l
   logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl',
 };
 
-const LogoSlot = ({ kind, title, hint, src, own, bg, light, small, busy, onFile, onRemove }: {
-  kind: LogoKind; title: string; hint: string; src: string; own: boolean; bg?: string; light?: boolean; small?: boolean;
+const LogoSlot = ({ kind, title, hint, src, own, bg, light, small, round, extra, busy, onFile, onRemove }: {
+  kind: LogoKind; title: string; hint: string; src: string; own: boolean; bg?: string; light?: boolean; small?: boolean; round?: boolean; extra?: React.ReactNode;
   busy: boolean; onFile: (f: File | undefined) => void; onRemove: () => void;
 }) => {
   const ref = useRef<HTMLInputElement>(null);
@@ -90,7 +90,7 @@ const LogoSlot = ({ kind, title, hint, src, own, bg, light, small, busy, onFile,
       <div className={cn('h-28 rounded-lg flex items-center justify-center p-3', light && 'border border-border bg-white paper')} style={bg ? { background: bg } : undefined}>
         {small ? (
           <span className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ background: bg ? 'rgba(255,255,255,0.06)' : undefined }}>
-            <img src={src} alt={title} className="max-h-12 max-w-[48px] object-contain" />
+            <img src={src} alt={title} className={round ? 'w-12 h-12 rounded-full object-cover' : 'max-h-12 max-w-[48px] object-contain'} />
           </span>
         ) : <img src={src} alt={title} className={cn('max-h-full max-w-full object-contain', !own && 'opacity-60')} />}
       </div>
@@ -101,6 +101,7 @@ const LogoSlot = ({ kind, title, hint, src, own, bg, light, small, busy, onFile,
         </button>
         {own && <button type="button" onClick={onRemove} title="Quitar" className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
       </div>
+      {extra}
       <p className="text-[10px] text-muted-foreground leading-snug">{hint}</p>
     </div>
   );
@@ -468,7 +469,9 @@ const BrandingPanel = () => {
             busy={busy === 'logoDark'} onFile={f => onLogoFile(f, 'logoDark')} onRemove={() => removeImage('logoDark')} />
           <LogoSlot kind="logoSmall" title="Menú recogido (logo pequeño)" hint="Ícono o inicial de la marca, idealmente cuadrado. Se ve al recoger el menú y en tabletas." small
             src={branding.logoSmallUrl || branding.logoUrl || '/logo/logo-dark.svg'} own={!!branding.logoSmallUrl} bg={resolved.surface}
-            busy={busy === 'logoSmall'} onFile={f => onLogoFile(f, 'logoSmall')} onRemove={() => removeImage('logoSmall')} />
+            busy={busy === 'logoSmall'} onFile={f => onLogoFile(f, 'logoSmall')} onRemove={() => removeImage('logoSmall')}
+            round={branding.logoSmallRound}
+            extra={<label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer"><input type="checkbox" checked={branding.logoSmallRound} onChange={async e => { const v = e.target.checked; try { await api.updateSettings({ logoSmallRound: v ? '1' : '0' }); setBranding({ logoSmallRound: v }); } catch (err: any) { setError(err.message); } }} data-logo-small-round /> Mostrarlo en círculo</label>} />
           <LogoSlot kind="logoLogin" title="Inicio de sesión" hint="Pantalla de acceso y encabezados claros (fondo blanco). Si no subes uno, se usa el principal." light
             src={branding.logoLoginUrl || branding.logoUrl || '/logo/logo-login.svg'} own={!!branding.logoLoginUrl}
             busy={busy === 'logoLogin'} onFile={f => onLogoFile(f, 'logoLogin')} onRemove={() => removeImage('logoLogin')} />

@@ -13,7 +13,7 @@ import PrintersPanel from '@/components/settings/PrintersPanel';
 import BranchesPanel from '@/components/settings/BranchesPanel';
 import DemoPacksPanel from '@/components/settings/DemoPacksPanel';
 import ReceiptPanel from '@/components/settings/ReceiptPanel';
-import { BusinessHoursEditor, parseSchedule, type WeekSchedule } from '@/components/settings/BusinessHoursEditor';
+import { BusinessHoursEditor, parseSchedule, parseHolidays, type WeekSchedule } from '@/components/settings/BusinessHoursEditor';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { CategoryIcon, CategoryIconPicker } from '@/components/common/CategoryIcon';
 
@@ -49,6 +49,7 @@ const SettingsPage = () => {
   const [businessPhone, setBusinessPhone] = useState('');
   const [businessHours, setBusinessHours] = useState('');
   const [hoursSchedule, setHoursSchedule] = useState<WeekSchedule | null>(null);
+  const [hoursHolidays, setHoursHolidays] = useState(false);
   const [businessAddress, setBusinessAddress] = useState('');
   const [businessSlogan, setBusinessSlogan] = useState('');
   const [businessNit, setBusinessNit] = useState('');
@@ -91,6 +92,7 @@ const SettingsPage = () => {
       setBusinessPhone(s.businessPhone ? String(s.businessPhone) : '');
       setBusinessHours(s.businessHours ? String(s.businessHours) : '');
       setHoursSchedule(parseSchedule(s.businessHoursSchedule));
+      setHoursHolidays(parseHolidays(s.businessHoursSchedule));
       setBusinessAddress(s.businessAddress ? String(s.businessAddress) : '');
       setBusinessNit(s.businessNit ? String(s.businessNit) : '');
       setInvoicePrefix(s.invoicePrefix ? String(s.invoicePrefix) : 'POS');
@@ -114,7 +116,7 @@ const SettingsPage = () => {
         businessSlogan,
         businessPhone,
         businessHours,
-        ...(hoursSchedule ? { businessHoursSchedule: JSON.stringify(hoursSchedule) } : {}),
+        ...(hoursSchedule ? { businessHoursSchedule: JSON.stringify(hoursHolidays ? { days: hoursSchedule, holidays: true } : hoursSchedule) } : {}),
         businessAddress,
         businessNit,
         invoicePrefix: invoicePrefix.trim().toUpperCase() || 'POS',
@@ -220,7 +222,7 @@ const SettingsPage = () => {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Horario de atención</label>
-              <BusinessHoursEditor value={hoursSchedule} legacyText={businessHours} onChange={(sch, text) => { setHoursSchedule(sch); setBusinessHours(text); }} />
+              <BusinessHoursEditor value={hoursSchedule} holidays={hoursHolidays} legacyText={businessHours} onChange={(sch, text, hol) => { setHoursSchedule(sch); setBusinessHours(text); setHoursHolidays(hol); }} />
               <p className="text-[10px] text-muted-foreground mt-1 font-sans">Sale al pie de los recibos</p>
             </div>
             <div>

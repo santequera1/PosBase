@@ -212,6 +212,8 @@ export interface Branding {
   logoDarkUrl: string;
   /** Menú recogido / tableta (si no hay, se usa el de la barra) */
   logoSmallUrl: string;
+  /** El logo pequeño se muestra en círculo */
+  logoSmallRound: boolean;
   logoLoginUrl: string;
   faviconUrl: string;
   appleIconUrl: string;
@@ -228,7 +230,7 @@ export interface Branding {
   loginImageFocus: string;
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center' };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center' };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -242,6 +244,7 @@ export function brandingFromSettings(s: any): Branding {
     logoUrl: s?.logoUrl ? String(s.logoUrl) : '',
     logoDarkUrl: s?.logoDarkUrl ? String(s.logoDarkUrl) : '',
     logoSmallUrl: s?.logoSmallUrl ? String(s.logoSmallUrl) : '',
+    logoSmallRound: String(s?.logoSmallRound ?? '0') === '1',
     logoLoginUrl: s?.logoLoginUrl ? String(s.logoLoginUrl) : '',
     faviconUrl: s?.faviconUrl ? String(s.faviconUrl) : '',
     appleIconUrl: s?.appleIconUrl ? String(s.appleIconUrl) : '',
