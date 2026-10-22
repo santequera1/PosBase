@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const REMEMBER_KEY = 'pos_login_user';
 const readRemembered = () => { try { return localStorage.getItem(REMEMBER_KEY) || ''; } catch { return ''; } };
 
-/** ¿Pantalla de escritorio? (el panel de marca va a la derecha; en celular, arriba y solo si hay modelo) */
+/** ¿Pantalla de escritorio? El panel de marca va a la derecha; en celular no se muestra (solo el formulario). */
 const useDesktop = () => {
   const q = '(min-width: 1024px)';
   const [desk, setDesk] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
@@ -15,8 +15,10 @@ const useDesktop = () => {
   return desk;
 };
 
-/** Panel de marca: modelo 3D girando (si se configuró) o el logo grande sobre el color de la barra lateral. */
-const BrandPanel = ({ modelUrl, logo, name, slogan, className }: { modelUrl: string; logo: string; name: string; slogan: string; className?: string }) => {
+/** Panel de marca: modelo 3D girando, o una foto que lo llena, o el logo grande sobre el color de la barra lateral. */
+const FOCUS: Record<string, string> = { left: '25% 50%', center: '50% 50%', right: '72% 50%' };
+const BrandPanel = ({ modelUrl, imageUrl, imageFocus = 'center', logo, name, slogan, className }: { modelUrl: string; imageUrl: string; imageFocus?: string; logo: string; name: string; slogan: string; className?: string }) => {
+  const [imgReady, setImgReady] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>(modelUrl ? 'loading' : 'idle');
   useEffect(() => {
@@ -33,19 +35,26 @@ const BrandPanel = ({ modelUrl, logo, name, slogan, className }: { modelUrl: str
     }).catch(() => setState('error'));
     return () => { cancelled = true; stop?.(); };
   }, [modelUrl]);
-  const showLogo = !modelUrl || state === 'error';
+  const showImage = !modelUrl && !!imageUrl;
+  const showLogo = (!modelUrl && !imageUrl) || state === 'error';
   return (
     <aside className={cn('relative overflow-hidden bg-brand-surface', className)} data-login-panel>
       <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 52%, hsl(var(--brand-accent) / 0.30), transparent 62%)' }} />
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(hsl(var(--brand-on-dark)) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
       {modelUrl && <div ref={ref} className={cn('absolute inset-0 transition-opacity duration-700', state === 'ready' ? 'opacity-100' : 'opacity-0')} data-login-model={state} />}
       {modelUrl && state === 'loading' && <div className="absolute inset-0 flex items-center justify-center"><span className="w-8 h-8 rounded-full border-2 border-brand-on-dark/20 border-t-brand-accent animate-spin" /></div>}
+      {showImage && (
+        <>
+          <img src={imageUrl} alt={name} onLoad={() => setImgReady(true)} style={{ objectPosition: FOCUS[imageFocus] || FOCUS.center }} className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-700', imgReady ? 'opacity-100' : 'opacity-0')} data-login-image />
+          {slogan && <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent" />}
+        </>
+      )}
       {showLogo && (
         <div className="absolute inset-0 flex items-center justify-center p-12">
           <img src={logo} alt={name} className="max-w-[70%] max-h-[55%] object-contain drop-shadow-2xl" />
         </div>
       )}
-      {slogan && <p className="absolute bottom-6 left-0 right-0 text-center text-sm font-display text-brand-on-dark/70 tracking-wide hidden lg:block">{slogan}</p>}
+      {slogan && <p className={cn('absolute bottom-6 left-0 right-0 text-center text-sm font-display tracking-wide px-8', showImage ? 'text-white/90' : 'text-brand-on-dark/70')}>{slogan}</p>}
     </aside>
   );
 };
@@ -92,11 +101,9 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-[minmax(440px,1fr)_1.1fr] bg-brand-bg" data-login>
-      {/* En celular el modelo va arriba, más bajito; sin modelo, solo el formulario */}
-      {!desktop && branding.loginModelUrl && <BrandPanel modelUrl={branding.loginModelUrl} logo={darkLogo} name={businessName} slogan="" className="h-[32vh] min-h-[200px] shrink-0" />}
 
       <main className="flex-1 flex flex-col px-6 sm:px-12 lg:px-16 py-8">
-        <img src={lightLogo} alt={businessName} className="h-12 w-auto max-w-[180px] object-contain object-left self-start" data-login-logo />
+        <img src={lightLogo} alt={businessName} className="h-14 lg:h-12 w-auto max-w-[200px] object-contain self-center lg:self-start lg:object-left" data-login-logo />
         <div className="flex-1 flex items-center py-10">
           <div className="w-full max-w-md">
             {branding.loginShowTitle && title && <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-primary mb-3" data-login-title>{title}</p>}
@@ -139,7 +146,7 @@ const LoginPage = () => {
         <p className="text-[11px] text-brand-muted">🔒 {businessName} · Punto de venta</p>
       </main>
 
-      {desktop && <BrandPanel modelUrl={branding.loginModelUrl} logo={darkLogo} name={businessName} slogan={businessSlogan} />}
+      {desktop && <BrandPanel modelUrl={branding.loginModelUrl} imageUrl={branding.loginImageUrl} imageFocus={branding.loginImageFocus} logo={darkLogo} name={businessName} slogan={businessSlogan} />}
     </div>
   );
 };

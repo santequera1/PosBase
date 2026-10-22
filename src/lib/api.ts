@@ -172,7 +172,7 @@ export const api = {
 
   // Marca (solo admin)
   saveTheme: (theme: any) => request<{ success: boolean; theme: any }>('/branding/theme', { method: 'PUT', body: JSON.stringify({ theme }) }),
-  uploadBrandingImage: (kind: 'logo' | 'logoDark' | 'logoSmall' | 'logoLogin' | 'favicon' | 'appleIcon' | 'loginModel', filename: string, data: string) =>
+  uploadBrandingImage: (kind: 'logo' | 'logoDark' | 'logoSmall' | 'logoLogin' | 'favicon' | 'appleIcon' | 'loginModel' | 'loginImage', filename: string, data: string) =>
     request<{ success: boolean; url: string; key: string }>('/branding/image', { method: 'POST', body: JSON.stringify({ kind, filename, data }) }),
   removeBrandingImage: (kind: string) => request<any>(`/branding/image/${kind}`, { method: 'DELETE' }),
   uploadFont: (family: string, filename: string, data: string) =>

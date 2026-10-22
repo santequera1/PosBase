@@ -11,7 +11,7 @@ const DIST_DIR = path.resolve(__dirname, '../../../dist');
 
 // logo: barra lateral (modo claro) · logoDark: barra lateral (modo oscuro) · logoSmall: menú recogido · logoLogin: inicio de sesión
 // loginModel: modelo 3D (.glb) que gira en la pantalla de acceso
-const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl', loginModel: 'loginModelUrl' };
+const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl', loginModel: 'loginModelUrl', loginImage: 'loginImageUrl' };
 const IMAGE_EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/svg+xml': '.svg', 'image/webp': '.webp' };
 const FONT_EXTS = ['.ttf', '.otf', '.woff', '.woff2'];
 

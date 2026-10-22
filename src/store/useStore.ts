@@ -222,9 +222,13 @@ export interface Branding {
   loginShowTitle: boolean;
   loginShowSubtitle: boolean;
   loginModelUrl: string;
+  /** Foto que llena el panel de al lado (si no hay modelo 3D) */
+  loginImageUrl: string;
+  /** Qué parte de la foto se ve cuando se recorta: left, center, right */
+  loginImageFocus: string;
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginModelUrl: '' };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginModelUrl: '', loginImageUrl: '', loginImageFocus: 'center' };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -248,6 +252,8 @@ export function brandingFromSettings(s: any): Branding {
     loginShowTitle: String(s?.loginShowTitle ?? '1') !== '0',
     loginShowSubtitle: String(s?.loginShowSubtitle ?? '1') !== '0',
     loginModelUrl: s?.loginModelUrl ? String(s.loginModelUrl) : '',
+    loginImageUrl: s?.loginImageUrl ? String(s.loginImageUrl) : '',
+    loginImageFocus: s?.loginImageFocus ? String(s.loginImageFocus) : 'center',
   };
 }
 
