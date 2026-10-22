@@ -40,7 +40,7 @@ const SAMPLE_MENUS = {
 
 // Estilo inicial según el tipo de negocio (se cambia en Configuración → Marca)
 const THEME_RESTAURANT = { primary: '#111111', accent: '#F7C600', background: '#FFFBEA', dark: '#0B0B0B', card: '#FFF3C4', muted: '#6E6A5A', wine: '#D99A00', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Lobster', mode: 'light' };
-const THEME_ICECREAM = { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Fredoka', fontBody: 'Inter', fontScript: 'Pacifico', mode: 'light' };
+const THEME_ICECREAM = { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Inter', fontBody: 'Fredoka', fontScript: 'Pacifico', mode: 'light' };
 
 const readSetting = (db, k) => (db.prepare('SELECT value FROM settings WHERE key = ?').get(k) || {}).value;
 const setSetting = (db, k, v) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, String(v));

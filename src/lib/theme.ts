@@ -30,6 +30,8 @@ export interface ThemeInput {
   fontHeading?: string;
   fontBody?: string;
   fontScript?: string;
+  /** Redondeo (px) de las opciones del menú lateral: 0 = cuadradas, 16 = predeterminado, 28 = píldora */
+  sideRadius?: number | string;
   mode?: ThemeMode;
 }
 
@@ -54,6 +56,7 @@ export interface ResolvedTheme {
   fontHeading: string;
   fontBody: string;
   fontScript: string;
+  sideRadius: number;
 }
 
 export interface CustomFont {
@@ -70,7 +73,7 @@ export interface ContrastCheck {
   ok: boolean;
 }
 
-export const DEFAULT_THEME: Required<Omit<ThemeInput, 'darkSurface' | 'darkBackground' | 'darkCard'>> = {
+export const DEFAULT_THEME: Required<Omit<ThemeInput, 'darkSurface' | 'darkBackground' | 'darkCard' | 'sideRadius'>> = {
   primary: '#364266',
   accent: '#C6BF81',
   background: '#FEF3DE',
@@ -252,7 +255,7 @@ export function constrainInput(input: ThemeInput): ThemeInput {
   return out;
 }
 
-function resolveLight(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fontBody' | 'fontScript'> {
+function resolveLight(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fontBody' | 'fontScript' | 'sideRadius'> {
   const primary = input.primary;
   const accent = input.accent;
   const background = input.background;
@@ -271,7 +274,7 @@ function resolveLight(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'f
   return { mode: 'light', primary, primaryStrong, button: primaryStrong, onButton, surface, dark, accent, background, card, card2, pill, muted, wine, onPrimary: onButton, onDark, onAccent };
 }
 
-function resolveDark(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fontBody' | 'fontScript'> {
+function resolveDark(input: ThemeInput): Omit<ResolvedTheme, 'fontHeading' | 'fontBody' | 'fontScript' | 'sideRadius'> {
   const base = hexToHsl(input.primary);
   const h = base.h;
   const s = Math.max(8, Math.min(40, base.s));
@@ -311,6 +314,7 @@ export function resolveTheme(raw: ThemeInput | null | undefined): ResolvedTheme 
     fontHeading: input.fontHeading || DEFAULT_THEME.fontHeading,
     fontBody: input.fontBody || DEFAULT_THEME.fontBody,
     fontScript: input.fontScript || DEFAULT_THEME.fontScript,
+    sideRadius: (() => { const n = Number(raw?.sideRadius); return Number.isFinite(n) && raw?.sideRadius !== undefined && raw?.sideRadius !== '' ? Math.max(0, Math.min(28, n)) : 16; })(),
   };
 }
 
@@ -367,7 +371,7 @@ export const THEME_PRESETS: Array<{ name: string; description: string; theme: Th
   // Predeterminados por tipo de negocio (los usa el asistente de configuración inicial)
   { name: 'Restaurante', description: 'Negro, amarillo y crema · Inter (el estilo de Wonka\'s)', theme: { primary: '#111111', accent: '#F7C600', background: '#FFFBEA', dark: '#0B0B0B', card: '#FFF3C4', muted: '#6E6A5A', wine: '#D99A00', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Lobster', mode: 'light' } },
   { name: 'Natural', description: 'Verde, café, crema y durazno · Inter', theme: { primary: '#5E4B35', accent: '#A3CB5D', background: '#FBFAF1', dark: '#3D3122', card: '#F3F3DA', muted: '#8B7355', wine: '#E9A47A', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Caveat', mode: 'light' } },
-  { name: 'Heladería pastel', description: 'Lila, amarillo crema y coral · Fredoka + Inter', theme: { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Fredoka', fontBody: 'Inter', fontScript: 'Pacifico', mode: 'light' } },
+  { name: 'Heladería pastel', description: 'Lila, amarillo crema y coral · Inter + Fredoka', theme: { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Inter', fontBody: 'Fredoka', fontScript: 'Pacifico', mode: 'light' } },
   { name: 'Clásico', description: 'Azul marino, dorado y crema', theme: { primary: '#364266', accent: '#C6BF81', background: '#FEF3DE', mode: 'light' } },
   { name: 'Tropical', description: 'Coral, mango y crema', theme: { primary: '#B8412E', accent: '#F5B942', background: '#FFF6EA', mode: 'light' } },
   { name: 'Pistacho', description: 'Verde profundo y menta', theme: { primary: '#2F5D45', accent: '#9CCB86', background: '#F4F9F1', mode: 'light' } },
@@ -406,6 +410,7 @@ export const FONT_CATALOG: FontOption[] = [
   { family: 'Bitter', source: 'google', category: 'serif' },
   { family: 'DM Serif Display', source: 'google', category: 'display' },
   { family: 'Fredoka', source: 'google', category: 'display' },
+  { family: 'Luckiest Guy', source: 'google', category: 'display' },
   { family: 'Baloo 2', source: 'google', category: 'display' },
   { family: 'Comfortaa', source: 'google', category: 'display' },
   { family: 'Cinzel', source: 'google', category: 'display' },
@@ -454,7 +459,8 @@ export interface FontPairing {
 
 export const FONT_PAIRINGS: FontPairing[] = [
   { name: 'Neutra', description: 'Inter para todo — limpia y fácil de leer (predeterminada).', heading: 'Inter', body: 'Inter', script: 'Lobster' },
-  { name: 'Heladería', description: 'Fredoka + Inter — redondeada y alegre, para heladerías y postres.', heading: 'Fredoka', body: 'Inter', script: 'Pacifico' },
+  { name: 'Heladería', description: 'Inter en títulos y Fredoka en el resto (menú, botones) — redondeada y alegre, para heladerías y postres.', heading: 'Inter', body: 'Fredoka', script: 'Pacifico' },
+  { name: 'Callejera', description: 'Luckiest Guy + Fredoka — gruesa y divertida, para fritos, arepas y comida rápida.', heading: 'Luckiest Guy', body: 'Fredoka', script: 'Lobster' },
   { name: 'Artesanal', description: 'Playfair Display + Lapture — la combinación original de heladería.', heading: 'Playfair Display', body: 'Lapture', script: 'Great Vibes' },
   { name: 'Editorial', description: 'Fraunces + Inter — estilo revista, cálida y legible.', heading: 'Fraunces', body: 'Inter', script: 'Caveat' },
   { name: 'Clásica', description: 'Lora + Source Sans 3 — más libro, menos magazine.', heading: 'Lora', body: 'Source Sans 3', script: 'Sacramento' },
@@ -551,6 +557,7 @@ export function applyTheme(t: ResolvedTheme, customFonts: CustomFont[] = []): vo
   injectCustomFonts(customFonts);
   root.style.setProperty('--font-heading', `"${t.fontHeading}", ${fontFallback(t.fontHeading, customFonts)}`);
   root.style.setProperty('--font-body', `"${t.fontBody}", ${fontFallback(t.fontBody, customFonts)}`);
+  root.style.setProperty('--side-radius', `${t.sideRadius}px`);
   root.style.setProperty('--font-script', `"${t.fontScript}", ${fontFallback(t.fontScript, customFonts)}`);
 
   let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;

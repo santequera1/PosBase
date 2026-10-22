@@ -49,15 +49,24 @@ const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: bool
 
 const visibleFor = (items: NavItem[], user?: PermUser | null) => {
   const hidden = useStore.getState().hiddenViews || [];
-  return items.filter(i => !i.view || (can(user, i.view) && !hidden.includes(i.view) && !(i.view === 'courier' && user?.role === 'admin')));
+  return items.filter(i => (i.path !== '/mi-cuenta' || (user as any)?.linked !== false) && (!i.view || (can(user, i.view) && !hidden.includes(i.view) && !(i.view === 'courier' && user?.role === 'admin'))));
 };
 
 export const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, modeOverride, setModeOverride, restaurant, hiddenViews } = useStore();
+  const { user, logout, orders, sidebarCollapsed, toggleSidebar, businessName, branding, setModeOverride, restaurant, hiddenViews } = useStore();
   void hiddenViews; // re-render del menú al cambiar las secciones visibles
-  const isDark = (modeOverride ?? branding.theme?.mode ?? 'light') === 'dark';
+  // Modo realmente pintado (incluye la vista previa de Configuración → Marca antes de guardar)
+  const [isDark, setIsDark] = useState(() => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const html = document.documentElement;
+    setIsDark(html.classList.contains('dark'));
+    const obs = new MutationObserver(() => setIsDark(html.classList.contains('dark')));
+    obs.observe(html, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+  const savedMode = branding.theme?.mode ?? 'light';
   // Logos: barra lateral según el modo, uno pequeño para el menú recogido y uno para fondos claros
   const sideLogo = (isDark && branding.logoDarkUrl) || branding.logoUrl || '/logo/logo-dark.svg';
   const smallLogo = branding.logoSmallUrl || sideLogo;
@@ -126,13 +135,14 @@ export const AppLayout = () => {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-sm font-semibold transition-all select-none',
+                  'w-full flex items-center gap-3 px-3.5 py-3 text-sm font-semibold transition-all select-none',
                   active
                     ? 'bg-brand-card text-brand-dark shadow-md font-bold scale-[1.01]'
                     : 'text-brand-on-dark/80 hover:text-white hover:bg-white/10',
                   sidebarCollapsed && 'justify-center px-0'
                 )}
                 title={sidebarCollapsed ? item.label : undefined}
+                style={{ borderRadius: 'var(--side-radius, 16px)' }}
               >
                 <item.icon size={20} className={active ? 'text-brand-primary-strong' : 'text-brand-accent'} />
                 {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -183,10 +193,11 @@ export const AppLayout = () => {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'w-11 h-11 flex items-center justify-center rounded-2xl transition-all relative',
+                  'w-11 h-11 flex items-center justify-center transition-all relative',
                   active ? 'bg-brand-card text-brand-dark shadow-md' : 'text-brand-on-dark/80 hover:bg-white/10 hover:text-white'
                 )}
                 title={item.label}
+                style={{ borderRadius: 'var(--side-radius, 16px)' }}
               >
                 <item.icon size={20} className={active ? 'text-brand-dark' : 'text-brand-accent'} />
                 {item.path === '/orders' && pendingCount > 0 && (
@@ -234,7 +245,7 @@ export const AppLayout = () => {
           </div>
         <BranchSwitcher />
         {/* Modo claro / oscuro (preferencia de este dispositivo) */}
-        <button onClick={() => setModeOverride(isDark ? 'light' : 'dark')}
+        <button onClick={() => { const next = isDark ? 'light' : 'dark'; setModeOverride(next === savedMode ? null : next); }}
           className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
           {isDark ? <Sun size={19} className="text-brand-primary" /> : <Moon size={19} className="text-brand-primary" />}
         </button>
@@ -284,10 +295,10 @@ export const AppLayout = () => {
                 <p className="text-sm font-bold font-serif text-brand-primary">{user?.name}</p>
                 <p className="text-xs text-brand-muted capitalize">{user?.role}</p>
               </div>
-              <button onClick={() => { navigate('/mi-cuenta'); setShowUserMenu(false); }}
+              {user?.linked !== false && <button onClick={() => { navigate('/mi-cuenta'); setShowUserMenu(false); }}
                 className="w-full px-3 py-2 text-left text-sm hover:bg-brand-card transition-colors flex items-center gap-2 text-brand-primary" data-menu-my-account>
                 <IdCard size={14} /> Mi cuenta (nómina)
-              </button>
+              </button>}
               <button onClick={() => { navigate('/settings'); setShowUserMenu(false); }}
                 className="w-full px-3 py-2 text-left text-sm hover:bg-brand-card transition-colors flex items-center gap-2 text-brand-primary">
                 <Settings size={14} /> Configuración

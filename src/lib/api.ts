@@ -162,7 +162,7 @@ export const api = {
   getTopDrivers: (period?: string) => request<any[]>(`/reports/top-drivers${period ? '?period=' + period : ''}`),
 
   // Settings
-  me: () => request<{ id: number; name: string; role: string; profile: string; perms: { views: string[]; actions: string[] }; token?: string }>('/auth/me'),
+  me: () => request<{ id: number; name: string; role: string; profile: string; perms: { views: string[]; actions: string[] }; linked?: boolean; token?: string }>('/auth/me'),
   getSettings: () => request<any>('/settings'),
   getIntegration: () => request<any>('/settings/integration'),
   updateSettings: (data: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(data) }),

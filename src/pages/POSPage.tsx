@@ -276,8 +276,10 @@ export const POSPage: React.FC = () => {
 
   // POS State
   const [catalogTab, setCatalogTab] = useState<'gelato' | number | 'custom' | 'all'>('gelato');
-  const hasGelato = categories.some(c => [1, 2, 3].includes(c.id));
-  const defaultTab: 'gelato' | number = hasGelato ? 'gelato' : (categories.find(c => ![1, 2, 3].includes(c.id))?.id ?? 'gelato');
+  const businessType = useStore(s => s.businessType);
+  // Pantalla de sabores: solo heladerías (las instalaciones antiguas sin tipo se reconocen por las categorías 1-3)
+  const hasGelato = (businessType ? businessType === 'icecream' : true) && categories.some(c => [1, 2, 3].includes(c.id));
+  const defaultTab: 'gelato' | number = hasGelato ? 'gelato' : (categories[0]?.id ?? 'gelato');
   useEffect(() => { if (!hasGelato && catalogTab === 'gelato' && typeof defaultTab === 'number') setCatalogTab(defaultTab); }, [hasGelato, catalogTab, defaultTab]);
   const [selectedFormat, setSelectedFormat] = useState<GelatoFormat>(GELATO_FORMATS[0]);
   const [firstFlavor, setFirstFlavor] = useState<Product | null>(null);
@@ -827,7 +829,7 @@ export const POSPage: React.FC = () => {
             </button>}
 
             {/* Las demás categorías (bebidas, toppings, affogatos y cualquier categoría nueva: hamburguesas, combos, etc.) */}
-            {categories.filter(c => ![1, 2, 3].includes(c.id)).map(cat => (
+            {categories.filter(c => !(hasGelato && [1, 2, 3].includes(c.id))).map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { setCatalogTab(cat.id); setFirstFlavor(null); }}

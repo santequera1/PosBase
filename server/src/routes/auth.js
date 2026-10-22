@@ -66,8 +66,12 @@ router.post('/change-password', (req, res) => {
 // Usuario actual con sus permisos vigentes (se consulta al entrar y al cambiar de sección)
 // Además de los permisos vigentes entrega un token renovado: mientras se use la app, la sesión no vence.
 router.get('/me', authMiddleware, (req, res) => {
-  const row = getDb().prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  res.json({ id: req.user.id, name: req.user.name, role: req.user.role, profile: req.user.profile, perms: req.user.perms, token: row ? generateToken(row) : undefined });
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  // ¿Tiene ficha de colaborador? (sin ficha, "Mi cuenta" no tiene nada que mostrar y se oculta del menú)
+  let linked = false;
+  try { linked = !!db.prepare('SELECT 1 FROM employees WHERE user_id = ? AND active = 1 LIMIT 1').get(req.user.id); } catch { /* sin módulo de personal */ }
+  res.json({ id: req.user.id, name: req.user.name, role: req.user.role, profile: req.user.profile, perms: req.user.perms, linked, token: row ? generateToken(row) : undefined });
 });
 
 module.exports = router;

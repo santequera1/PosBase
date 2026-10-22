@@ -38,7 +38,8 @@ const MyAccountPage = () => {
     <div className="max-w-md mx-auto p-6 text-center space-y-2">
       <IdCard size={32} className="mx-auto text-brand-primary" />
       <h2 className="font-display font-bold text-lg text-brand-dark">Tu usuario no está vinculado a un colaborador</h2>
-      <p className="text-sm text-muted-foreground">Pídele al administrador que en Personal &amp; Nómina vincule tu usuario ({user?.name}) a tu ficha de colaborador.</p>
+      <p className="text-sm text-muted-foreground">Aquí cada colaborador ve sus turnos, consumos, préstamos y comprobantes de nómina. Para eso su usuario ({user?.name}) debe estar vinculado a su ficha en Personal &amp; Nómina.</p>
+      {user?.role === 'admin' && <p className="text-xs text-muted-foreground">Como administrador no necesitas ficha, salvo que también cobres nómina. Para vincular a alguien: Personal &amp; Nómina → el colaborador → Usuario del sistema.</p>}
     </div>
   );
 

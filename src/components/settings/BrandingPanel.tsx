@@ -50,7 +50,7 @@ const ThemePreview = ({ theme }: { theme: ThemeInput }) => {
       <div className="w-24 shrink-0 p-3 space-y-2" style={{ background: t.surface, color: t.onDark }}>
         <div className="h-6 rounded-md mb-3 flex items-center justify-center text-[9px] font-bold" style={{ background: t.accent, color: t.onAccent }}>LOGO</div>
         {['Venta', 'Caja', 'Reportes', 'Ajustes'].map((it, i) => (
-          <div key={it} className="text-[10px] px-2 py-1 rounded-md" style={i === 0 ? { background: `${t.accent}33`, color: t.accent, fontWeight: 700 } : { opacity: 0.85 }}>{it}</div>
+          <div key={it} className="text-[10px] px-2 py-1" style={{ borderRadius: Math.round(t.sideRadius * 0.6), ...(i === 0 ? { background: `${t.accent}33`, color: t.accent, fontWeight: 700 } : { opacity: 0.85 }) }}>{it}</div>
         ))}
       </div>
       <div className="flex-1 p-3 space-y-2 overflow-hidden">
@@ -133,7 +133,8 @@ const BrandingPanel = () => {
   const mode: ThemeMode = theme.mode === 'dark' ? 'dark' : 'light';
 
   // Vista previa en vivo en toda la interfaz; al salir sin guardar se restaura el tema guardado.
-  useEffect(() => { applyTheme(resolved, branding.customFonts); }, [resolved, branding.customFonts]);
+  // Depende de todo branding: subir un logo vuelve a aplicar la marca guardada y la vista previa debe imponerse de nuevo.
+  useEffect(() => { applyTheme(resolved, branding.customFonts); }, [resolved, branding]);
   useEffect(() => () => { useStore.getState().setBranding({}); }, []);
   useEffect(() => { setTheme(savedTheme); }, [savedTheme]);
   useEffect(() => { FONT_PAIRINGS.forEach(p => { loadGoogleFont(p.heading); loadGoogleFont(p.body); }); }, []);
@@ -147,6 +148,8 @@ const BrandingPanel = () => {
       // Lo que esté en "Automático" no se guarda (queda undefined) y se deriva al aplicar
       const clean: ThemeInput = { ...theme, mode };
       const r = await api.saveTheme(clean);
+      // Quien guarda ve lo que guardó: se quita su preferencia de claro/oscuro de este equipo (la luna del encabezado)
+      useStore.getState().setModeOverride(null);
       setBranding({ theme: r.theme });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -314,6 +317,18 @@ const BrandingPanel = () => {
                 auto={!theme.darkSurface} onAutoChange={a => update({ darkSurface: a ? undefined : resolved.surface })} onChange={v => update({ darkSurface: v })} />
             </>
           )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3" data-side-radius>
+          <label className="text-xs font-medium text-muted-foreground">Redondeo del menú lateral</label>
+          <input type="range" min={0} max={28} step={2} value={resolved.sideRadius} onChange={e => update({ sideRadius: Number(e.target.value) })} className="w-40 accent-current" />
+          <span className="text-[11px] text-muted-foreground w-24">{resolved.sideRadius === 0 ? 'Cuadradas' : resolved.sideRadius >= 26 ? 'Píldora' : `${resolved.sideRadius} px`}</span>
+          <span className="flex gap-1.5">
+            {[0, 8, 16, 28].map(r => (
+              <button key={r} type="button" onClick={() => update({ sideRadius: r })} title={`${r} px`}
+                className={cn('w-12 h-7 border text-[10px] font-semibold', resolved.sideRadius === r ? 'bg-brand-button text-brand-on-button border-transparent' : 'border-border text-brand-dark')}
+                style={{ borderRadius: r }}>{r === 0 ? '▢' : r === 28 ? '⬭' : r}</button>
+            ))}
+          </span>
         </div>
         <p className="text-[11px] text-muted-foreground -mt-1">
           Los colores del modo claro y del oscuro se guardan por separado: cada persona puede cambiar de modo con el ícono de la luna del encabezado.

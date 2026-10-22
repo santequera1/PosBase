@@ -11,7 +11,7 @@ const path = require('path');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 
-const T = (primary, accent, background, card, dark, muted, wine, fontHeading, fontScript) => ({ primary, accent, background, card, dark, muted, wine, fontHeading, fontBody: 'Inter', fontScript, mode: 'light' });
+const T = (primary, accent, background, card, dark, muted, wine, fontHeading, fontScript, fontBody = 'Inter') => ({ primary, accent, background, card, dark, muted, wine, fontHeading, fontBody, fontScript, mode: 'light' });
 const MOD = {
   restaurant: { tables: true, counter: true, delivery: true, kitchen: true },
   fastfood: { tables: false, counter: true, delivery: true, kitchen: true },
@@ -37,7 +37,7 @@ const PACKS = [
   {
     id: 'heladeria', label: 'Heladería y postres', type: 'icecream', modules: MOD.icecream, tables: 0, deliveryFee: 4000, gelato: true,
     brand: { businessName: 'Nube Polar', slogan: 'Helado artesanal', receiptFooter: '¡Gracias por endulzar tu día con Nube Polar!' },
-    theme: T('#1F5E5B', '#7FD1C3', '#F4FBF9', '#FDE2E8', '#163F3D', '#5F7F7C', '#F28CA8', 'Fredoka', 'Pacifico'),
+    theme: T('#1F5E5B', '#7FD1C3', '#F4FBF9', '#FDE2E8', '#163F3D', '#5F7F7C', '#F28CA8', 'Inter', 'Pacifico', 'Fredoka'),
     sales: { perDay: [18, 30], dineIn: 0, delivery: 0.25 },
     menu: [
       // Las categorías 1, 2 y 3 son los sabores (pantalla de vasos, conos y litro)

@@ -107,7 +107,8 @@ export const ReportsPage: React.FC = () => {
   const categoryOf = useMemo(() => new Map(products.map(p => [p.id, p.categoryId])), [products]);
   const catName = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
   const ctx = useMemo(() => ({ today, categoryOf }), [today, categoryOf]);
-  const hasGelato = categories.some(c => [1, 2, 3].includes(c.id));
+  const businessType = useStore(s => s.businessType);
+  const hasGelato = (businessType ? businessType === 'icecream' : true) && categories.some(c => [1, 2, 3].includes(c.id));
 
   const filtered = useMemo(() => applyFilters(orders, f, ctx).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || b.id - a.id), [orders, f, ctx]);
   const m = useMemo(() => summarize(filtered), [filtered]);

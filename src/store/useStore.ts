@@ -267,7 +267,7 @@ function readBrandCache(): { branding?: Branding; businessName?: string } {
 const brandCache = typeof window !== 'undefined' ? readBrandCache() : {};
 
 interface AppState {
-  user: { id?: number; name: string; role: UserRole; profile?: string; perms?: { views: string[]; actions: string[] } } | null;
+  user: { id?: number; name: string; role: UserRole; profile?: string; perms?: { views: string[]; actions: string[] }; linked?: boolean } | null;
   refreshMe: () => Promise<void>;
   restoring: boolean;
   categories: Category[];
@@ -283,6 +283,8 @@ interface AppState {
   businessSlogan: string;
   businessAddress: string;
   businessHours: string;
+  /** Tipo de negocio del asistente: restaurant, fastfood, icecream, bar (vacío en instalaciones antiguas) */
+  businessType: string;
   businessPhone: string;
   businessNit: string;
   invoicePrefix: string;
@@ -383,6 +385,7 @@ export const useStore = create<AppState>((set, get) => ({
   businessSlogan: '',
   businessAddress: '',
   businessHours: '',
+  businessType: '',
   businessPhone: '',
   businessNit: '',
   invoicePrefix: 'POS',
@@ -463,7 +466,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const u = await api.me();
       if (u && u.token) setToken(u.token);
-      if (u && u.role) set(s => ({ user: { ...(s.user || { name: u.name }), id: u.id, name: u.name, role: u.role as UserRole, profile: u.profile, perms: u.perms } }));
+      if (u && u.role) set(s => ({ user: { ...(s.user || { name: u.name }), id: u.id, name: u.name, role: u.role as UserRole, profile: u.profile, perms: u.perms, linked: u.linked } }));
     } catch { /* sin conexión: se conservan los permisos conocidos */ }
   },
 
@@ -490,6 +493,7 @@ export const useStore = create<AppState>((set, get) => ({
         tableCount: settings.tableCount ? Number(settings.tableCount) : 8,
         businessName: settings.businessName || 'Mi Negocio',
         businessHours: settings.businessHours ? String(settings.businessHours) : '',
+        businessType: settings.businessType ? String(settings.businessType) : '',
         businessSlogan: settings.businessSlogan || '',
         businessAddress: settings.businessAddress ? String(settings.businessAddress) : '',
         businessPhone: settings.businessPhone ? String(settings.businessPhone) : '',

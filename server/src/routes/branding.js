@@ -47,7 +47,7 @@ function parseDataUrl(data) {
 router.put('/theme', requireRole('admin'), (req, res) => {
   const theme = req.body && req.body.theme;
   if (!theme || typeof theme !== 'object') return res.status(400).json({ error: 'Tema inválido' });
-  const allowed = ['primary', 'accent', 'background', 'dark', 'card', 'muted', 'wine', 'darkSurface', 'darkBackground', 'darkCard', 'fontHeading', 'fontBody', 'fontScript', 'mode'];
+  const allowed = ['primary', 'accent', 'background', 'dark', 'card', 'muted', 'wine', 'darkSurface', 'darkBackground', 'darkCard', 'sideRadius', 'fontHeading', 'fontBody', 'fontScript', 'mode'];
   const clean = {};
   for (const k of allowed) {
     const v = theme[k];

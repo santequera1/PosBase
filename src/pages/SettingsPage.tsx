@@ -12,6 +12,7 @@ import SectionsPanel from '@/components/settings/SectionsPanel';
 import PrintersPanel from '@/components/settings/PrintersPanel';
 import BranchesPanel from '@/components/settings/BranchesPanel';
 import DemoPacksPanel from '@/components/settings/DemoPacksPanel';
+import { BusinessHoursEditor, parseSchedule, type WeekSchedule } from '@/components/settings/BusinessHoursEditor';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { CategoryIcon, CategoryIconPicker } from '@/components/common/CategoryIcon';
 
@@ -46,6 +47,7 @@ const SettingsPage = () => {
   const [businessName, setBusinessName] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
   const [businessHours, setBusinessHours] = useState('');
+  const [hoursSchedule, setHoursSchedule] = useState<WeekSchedule | null>(null);
   const [businessAddress, setBusinessAddress] = useState('');
   const [businessSlogan, setBusinessSlogan] = useState('');
   const [businessNit, setBusinessNit] = useState('');
@@ -87,6 +89,7 @@ const SettingsPage = () => {
       setBusinessSlogan(s.businessSlogan ? String(s.businessSlogan) : '');
       setBusinessPhone(s.businessPhone ? String(s.businessPhone) : '');
       setBusinessHours(s.businessHours ? String(s.businessHours) : '');
+      setHoursSchedule(parseSchedule(s.businessHoursSchedule));
       setBusinessAddress(s.businessAddress ? String(s.businessAddress) : '');
       setBusinessNit(s.businessNit ? String(s.businessNit) : '');
       setInvoicePrefix(s.invoicePrefix ? String(s.invoicePrefix) : 'POS');
@@ -110,6 +113,7 @@ const SettingsPage = () => {
         businessSlogan,
         businessPhone,
         businessHours,
+        ...(hoursSchedule ? { businessHoursSchedule: JSON.stringify(hoursSchedule) } : {}),
         businessAddress,
         businessNit,
         invoicePrefix: invoicePrefix.trim().toUpperCase() || 'POS',
@@ -214,7 +218,7 @@ const SettingsPage = () => {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Horario de atención</label>
-              <input value={businessHours} onChange={e => setBusinessHours(e.target.value)} placeholder="Ej: Lun a Vie 5–10:30 p.m. · Sáb y Dom 5–11 p.m." className={INPUT} />
+              <BusinessHoursEditor value={hoursSchedule} legacyText={businessHours} onChange={(sch, text) => { setHoursSchedule(sch); setBusinessHours(text); }} />
               <p className="text-[10px] text-muted-foreground mt-1 font-sans">Sale al pie de los recibos</p>
             </div>
             <div>
@@ -250,11 +254,11 @@ const SettingsPage = () => {
 
           <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3">
             <h3 className="font-sans font-bold text-sm">🧾 Impuestos y facturación</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Impuesto en ventas</label>
                 <NiceSelect value={taxType} onChange={e => { const v = e.target.value; setTaxType(v); if (v === 'inc' && !taxRate) setTaxRate('8'); if (v === 'iva' && !taxRate) setTaxRate('19'); }} className={INPUT}>
-                  <option value="none">Sin impuesto (no responsable)</option>
+                  <option value="none">Sin impuesto · no responsable</option>
                   <option value="inc">INC · Impuesto al consumo</option>
                   <option value="iva">IVA</option>
                 </NiceSelect>
