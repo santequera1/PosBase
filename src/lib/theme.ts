@@ -345,6 +345,10 @@ export function autoFixTheme(raw: ThemeInput): ThemeInput {
 /* ------------------------------------------------------------------ */
 
 export const THEME_PRESETS: Array<{ name: string; description: string; theme: ThemeInput }> = [
+  // Predeterminados por tipo de negocio (los usa el asistente de configuración inicial)
+  { name: 'Restaurante', description: 'Negro, amarillo y crema · Inter (el estilo de Wonka\'s)', theme: { primary: '#111111', accent: '#F7C600', background: '#FFFBEA', dark: '#0B0B0B', card: '#FFF3C4', muted: '#6E6A5A', wine: '#D99A00', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Lobster', mode: 'light' } },
+  { name: 'Natural', description: 'Verde, café, crema y durazno · Inter', theme: { primary: '#5E4B35', accent: '#A3CB5D', background: '#FBFAF1', dark: '#3D3122', card: '#F3F3DA', muted: '#8B7355', wine: '#E9A47A', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Caveat', mode: 'light' } },
+  { name: 'Heladería pastel', description: 'Lila, amarillo crema y coral · Fredoka + Inter', theme: { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Fredoka', fontBody: 'Inter', fontScript: 'Pacifico', mode: 'light' } },
   { name: 'Clásico', description: 'Azul marino, dorado y crema', theme: { primary: '#364266', accent: '#C6BF81', background: '#FEF3DE', mode: 'light' } },
   { name: 'Tropical', description: 'Coral, mango y crema', theme: { primary: '#B8412E', accent: '#F5B942', background: '#FFF6EA', mode: 'light' } },
   { name: 'Pistacho', description: 'Verde profundo y menta', theme: { primary: '#2F5D45', accent: '#9CCB86', background: '#F4F9F1', mode: 'light' } },
@@ -430,6 +434,8 @@ export interface FontPairing {
 }
 
 export const FONT_PAIRINGS: FontPairing[] = [
+  { name: 'Neutra', description: 'Inter para todo — limpia y fácil de leer (predeterminada).', heading: 'Inter', body: 'Inter', script: 'Lobster' },
+  { name: 'Heladería', description: 'Fredoka + Inter — redondeada y alegre, para heladerías y postres.', heading: 'Fredoka', body: 'Inter', script: 'Pacifico' },
   { name: 'Artesanal', description: 'Playfair Display + Lapture — la combinación original de heladería.', heading: 'Playfair Display', body: 'Lapture', script: 'Great Vibes' },
   { name: 'Editorial', description: 'Fraunces + Inter — estilo revista, cálida y legible.', heading: 'Fraunces', body: 'Inter', script: 'Caveat' },
   { name: 'Clásica', description: 'Lora + Source Sans 3 — más libro, menos magazine.', heading: 'Lora', body: 'Source Sans 3', script: 'Sacramento' },

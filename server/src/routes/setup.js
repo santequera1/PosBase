@@ -38,6 +38,10 @@ const SAMPLE_MENUS = {
   ],
 };
 
+// Estilo inicial según el tipo de negocio (se cambia en Configuración → Marca)
+const THEME_RESTAURANT = { primary: '#111111', accent: '#F7C600', background: '#FFFBEA', dark: '#0B0B0B', card: '#FFF3C4', muted: '#6E6A5A', wine: '#D99A00', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Lobster', mode: 'light' };
+const THEME_ICECREAM = { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Fredoka', fontBody: 'Inter', fontScript: 'Pacifico', mode: 'light' };
+
 const readSetting = (db, k) => (db.prepare('SELECT value FROM settings WHERE key = ?').get(k) || {}).value;
 const setSetting = (db, k, v) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, String(v));
 const isPending = db => readSetting(db, 'setupPending') === '1';
@@ -78,6 +82,8 @@ router.post('/', (req, res) => {
     setSetting(db, 'invoicePrefix', prefix.length >= 2 ? prefix : businessName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3) || 'POS');
     setSetting(db, 'restaurantModules', JSON.stringify(TYPES[type].modules));
     setSetting(db, 'businessType', type);
+    setSetting(db, 'theme', JSON.stringify(type === 'icecream' ? THEME_ICECREAM : THEME_RESTAURANT));
+    setSetting(db, 'mobileNav', 'top');
 
     // Arranque limpio: sin ventas, turnos ni clientes de ejemplo (queda Consumidor Final)
     db.prepare('DELETE FROM order_items').run();
@@ -102,6 +108,8 @@ router.post('/', (req, res) => {
         for (const [name, price] of prods) insProd.run(name, catId, price, 'Producto de ejemplo: edítalo o bórralo en Menú');
       });
     }
+    // Las fotos de ejemplo de la heladería llevan la marca de otro cliente (GIA): el menú de ejemplo queda sin fotos
+    if (type === 'icecream') db.prepare('UPDATE products SET image = NULL').run();
     db.prepare("DELETE FROM settings WHERE key = 'setupPending'").run();
   })();
   res.json({ ok: true, username: adminUsername });
