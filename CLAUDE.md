@@ -12,8 +12,8 @@ propios pueden llegar mal escritos (p. ej. "Wonka's" como "OneCast"/"Wumpa"; "st
 |---|---|---|---|---|---|
 | Wonka's Burger (producción real desde 8-oct-2026) | pos.wailus.co | /home/ubuntu/apps/posbase | posbase-api | 3065 | Factus producción, impresión en red (agente en PC de caja) — ver `docs/clientes/wonkas.md` |
 | Demo para prospectos | demo.stiven.app | /home/ubuntu/apps/pos-demo | pos-demo | 3101 | se reinicia cada noche desde una foto |
-| Fritop (nueva, en revisión) | fritop.stiven.app | /home/ubuntu/apps/pos-fritop | pos-fritop | 3102 | migrada el 22-oct-2026 desde la versión vieja; ver `docs/clientes/fritop.md` |
-| Moodi Shake (heladería, prospecto) | moodi.stiven.app | /home/ubuntu/apps/pos-moodi | pos-moodi | 3103 | tipo heladería, estilo "Heladería pastel" y su logo; ver `docs/clientes/moodi.md` |
+| Fritop (nueva, en revisión) | fritop.stiven.app | /home/ubuntu/apps/pos-fritop | pos-fritop | 3102 | migrada el 22-oct-2026 desde la versión vieja; ver `docs/clientes/fritop/fritop.md` (identidad visual y menú en esa carpeta) |
+| Moodi Shake (heladería, prospecto) | moodi.stiven.app | /home/ubuntu/apps/pos-moodi | pos-moodi | 3103 | tipo heladería, estilo "Heladería pastel" y su logo; ver `docs/clientes/moodi/moodi.md` |
 | Fritop (versión vieja, en uso) | fritop.wailus.co | /home/ubuntu/apps/fritop | fritop | — | otro repo (fritopApp); se apaga al pasar a la nueva |
 
 Dominios nuevos: `*.stiven.app` (comodín apuntando al VPS). Estilos predeterminados (Configuración → Marca): "Restaurante" (negro/amarillo, Inter — el de Wonka's), "Natural" y "Heladería pastel" (Fredoka + Inter); el asistente aplica uno según el tipo de negocio. Los antiguos quedan en `*.wailus.co`.
@@ -40,6 +40,7 @@ Registro de instalaciones en el VPS: `/home/ubuntu/apps/pos-instancias.tsv` (slu
 - **Nunca** subir a git: `.env`, `data.db`, `documentacionyclaves.md`, logos/fotos subidos (`public/branding`, `public/images/uploads`, `public/fonts/uploads`), `server/einvoices/`, `scripts/wonkas/`.
 - Antes de tocar datos de una instalación en producción: respaldo con better-sqlite3 `.backup()` en `/home/ubuntu/backups/...`. Preguntar antes de borrar o cambiar datos reales.
 - No emitir facturas electrónicas reales (Factus producción va a la DIAN) sin el usuario.
+- La pantalla de sabores (helados) depende de `businessType = icecream`; las categorías 1-3 de otros negocios son normales. El viejo ajuste del catálogo GIA (`syncSpecialProducts` en db.js) solo corre con `legacyGiaCatalog=1`: nunca activarlo.
 - Diferencias entre clientes = configuración (Configuración, módulos, Personal → Propinas…), nunca código aparte.
 - Paquetes de demostración (`server/src/demoPacks.js`, solo con `DEMO_MODE=1`): borran ventas/menú/clientes; nunca activar `DEMO_MODE` en un cliente.
 - Desplegar primero a la demo, probar, y luego a los clientes (`actualizar.sh demo`, luego `actualizar.sh wonkas`).
@@ -60,5 +61,5 @@ bash scripts/instancias/respaldar.sh
 
 ## Documentos
 - `docs/INSTALACION.md` — crear, actualizar y respaldar instalaciones; la demo; repo privado (deploy key).
-- `docs/clientes/*.md` — lo propio de cada cliente (sin claves).
+- `docs/clientes/` — lo propio de cada cliente (sin claves): `wonkas.md`, y carpetas `fritop/`, `moodi/` con su .md, logos e identidad.
 - `docs/ACTUALIZACION-2026-10-10.md` — bitácora de la puesta en marcha de Wonka's.
