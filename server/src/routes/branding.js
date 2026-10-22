@@ -10,7 +10,8 @@ const PUBLIC_DIR = path.resolve(__dirname, '../../../public');
 const DIST_DIR = path.resolve(__dirname, '../../../dist');
 
 // logo: barra lateral (modo claro) · logoDark: barra lateral (modo oscuro) · logoSmall: menú recogido · logoLogin: inicio de sesión
-const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl' };
+// loginModel: modelo 3D (.glb) que gira en la pantalla de acceso
+const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl', loginModel: 'loginModelUrl' };
 const IMAGE_EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/svg+xml': '.svg', 'image/webp': '.webp' };
 const FONT_EXTS = ['.ttf', '.otf', '.woff', '.woff2'];
 
@@ -69,10 +70,16 @@ router.post('/image', requireRole('admin'), (req, res) => {
     if (!settingKey) return res.status(400).json({ error: 'Tipo de imagen inválido' });
     const parsed = parseDataUrl(data);
     if (!parsed) return res.status(400).json({ error: 'La imagen debe enviarse en base64 (data URL)' });
-    if (parsed.buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 5 MB' });
-
-    const ext = IMAGE_EXT_BY_MIME[parsed.mime] || (path.extname(filename || '') || '.png').toLowerCase();
-    if (!['.png', '.jpg', '.svg', '.webp'].includes(ext)) return res.status(400).json({ error: 'Formato no soportado (PNG, JPG, SVG o WEBP)' });
+    let ext;
+    if (kind === 'loginModel') {
+      if (parsed.buffer.length > 15 * 1024 * 1024) return res.status(400).json({ error: 'El modelo supera 15 MB' });
+      if (path.extname(filename || '').toLowerCase() !== '.glb' || parsed.buffer.slice(0, 4).toString() !== 'glTF') return res.status(400).json({ error: 'El modelo debe ser un archivo .glb' });
+      ext = '.glb';
+    } else {
+      if (parsed.buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'La imagen supera 5 MB' });
+      ext = IMAGE_EXT_BY_MIME[parsed.mime] || (path.extname(filename || '') || '.png').toLowerCase();
+      if (!['.png', '.jpg', '.svg', '.webp'].includes(ext)) return res.status(400).json({ error: 'Formato no soportado (PNG, JPG, SVG o WEBP)' });
+    }
 
     const name = `${kind}_${Date.now()}${ext}`;
     const url = saveFile('branding', name, parsed.buffer);

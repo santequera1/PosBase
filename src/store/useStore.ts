@@ -216,9 +216,15 @@ export interface Branding {
   appleIconUrl: string;
   theme: ThemeInput | null;
   customFonts: CustomFont[];
+  /** Pantalla de acceso: título y descripción (vacío = predeterminado) y si se muestran; modelo 3D opcional */
+  loginTitle: string;
+  loginSubtitle: string;
+  loginShowTitle: boolean;
+  loginShowSubtitle: boolean;
+  loginModelUrl: string;
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [] };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginModelUrl: '' };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -237,6 +243,11 @@ export function brandingFromSettings(s: any): Branding {
     appleIconUrl: s?.appleIconUrl ? String(s.appleIconUrl) : '',
     theme: parseJson<ThemeInput | null>(s?.theme, null),
     customFonts: parseJson<CustomFont[]>(s?.customFonts, []),
+    loginTitle: s?.loginTitle ? String(s.loginTitle) : '',
+    loginSubtitle: s?.loginSubtitle ? String(s.loginSubtitle) : '',
+    loginShowTitle: String(s?.loginShowTitle ?? '1') !== '0',
+    loginShowSubtitle: String(s?.loginShowSubtitle ?? '1') !== '0',
+    loginModelUrl: s?.loginModelUrl ? String(s.loginModelUrl) : '',
   };
 }
 

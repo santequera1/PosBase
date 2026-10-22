@@ -5,7 +5,9 @@ const router = Router();
 
 // Datos de marca necesarios ANTES de iniciar sesión (pantalla de acceso, favicon, tema).
 // No expone nada sensible: solo nombre, eslogan, logos, tema y fuentes.
-const KEYS = ['businessName', 'businessSlogan', 'logoUrl', 'logoDarkUrl', 'logoSmallUrl', 'logoLoginUrl', 'faviconUrl', 'appleIconUrl', 'theme', 'customFonts'];
+const KEYS = ['businessName', 'businessSlogan', 'logoUrl', 'logoDarkUrl', 'logoSmallUrl', 'logoLoginUrl', 'faviconUrl', 'appleIconUrl', 'theme', 'customFonts',
+  // Pantalla de acceso: textos (se pueden ocultar) y modelo 3D opcional
+  'loginTitle', 'loginSubtitle', 'loginShowTitle', 'loginShowSubtitle', 'loginModelUrl'];
 
 router.get('/branding', (req, res) => {
   const db = getDb();

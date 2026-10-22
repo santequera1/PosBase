@@ -10,6 +10,7 @@ import {
   loadGoogleFont, generateIconFromImage, fileToDataUrl, hexToHsl,
 } from '@/lib/theme';
 import { FontPicker } from '@/components/settings/FontPicker';
+import LoginScreenPanel from '@/components/settings/LoginScreenPanel';
 
 const INPUT = 'w-full px-3 py-2 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -491,6 +492,8 @@ const BrandingPanel = () => {
           </div>
         </div>
       </section>
+
+      <LoginScreenPanel />
 
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
 
