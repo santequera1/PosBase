@@ -468,6 +468,8 @@ export const POSPage: React.FC = () => {
 
   // Gelato dynamic image helper (swaps between Cup and Cone based on selected format)
   const getFlavorDisplayImage = (flavor: Product, format: GelatoFormat) => {
+    // Sin foto propia no se usan las fotos de ejemplo por nombre (llevan la marca de otra heladería): se muestra un ícono
+    if (!flavor.image) return flavor.image;
     const nameLower = flavor.name.toLowerCase();
     let slug = '';
     if (nameLower.includes('sin azúcar') || nameLower.includes('sin azucar') || nameLower.includes('sa')) slug = 'pistacho-sin-azucar';
