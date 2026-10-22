@@ -13,15 +13,15 @@ const SIZES: Array<[number, string]> = [[192, 'Pequeño'], [256, 'Mediano'], [32
 /**
  * Convierte una imagen a mapa de bits de 1 bit (negro / blanco) del ancho en puntos de la impresora térmica.
  * Lo transparente cuenta como blanco. Cada fila ocupa ancho/8 bytes; el bit más alto es el punto de la izquierda.
+ * invert: para logos de letras blancas (hechos para fondos oscuros): lo claro y visible se imprime en negro.
  */
-export function imageToRaster(img: HTMLImageElement, width: number, threshold = 150): RasterLogo {
+export function imageToRaster(img: HTMLImageElement, width: number, threshold = 150, invert = false): RasterLogo {
   const w = Math.max(8, Math.round(width / 8) * 8);
   const h = Math.max(1, Math.min(600, Math.round((img.naturalHeight / img.naturalWidth) * w)));
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, w, h);
+  if (!invert) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
   ctx.drawImage(img, 0, 0, w, h);
   const px = ctx.getImageData(0, 0, w, h).data;
   const bytes = new Uint8Array((w / 8) * h);
@@ -29,7 +29,8 @@ export function imageToRaster(img: HTMLImageElement, width: number, threshold = 
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-      if (lum < threshold) bytes[y * (w / 8) + (x >> 3)] |= 0x80 >> (x & 7);
+      const dark = invert ? px[i + 3] > 128 && lum >= threshold : lum < threshold;
+      if (dark) bytes[y * (w / 8) + (x >> 3)] |= 0x80 >> (x & 7);
     }
   }
   let bin = '';
@@ -60,10 +61,11 @@ const loadImage = (src: string) => new Promise<HTMLImageElement>((ok, fail) => {
 });
 
 /** Configuración → Impresoras: logo que sale arriba en precuentas y recibos impresos por red. */
-export const ReceiptLogoSection = ({ logo, onSaved }: { logo: (RasterLogo & { on: boolean }) | null; onSaved: () => void }) => {
+export const ReceiptLogoSection = ({ logo, onSaved }: { logo: (RasterLogo & { on: boolean }) | null; onSaved: (logo: (RasterLogo & { on: boolean }) | null) => void }) => {
   const branding = useStore(s => s.branding);
   const [src, setSrc] = useState<string>('');
   const [width, setWidth] = useState<number>(logo?.w || 256);
+  const [invert, setInvert] = useState(false);
   const [preview, setPreview] = useState<RasterLogo | null>(logo && logo.on ? logo : null);
   const [busy, setBusy] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -72,8 +74,8 @@ export const ReceiptLogoSection = ({ logo, onSaved }: { logo: (RasterLogo & { on
   useEffect(() => { if (preview && canvasRef.current) drawRaster(canvasRef.current, preview); }, [preview]);
   useEffect(() => {
     if (!src) return;
-    loadImage(src).then(img => setPreview(imageToRaster(img, width))).catch(e => toast.error(e.message));
-  }, [src, width]);
+    loadImage(src).then(img => setPreview(imageToRaster(img, width, 150, invert))).catch(e => toast.error(e.message));
+  }, [src, width, invert]);
 
   const pickFile = (f?: File | null) => {
     if (!f) return;
@@ -85,27 +87,28 @@ export const ReceiptLogoSection = ({ logo, onSaved }: { logo: (RasterLogo & { on
   const save = async () => {
     if (!preview) return;
     setBusy(true);
-    try { await api.saveReceiptLogo({ on: true, ...preview }); toast.success('Logo guardado: saldrá en precuentas y recibos'); onSaved(); }
+    try { await api.saveReceiptLogo({ on: true, ...preview }); toast.success('Logo guardado: saldrá en precuentas y recibos'); onSaved({ on: true, ...preview }); }
     catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
   const remove = async () => {
     setBusy(true);
-    try { await api.saveReceiptLogo({ on: false }); setPreview(null); setSrc(''); toast.success('Logo quitado de los recibos'); onSaved(); }
+    try { await api.saveReceiptLogo({ on: false }); setPreview(null); setSrc(''); toast.success('Logo quitado de los recibos'); onSaved(null); }
     catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
 
   return (
     <section className="bg-card rounded-xl border border-border p-4 shadow-card space-y-3" data-receipt-logo>
-      <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><ImageIcon size={15} /> Logo en precuentas y recibos</h3>
-      <p className="text-xs text-muted-foreground">Usa un logo <b>negro sobre fondo blanco o transparente</b> (PNG). La impresora térmica solo imprime negro: aquí ves cómo quedará.</p>
+      <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><ImageIcon size={15} /> Logo del recibo</h3>
+      <p className="text-xs text-muted-foreground">Usa un logo <b>negro sobre fondo blanco o transparente</b> (PNG). La impresora térmica solo imprime negro: aquí ves cómo quedará. Si tu logo es de letras blancas, marca "Logo claro".</p>
       <div className="flex flex-wrap items-center gap-2">
         <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml" className="hidden" onChange={e => pickFile(e.target.files?.[0])} data-logo-file />
         <button onClick={() => fileRef.current?.click()} className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold flex items-center gap-1.5"><Upload size={13} /> Elegir imagen</button>
         {brandLogo && <button onClick={() => setSrc(brandLogo)} className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold">Usar el logo de la marca</button>}
         <span className="text-xs text-muted-foreground ml-1">Tamaño:</span>
         {SIZES.map(([w, l]) => <Chip key={w} active={width === w} onClick={() => setWidth(w)}>{l}</Chip>)}
+        <label className="flex items-center gap-1 text-xs text-muted-foreground ml-1 cursor-pointer" title="Para logos de letras blancas hechos para fondos oscuros"><input type="checkbox" checked={invert} onChange={e => setInvert(e.target.checked)} data-logo-invert /> Logo claro (invertir)</label>
       </div>
       {preview ? (
         <div className="flex flex-col items-center gap-2">

@@ -1,10 +1,35 @@
 import { splitParts, PAY_NAMES } from '@/lib/paymentSplit';
 import { formatPrice, formatFullDate } from './format';
 import { getBusinessInfo, orderNumber } from './orderNumber';
+import { useStore } from '@/store/useStore';
+import { type ReceiptDesign, type RasterLogo, receiptLogoHtml, thanksText } from './receiptDesign';
+
+const escHtml = (v: any) => String(v ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
+
+/** Diseño vigente del recibo (o el que se está editando, para la vista previa). */
+function receiptCfg(o: PrintOptions) {
+  const s = useStore.getState();
+  return { d: o.design || s.receiptDesign, logo: o.logo !== undefined ? o.logo : s.receiptLogo, footer: o.footer !== undefined ? o.footer : s.receiptFooter };
+}
+
+/** Encabezado del recibo según Configuración → Recibos: logo, nombre, eslogan, texto extra, NIT, dirección y teléfono. */
+export function receiptHeaderHtml(biz: ReturnType<typeof getBusinessInfo>, o: PrintOptions = {}): string {
+  const { d, logo } = receiptCfg(o);
+  return `${receiptLogoHtml(d, logo)}
+        <p class="font-bold" style="font-size: 10px; letter-spacing: 0.2px;">${escHtml(biz.name)}</p>
+        ${d.showSlogan && biz.slogan ? `<p class="font-bold" style="font-size: 9.5px;">${escHtml(biz.slogan.toUpperCase())}</p>` : ''}
+        ${d.headerText ? `<p style="font-size: 7.5px; white-space: pre-line;">${escHtml(d.headerText)}</p>` : ''}
+        ${[d.showNit && biz.nit ? 'NIT: ' + escHtml(biz.nit) : '', d.showAddress ? escHtml(biz.address) : ''].filter(Boolean).length ? `<p style="font-size: 7.5px;">${[d.showNit && biz.nit ? 'NIT: ' + escHtml(biz.nit) : '', d.showAddress ? escHtml(biz.address) : ''].filter(Boolean).join(' • ')}</p>` : ''}
+        ${d.showPhone && biz.phone ? `<p style="font-size: 7.5px;">Tel: ${escHtml(biz.phone)}</p>` : ''}`;
+}
 
 export interface PrintOptions {
   paperSize?: '80mm' | '58mm';
   autoPrint?: boolean;
+  /** Vista previa en Configuración → Recibos: diseño, logo y texto final sin guardar */
+  design?: ReceiptDesign;
+  logo?: RasterLogo | null;
+  footer?: string;
 }
 
 export function printThermal(htmlInnerContent: string, title = 'Impresión POS'): Promise<boolean> {
@@ -82,14 +107,12 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
   else if (order.paymentMethod === 'credit') paymentMethodLabel = 'A crédito (por cobrar)';
   const tip = Number(order.tip) || 0;
   const c = order.customer || {};
+  const rc = receiptCfg(options);
 
   return `
     <div class="ticket" style="width: ${widthCss}; max-width: ${widthCss};">
       <div class="text-center">
-        <p class="font-bold" style="font-size: 10px; letter-spacing: 0.2px;">${biz.name}</p>
-        <p class="font-bold" style="font-size: 9.5px;">${biz.slogan.toUpperCase()}</p>
-        <p style="font-size: 7.5px;">${[biz.nit ? 'NIT: ' + biz.nit : '', biz.address].filter(Boolean).join(' • ')}</p>
-        <p style="font-size: 7.5px;">Tel: ${biz.phone}</p>
+        ${receiptHeaderHtml(biz, options)}
       </div>
 
       <div class="divider"></div>
@@ -162,9 +185,9 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div class="dashed" style="margin-top: 5px;"></div>
 
       <div class="text-center" style="font-size: 7.5px; margin-top: 3px; line-height: 1.3;">
-        <p class="font-bold">¡Gracias por su visita a ${biz.name}!</p>
-        ${biz.hours ? `<p style="font-size: 7px; white-space: pre-line;">Horario: ${biz.hours}</p>` : ''}
-        <p>${biz.slogan}</p>
+        ${rc.footer ? `<p style="white-space: pre-line;">${escHtml(rc.footer)}</p>` : ''}
+        ${thanksText(rc.d, biz.name) ? `<p class="font-bold">${escHtml(thanksText(rc.d, biz.name))}</p>` : ''}
+        ${rc.d.showHours && biz.hours ? `<p style="font-size: 7px; white-space: pre-line;">Horario: ${escHtml(biz.hours)}</p>` : ''}
         ${biz.dianResolution ? `<p style="font-size: 6.5px; margin-top: 2px;">${biz.dianResolution}</p>` : ''}
       </div>
     </div>

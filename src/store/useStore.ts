@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api, setToken } from '@/lib/api';
 import { toast } from 'sonner';
 import { type ThemeInput, type ThemeMode, type CustomFont, BASE_THEME, resolveTheme, applyTheme, setFavicon } from '@/lib/theme';
+import { type ReceiptDesign, type RasterLogo, DEFAULT_RECEIPT_DESIGN, parseReceiptDesign, parseRasterLogo } from '@/lib/receiptDesign';
 import type { RestaurantConfig } from '@/lib/restaurant';
 
 export type OrderStatus = 'open' | 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'billing' | 'cancelled';
@@ -300,6 +301,10 @@ interface AppState {
   businessHours: string;
   /** Tipo de negocio del asistente: restaurant, fastfood, icecream, bar (vacío en instalaciones antiguas) */
   businessType: string;
+  /** Recibos (Configuración → Recibos): diseño, logo en 1 bit y texto final */
+  receiptDesign: ReceiptDesign;
+  receiptLogo: RasterLogo | null;
+  receiptFooter: string;
   businessPhone: string;
   businessNit: string;
   invoicePrefix: string;
@@ -401,6 +406,9 @@ export const useStore = create<AppState>((set, get) => ({
   businessAddress: '',
   businessHours: '',
   businessType: '',
+  receiptDesign: { ...DEFAULT_RECEIPT_DESIGN },
+  receiptLogo: null,
+  receiptFooter: '',
   businessPhone: '',
   businessNit: '',
   invoicePrefix: 'POS',
@@ -509,6 +517,9 @@ export const useStore = create<AppState>((set, get) => ({
         businessName: settings.businessName || 'Mi Negocio',
         businessHours: settings.businessHours ? String(settings.businessHours) : '',
         businessType: settings.businessType ? String(settings.businessType) : '',
+        receiptDesign: parseReceiptDesign(settings.receiptDesign),
+        receiptLogo: parseRasterLogo(settings.receiptLogo),
+        receiptFooter: settings.receiptFooter ? String(settings.receiptFooter) : '',
         businessSlogan: settings.businessSlogan || '',
         businessAddress: settings.businessAddress ? String(settings.businessAddress) : '',
         businessPhone: settings.businessPhone ? String(settings.businessPhone) : '',

@@ -92,7 +92,12 @@ function bizFor(db, branchId) {
 function biz(db) {
   const g = k => readSetting(db, k) || '';
   return { name: g('businessName') || 'Mi Negocio', slogan: g('businessSlogan'), address: g('businessAddress'), phone: g('businessPhone'), nit: g('businessNit'), hours: g('businessHours'),
-    prefix: g('invoicePrefix') || 'POS', taxType: g('taxType') || 'none', taxRate: Number(g('taxRate')) || 0, footer: g('receiptFooter'), logo: receiptLogo(db) };
+    prefix: g('invoicePrefix') || 'POS', taxType: g('taxType') || 'none', taxRate: Number(g('taxRate')) || 0, footer: g('receiptFooter'), logo: receiptLogo(db), design: receiptDesign(db) };
+}
+/** Configuración → Recibos: qué datos salen y textos (mismo formato que src/lib/receiptDesign.ts). */
+const DESIGN_DEFAULT = { showLogo: true, showSlogan: true, showNit: true, showAddress: true, showPhone: true, showHours: true, headerText: '', thanks: '¡Gracias por su visita a {negocio}!' };
+function receiptDesign(db) {
+  try { return { ...DESIGN_DEFAULT, ...(JSON.parse(readSetting(db, 'receiptDesign') || '{}') || {}) }; } catch { return { ...DESIGN_DEFAULT }; }
 }
 /** Logo en blanco y negro para precuentas y recibos (Configuración → Impresoras). null si está apagado. */
 function receiptLogo(db) {
@@ -208,13 +213,15 @@ function itemsBlock(t, items) {
   }
 }
 function headerBlock(t, b) {
+  const d = b.design || DESIGN_DEFAULT;
   t.align('center');
-  if (b.logo && b.logo.w <= t.width * 12) t.image(b.logo).nl();
+  if (d.showLogo && b.logo && b.logo.w <= t.width * 12) t.image(b.logo).nl();
   t.size(2).bold().line(b.name).size(1).bold(false);
-  if (b.slogan) t.line(b.slogan);
-  if (b.nit) t.line(`NIT ${b.nit}`);
-  if (b.address) t.line(b.address);
-  if (b.phone) t.line(`Tel. ${b.phone}`);
+  if (d.showSlogan && b.slogan) t.line(b.slogan);
+  if (d.headerText) for (const l of String(d.headerText).split('\n')) t.line(l);
+  if (d.showNit && b.nit) t.line(`NIT ${b.nit}`);
+  if (d.showAddress && b.address) t.line(b.address);
+  if (d.showPhone && b.phone) t.line(`Tel. ${b.phone}`);
 }
 const PAY = { cash: 'Efectivo', card_debit: 'Tarjeta débito', card_credit: 'Tarjeta crédito', card: 'Datáfono', transfer: 'Transferencia / QR', platform: 'Plataforma', credit: 'A crédito', mixed: 'Mixto' };
 
@@ -287,9 +294,11 @@ function receiptTicket(printer, b, order, items) {
   else t.pair('Pago', PAY[order.payment_method] || order.payment_method || '');
   if (order.cash_received && order.payment_method === 'cash') t.pair('Recibido', money(order.cash_received)).pair('Cambio', money(order.cash_change || 0));
   t.nl().align('center');
-  if (b.footer) t.line(b.footer);
-  t.line('¡Gracias por tu compra!');
-  if (b.hours) t.line(b.hours);
+  const d = b.design || DESIGN_DEFAULT;
+  if (b.footer) for (const l of String(b.footer).split('\n')) t.line(l);
+  const thanks = String(d.thanks || '').replace(/\{negocio\}/gi, b.name).trim();
+  if (thanks) t.line(thanks);
+  if (d.showHours && b.hours) t.line(b.hours);
   return t.cut().buffer();
 }
 

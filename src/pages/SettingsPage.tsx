@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { canDo } from '@/lib/permissions';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
-import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks, UtensilsCrossed, FileCheck2, Printer, Building2 } from 'lucide-react';
+import { Save, Check, Plus, X, Edit2, Trash2, Bot, Key, Copy, MessageCircle, Sparkles, Store, Palette, Users, FolderOpen, ListChecks, UtensilsCrossed, FileCheck2, Printer, Building2, ReceiptText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import BrandingPanel from '@/components/settings/BrandingPanel';
 import UsersPanel from '@/components/settings/UsersPanel';
@@ -12,11 +12,12 @@ import SectionsPanel from '@/components/settings/SectionsPanel';
 import PrintersPanel from '@/components/settings/PrintersPanel';
 import BranchesPanel from '@/components/settings/BranchesPanel';
 import DemoPacksPanel from '@/components/settings/DemoPacksPanel';
+import ReceiptPanel from '@/components/settings/ReceiptPanel';
 import { BusinessHoursEditor, parseSchedule, type WeekSchedule } from '@/components/settings/BusinessHoursEditor';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { CategoryIcon, CategoryIconPicker } from '@/components/common/CategoryIcon';
 
-type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'sedes' | 'impresoras' | 'facturacion' | 'integracion' | 'demo';
+type Tab = 'negocio' | 'marca' | 'usuarios' | 'secciones' | 'categorias' | 'restaurante' | 'sedes' | 'impresoras' | 'recibos' | 'facturacion' | 'integracion' | 'demo';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -179,6 +180,7 @@ const SettingsPage = () => {
     { id: 'restaurante', label: 'Restaurante', icon: UtensilsCrossed, adminOnly: true },
     { id: 'sedes', label: 'Sedes', icon: Building2, adminOnly: true },
     { id: 'impresoras', label: 'Impresoras', icon: Printer, adminOnly: !canDo(user, 'manage_printers') },
+    { id: 'recibos', label: 'Recibos', icon: ReceiptText, adminOnly: true },
     { id: 'secciones', label: 'Secciones', icon: ListChecks, adminOnly: true },
     { id: 'facturacion', label: 'Factura electrónica', icon: FileCheck2, adminOnly: true },
     { id: 'integracion', label: 'IA WhatsApp', icon: Bot, adminOnly: true },
@@ -353,6 +355,7 @@ const SettingsPage = () => {
       {tab === 'restaurante' && isAdmin && <RestaurantPanel />}
       {tab === 'sedes' && isAdmin && <BranchesPanel />}
       {tab === 'impresoras' && (isAdmin || canDo(user, 'manage_printers')) && <PrintersPanel />}
+      {tab === 'recibos' && isAdmin && <ReceiptPanel />}
       {tab === 'demo' && isAdmin && demoEnabled && <DemoPacksPanel />}
       {tab === 'facturacion' && isAdmin && <EinvoicingPanel />}
       {tab === 'secciones' && isAdmin && <SectionsPanel />}

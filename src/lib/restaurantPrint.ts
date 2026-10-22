@@ -3,7 +3,8 @@ import type { Order, OrderItem } from '@/store/useStore';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { orderTitle, TYPE_LABEL, CHANNEL_LABEL, STATION_LABEL, PRINT_STATIONS, type Channel, type KitchenTicket, type StationPrinter } from '@/lib/restaurant';
-import { printThermal } from '@/lib/thermalPrint';
+import { printThermal, receiptHeaderHtml } from '@/lib/thermalPrint';
+import { getBusinessInfo } from '@/lib/orderNumber';
 
 const esc = (s: any) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
 /** Datos del cliente en domicilios (y nombre/teléfono en para llevar). */
@@ -87,8 +88,7 @@ export function generatePreBillHtml(order: Order, tipPercent = 0): string {
   return `
     <div class="ticket" style="width: 50mm; max-width: 50mm;">
       <div class="text-center">
-        <p class="font-bold" style="font-size: 10px;">${esc(s.businessName)}</p>
-        <p style="font-size: 7.5px;">${esc(s.businessAddress)}${s.businessPhone ? ` · Tel: ${esc(s.businessPhone)}` : ''}</p>
+        ${receiptHeaderHtml(getBusinessInfo(order.branchId))}
         <p class="font-bold" style="font-size: 9px; margin-top: 3px; border: 1px solid #000; display: inline-block; padding: 1px 6px;">PRECUENTA · ${esc(TYPE_LABEL[order.type].toUpperCase())}</p>
         <p style="font-size: 8px; margin-top: 2px;">${esc(orderTitle(order))} · Pedido #${order.id}</p>
         <p style="font-size: 7.5px;">${nowLabel()}${people ? ` · ${people} personas` : ''}${order.waiterName ? ` · Atiende: ${esc(order.waiterName)}` : ''}</p>

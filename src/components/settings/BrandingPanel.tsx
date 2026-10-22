@@ -113,7 +113,10 @@ const BrandingPanel = () => {
   const setBranding = useStore(s => s.setBranding);
 
   const savedTheme = useMemo<ThemeInput>(() => ({ ...BASE_THEME, ...(branding.theme || {}) }), [branding.theme]);
-  const [theme, setTheme] = useState<ThemeInput>(savedTheme);
+  // Se abre en el modo que la persona está viendo (si cambió claro/oscuro con la luna, no se le cambia la pantalla al entrar)
+  const modeOverride = useStore(s => s.modeOverride);
+  const seenTheme = (t: ThemeInput): ThemeInput => ({ ...t, mode: useStore.getState().modeOverride ?? t.mode ?? 'light' });
+  const [theme, setTheme] = useState<ThemeInput>(() => seenTheme(savedTheme));
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -137,7 +140,7 @@ const BrandingPanel = () => {
   // Depende de todo branding: subir un logo vuelve a aplicar la marca guardada y la vista previa debe imponerse de nuevo.
   useEffect(() => { applyTheme(resolved, branding.customFonts); }, [resolved, branding]);
   useEffect(() => () => { useStore.getState().setBranding({}); }, []);
-  useEffect(() => { setTheme(savedTheme); }, [savedTheme]);
+  useEffect(() => { setTheme(seenTheme(savedTheme)); }, [savedTheme]);
   useEffect(() => { FONT_PAIRINGS.forEach(p => { loadGoogleFont(p.heading); loadGoogleFont(p.body); }); }, []);
 
   const update = (patch: Partial<ThemeInput>) => setTheme(t => ({ ...t, ...patch }));
@@ -499,7 +502,9 @@ const BrandingPanel = () => {
 
       <div className="sticky bottom-20 lg:bottom-4 flex items-center gap-3 bg-card/95 backdrop-blur rounded-xl border border-border p-3 shadow-elevated">
         <p className="text-xs text-muted-foreground flex-1">
-          {dirty ? 'Estás viendo una vista previa. Guarda para aplicarlo a todos los usuarios.' : 'Tema guardado y aplicado.'}
+          {modeOverride && modeOverride !== (savedTheme.mode || 'light') && theme.mode === modeOverride
+            ? `Para todos está guardado el modo ${savedTheme.mode === 'dark' ? 'oscuro' : 'claro'}; en este equipo lo ves ${modeOverride === 'dark' ? 'oscuro' : 'claro'} porque lo cambiaste con la luna. Si guardas, quedará ${modeOverride === 'dark' ? 'oscuro' : 'claro'} para todos.`
+            : dirty ? 'Estás viendo una vista previa. Guarda para aplicarlo a todos los usuarios.' : 'Tema guardado y aplicado.'}
           {!allOk && ' Hay verificaciones de legibilidad pendientes.'}
         </p>
         <button onClick={saveTheme} disabled={saving || !dirty}
