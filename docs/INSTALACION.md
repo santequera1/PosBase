@@ -46,6 +46,13 @@ dependencias solo si cambiaron, compilan, reinician y verifican `/api/health`. L
 - Usuarios de prueba (clave `Demo2026*`): `caja`, `mesero1`, `mesero2`, `cocina`, `domi1`, `domi2`. El administrador de la
   demo está en `documentacionyclaves.md`.
 
+## Migrar desde la versión vieja del POS
+`scripts/instancias/migrar-pos-viejo.cjs` pasa usuarios (con sus mismas contraseñas), categorías, productos, mesas,
+ventas cerradas con sus productos y el nombre del negocio. Lee la base vieja en solo lectura. Uso: crear la instalación,
+hacer la configuración inicial (menú vacío), detener su PM2 y correr desde su carpeta `server`:
+`node ../scripts/instancias/migrar-pos-viejo.cjs /ruta/base-vieja.db`. Repetir justo antes de pasarse para traer las
+ventas de los últimos días (vuelve a copiar todo).
+
 ## Repositorio privado
 El VPS descarga el código con una llave de solo lectura (`~/.ssh/posbase_deploy`, alias `github-posbase`).
 Antes de poner el repo en privado:

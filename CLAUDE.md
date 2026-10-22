@@ -11,8 +11,9 @@ propios pueden llegar mal escritos (p. ej. "Wonka's" como "OneCast"/"Wumpa"; "st
 | Cliente | Dominio | Carpeta en VPS | PM2 | Puerto | Notas |
 |---|---|---|---|---|---|
 | Wonka's Burger (producción real desde 8-oct-2026) | pos.wailus.co | /home/ubuntu/apps/posbase | posbase-api | 3065 | Factus producción, impresión en red (agente en PC de caja) — ver `docs/clientes/wonkas.md` |
-| Demo para prospectos | demo.stiven.app | /home/ubuntu/apps/pos-demo | pos-demo | — | se reinicia cada noche desde una foto |
-| Fritop | (pendiente) | — | — | — | usa una versión vieja en /home/ubuntu/apps/fritop (fritop.wailus.co): migrar |
+| Demo para prospectos | demo.stiven.app | /home/ubuntu/apps/pos-demo | pos-demo | 3101 | se reinicia cada noche desde una foto |
+| Fritop (nueva, en revisión) | fritop.stiven.app | /home/ubuntu/apps/pos-fritop | pos-fritop | 3102 | migrada el 22-oct-2026 desde la versión vieja; ver `docs/clientes/fritop.md` |
+| Fritop (versión vieja, en uso) | fritop.wailus.co | /home/ubuntu/apps/fritop | fritop | — | otro repo (fritopApp); se apaga al pasar a la nueva |
 
 Dominios nuevos: `*.stiven.app` (comodín apuntando al VPS). Los antiguos quedan en `*.wailus.co`.
 Registro de instalaciones en el VPS: `/home/ubuntu/apps/pos-instancias.tsv` (slug, carpeta, puerto, dominio, pm2).
