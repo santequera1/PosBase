@@ -92,7 +92,7 @@ const ReceiptPanel = () => {
           <p className="text-xs font-bold text-brand-dark">Vista previa</p>
           <button onClick={() => printThermal(html, 'Recibo de prueba')} className="text-[11px] font-semibold text-brand-primary flex items-center gap-1 hover:underline" title="Imprime este ejemplo desde el navegador"><Printer size={12} /> Imprimir ejemplo</button>
         </div>
-        <div className="bg-white rounded-lg border border-dashed border-border p-3 flex justify-center shadow-inner">
+        <div className="rounded-lg border border-dashed border-border p-3 flex justify-center shadow-inner" style={{ background: '#fff', color: '#111' }}>
           <div className="ticket-preview" dangerouslySetInnerHTML={{ __html: html }} data-receipt-preview />
         </div>
         <p className="text-[10px] text-muted-foreground">Venta de ejemplo (no se guarda). En la térmica todo sale en negro.</p>

@@ -21,15 +21,24 @@ export function imageToRaster(img: HTMLImageElement, width: number, threshold = 
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d')!;
-  if (!invert) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
   ctx.drawImage(img, 0, 0, w, h);
   const px = ctx.getImageData(0, 0, w, h).data;
+  // Luminosidad de lo visible: si el logo es de un solo tono claro sobre fondo transparente (ej. lila), con el umbral fijo
+  // no saldría nada; en ese caso se imprime toda la figura en negro.
+  let lo = 255, hi = 0, transparent = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] <= 128) { transparent++; continue; }
+    const l = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+    if (l < lo) lo = l; if (l > hi) hi = l;
+  }
+  const silhouette = !invert && transparent > (w * h) * 0.05 && lo >= threshold;
   const bytes = new Uint8Array((w / 8) * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
+      const visible = px[i + 3] > 128;
       const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-      const dark = invert ? px[i + 3] > 128 && lum >= threshold : lum < threshold;
+      const dark = !visible ? false : invert ? lum >= threshold : silhouette ? true : lum < threshold;
       if (dark) bytes[y * (w / 8) + (x >> 3)] |= 0x80 >> (x & 7);
     }
   }
@@ -112,7 +121,7 @@ export const ReceiptLogoSection = ({ logo, onSaved }: { logo: (RasterLogo & { on
       </div>
       {preview ? (
         <div className="flex flex-col items-center gap-2">
-          <div className="bg-white border border-dashed border-border rounded-lg p-3 w-full max-w-[300px] flex justify-center">
+          <div className="border border-dashed border-border rounded-lg p-3 w-full max-w-[300px] flex justify-center" style={{ background: '#fff' }}>
             <canvas ref={canvasRef} className="max-w-full h-auto" style={{ width: Math.min(220, preview.w * 0.55), imageRendering: 'pixelated' }} />
           </div>
           <p className="text-[11px] text-muted-foreground">{Math.round(preview.w / 8)} mm de ancho aprox. en el papel</p>
