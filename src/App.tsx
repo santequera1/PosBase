@@ -20,6 +20,7 @@ import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import ReportsPage from "@/pages/ReportsPage";
 import MyAccountPage from "@/pages/MyAccountPage";
+import SetupPage from "@/pages/SetupPage";
 import SettingsPage from "@/pages/SettingsPage";
 import StaffPage from "@/pages/StaffPage";
 import FinancePage from "@/pages/FinancePage";
@@ -32,7 +33,8 @@ import NoAccess from "@/pages/NoAccess";
 import CourierPage from "@/pages/CourierPage";
 import CajaPage from "@/pages/CajaPage";
 import { can, homePath, type ViewKey } from "@/lib/permissions";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
 import { io } from "socket.io-client";
 
 const queryClient = new QueryClient();
@@ -105,6 +107,17 @@ const SocketProvider = () => {
   return null;
 };
 
+// Instalación nueva sin configurar: lleva al asistente de configuración inicial
+const SetupGate = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (location.pathname === '/setup') return;
+    api.getSetupStatus().then(s => { if (s?.pending) navigate('/setup' + window.location.search, { replace: true }); }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -115,7 +128,9 @@ const App = () => (
       <SocketProvider />
       <UpdateNotifier />
       <BrowserRouter>
+        <SetupGate />
         <Routes>
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoutes />}>
             <Route path="/" element={<Home />} />

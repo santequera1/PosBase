@@ -47,6 +47,9 @@ public/branding/*
 !public/branding/.gitkeep
 public/fonts/uploads/*
 !public/fonts/uploads/.gitkeep
+# Fotos de productos subidas desde Menú (propias de cada instalación)
+public/images/uploads/*
+!public/images/uploads/.gitkeep
 
 # Material de marca de prospectos (logos, briefs): no se publica
 scripts/wonkas/

@@ -559,6 +559,8 @@ function seedIfEmpty() {
   insertSetting.run('deliveryFee', '5000');
   insertSetting.run('tableCount', '8');
   insertSetting.run('invoicePrefix', 'POS');
+  // Instalación nueva: hasta completar la configuración inicial (asistente /setup) no se puede iniciar sesión
+  insertSetting.run('setupPending', '1');
 
   // Initial Open Cash Shift for the event
   const insertShift = db.prepare(`

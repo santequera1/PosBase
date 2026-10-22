@@ -7,6 +7,8 @@ const { resolvePerms, profileOf } = require('../permissions');
 const router = Router();
 
 router.post('/login', (req, res) => {
+  // Instalación nueva sin configurar: primero el asistente (así nadie entra con la contraseña de ejemplo)
+  try { if (require('./setup').isSetupPending(require('../db').getDb())) return res.status(423).json({ error: 'Completa primero la configuración inicial del sistema', setup: true }); } catch { /* sin asistente */ }
   let { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Usuario y contraseña requeridos' });

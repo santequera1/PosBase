@@ -1,3 +1,5 @@
+> ⚠️ OBSOLETA (oct-2026): ya no se copia la carpeta por cliente. Ver docs/INSTALACION.md (una instalación por cliente con scripts/instancias/nueva-instancia.sh y el asistente /setup).
+
 # 🍦 Guía de Duplicación y Marca Blanca para Nuevas Heladerías
 
 Esta guía contiene los pasos exactos para tomar este sistema POS, personalizarlo con la identidad de **otra heladería o gelatería** y tenerlo listo para demostración o puesta en marcha en menos de 15 minutos.

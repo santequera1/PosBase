@@ -335,6 +335,8 @@ export const api = {
   previewSettlement: (employeeId: number, from: string, to: string, loans: { skipLoans?: number[]; payoffLoans?: number[] } = {}) =>
     request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}&skipLoans=${(loans.skipLoans || []).join(',')}&payoffLoans=${(loans.payoffLoans || []).join(',')}`),
   getMyAccount: () => request<any>('/staff/me'),
+  getSetupStatus: () => request<any>('/setup/status'),
+  runSetup: (data: any) => request<any>('/setup', { method: 'POST', body: JSON.stringify(data) }),
   getLoans: (params: Record<string, any> = {}) => request<any>(`/staff/loans${qstr(params)}`),
   addLoan: (data: any) => request<any>('/staff/loans', { method: 'POST', body: JSON.stringify(data) }),
   deleteLoan: (id: number) => request<any>(`/staff/loans/${id}`, { method: 'DELETE' }),

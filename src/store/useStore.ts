@@ -6,7 +6,7 @@ import type { RestaurantConfig } from '@/lib/restaurant';
 
 export type OrderStatus = 'open' | 'pending' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'billing' | 'cancelled';
 export type OrderType = 'dine-in' | 'pickup' | 'delivery';
-export type PaymentMethod = 'cash' | 'card_debit' | 'card_credit' | 'card' | 'transfer' | 'platform' | 'credit' | 'mixed';
+export type PaymentMethod = 'cash' | 'card_debit' | 'card_credit' | 'card' | 'transfer' | 'platform' | 'credit' | 'mixed' | 'payroll';
 export type UserRole = 'admin' | 'cashier' | 'kitchen';
 let lastMeRefresh = 0;
 

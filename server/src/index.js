@@ -42,6 +42,8 @@ getDb();
 
 // Public routes
 app.use('/api/auth', require('./routes/auth'));
+// Configuración inicial de una instalación nueva (pública: solo funciona mientras está pendiente)
+app.use('/api/setup', require('./routes/setup'));
 app.use('/api/public', require('./routes/public'));
 
 // Protected routes

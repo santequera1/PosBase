@@ -141,7 +141,13 @@ npm run dev
 ```
 La aplicación web estará disponible en `http://localhost:8080`.
 
-### 🔑 Credenciales por Defecto (Semilla)
+### 🔑 Primer arranque
+Una base de datos nueva abre el **asistente de configuración inicial** (`/setup`): ahí se crean el administrador y su
+contraseña, los datos del negocio y el tipo de negocio; los usuarios de la semilla de abajo se reemplazan o eliminan y no
+sirven para iniciar sesión antes de completarlo. Ver `docs/INSTALACION.md`.
+
+Usuarios de la semilla (solo existen hasta completar el asistente):
+
 | Usuario | Contraseña | Rol | Permisos |
 | :--- | :--- | :--- | :--- |
 | **admin** | `Admin2026*` | Administrador | Acceso total, eliminación de comprobantes, ajustes y reportes |
