@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ExternalLink, LogIn, Trash2, Upload, Box, ImageIcon } from 'lucide-react';
+import { Check, ExternalLink, LogIn, Trash2, Upload, ImageIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { fileToDataUrl } from '@/lib/theme';
@@ -18,7 +18,7 @@ async function compressPhoto(file: File): Promise<string> {
 
 const INPUT = 'w-full px-3 py-2 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50';
 
-/** Configuración → Marca → Pantalla de acceso: textos (editables u ocultos) y modelo 3D opcional que gira al lado. */
+/** Configuración → Marca → Pantalla de acceso: textos (editables u ocultos) y foto opcional al lado. */
 const LoginScreenPanel = () => {
   const branding = useStore(s => s.branding);
   const businessName = useStore(s => s.businessName);
@@ -30,7 +30,6 @@ const LoginScreenPanel = () => {
   const [busy, setBusy] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setTitle(branding.loginTitle); setSubtitle(branding.loginSubtitle);
@@ -49,17 +48,6 @@ const LoginScreenPanel = () => {
     setBusy('');
   };
 
-  const onModel = async (file: File | undefined) => {
-    if (!file) return;
-    if (!/\.glb$/i.test(file.name)) { setError('El modelo debe ser un archivo .glb (expórtalo desde Blender como glTF binario)'); return; }
-    if (file.size > 15 * 1024 * 1024) { setError('El modelo supera 15 MB'); return; }
-    setBusy('model'); setError('');
-    try {
-      const r = await api.uploadBrandingImage('loginModel', file.name, await fileToDataUrl(file));
-      setBranding({ loginModelUrl: r.url });
-    } catch (e: any) { setError(e.message || 'No se pudo subir el modelo'); }
-    setBusy('');
-  };
   const onPhoto = async (file: File | undefined) => {
     if (!file) return;
     setBusy('photo'); setError('');
@@ -76,10 +64,6 @@ const LoginScreenPanel = () => {
   const removePhoto = async () => {
     try { await api.removeBrandingImage('loginImage'); setBranding({ loginImageUrl: '' }); } catch (e: any) { setError(e.message); }
   };
-  const removeModel = async () => {
-    try { await api.removeBrandingImage('loginModel'); setBranding({ loginModelUrl: '' }); } catch (e: any) { setError(e.message); }
-  };
-
   const Toggle = ({ on, set, label }: { on: boolean; set: (v: boolean) => void; label: string }) => (
     <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer shrink-0">
       <input type="checkbox" checked={on} onChange={e => set(e.target.checked)} /> {label}
@@ -91,7 +75,7 @@ const LoginScreenPanel = () => {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="font-bold text-sm flex items-center gap-1.5"><LogIn size={15} /> Pantalla de acceso</h3>
-          <p className="text-xs text-muted-foreground">Lo que se ve antes de iniciar sesión. Usa el logo de "Inicio de sesión" y, al lado, el modelo 3D o el logo grande.</p>
+          <p className="text-xs text-muted-foreground">Lo que se ve antes de iniciar sesión. Usa el logo de "Inicio de sesión" y, al lado (en computador), la foto o el logo grande.</p>
         </div>
         <a href="/login" target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-primary flex items-center gap-1 hover:underline"><ExternalLink size={13} /> Ver cómo queda</a>
       </div>
@@ -125,7 +109,7 @@ const LoginScreenPanel = () => {
         {branding.loginImageUrl ? <img src={branding.loginImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover" /> : <span className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted/40 text-muted-foreground"><ImageIcon size={18} /></span>}
         <div className="flex-1 min-w-[180px]">
           <p className="text-xs font-semibold text-brand-dark">Foto al lado (opcional)</p>
-          <p className="text-[11px] text-muted-foreground">Llena el panel derecho en computador (en celular solo se ve el formulario). Se comprime sola al subirla.{branding.loginModelUrl ? ' Mientras haya modelo 3D, se muestra el modelo.' : ''}</p>
+          <p className="text-[11px] text-muted-foreground">Llena el panel derecho en computador (en celular solo se ve el formulario). Se comprime sola al subirla.</p>
         </div>
         <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { onPhoto(e.target.files?.[0]); e.target.value = ''; }} data-login-photo-input />
         <button type="button" disabled={busy === 'photo'} onClick={() => photoRef.current?.click()} className="px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50">
@@ -142,18 +126,6 @@ const LoginScreenPanel = () => {
         {branding.loginImageUrl && <button type="button" onClick={removePhoto} title="Quitar la foto" className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
       </div>
 
-      <div className="rounded-lg border border-dashed border-border p-3 flex flex-wrap items-center gap-3">
-        <span className={cn('w-10 h-10 rounded-lg flex items-center justify-center', branding.loginModelUrl ? 'bg-brand-button text-brand-on-button' : 'bg-muted/40 text-muted-foreground')}><Box size={18} /></span>
-        <div className="flex-1 min-w-[180px]">
-          <p className="text-xs font-semibold text-brand-dark">Modelo 3D (opcional)</p>
-          <p className="text-[11px] text-muted-foreground">{branding.loginModelUrl ? 'Gira suavemente al lado del formulario (solo en computador).' : 'Archivo .glb de hasta 15 MB (Blender → Exportar → glTF binario). Sin modelo se muestra el logo.'}</p>
-        </div>
-        <input ref={fileRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={e => { onModel(e.target.files?.[0]); e.target.value = ''; }} data-login-model-input />
-        <button type="button" disabled={busy === 'model'} onClick={() => fileRef.current?.click()} className="px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50">
-          <Upload size={13} /> {busy === 'model' ? 'Subiendo...' : branding.loginModelUrl ? 'Cambiar' : 'Subir modelo'}
-        </button>
-        {branding.loginModelUrl && <button type="button" onClick={removeModel} title="Quitar el modelo" className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
-      </div>
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
     </section>
   );

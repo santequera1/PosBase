@@ -279,8 +279,9 @@ export const POSPage: React.FC = () => {
   const businessType = useStore(s => s.businessType);
   // Pantalla de sabores: solo heladerías (las instalaciones antiguas sin tipo se reconocen por las categorías 1-3)
   const hasGelato = (businessType ? businessType === 'icecream' : true) && categories.some(c => [1, 2, 3].includes(c.id));
-  const defaultTab: 'gelato' | number = hasGelato ? 'gelato' : (categories[0]?.id ?? 'gelato');
-  useEffect(() => { if (!hasGelato && catalogTab === 'gelato' && typeof defaultTab === 'number') setCatalogTab(defaultTab); }, [hasGelato, catalogTab, defaultTab]);
+  // Al entrar a la venta: heladerías en la pantalla de sabores; los demás negocios en "Todo" (todo el menú)
+  const defaultTab: 'gelato' | 'all' = hasGelato ? 'gelato' : 'all';
+  useEffect(() => { if (!hasGelato && catalogTab === 'gelato') setCatalogTab('all'); }, [hasGelato, catalogTab]);
   const [selectedFormat, setSelectedFormat] = useState<GelatoFormat>(GELATO_FORMATS[0]);
   const [firstFlavor, setFirstFlavor] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

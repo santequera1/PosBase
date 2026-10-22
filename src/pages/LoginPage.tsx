@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/store/useStore';
 import { homePath } from '@/lib/permissions';
@@ -15,34 +15,16 @@ const useDesktop = () => {
   return desk;
 };
 
-/** Panel de marca: modelo 3D girando, o una foto que lo llena, o el logo grande sobre el color de la barra lateral. */
+/** Panel de marca: una foto que lo llena o, si no hay, el logo grande sobre el color de la barra lateral. */
 const FOCUS: Record<string, string> = { left: '25% 50%', center: '50% 50%', right: '72% 50%' };
-const BrandPanel = ({ modelUrl, imageUrl, imageFocus = 'center', logo, name, slogan, className }: { modelUrl: string; imageUrl: string; imageFocus?: string; logo: string; name: string; slogan: string; className?: string }) => {
+const BrandPanel = ({ imageUrl, imageFocus = 'center', logo, name, slogan, className }: { imageUrl: string; imageFocus?: string; logo: string; name: string; slogan: string; className?: string }) => {
   const [imgReady, setImgReady] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>(modelUrl ? 'loading' : 'idle');
-  useEffect(() => {
-    if (!modelUrl || !ref.current) return;
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    setState('loading');
-    // three.js se descarga solo aquí y solo si hay modelo
-    import('@/lib/model3d').then(({ mountModel }) => {
-      if (cancelled || !ref.current) return;
-      try {
-        stop = mountModel(ref.current, { src: modelUrl, onLoad: () => setState('ready'), onError: () => setState('error') });
-      } catch { setState('error'); }
-    }).catch(() => setState('error'));
-    return () => { cancelled = true; stop?.(); };
-  }, [modelUrl]);
-  const showImage = !modelUrl && !!imageUrl;
-  const showLogo = (!modelUrl && !imageUrl) || state === 'error';
+  const showImage = !!imageUrl;
+  const showLogo = !imageUrl;
   return (
     <aside className={cn('relative overflow-hidden bg-brand-surface', className)} data-login-panel>
       <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 52%, hsl(var(--brand-accent) / 0.30), transparent 62%)' }} />
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(hsl(var(--brand-on-dark)) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
-      {modelUrl && <div ref={ref} className={cn('absolute inset-0 transition-opacity duration-700', state === 'ready' ? 'opacity-100' : 'opacity-0')} data-login-model={state} />}
-      {modelUrl && state === 'loading' && <div className="absolute inset-0 flex items-center justify-center"><span className="w-8 h-8 rounded-full border-2 border-brand-on-dark/20 border-t-brand-accent animate-spin" /></div>}
       {showImage && (
         <>
           <img src={imageUrl} alt={name} onLoad={() => setImgReady(true)} style={{ objectPosition: FOCUS[imageFocus] || FOCUS.center }} className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-700', imgReady ? 'opacity-100' : 'opacity-0')} data-login-image />
@@ -103,7 +85,7 @@ const LoginPage = () => {
     <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-[minmax(440px,1fr)_1.1fr] bg-brand-bg" data-login>
 
       <main className="flex-1 flex flex-col px-6 sm:px-12 lg:px-16 py-8">
-        <img src={lightLogo} alt={businessName} className="h-14 lg:h-12 w-auto max-w-[200px] object-contain self-center lg:self-start lg:object-left" data-login-logo />
+        <img src={lightLogo} alt={businessName} className="h-44 lg:h-32 w-auto max-w-full lg:max-w-[320px] object-contain self-center lg:self-start lg:object-left" data-login-logo />
         <div className="flex-1 flex items-center py-10">
           <div className="w-full max-w-md">
             {branding.loginShowTitle && title && <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-primary mb-3" data-login-title>{title}</p>}
@@ -146,7 +128,7 @@ const LoginPage = () => {
         <p className="text-[11px] text-brand-muted">🔒 {businessName} · Punto de venta</p>
       </main>
 
-      {desktop && <BrandPanel modelUrl={branding.loginModelUrl} imageUrl={branding.loginImageUrl} imageFocus={branding.loginImageFocus} logo={darkLogo} name={businessName} slogan={businessSlogan} />}
+      {desktop && <BrandPanel imageUrl={branding.loginImageUrl} imageFocus={branding.loginImageFocus} logo={darkLogo} name={businessName} slogan={businessSlogan} />}
     </div>
   );
 };
