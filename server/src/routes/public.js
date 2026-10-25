@@ -7,7 +7,7 @@ const router = Router();
 // No expone nada sensible: solo nombre, eslogan, logos, tema y fuentes.
 const KEYS = ['businessName', 'businessSlogan', 'logoUrl', 'logoDarkUrl', 'logoSmallUrl', 'logoLoginUrl', 'faviconUrl', 'appleIconUrl', 'theme', 'customFonts',
   // Pantalla de acceso: textos (se pueden ocultar) y foto opcional
-  'loginTitle', 'loginSubtitle', 'loginShowTitle', 'loginShowSubtitle', 'loginImageUrl', 'loginImageFocus', 'logoSmallRound'];
+  'loginTitle', 'loginSubtitle', 'loginShowTitle', 'loginShowSubtitle', 'loginImageUrl', 'loginImageFocus', 'loginImageFit', 'logoSmallRound'];
 
 router.get('/branding', (req, res) => {
   const db = getDb();

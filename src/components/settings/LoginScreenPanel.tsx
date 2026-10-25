@@ -61,6 +61,9 @@ const LoginScreenPanel = () => {
   const setFocus = async (k: string) => {
     try { await api.updateSettings({ loginImageFocus: k }); setBranding({ loginImageFocus: k }); } catch (e: any) { setError(e.message); }
   };
+  const setFit = async (k: string) => {
+    try { await api.updateSettings({ loginImageFit: k }); setBranding({ loginImageFit: k }); } catch (e: any) { setError(e.message); }
+  };
   const removePhoto = async () => {
     try { await api.removeBrandingImage('loginImage'); setBranding({ loginImageUrl: '' }); } catch (e: any) { setError(e.message); }
   };
@@ -120,6 +123,14 @@ const LoginScreenPanel = () => {
             {([['left', 'Izq.'], ['center', 'Centro'], ['right', 'Der.']] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setFocus(k)} data-focus={k}
                 className={cn('px-2 py-2 text-[11px] font-semibold', branding.loginImageFocus === k ? 'bg-brand-button text-brand-on-button' : 'text-brand-dark hover:bg-brand-card')}>{l}</button>
+            ))}
+          </span>
+        )}
+        {branding.loginImageUrl && (
+          <span className="flex rounded-lg border border-border overflow-hidden" title="Llenar el panel (se recorta) o mostrar la foto completa">
+            {([['cover', 'Llenar'], ['contain', 'Completa']] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setFit(k)} data-fit={k}
+                className={cn('px-2 py-2 text-[11px] font-semibold', branding.loginImageFit === k ? 'bg-brand-button text-brand-on-button' : 'text-brand-dark hover:bg-brand-card')}>{l}</button>
             ))}
           </span>
         )}

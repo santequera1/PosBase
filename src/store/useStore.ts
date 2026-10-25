@@ -230,9 +230,11 @@ export interface Branding {
   loginImageUrl: string;
   /** Qué parte de la foto se ve cuando se recorta: left, center, right */
   loginImageFocus: string;
+  /** cover = la foto llena el panel (se recorta) · contain = se ve completa, con la misma foto difuminada de fondo */
+  loginImageFit: string;
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center' };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center', loginImageFit: 'cover' };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -258,6 +260,7 @@ export function brandingFromSettings(s: any): Branding {
     loginShowSubtitle: String(s?.loginShowSubtitle ?? '1') !== '0',
     loginImageUrl: s?.loginImageUrl ? String(s.loginImageUrl) : '',
     loginImageFocus: s?.loginImageFocus ? String(s.loginImageFocus) : 'center',
+    loginImageFit: s?.loginImageFit === 'contain' ? 'contain' : 'cover',
   };
 }
 

@@ -5,6 +5,12 @@ import { homePath } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
 const REMEMBER_KEY = 'pos_login_user';
+/** ¿Pantalla en modo oscuro? (clase dark del html, que pone el tema) */
+const useHtmlDark = () => {
+  const [dark, setDark] = useState(() => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+  useEffect(() => { const html = document.documentElement; const obs = new MutationObserver(() => setDark(html.classList.contains('dark'))); obs.observe(html, { attributes: true, attributeFilter: ['class'] }); setDark(html.classList.contains('dark')); return () => obs.disconnect(); }, []);
+  return dark;
+};
 const readRemembered = () => { try { return localStorage.getItem(REMEMBER_KEY) || ''; } catch { return ''; } };
 
 /** ¿Pantalla de escritorio? El panel de marca va a la derecha; en celular no se muestra (solo el formulario). */
@@ -17,7 +23,7 @@ const useDesktop = () => {
 
 /** Panel de marca: una foto que lo llena o, si no hay, el logo grande sobre el color de la barra lateral. */
 const FOCUS: Record<string, string> = { left: '25% 50%', center: '50% 50%', right: '72% 50%' };
-const BrandPanel = ({ imageUrl, imageFocus = 'center', logo, name, slogan, className }: { imageUrl: string; imageFocus?: string; logo: string; name: string; slogan: string; className?: string }) => {
+const BrandPanel = ({ imageUrl, imageFocus = 'center', imageFit = 'cover', logo, name, slogan, className }: { imageUrl: string; imageFocus?: string; imageFit?: string; logo: string; name: string; slogan: string; className?: string }) => {
   const [imgReady, setImgReady] = useState(false);
   const showImage = !!imageUrl;
   const showLogo = !imageUrl;
@@ -27,7 +33,9 @@ const BrandPanel = ({ imageUrl, imageFocus = 'center', logo, name, slogan, class
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(hsl(var(--brand-on-dark)) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
       {showImage && (
         <>
-          <img src={imageUrl} alt={name} onLoad={() => setImgReady(true)} style={{ objectPosition: FOCUS[imageFocus] || FOCUS.center }} className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-700', imgReady ? 'opacity-100' : 'opacity-0')} data-login-image />
+          {/* Foto completa: la misma foto, difuminada, llena los bordes que quedan libres */}
+          {imageFit === 'contain' && <img src={imageUrl} alt="" aria-hidden className={cn('absolute inset-0 w-full h-full object-cover scale-110 blur-2xl transition-opacity duration-700', imgReady ? 'opacity-100' : 'opacity-0')} />}
+          <img src={imageUrl} alt={name} onLoad={() => setImgReady(true)} style={{ objectPosition: FOCUS[imageFocus] || FOCUS.center }} className={cn('absolute inset-0 w-full h-full transition-opacity duration-700', imageFit === 'contain' ? 'object-contain drop-shadow-2xl' : 'object-cover', imgReady ? 'opacity-100' : 'opacity-0')} data-login-image={imageFit} />
           {slogan && <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent" />}
         </>
       )}
@@ -60,7 +68,10 @@ const LoginPage = () => {
   const title = branding.loginTitle || businessName;
   const subtitle = branding.loginSubtitle || 'Sistema Punto de Venta POS';
   const lightLogo = branding.logoLoginUrl || branding.logoUrl || '/logo/logo-login.svg';
-  const darkLogo = branding.logoUrl || '/logo/logo-dark.svg';
+  // Logos según el fondo: en modo oscuro el formulario va sobre fondo oscuro y usa el logo para fondos oscuros
+  const isDark = useHtmlDark();
+  const darkLogo = (isDark && branding.logoDarkUrl) || branding.logoUrl || '/logo/logo-dark.svg';
+  const formLogo = isDark ? (branding.logoDarkUrl || branding.logoUrl || lightLogo) : lightLogo;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +96,7 @@ const LoginPage = () => {
     <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-[minmax(440px,1fr)_1.1fr] bg-brand-bg" data-login>
 
       <main className="flex-1 flex flex-col px-6 sm:px-12 lg:px-16 py-8">
-        <img src={lightLogo} alt={businessName} className="h-44 lg:h-32 w-auto max-w-full lg:max-w-[320px] object-contain self-center lg:self-start lg:object-left" data-login-logo />
+        <img src={formLogo} alt={businessName} className="h-44 lg:h-32 w-auto max-w-full lg:max-w-[320px] object-contain self-center lg:self-start lg:object-left" data-login-logo />
         <div className="flex-1 flex items-center py-10">
           <div className="w-full max-w-md">
             {branding.loginShowTitle && title && <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-primary mb-3" data-login-title>{title}</p>}
@@ -128,7 +139,7 @@ const LoginPage = () => {
         <p className="text-[11px] text-brand-muted">🔒 {businessName} · Punto de venta</p>
       </main>
 
-      {desktop && <BrandPanel imageUrl={branding.loginImageUrl} imageFocus={branding.loginImageFocus} logo={darkLogo} name={businessName} slogan={businessSlogan} />}
+      {desktop && <BrandPanel imageUrl={branding.loginImageUrl} imageFocus={branding.loginImageFocus} imageFit={branding.loginImageFit} logo={darkLogo} name={businessName} slogan={businessSlogan} />}
     </div>
   );
 };
