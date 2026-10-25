@@ -123,12 +123,14 @@ function buildBill(db, order, items, cfg) {
   const taxed = biz.taxType !== 'none' && rate > 0;
   const docType = (order.customer_doc && order.customer_doc !== '222222222222') ? (order.customer_doc.length >= 9 && order.is_company ? 'NIT' : 'CC') : 'CC';
   const isCompany = docType === 'NIT';
+  // Sin documento = consumidor final (222222222222): va con ese nombre aunque el pedido tenga uno para llamarlo ("Carlos")
+  const finalConsumer = !order.customer_doc || order.customer_doc === '222222222222';
   const customer = {
-    identification: order.customer_doc && order.customer_doc !== '222222222222' ? String(order.customer_doc).replace(/\D/g, '') : '222222222222',
+    identification: !finalConsumer ? String(order.customer_doc).replace(/\D/g, '') : '222222222222',
     dv: isCompany && order.customer_dv ? String(order.customer_dv) : undefined,
     company: isCompany ? order.customer_name : '',
     trade_name: isCompany ? order.customer_name : '',
-    names: isCompany ? '' : (order.customer_name || 'CONSUMIDOR FINAL'),
+    names: isCompany ? '' : finalConsumer ? 'CONSUMIDOR FINAL' : (order.customer_name || 'CONSUMIDOR FINAL'),
     address: order.customer_address || 'Sin dirección',
     email: order.customer_email || '',
     phone: order.customer_phone || '',

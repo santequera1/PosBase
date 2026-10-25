@@ -1,4 +1,5 @@
-import { Clock, MapPin, Phone, Bike, User } from 'lucide-react';
+import { Clock, MapPin, Phone, Bike, User, UserCheck } from 'lucide-react';
+import { PROFILE_LABEL } from '@/lib/permissions';
 import type { Order } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,11 @@ export const OrderCard = ({ order, actions, children }: { order: Order; actions:
         </div>
       )}
       {order.type === 'pickup' && order.customer.phone && <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Phone size={11} /> {order.customer.phone}</p>}
+      {order.createdBy && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1" data-order-taken-by>
+          <UserCheck size={11} className="shrink-0" /> <span className="truncate">Tomó el pedido: <b className="text-brand-dark font-semibold">{order.createdBy}</b>{order.createdByProfile && PROFILE_LABEL[order.createdByProfile] ? ` · ${PROFILE_LABEL[order.createdByProfile]}` : ''}</span>
+        </p>
+      )}
       <p className="text-[11px] text-brand-dark/80 truncate" title={order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}>{order.items.length ? itemsText : 'Sin productos todavía'}</p>
       {order.notes && <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2 py-1">📝 {order.notes}</p>}
       {children}

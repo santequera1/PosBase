@@ -12,6 +12,7 @@ import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle } from '@/lib/restaurant';
 import { printReceipt, printPreBill, suggestedTipPct } from '@/lib/netPrint';
+import { PROFILE_LABEL } from '@/lib/permissions';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
   { key: 'pending', title: 'Pendientes', match: s => s === 'open' || s === 'pending', cls: 'border-amber-200 bg-amber-50/50' },
@@ -79,12 +80,13 @@ const CounterPage = () => {
         <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><ShoppingBag size={13} /> Entregados hoy</p><span className="text-[11px] text-muted-foreground">{doneToday.length} pedido(s)</span></div>
         {doneToday.length === 0 ? <p className="p-4 text-xs text-muted-foreground">Aún no hay entregas hoy.</p> : (
           <table className="w-full text-xs">
-            <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Pedido</th><th className="text-left px-3 py-1.5">Hora</th><th className="text-left px-3 py-1.5">Productos</th><th className="text-right px-3 py-1.5">Total</th><th className="px-3 py-1.5" /></tr></thead>
+            <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Pedido</th><th className="text-left px-3 py-1.5">Hora</th><th className="text-left px-3 py-1.5">Tomó</th><th className="text-left px-3 py-1.5">Productos</th><th className="text-right px-3 py-1.5">Total</th><th className="px-3 py-1.5" /></tr></thead>
             <tbody>
               {doneToday.map(o => (
                 <tr key={o.id} className="border-t border-border">
                   <td className="px-3 py-1.5 font-semibold text-brand-dark">{orderTitle(o)} <span className="text-muted-foreground font-normal">#{o.id}</span></td>
                   <td className="px-3 py-1.5">{(o.deliveredAt || o.createdAt).slice(11, 16)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{o.createdBy || '—'}{o.createdByProfile && PROFILE_LABEL[o.createdByProfile] ? <span className="text-muted-foreground"> · {PROFILE_LABEL[o.createdByProfile]}</span> : null}</td>
                   <td className="px-3 py-1.5 truncate max-w-[280px]">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</td>
                   <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
                   <td className="px-3 py-1.5 text-right"><button onClick={() => printReceipt(o)} className="text-brand-primary hover:underline flex items-center gap-1 ml-auto"><Printer size={12} /> Ticket</button></td>

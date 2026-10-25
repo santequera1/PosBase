@@ -6,6 +6,7 @@ import { useStore } from '@/store/useStore';
 import { formatPrice, getColombiaTodayStr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Chip, KpiCard, INPUT, fmtDate } from '@/components/common/Primitives';
+import { FacturarLote } from './FacturarLote';
 import { downloadInvoiceFile, openInvoicePdf, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
 
 /** Caja → Facturas electrónicas: todas las facturas emitidas, guardadas para descargarlas o enviarlas cuando se necesite. */
@@ -30,8 +31,10 @@ export const FacturasTab = () => {
   const run = async (key: string, fn: () => Promise<any>) => { setBusy(key); try { await fn(); } catch (e: any) { if (e?.name !== 'AbortError') toast.error(e.message || 'No se pudo completar'); } setBusy(''); };
   const share = typeof window !== 'undefined' && canShareFiles();
   const list = data?.invoices || [];
+  const isAdmin = useStore(s => s.user?.role === 'admin');
   return (
     <div className="space-y-3" data-facturas-tab>
+      {isAdmin && <FacturarLote onDone={load} />}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1"><Chip active={range === 'month'} onClick={() => setRange('month')}>Este mes</Chip><Chip active={range === 'prev'} onClick={() => setRange('prev')}>Mes anterior</Chip><Chip active={range === 'all'} onClick={() => setRange('all')}>Todas</Chip></div>
         <div className="relative flex-1 min-w-[200px] max-w-md"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Número de factura, cliente, documento o venta #" className={cn(INPUT, 'pl-8')} data-facturas-search /></div>

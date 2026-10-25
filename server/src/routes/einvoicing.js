@@ -64,4 +64,33 @@ router.get('/invoices', (req, res) => {
   res.json({ invoices: rows, total: rows.reduce((a, r) => a + (r.total || 0), 0) });
 });
 
+/**
+ * Ventas a consumidor final de una jornada (corte 5 a. m.) que todavía no tienen factura electrónica, para emitirlas
+ * en lote al cierre. Cada venta lleva su propia factura (POST /orders/:id/electronic-invoice, una por una).
+ * No entran: anuladas, sin pagar, consumos por nómina, cortesías en $0 ni ventas con datos de cliente (esas se facturan
+ * a nombre del cliente desde la venta).
+ */
+router.get('/pending', ADMIN, (req, res) => {
+  const db = getDb();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || '')) ? String(req.query.date)
+    : db.prepare("SELECT date(datetime('now', '-5 hours', '-5 hours')) AS d").get().d;
+  const jornada = "date(datetime(COALESCE(o.closed_at, o.delivered_at, o.created_at), '-5 hours'))";
+  const rows = db.prepare(`SELECT o.id, o.type, o.total, o.payment_method AS paymentMethod, o.payment_status AS paymentStatus, o.customer_doc AS customerDoc,
+      o.created_at AS createdAt, COALESCE(o.closed_at, o.delivered_at, o.created_at) AS closedAt, o.table_label AS tableLabel, o.fe_error AS feError
+    FROM orders o WHERE o.status = 'delivered' AND (o.fe_number IS NULL OR o.fe_number = '') AND ${jornada} = ? ORDER BY o.id`).all(date);
+  const final = r => !r.customerDoc || r.customerDoc === '222222222222';
+  const excluded = { unpaid: 0, payroll: 0, zero: 0, withCustomer: 0 };
+  const orders = [];
+  for (const r of rows) {
+    if (r.paymentStatus !== 'paid') excluded.unpaid++;
+    else if (r.paymentMethod === 'payroll') excluded.payroll++;
+    else if (!(r.total > 0)) excluded.zero++;
+    else if (!final(r)) excluded.withCustomer++;
+    else orders.push(r);
+  }
+  const cfg = factus.readFeConfig(db);
+  const today = db.prepare("SELECT date(datetime('now', '-5 hours', '-5 hours')) AS d").get().d;
+  res.json({ date, today, provider: cfg.provider, env: cfg.env, orders, total: orders.reduce((a, o) => a + o.total, 0), excluded });
+});
+
 module.exports = router;

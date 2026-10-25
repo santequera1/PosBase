@@ -1,5 +1,20 @@
 const { electronicInvoiceOf } = require('./einvoice');
 
+// Perfil (mesero, cajero, administrador…) de quien tomó el pedido: por el usuario que lo creó, o por su nombre en pedidos viejos
+const creatorStmt = new WeakMap();
+function creatorProfile(db, order) {
+  if (!order.user_id && !order.created_by) return undefined;
+  let st = creatorStmt.get(db);
+  if (!st) {
+    st = { byId: db.prepare('SELECT role, profile FROM users WHERE id = ?'), byName: db.prepare('SELECT role, profile FROM users WHERE name = ? ORDER BY active DESC LIMIT 1') };
+    creatorStmt.set(db, st);
+  }
+  try {
+    const u = (order.user_id && st.byId.get(order.user_id)) || (order.created_by && st.byName.get(order.created_by));
+    return u ? (u.role === 'admin' ? 'admin' : u.profile || u.role) : undefined;
+  } catch { return undefined; }
+}
+
 /** Pedido tal como lo consume el frontend (usado por /orders y /restaurant). */
 function formatOrder(db, order) {
   const items = db.prepare(`
@@ -47,6 +62,7 @@ function formatOrder(db, order) {
     discountName: order.discount_name || undefined,
     cancelReason: order.cancel_reason || undefined,
     createdBy: order.created_by || undefined,
+    createdByProfile: creatorProfile(db, order),
     branchId: order.branch_id || 1,
     tip,
     tipTo: order.tip_to || undefined,

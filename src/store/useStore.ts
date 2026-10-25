@@ -151,6 +151,8 @@ export interface Order {
   discountName?: string;
   cancelReason?: string;
   createdBy?: string;
+  /** Perfil de quien tomó el pedido: admin, cashier, waiter… */
+  createdByProfile?: string;
   branchId?: number;
   items: OrderItem[];
   subtotal: number;
