@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, Printer, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -21,6 +21,9 @@ const ReceiptPanel = () => {
   const products = useStore(s => s.products);
   const [design, setDesign] = useState<ReceiptDesign>(saved);
   const [footer, setFooter] = useState(savedFooter);
+  // Si la pestaña se abre antes de que termine de cargar la configuración, toma los valores guardados al llegar
+  useEffect(() => { setDesign(saved); }, [saved]);
+  useEffect(() => { setFooter(savedFooter); }, [savedFooter]);
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
   const dirty = JSON.stringify(design) !== JSON.stringify(saved) || footer !== savedFooter;
