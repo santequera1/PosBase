@@ -14,6 +14,7 @@ propios pueden llegar mal escritos (p. ej. "Wonka's" como "OneCast"/"Wumpa"; "st
 | Demo para prospectos | demo.stiven.app | /home/ubuntu/apps/pos-demo | pos-demo | 3101 | se reinicia cada noche desde una foto |
 | Fritop (nueva, en revisión) | fritop.stiven.app | /home/ubuntu/apps/pos-fritop | pos-fritop | 3102 | migrada el 22-oct-2026 desde la versión vieja; ver `docs/clientes/fritop/fritop.md` (identidad visual y menú en esa carpeta) |
 | Moodi Shake (heladería, prospecto) | moodi.stiven.app | /home/ubuntu/apps/pos-moodi | pos-moodi | 3103 | tipo heladería, estilo "Heladería pastel" y su logo; ver `docs/clientes/moodi/moodi.md` |
+| Pokotoon (hamburguesas y perros, C.C. Gran Manzana) | pokotoon.stiven.app | /home/ubuntu/apps/pos-pokotoon | pos-pokotoon | 3104 | creada el 25-oct-2026, comidas rápidas; ver `docs/clientes/pokoton/pokotoon.md` |
 | Fritop (versión vieja, en uso) | fritop.wailus.co | /home/ubuntu/apps/fritop | fritop | — | otro repo (fritopApp); se apaga al pasar a la nueva |
 
 Dominios nuevos: `*.stiven.app` (comodín apuntando al VPS). Estilos predeterminados (Configuración → Marca): "Restaurante" (negro/amarillo, Inter — el de Wonka's), "Natural" y "Heladería pastel" (Fredoka + Inter); el asistente aplica uno según el tipo de negocio. Los antiguos quedan en `*.wailus.co`.
@@ -61,5 +62,5 @@ bash scripts/instancias/respaldar.sh
 
 ## Documentos
 - `docs/INSTALACION.md` — crear, actualizar y respaldar instalaciones; la demo; repo privado (deploy key).
-- `docs/clientes/` — lo propio de cada cliente (sin claves): `wonkas.md`, y carpetas `fritop/`, `moodi/` con su .md, logos e identidad.
+- `docs/clientes/` — lo propio de cada cliente (sin claves): `wonkas.md`, y carpetas `fritop/`, `moodi/`, `pokoton/` con su .md, logos e identidad.
 - `docs/ACTUALIZACION-2026-10-10.md` — bitácora de la puesta en marcha de Wonka's.
