@@ -154,7 +154,13 @@ router.delete('/employees/:id', ADMIN, (req, res) => {
   const db = getDb();
   const id = Number(req.params.id);
   if (!db.prepare('SELECT id FROM employees WHERE id = ?').get(id)) return res.status(404).json({ error: 'Colaborador no encontrado' });
-  const refs = ['attendance', 'tips', 'advances', 'payroll_settlements'].reduce((n, t) => n + db.prepare(`SELECT COUNT(*) AS c FROM ${t} WHERE employee_id = ?`).get(id).c, 0);
+  // Historial en cualquier tabla que apunte al colaborador (asistencia, propinas, pagos de propinas, anticipos, préstamos y
+  // consumos, novedades, liquidaciones…) o pedidos donde fue mesero, domiciliario o tuvo descuento: entonces solo se desactiva
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name)
+    .filter(t => db.prepare(`PRAGMA foreign_key_list("${t}")`).all().some(f => f.table === 'employees' && f.from === 'employee_id'));
+  let refs = tables.reduce((n, t) => n + db.prepare(`SELECT COUNT(*) AS c FROM "${t}" WHERE employee_id = ?`).get(id).c, 0);
+  const orderCols = db.prepare('PRAGMA table_info(orders)').all().map(c => c.name).filter(c => ['waiter_id', 'driver_id', 'discount_employee_id'].includes(c));
+  if (orderCols.length) refs += db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE ${orderCols.map(c => `${c} = ?`).join(' OR ')}`).get(...orderCols.map(() => id)).c;
   if (refs > 0) {
     db.prepare('UPDATE employees SET active = 0 WHERE id = ?').run(id);
     return res.json({ success: true, deactivated: true, message: 'El colaborador tiene historial; se marcó como inactivo' });
