@@ -14,7 +14,7 @@
 #  El instalador (Configuracion -> Impresoras -> Instalar agente) lo crea solo.
 # ---------------------------------------------------------------------------
 $ErrorActionPreference = 'Continue'
-$Version = '1.2.0'
+$Version = '1.2.1'
 $Self = $MyInvocation.MyCommand.Path
 $Dir = Split-Path -Parent $Self
 $CfgPath = Join-Path $Dir 'config.json'
@@ -67,18 +67,21 @@ public static class PosRawPrinter {
   [DllImport("winspool.drv", SetLastError = true)] static extern bool StartPagePrinter(IntPtr h);
   [DllImport("winspool.drv", SetLastError = true)] static extern bool EndPagePrinter(IntPtr h);
   [DllImport("winspool.drv", SetLastError = true)] static extern bool WritePrinter(IntPtr h, byte[] buf, int count, out int written);
-  public static void Send(string printer, string title, byte[] data) {
+  // Devuelve el numero del trabajo en la cola de Windows, para vigilar que salga
+  public static int Send(string printer, string title, byte[] data) {
     IntPtr h;
     if (!OpenPrinter(printer, out h, IntPtr.Zero)) throw new Exception("Windows no tiene la impresora '" + printer + "' (revisa que este instalada con ese nombre)");
     try {
       DocInfo di = new DocInfo(); di.pDocName = title; di.pDataType = "RAW";
-      if (StartDocPrinter(h, 1, di) == 0) throw new Exception("Windows no acepto el trabajo (error " + Marshal.GetLastWin32Error() + ")");
+      int job = StartDocPrinter(h, 1, di);
+      if (job == 0) throw new Exception("Windows no acepto el trabajo (error " + Marshal.GetLastWin32Error() + ")");
       try {
         StartPagePrinter(h);
         int written;
         if (!WritePrinter(h, data, data.Length, out written) || written != data.Length) throw new Exception("No se pudo enviar a la impresora (error " + Marshal.GetLastWin32Error() + ")");
         EndPagePrinter(h);
       } finally { EndDocPrinter(h); }
+      return job;
     } finally { ClosePrinter(h); }
   }
 }
@@ -87,7 +90,23 @@ try { Add-Type -TypeDefinition $RawSrc -Language CSharp -ErrorAction Stop } catc
 
 function Send-Usb([string]$name, [string]$title, [byte[]]$bytes) {
   if (-not ('PosRawPrinter' -as [type])) { throw 'Este computador no pudo preparar la impresion USB (mira agente.log)' }
-  try { [PosRawPrinter]::Send($name, $title, $bytes) } catch { if ($_.Exception.InnerException) { throw $_.Exception.InnerException.Message } throw }
+  $jid = 0
+  try { $jid = [PosRawPrinter]::Send($name, $title, $bytes) } catch { if ($_.Exception.InnerException) { throw $_.Exception.InnerException.Message } throw }
+  # Windows lo entrega a la impresora en segundos. Si a los 20 s sigue en la cola (apagada, sin cable o marcada "sin
+  # conexion"), se saca de la cola y se avisa, para que no salga de golpe mas tarde.
+  $job = $null
+  $deadline = (Get-Date).AddSeconds(20)
+  while ((Get-Date) -lt $deadline) {
+    try { $job = Get-PrintJob -PrinterName $name -ID $jid -ErrorAction Stop } catch { return }
+    if ($null -eq $job) { return }
+    if ("$($job.JobStatus)" -match 'Error|Offline|PaperOut|UserIntervention|Blocked') { break }
+    Start-Sleep -Milliseconds 500
+  }
+  $st = "$($job.JobStatus)"
+  try { Remove-PrintJob -InputObject $job -ErrorAction Stop } catch {}
+  $p = Get-WinPrinters | Where-Object { $_.name -eq $name } | Select-Object -First 1
+  if ($p -and $p.hold) { throw "Windows tiene a $name marcada 'sin conexion': abre la impresora en Windows > Ver lo que se esta imprimiendo > menu Impresora > desmarca 'Usar impresora sin conexion'" }
+  throw "Windows no pudo entregar el trabajo a $name (estado: $st): revisa que este encendida y con el cable USB conectado"
 }
 
 # Impresoras instaladas en Windows, con si estan desconectadas (cable USB suelto o apagada)
@@ -225,9 +244,6 @@ while ($true) {
       try {
         $bytes = [Convert]::FromBase64String([string]$job.payload)
         if ([string]$job.conn -eq 'usb') {
-          # Si Windows la tiene fuera de linea, el trabajo quedaria guardado y saldria tarde: mejor avisar para reintentar
-          $w = Get-WinPrinters | Where-Object { $_.name -eq [string]$job.winName } | Select-Object -First 1
-          if ($w -and $w.hold) { throw "La impresora $($job.winName) esta desconectada en Windows (revisa el cable USB y que este encendida)" }
           Send-Usb ([string]$job.winName) ([string]$job.title) $bytes
           Write-Log "Impreso #$($job.id) $($job.title) -> $($job.printer) (USB $($job.winName))"
         } else {
