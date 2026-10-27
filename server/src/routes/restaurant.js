@@ -546,6 +546,8 @@ router.post('/orders/:id/status', (req, res) => {
   const ts = now(db);
   const sets = ['status = ?'], vals = [status];
   if (req.body.driverId) { const d = employee(db, req.body.driverId); if (d) { sets.push('driver_id = ?', 'driver_name = ?'); vals.push(d.id, d.name); } }
+  // Devuelto a preparación desde Listo / En camino (el cliente agregó o cambió algo): se borran esas horas y el pedido sale del celular del domiciliario
+  if (status === 'preparing' && ['ready', 'shipped'].includes(order.status)) sets.push('ready_at = NULL', 'shipped_at = NULL');
   if (status === 'ready') { sets.push('ready_at = COALESCE(ready_at, ?)'); vals.push(ts); }
   if (status === 'shipped') { sets.push('shipped_at = ?'); vals.push(ts); }
   if (status === 'delivered') { sets.push('delivered_at = ?', 'closed_at = ?', 'closed_by = ?'); vals.push(ts, ts, req.user?.name || null); }

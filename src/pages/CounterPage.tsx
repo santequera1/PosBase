@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat, Receipt } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat, Receipt, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -36,6 +36,7 @@ const CounterPage = () => {
   const doneToday = pickups.filter(o => o.status === 'delivered' && (o.deliveredAt || o.closedAt || o.createdAt).slice(0, 10) === today && matches(o)).sort((a, b) => (b.deliveredAt || b.createdAt).localeCompare(a.deliveredAt || a.createdAt)).slice(0, 12);
 
   const setStatus = async (o: Order, status: string) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, status)); } catch (e: any) { toast.error(e.message); } };
+  const backToPrep = async (o: Order) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, 'preparing')); toast.success('Pedido de nuevo en preparación: modifícalo con "Ver / editar"'); } catch (e: any) { toast.error(e.message); } };
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
   const actionsFor = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
@@ -45,7 +46,9 @@ const CounterPage = () => {
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
     // Precuenta antes de cobrar (con la propina sugerida si está activa para Para llevar)
     const pre: CardAction = { label: 'Precuenta', icon: Receipt, onClick: () => { printPreBill(o, suggestedTipPct(o)).catch(() => {}); }, disabled: o.paymentStatus === 'paid' };
-    if (o.status === 'ready') return [{ label: 'Entregar', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, pre, view];
+    // El cliente agregó o cambió algo cuando ya estaba listo: vuelve a preparación para modificarlo
+    const back: CardAction = { label: 'Devolver a preparación', icon: Undo2, title: 'Si el cliente agregó o cambió algo: vuelve a "En preparación" y lo modificas con Ver / editar', onClick: () => backToPrep(o) };
+    if (o.status === 'ready') return [{ label: 'Entregar', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, pre, view, back];
     if (o.status === 'preparing') return [{ label: 'Listo', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, pre, view];
     return [toKitchen, pay, pre, view];
   };

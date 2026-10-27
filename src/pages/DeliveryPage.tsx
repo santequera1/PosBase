@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -52,6 +52,7 @@ const DeliveryPage = () => {
   const assignDone = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.editSaleDetails(o.id, { driverId: driverId || 0 })); toast.success(driverId ? 'Domiciliario asignado' : 'Domiciliario quitado'); } catch (e: any) { toast.error(e.message); } };
   const assign = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.updateOrderHeader(o.id, { driverId: driverId || null })); } catch (e: any) { toast.error(e.message); } };
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
+  const backToPrep = async (o: Order) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, 'preparing')); toast.success('Pedido de nuevo en preparación: modifícalo con "Ver / editar"'); } catch (e: any) { toast.error(e.message); } };
   const actionsFor = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
     // Antes de cobrar: precuenta; ya cobrado: el ticket
@@ -60,9 +61,11 @@ const DeliveryPage = () => {
     const confirm: CardAction = { label: 'Confirmar a cocina', icon: ChefHat, onClick: () => setStatus(o, 'preparing').then(() => toast.success('Pedido confirmado a cocina')), primary: true };
     if (o.status === 'open') return (o.unsentCount || 0) > 0 ? [confirm, view] : [view];
     const pay: CardAction = { label: 'Cobrar', icon: Wallet, onClick: () => setClosing(o), disabled: o.paymentStatus === 'paid' };
-    if (o.status === 'shipped') return [{ label: 'Entregado', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view, print];
+    // El cliente agregó o cambió algo cuando ya estaba listo o en camino: vuelve a preparación para modificarlo
+    const back: CardAction = { label: 'Devolver a preparación', icon: Undo2, title: 'Si el cliente agregó o cambió algo: vuelve a "En preparación" y lo modificas con Ver / editar', onClick: () => backToPrep(o) };
+    if (o.status === 'shipped') return [{ label: 'Entregado', icon: PackageCheck, onClick: () => deliver(o), primary: true }, pay, view, print, back];
     // El repartidor se elige en la lista de la tarjeta; sin él no se puede despachar (se avisa en vez de dejar el botón apagado)
-    if (o.status === 'ready') return [{ label: o.driverId ? 'Enviar' : 'Enviar (elige repartidor)', icon: Bike, onClick: () => (o.driverId ? setStatus(o, 'shipped') : toast.error('Elige el repartidor en la lista "Sin repartidor" de esta tarjeta y luego toca Enviar')), primary: true }, pay, view, print];
+    if (o.status === 'ready') return [{ label: o.driverId ? 'Enviar' : 'Enviar (elige repartidor)', icon: Bike, onClick: () => (o.driverId ? setStatus(o, 'shipped') : toast.error('Elige el repartidor en la lista "Sin repartidor" de esta tarjeta y luego toca Enviar')), primary: true }, pay, view, print, back];
     if (o.status === 'preparing') return [{ label: 'Listo para enviar', icon: CheckCircle2, onClick: () => setStatus(o, 'ready'), primary: true }, pay, view, print];
     if ((o.unsentCount || 0) > 0) return [confirm, pay, view, print];
     return [{ label: 'A preparación', icon: ChefHat, onClick: () => setStatus(o, 'preparing'), primary: true }, pay, view, print];
