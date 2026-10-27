@@ -73,7 +73,17 @@ function initPrintingSchema(db) {
   // Trabajos directos a una IP (hoja de identificación de una impresora aún no registrada): printer_id = 0
   if (!hasCol(db, 'print_jobs', 'ip')) db.exec('ALTER TABLE print_jobs ADD COLUMN ip TEXT');
   if (!hasCol(db, 'print_jobs', 'port')) db.exec('ALTER TABLE print_jobs ADD COLUMN port INTEGER');
+  // Impresoras USB del computador del agente: se imprime por la cola de Windows con su nombre (sin IP)
+  if (!hasCol(db, 'printers', 'conn')) db.exec("ALTER TABLE printers ADD COLUMN conn TEXT NOT NULL DEFAULT 'net'");
+  if (!hasCol(db, 'printers', 'win_name')) db.exec('ALTER TABLE printers ADD COLUMN win_name TEXT');
 }
+
+/** Versión del agente que sirve este servidor (los agentes 1.2+ se actualizan solos al ver una distinta). */
+const AGENT_VERSION = (() => {
+  try { return (require('fs').readFileSync(require('path').join(__dirname, '..', 'agent', 'agente-impresion.ps1'), 'utf8').match(/\$Version = '([\d.]+)'/) || [])[1] || ''; } catch { return ''; }
+})();
+/** El agente imprime en impresoras USB (cola de Windows) desde la versión 1.2. */
+const agentSupportsUsb = v => { const [a, b] = String(v || '').split('.').map(Number); return a > 1 || (a === 1 && b >= 2); };
 
 /* ---------------- configuración ---------------- */
 const readSetting = (db, k) => { const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(k); return r ? r.value : undefined; };
@@ -106,7 +116,7 @@ function receiptLogo(db) {
 
 const mapPrinter = r => {
   let roles = []; try { roles = JSON.parse(r.roles || '[]'); } catch { roles = []; }
-  return { id: r.id, name: r.name, ip: r.ip, port: r.port, roles, paper: r.paper, codepage: r.codepage, copies: r.copies, drawer: Boolean(r.drawer), beep: Boolean(r.beep), active: Boolean(r.active),
+  return { id: r.id, name: r.name, conn: r.conn === 'usb' ? 'usb' : 'net', winName: r.win_name || '', ip: r.ip, port: r.port, roles, paper: r.paper, codepage: r.codepage, copies: r.copies, drawer: Boolean(r.drawer), beep: Boolean(r.beep), active: Boolean(r.active),
     online: r.online === null || r.online === undefined ? null : Boolean(r.online), checkedAt: r.checked_at || null, branchId: r.branch_id === null || r.branch_id === undefined ? null : Number(r.branch_id) };
 };
 const listPrinters = db => db.prepare('SELECT * FROM printers ORDER BY id').all().map(mapPrinter);
@@ -128,10 +138,13 @@ function enqueue(db, printer, kind, title, buf, { orderId = null, user = '' } = 
 }
 
 /** Trabajos pendientes para el agente (o reintentos de trabajos reclamados hace más de 60 s sin respuesta). */
-function claimJobs(db, agentId, limit = 10) {
-  const rows = db.prepare(`SELECT j.id, j.kind, j.title, j.payload, COALESCE(j.ip, p.ip) AS ip, COALESCE(j.port, p.port) AS port, COALESCE(p.name, 'Impresora ' || j.ip) AS printer
+function claimJobs(db, agentId, limit = 10, { usb = false } = {}) {
+  // Los agentes viejos (sin USB) no reciben trabajos de impresoras USB: quedan en cola hasta que se actualice
+  const rows = db.prepare(`SELECT j.id, j.kind, j.title, j.payload, COALESCE(j.ip, p.ip) AS ip, COALESCE(j.port, p.port) AS port, COALESCE(p.name, 'Impresora ' || j.ip) AS printer,
+      CASE WHEN j.printer_id > 0 AND p.conn = 'usb' THEN 'usb' ELSE 'net' END AS conn, CASE WHEN j.printer_id > 0 AND p.conn = 'usb' THEN p.win_name ELSE '' END AS winName
     FROM print_jobs j LEFT JOIN printers p ON p.id = j.printer_id
     WHERE (p.active = 1 OR (j.printer_id = 0 AND j.ip IS NOT NULL)) AND (j.status = 'pending' OR (j.status = 'sent' AND j.claimed_at < datetime('now', '-5 hours', '-60 seconds') AND j.attempts < 4))
+      ${usb ? '' : "AND NOT (j.printer_id > 0 AND p.conn = 'usb')"}
     ORDER BY j.id LIMIT ?`).all(limit);
   const upd = db.prepare("UPDATE print_jobs SET status = 'sent', claimed_at = datetime('now', '-5 hours'), attempts = attempts + 1, agent_id = ? WHERE id = ?");
   for (const r of rows) upd.run(agentId, r.id);
@@ -344,7 +357,7 @@ function testTicket(printer, b) {
   const t = ticketFor(printer);
   if (printer.beep) t.beep(1);
   t.align('center').size(2).bold().line('PRUEBA OK').size(1).bold(false).line(b.name).sep();
-  t.align('left').line(`Impresora: ${printer.name}`).line(`IP: ${printer.ip}:${printer.port} · ${printer.paper} mm`).line(`Funciones: ${printer.roles.map(r => ROLE_LABEL[r] || r).join(', ') || 'ninguna'}`);
+  t.align('left').line(`Impresora: ${printer.name}`).line(printer.conn === 'usb' ? `USB: ${printer.winName} · ${printer.paper} mm` : `IP: ${printer.ip}:${printer.port} · ${printer.paper} mm`).line(`Funciones: ${printer.roles.map(r => ROLE_LABEL[r] || r).join(', ') || 'ninguna'}`);
   t.line('Tildes: áéíóú ÁÉÍÓÚ ñ Ñ ¿? ¡!').pair('Columna izquierda', '$123.456').size('tall').line('Letra alta').size(2).line('GRANDE').size(1);
   t.sep().align('center').line('Si ves bien las tildes, la tabla PC850 funciona.').line('Si salen símbolos raros, elige "Sin tildes".');
   return t.cut().buffer();
@@ -487,7 +500,7 @@ function autoKitchen(db, orderId, batch, user) {
 }
 
 module.exports = {
-  receiptLogo, initPrintingSchema, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
+  receiptLogo, initPrintingSchema, AGENT_VERSION, agentSupportsUsb, bus, ROLES, ROLE_LABEL, printMode, listPrinters, mapPrinter, enqueue, claimJobs, finishJob,
   createAgent, agentByToken, listAgents, hashToken, enqueueKitchen, enqueueIdentify, enqueuePreBill, enqueueReceipt, enqueueShiftReport, enqueueTest, enqueueSamples, enqueueCancel, autoKitchen,
   kitchenTicket, receiptTicket, preBillTicket, testTicket, shiftReportTicket, biz,
 };

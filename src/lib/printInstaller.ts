@@ -11,6 +11,8 @@ export function buildInstaller(server: string, token: string): string {
     `> "%DIR%\\config.json" echo {"server":"${server}","token":"${token}"}`,
     'echo Configurando el inicio automatico con Windows...',
     `powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Join-Path $env:LOCALAPPDATA 'AgenteImpresionPOS'; $w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Startup')) 'Agente impresion POS.lnk')); $s.TargetPath='powershell.exe'; $s.Arguments=('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ' + [char]34 + (Join-Path $d 'agente.ps1') + [char]34); $s.WorkingDirectory=$d; $s.Save()"`,
+    // Si ya había un agente corriendo (reinstalación), se cierra para que arranque el nuevo
+    `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and $_.ProcessId -ne $PID -and $_.CommandLine -like '*AgenteImpresionPOS*agente.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"`,
     'echo Iniciando el agente...',
     'start "" powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%DIR%\\agente.ps1"',
     'echo.',

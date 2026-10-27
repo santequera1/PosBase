@@ -21,7 +21,9 @@ function printerPayload(b, cur = {}) {
   if (!roles.length) { const n = String(b.name !== undefined ? b.name : cur.name || '').toLowerCase(); roles = P.ROLES.filter(r => n.includes(r)); }
   return {
     name: b.name !== undefined ? String(b.name).trim().slice(0, 60) : cur.name,
-    ip: b.ip !== undefined ? String(b.ip).trim() : cur.ip,
+    conn: (b.conn !== undefined ? b.conn : cur.conn) === 'usb' ? 'usb' : 'net',
+    winName: b.winName !== undefined ? String(b.winName || '').trim().slice(0, 200) : (cur.winName || ''),
+    ip: b.ip !== undefined ? String(b.ip).trim() : (cur.ip || ''),
     port: b.port !== undefined ? Math.round(Number(b.port)) || 9100 : (cur.port || 9100),
     roles,
     paper: (b.paper !== undefined ? Number(b.paper) : cur.paper) === 58 ? 58 : 80,
@@ -35,6 +37,7 @@ function printerPayload(b, cur = {}) {
 }
 function validate(p) {
   if (!p.name || p.name.length < 2) return 'Ponle un nombre a la impresora (ej. Cocina)';
+  if (p.conn === 'usb') { if (!p.winName) return 'Elige la impresora de Windows (la que está conectada por USB al computador del agente)'; return null; }
   if (!IP_RE.test(p.ip || '')) return 'La IP no es válida (ej. 192.168.1.100)';
   if (p.port < 1 || p.port > 65535) return 'Puerto inválido';
   return null;
@@ -53,7 +56,7 @@ router.get('/config', ADMIN, (req, res) => {
   const jobs = db.prepare(`SELECT j.id, j.kind, j.title, j.status, j.attempts, j.error, j.created_at AS createdAt, j.done_at AS doneAt, j.created_by AS createdBy, COALESCE(p.name, j.ip) AS printer
     FROM print_jobs j LEFT JOIN printers p ON p.id = j.printer_id ORDER BY j.id DESC LIMIT 40`).all();
   let logo = null; try { logo = JSON.parse((db.prepare("SELECT value FROM settings WHERE key = 'receiptLogo'").get() || {}).value || 'null'); } catch { logo = null; }
-  res.json({ mode: P.printMode(db), printers: P.listPrinters(db), agents: P.listAgents(db), jobs, roles: P.ROLE_LABEL, logo });
+  res.json({ mode: P.printMode(db), printers: P.listPrinters(db), agents: P.listAgents(db), agentVersion: P.AGENT_VERSION, jobs, roles: P.ROLE_LABEL, logo });
 });
 
 // Logo de precuentas y recibos: mapa de bits de 1 bit ya convertido en el navegador
@@ -84,8 +87,8 @@ router.post('/printers', ADMIN, (req, res) => {
   const p = printerPayload(req.body || {});
   const err = validate(p);
   if (err) return res.status(400).json({ error: err });
-  const info = db.prepare('INSERT INTO printers (name, ip, port, roles, paper, codepage, copies, drawer, beep, active, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(p.name, p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, p.branchId);
+  const info = db.prepare('INSERT INTO printers (name, conn, win_name, ip, port, roles, paper, codepage, copies, drawer, beep, active, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(p.name, p.conn, p.conn === 'usb' ? p.winName : null, p.conn === 'usb' ? '' : p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, p.branchId);
   res.status(201).json(P.listPrinters(db).find(x => x.id === Number(info.lastInsertRowid)));
 });
 
@@ -96,8 +99,10 @@ router.put('/printers/:id', ADMIN, (req, res) => {
   const p = printerPayload(req.body || {}, cur);
   const err = validate(p);
   if (err) return res.status(400).json({ error: err });
-  db.prepare('UPDATE printers SET name = ?, ip = ?, port = ?, roles = ?, paper = ?, codepage = ?, copies = ?, drawer = ?, beep = ?, active = ?, branch_id = ? WHERE id = ?')
-    .run(p.name, p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, p.branchId, cur.id);
+  // Si cambió a dónde imprime, el estado anterior ya no sirve
+  const moved = p.conn !== cur.conn || (p.conn === 'usb' ? p.winName !== cur.winName : p.ip !== cur.ip || p.port !== cur.port);
+  db.prepare(`UPDATE printers SET name = ?, conn = ?, win_name = ?, ip = ?, port = ?, roles = ?, paper = ?, codepage = ?, copies = ?, drawer = ?, beep = ?, active = ?, branch_id = ?${moved ? ', online = NULL, checked_at = NULL' : ''} WHERE id = ?`)
+    .run(p.name, p.conn, p.conn === 'usb' ? p.winName : null, p.conn === 'usb' ? '' : p.ip, p.port, JSON.stringify(p.roles), p.paper, p.codepage, p.copies, p.drawer ? 1 : 0, p.beep ? 1 : 0, p.active ? 1 : 0, p.branchId, cur.id);
   res.json(P.listPrinters(db).find(x => x.id === cur.id));
 });
 
@@ -200,6 +205,9 @@ agentRouter.post('/poll', agentAuth, async (req, res) => {
   const db = getDb();
   const b = req.body || {};
   const info = { version: String(b.version || '').slice(0, 20), hostname: String(b.hostname || '').slice(0, 60), ip: req.ip, localIps: Array.isArray(b.ips) ? b.ips.map(String).filter(x => IP_RE.test(x)).slice(0, 8) : [] };
+  // Impresoras instaladas en Windows (agente 1.2+): se ofrecen al agregar una impresora USB
+  if (Array.isArray(b.winPrinters)) info.winPrinters = b.winPrinters.filter(w => w && w.name).slice(0, 40).map(w => ({ name: String(w.name).slice(0, 200), port: String(w.port || '').slice(0, 60), offline: Boolean(w.offline) }));
+  else { try { const prev = JSON.parse(req.agent.info || 'null'); if (prev && Array.isArray(prev.winPrinters) && prev.version === info.version) info.winPrinters = prev.winPrinters; } catch { /* sin datos previos */ } }
   db.prepare("UPDATE print_agents SET last_seen = datetime('now', '-5 hours'), info = ? WHERE id = ?").run(JSON.stringify(info), req.agent.id);
   if (Array.isArray(b.printers)) {
     const upd = db.prepare("UPDATE printers SET online = ?, checked_at = datetime('now', '-5 hours') WHERE id = ?");
@@ -208,8 +216,8 @@ agentRouter.post('/poll', agentAuth, async (req, res) => {
   if (Array.isArray(b.scan)) db.prepare('UPDATE print_agents SET scan_result = ?, scan_requested = 0 WHERE id = ?').run(JSON.stringify(b.scan.map(String).slice(0, 100)), req.agent.id);
   const answer = () => {
     const a = db.prepare('SELECT scan_requested FROM print_agents WHERE id = ?').get(req.agent.id);
-    const jobs = P.claimJobs(db, req.agent.id);
-    return { jobs, scan: Boolean(a && a.scan_requested) && !Array.isArray(b.scan), printers: P.listPrinters(db).filter(p => p.active).map(p => ({ id: p.id, ip: p.ip, port: p.port, name: p.name })) };
+    const jobs = P.claimJobs(db, req.agent.id, 10, { usb: P.agentSupportsUsb(info.version) });
+    return { jobs, scan: Boolean(a && a.scan_requested) && !Array.isArray(b.scan), agentVersion: P.AGENT_VERSION, printers: P.listPrinters(db).filter(p => p.active).map(p => ({ id: p.id, conn: p.conn, winName: p.winName, ip: p.ip, port: p.port, name: p.name })) };
   };
   let out = answer();
   if (out.jobs.length || out.scan || b.nowait) return res.json(out);

@@ -32,10 +32,23 @@ const ago = (ts?: string | null) => {
   return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`;
 };
 
-const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any | null; prefillIp?: string; onClose: () => void; onSaved: () => void }) => {
+/** Impresoras de Windows que reportan los agentes, sin las virtuales (PDF, XPS, OneNote, fax); primero las USB. */
+const windowsPrinters = (agents: any[]) => {
+  const seen = new Map<string, { name: string; port: string; offline: boolean; agent: string }>();
+  for (const a of agents) for (const w of (a.info?.winPrinters || [])) {
+    if (/^(PORTPROMPT:|nul:|SHRFAX:)/i.test(w.port || '') || /pdf|xps|onenote|fax/i.test(w.name)) continue;
+    if (!seen.has(w.name)) seen.set(w.name, { ...w, agent: a.name });
+  }
+  return [...seen.values()].sort((x, y) => Number(!/^USB/i.test(x.port)) - Number(!/^USB/i.test(y.port)) || x.name.localeCompare(y.name));
+};
+const agentHasUsb = (v?: string) => { const [a, b] = String(v || '').split('.').map(Number); return a > 1 || (a === 1 && b >= 2); };
+
+const PrinterModal = ({ printer, prefillIp, agents, onClose, onSaved }: { printer: any | null; prefillIp?: string; agents: any[]; onClose: () => void; onSaved: () => void }) => {
   const branches = useStore(s => s.branches);
   const branchId = useStore(s => s.branchId);
-  const [f, setF] = useState<any>(printer ? { ...printer } : { name: '', ip: prefillIp || '', port: 9100, roles: [], paper: 80, codepage: 'cp850', copies: 1, drawer: false, beep: false, active: true, branchId });
+  const [f, setF] = useState<any>(printer ? { ...printer } : { name: '', conn: 'net', winName: '', ip: prefillIp || '', port: 9100, roles: [], paper: 80, codepage: 'cp850', copies: 1, drawer: false, beep: false, active: true, branchId });
+  const wins = windowsPrinters(agents);
+  const usbReady = agents.some(a => agentHasUsb(a.info?.version));
   const [error, setError] = useState('');
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const save = async () => {
@@ -46,8 +59,32 @@ const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any |
     <Modal title={printer ? `Editar ${printer.name}` : 'Nueva impresora'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2"><label className={LABEL}>Nombre</label><input value={f.name} onChange={e => set({ name: e.target.value })} placeholder="Ej. Cocina, Barra, Caja" className={INPUT} data-printer-name /></div>
-        <div><label className={LABEL}>IP de la impresora</label><input value={f.ip} onChange={e => set({ ip: e.target.value.trim() })} placeholder="192.168.1.100" className={cn(INPUT, 'font-mono')} data-printer-ip /></div>
-        <div><label className={LABEL}>Puerto</label><input type="number" value={f.port} onChange={e => set({ port: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
+        <div className="col-span-2"><label className={LABEL}>¿Cómo está conectada?</label>
+          <div className="flex flex-wrap gap-1.5"><Chip active={f.conn !== 'usb'} onClick={() => set({ conn: 'net' })}>Por red (IP)</Chip><Chip active={f.conn === 'usb'} onClick={() => set({ conn: 'usb' })}>USB en el computador del agente</Chip></div>
+        </div>
+        {f.conn === 'usb' ? (
+          <div className="col-span-2 space-y-1.5">
+            <label className={LABEL}>Impresora de Windows</label>
+            {!usbReady ? <p className="text-[11px] text-amber-700">El agente instalado es una versión vieja que no imprime por USB. Instálalo de nuevo (botón "Instalar agente en un computador") en el computador donde está conectada la impresora.</p>
+              : !wins.length ? <p className="text-[11px] text-amber-700">El agente no ve impresoras instaladas en Windows. Instala la impresora con su driver (que imprima la página de prueba de Windows) y espera unos segundos.</p>
+              : (
+                <div className="grid gap-1" data-win-printers>
+                  {wins.map(w => (
+                    <button key={w.name} type="button" onClick={() => set({ winName: w.name })} data-win-printer={w.name}
+                      className={cn('px-2.5 py-1.5 rounded-lg border text-left flex items-center gap-2', f.winName === w.name ? 'border-brand-primary bg-brand-button/5' : 'border-border')}>
+                      <span className="text-xs font-semibold text-brand-dark flex-1 truncate">{f.winName === w.name ? '✓ ' : ''}{w.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{w.port}</span>
+                      {w.offline && <span className="text-[10px] px-1.5 rounded-full bg-red-50 text-red-700 font-semibold">desconectada</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            {f.winName && !wins.some(w => w.name === f.winName) && <p className="text-[11px] text-amber-700">"{f.winName}" no aparece en el computador del agente.</p>}
+          </div>
+        ) : (<>
+          <div><label className={LABEL}>IP de la impresora</label><input value={f.ip} onChange={e => set({ ip: e.target.value.trim() })} placeholder="192.168.1.100" className={cn(INPUT, 'font-mono')} data-printer-ip /></div>
+          <div><label className={LABEL}>Puerto</label><input type="number" value={f.port} onChange={e => set({ port: Number(e.target.value) })} className={cn(INPUT, 'font-mono')} /></div>
+        </>)}
         <div className="col-span-2">
           <label className={LABEL}>¿Qué imprime?</label>
           <div className="grid grid-cols-3 gap-1.5">
@@ -76,7 +113,7 @@ const PrinterModal = ({ printer, prefillIp, onClose, onSaved }: { printer: any |
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {!f.roles.length && <p className="text-xs text-amber-700">Marca qué imprime (Cocina, Barra o Caja): sin eso no le llega nada.</p>}
-      <button onClick={save} disabled={!f.name || !f.ip || !f.roles.length} data-printer-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">Guardar</button>
+      <button onClick={save} disabled={!f.name || !(f.conn === 'usb' ? f.winName : f.ip) || !f.roles.length} data-printer-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">Guardar</button>
     </Modal>
   );
 };
@@ -128,11 +165,11 @@ export const PrintersPanel = () => {
         <div className="grid sm:grid-cols-2 gap-2">
           <button onClick={() => setMode('browser')} className={cn('p-3 rounded-xl border text-left', cfg.mode === 'browser' ? 'border-brand-primary bg-brand-button/5' : 'border-border')} data-mode="browser">
             <span className="block text-sm font-bold text-brand-dark">{cfg.mode === 'browser' ? '✓ ' : ''}Desde el navegador</span>
-            <span className="block text-[11px] text-muted-foreground">Sale el cuadro de impresión de Windows y se elige la impresora. Sirve con impresoras USB instaladas en el computador.</span>
+            <span className="block text-[11px] text-muted-foreground">Sale el cuadro de impresión de Windows y se elige la impresora. Solo imprime en el computador donde se cobra.</span>
           </button>
           <button onClick={() => setMode('agent')} className={cn('p-3 rounded-xl border text-left', cfg.mode === 'agent' ? 'border-brand-primary bg-brand-button/5' : 'border-border')} data-mode="agent">
-            <span className="block text-sm font-bold text-brand-dark">{cfg.mode === 'agent' ? '✓ ' : ''}Por red (impresoras con IP)</span>
-            <span className="block text-[11px] text-muted-foreground">Las comandas salen solas en cocina y barra, aunque el mesero las envíe desde el celular. Recibos y cierres en la impresora de caja, sin cuadros de diálogo.</span>
+            <span className="block text-sm font-bold text-brand-dark">{cfg.mode === 'agent' ? '✓ ' : ''}Con el agente (impresoras de red o USB)</span>
+            <span className="block text-[11px] text-muted-foreground">Las comandas salen solas en cocina y barra, aunque el mesero las envíe desde el celular. Recibos y cierres en la impresora de caja, sin cuadros de diálogo. Sirve con impresoras con IP y con impresoras USB conectadas al computador del agente.</span>
           </button>
         </div>
         {cfg.mode === 'agent' && (
@@ -148,7 +185,7 @@ export const PrintersPanel = () => {
           <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Monitor size={15} /> 1. Agente de impresión (computador del restaurante)</h3>
           <button onClick={createAgent} data-agent-new className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center gap-1.5"><Download size={13} /> Instalar agente en un computador</button>
         </div>
-        <p className="text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> Se instala una sola vez en el computador de la caja (Windows), conectado a la misma red de las impresoras. Debe estar encendido durante el servicio. No necesita programas adicionales. Ese computador hace de puente: se puede imprimir desde cualquier lugar (celular, casa) porque el servidor le pasa los trabajos.</p>
+        <p className="text-[11px] text-muted-foreground flex gap-1"><Info size={12} className="shrink-0 mt-0.5" /> Se instala una sola vez en el computador de la caja (Windows), conectado a la misma red de las impresoras o con la impresora USB conectada. Debe estar encendido durante el servicio. No necesita programas adicionales. Ese computador hace de puente: se puede imprimir desde cualquier lugar (celular, casa) porque el servidor le pasa los trabajos.</p>
         {anyOnline && <ManualIdentify onSend={identify} />}
         <details className="text-[11px] rounded-lg bg-muted/30 p-2.5">
           <summary className="font-semibold text-brand-dark cursor-pointer">¿No aparece una impresora?</summary>
@@ -158,6 +195,7 @@ export const PrintersPanel = () => {
             <li>Escribe esa IP arriba en "Probar una IP" y toca Identificar. Si imprime, agrégala.</li>
             <li>Si su IP es de otra red (por ejemplo 192.168.123.100 y el computador está en 192.168.1.x), hay que cambiarle la IP a una de la red del computador con la herramienta del fabricante (Printer Tool / Ethernet setting) o desde su página web, o configurarla en el router.</li>
             <li>Lo ideal es dejarle una IP fija (reservada en el router) para que no cambie.</li>
+            <li>Si es USB: instálala en Windows con su driver (que imprima la página de prueba de Windows). Luego en <b>Agregar impresora</b> elige <b>USB</b> y toca su nombre.</li>
           </ol>
         </details>
         {cfg.agents.length === 0 ? <p className="text-xs text-amber-700">Aún no hay agente instalado.</p> : (
@@ -169,6 +207,7 @@ export const PrintersPanel = () => {
                   <span className="text-sm font-semibold text-brand-dark">{a.name}</span>
                   <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', a.online ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700')} data-agent-status={a.online ? 'online' : 'offline'}>{a.online ? 'En línea' : 'Desconectado'}</span>
                   <span className="text-[11px] text-muted-foreground">{a.info?.hostname ? `${a.info.hostname} · v${a.info.version} · ` : ''}{a.info?.localIps?.length ? `red del computador: ${a.info.localIps.join(', ')} · ` : ''}visto {ago(a.lastSeen)}</span>
+                  {a.info?.version && !agentHasUsb(a.info.version) && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold" data-agent-old title="Instálalo de nuevo en ese computador con el botón Instalar agente">Versión vieja: no imprime por USB ni se actualiza sola</span>}
                   <span className="ml-auto flex gap-1">
                     <button onClick={() => scan(a)} disabled={!a.online} className="px-2 py-1 rounded-lg border border-border text-[11px] font-semibold flex items-center gap-1 disabled:opacity-40"><Search size={12} /> Buscar impresoras</button>
                     <button onClick={() => removeAgent(a)} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>
@@ -199,7 +238,7 @@ export const PrintersPanel = () => {
           <h3 className="font-bold text-sm text-brand-dark flex items-center gap-1.5"><Printer size={15} /> 2. Impresoras</h3>
           <button onClick={() => setEdit({ open: true, printer: null })} data-printer-new className="px-3 py-1.5 rounded-lg gradient-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5"><Plus size={13} /> Agregar impresora</button>
         </div>
-        {cfg.printers.length === 0 ? <p className="text-xs text-muted-foreground">Agrega cada impresora con su IP (se ve en la hoja de prueba de la impresora: apágala, mantén oprimido FEED y enciéndela).</p> : (
+        {cfg.printers.length === 0 ? <p className="text-xs text-muted-foreground">Agrega cada impresora: las de red con su IP (se ve en la hoja de prueba de la impresora: apágala, mantén oprimido FEED y enciéndela) y las USB eligiéndolas de la lista de Windows.</p> : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {cfg.printers.map((p: any) => (
               <div key={p.id} className={cn('rounded-xl border border-border p-3 space-y-1.5', !p.active && 'opacity-50')} data-printer-card={p.name}>
@@ -209,9 +248,9 @@ export const PrintersPanel = () => {
                   <button onClick={() => setEdit({ open: true, printer: p })} className="p-1 text-muted-foreground hover:text-brand-primary"><Edit2 size={13} /></button>
                   <button onClick={() => removePrinter(p)} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>
                 </div>
-                <p className="text-[11px] font-mono text-muted-foreground">{p.ip}:{p.port} · {p.paper} mm{p.copies > 1 ? ` · ${p.copies} copias` : ''}{branchesAll.length > 1 ? ` · ${p.branchId ? (branchesAll.find(b => b.id === p.branchId)?.name || 'Sede') : 'Todas las sedes'}` : ''}</p>
+                <p className="text-[11px] font-mono text-muted-foreground">{p.conn === 'usb' ? `USB · ${p.winName}` : `${p.ip}:${p.port}`} · {p.paper} mm{p.copies > 1 ? ` · ${p.copies} copias` : ''}{branchesAll.length > 1 ? ` · ${p.branchId ? (branchesAll.find(b => b.id === p.branchId)?.name || 'Sede') : 'Todas las sedes'}` : ''}</p>
                 <div className="flex flex-wrap gap-1">{p.roles.length ? p.roles.map((r: string) => <span key={r} className="text-[10px] px-2 py-0.5 rounded-full bg-brand-card border border-brand-accent/40 font-semibold">{cfg.roles[r] || r}</span>) : <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-bold">Sin función: no imprime nada. Edítala y marca Cocina o Caja</span>}</div>
-                <p className="text-[10px] text-muted-foreground">{p.online === false ? 'No responde: revisa que esté encendida y conectada' : p.online ? `Responde · ${ago(p.checkedAt)}` : 'El agente aún no la ha revisado'}</p>
+                <p className="text-[10px] text-muted-foreground">{p.online === false ? (p.conn === 'usb' ? 'Desconectada: revisa el cable USB y que esté encendida' : 'No responde: revisa que esté encendida y conectada') : p.online ? `Responde · ${ago(p.checkedAt)}` : 'El agente aún no la ha revisado'}</p>
                 <button onClick={() => test(p)} disabled={!anyOnline} data-printer-test className="w-full py-1.5 rounded-lg border border-border text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40"><Zap size={12} /> Imprimir prueba</button>
                 <button onClick={() => samples(p)} disabled={!anyOnline} data-printer-samples className="w-full py-1.5 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40" title="Comanda, precuenta y recibo de ejemplo según la función de la impresora (no crea ventas)"><Receipt size={12} /> Imprimir ejemplos</button>
               </div>
@@ -239,7 +278,7 @@ export const PrintersPanel = () => {
         )}
       </section>
 
-      {edit.open && <PrinterModal printer={edit.printer} prefillIp={edit.ip} onClose={() => setEdit({ open: false, printer: null })} onSaved={() => { setEdit({ open: false, printer: null }); load(); }} />}
+      {edit.open && <PrinterModal printer={edit.printer} prefillIp={edit.ip} agents={cfg.agents} onClose={() => setEdit({ open: false, printer: null })} onSaved={() => { setEdit({ open: false, printer: null }); load(); }} />}
       {newAgent && (
         <Modal title={`Instalar el agente en "${newAgent.name}"`} onClose={() => setNewAgent(null)}>
           <ol className="text-xs space-y-2 list-decimal pl-4">
