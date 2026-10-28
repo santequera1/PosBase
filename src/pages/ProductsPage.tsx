@@ -252,7 +252,7 @@ const ProductsPage = () => {
                     title="Haz clic para cambiar la foto del producto"
                   >
                     {p.image ? (
-                      <img src={p.image} alt={p.name} className="w-full aspect-square object-contain bg-brand-card/60 p-1.5 transition-transform duration-300 group-hover/img:scale-105" />
+                      <img src={p.image} alt={p.name} className="w-full aspect-square object-contain p-1.5 transition-transform duration-300 group-hover/img:scale-105" />
                     ) : (
                       <div className="w-full h-24 flex items-center justify-center text-3xl bg-brand-card transition-transform duration-300 group-hover/img:scale-105">
                         {cat?.image ? <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover" /> : (cat?.emoji || '🍽️')}
@@ -312,7 +312,7 @@ const ProductsPage = () => {
                   title="Haz clic para cambiar la foto"
                 >
                   {p.image ? (
-                    <img src={p.image} alt={p.name} className="w-12 h-12 object-contain bg-brand-card p-1 transition-transform group-hover/listimg:scale-105" />
+                    <img src={p.image} alt={p.name} className="w-12 h-12 object-contain p-1 transition-transform group-hover/listimg:scale-105" />
                   ) : (
                     <div className="w-12 h-12 flex items-center justify-center text-xl shrink-0 bg-brand-card transition-transform group-hover/listimg:scale-105">
                       {cat?.image ? <img src={cat.image} alt={cat.name} className="w-9 h-9 rounded-lg object-cover" /> : (cat?.emoji || '🍽️')}

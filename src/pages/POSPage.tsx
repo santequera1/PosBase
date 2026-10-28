@@ -1127,7 +1127,7 @@ export const POSPage: React.FC = () => {
                           <img
                             src={prod.image}
                             alt={prod.name}
-                            className="max-h-full max-w-full object-contain drop-shadow-md transition-transform group-hover:scale-105"
+                            className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
                           />
                         </div>
                       )}
