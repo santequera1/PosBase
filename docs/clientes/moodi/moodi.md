@@ -25,3 +25,6 @@
   #6A4275 / #5B3766, coral #F2685B, tarjetas #FCF8C9; respaldo `antes-colores-2026-10-28-15-04.db`). Fondo del login un poco
   más oscuro que el del tema (#f8f3db) con la opción nueva Marca → Pantalla de acceso → "Color de fondo del formulario".
   Logo del login: el horizontal "moodi" (lo subió Stiven ese día). Guía regenerada con las fotos de fondo blanco.
+- **28-oct-2026 (noche):** la imagen provisional de los 23 productos sin foto es ahora el logo apilado lila sin fondo
+  (`logo--04.webp` reducido a 600 px, `producto-moodi-sin-fondo.webp`); las tarjetas ya no ponen sombra ni recuadro crema a
+  las fotos. Guía regenerada.
