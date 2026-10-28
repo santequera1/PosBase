@@ -76,3 +76,17 @@ Antes de poner el repo en privado:
 
 ## Ya no se usa
 `GUIA_DUPLICACION_HELADERIAS.md` (copiar la carpeta por cliente) quedó obsoleta: las copias se quedan sin las mejoras.
+
+## Vista previa al compartir el enlace (28-oct-2026)
+
+La página de la app la entrega el servidor (`server/src/indexHtml.js`) con el nombre, la descripción, el color y la imagen
+del negocio (`og:image`: Marca → "Al compartir el enlace", o la foto del login, o el logo). nginx sirve los archivos del
+build y manda la página al servidor (`location / { try_files $uri @app; }`, ver `nginx.conf.tpl`). Las instalaciones
+creadas antes se actualizan una sola vez con:
+
+```bash
+sudo python3 scripts/instancias/nginx-pagina-app.py dominio1 dominio2 ... && sudo nginx -t && sudo systemctl reload nginx
+```
+
+Hecho el 28-oct-2026 en demo, moodi, fritop y pokotoon; **pendiente en pos.wailus.co (Wonka's)**: desplegar y correr el
+script fuera del horario de atención.
