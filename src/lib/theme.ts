@@ -670,3 +670,27 @@ export function fileToDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Imagen para la vista previa al compartir el enlace (WhatsApp, redes): 1200×630 en JPG (WhatsApp no muestra WEBP),
+ * con el logo centrado sobre el color de la barra lateral. Pesa poco y se ve bien como miniatura.
+ */
+export async function generateShareImage(logoSrc: string, bgColor: string): Promise<string> {
+  const img = await loadImage(logoSrc);
+  const W = 1200, H = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas no disponible');
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, W, H);
+  const iw = img.naturalWidth || img.width || 1;
+  const ih = img.naturalHeight || img.height || 1;
+  const scale = Math.min((W * 0.62) / iw, (H * 0.6) / ih);
+  const w = iw * scale, h = ih * scale;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  return canvas.toDataURL('image/jpeg', 0.9);
+}

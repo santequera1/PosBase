@@ -234,9 +234,13 @@ export interface Branding {
   loginImageFit: string;
   /** Color de fondo solo de la pantalla de acceso (hex); vacío = el fondo del tema */
   loginBg: string;
+  /** Imagen de vista previa al compartir el enlace (WhatsApp, redes), 1200×630 */
+  ogImageUrl: string;
+  /** true = se genera sola del logo cada vez que cambia; false = subieron una a mano */
+  ogImageAuto: boolean;
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center', loginImageFit: 'cover', loginBg: '' };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center', loginImageFit: 'cover', loginBg: '', ogImageUrl: '', ogImageAuto: true };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -264,6 +268,8 @@ export function brandingFromSettings(s: any): Branding {
     loginImageFocus: s?.loginImageFocus ? String(s.loginImageFocus) : 'center',
     loginImageFit: s?.loginImageFit === 'contain' ? 'contain' : 'cover',
     loginBg: /^#[0-9a-fA-F]{6}$/.test(String(s?.loginBg || '')) ? String(s.loginBg) : '',
+    ogImageUrl: s?.ogImageUrl ? String(s.ogImageUrl) : '',
+    ogImageAuto: String(s?.ogImageAuto ?? '1') !== '0',
   };
 }
 

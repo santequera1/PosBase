@@ -10,8 +10,8 @@ const PUBLIC_DIR = path.resolve(__dirname, '../../../public');
 const DIST_DIR = path.resolve(__dirname, '../../../dist');
 
 // logo: barra lateral (modo claro) · logoDark: barra lateral (modo oscuro) · logoSmall: menú recogido · logoLogin: inicio de sesión
-// loginImage: foto al lado del formulario de acceso
-const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl', loginImage: 'loginImageUrl' };
+// loginImage: foto al lado del formulario de acceso · ogImage: vista previa al compartir el enlace (WhatsApp, redes)
+const IMAGE_KINDS = { logo: 'logoUrl', logoDark: 'logoDarkUrl', logoSmall: 'logoSmallUrl', logoLogin: 'logoLoginUrl', favicon: 'faviconUrl', appleIcon: 'appleIconUrl', loginImage: 'loginImageUrl', ogImage: 'ogImageUrl' };
 const IMAGE_EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/svg+xml': '.svg', 'image/webp': '.webp' };
 const FONT_EXTS = ['.ttf', '.otf', '.woff', '.woff2'];
 

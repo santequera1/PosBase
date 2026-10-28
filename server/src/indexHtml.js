@@ -6,7 +6,7 @@ const path = require('path');
 const { getDb } = require('./db');
 
 const INDEX = path.resolve(__dirname, '../../dist/index.html');
-const KEYS = ['businessName', 'businessSlogan', 'logoUrl', 'logoSmallUrl', 'loginImageUrl', 'theme'];
+const KEYS = ['businessName', 'businessSlogan', 'logoUrl', 'logoSmallUrl', 'loginImageUrl', 'ogImageUrl', 'theme'];
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -23,8 +23,10 @@ function readSettings() {
 function renderIndex(html, s, base) {
   const name = (s.businessName || '').trim() || 'Punto de Venta';
   const slogan = (s.businessSlogan || '').trim();
-  const desc = slogan ? `${slogan} · ${name}` : `${name}: pedidos, ventas, caja y reportes en un solo lugar.`;
-  const img = s.loginImageUrl || s.logoUrl || s.logoSmallUrl || '';
+  // Un eslogan de una sola palabra (p. ej. "shake") no describe nada: se usa el texto genérico
+  const desc = slogan.split(/\s+/).length >= 2 ? `${slogan} · ${name}` : `${name}: pedidos, ventas, caja y reportes en un solo lugar.`;
+  // La imagen hecha para compartir (1200×630, JPG) manda; si no hay, la foto del login o el logo
+  const img = s.ogImageUrl || s.loginImageUrl || s.logoUrl || s.logoSmallUrl || '';
   let color = '';
   try { color = JSON.parse(s.theme || 'null')?.primary || ''; } catch { /* tema inválido */ }
 

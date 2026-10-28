@@ -7,7 +7,7 @@ import {
   DEFAULT_THEME, BASE_THEME, THEME_PRESETS, FONT_PAIRINGS,
   type ThemeInput, type ThemeMode,
   resolveTheme, applyTheme, autoFixTheme, contrastChecks, normalizeHex,
-  loadGoogleFont, generateIconFromImage, fileToDataUrl, hexToHsl,
+  loadGoogleFont, generateIconFromImage, generateShareImage, fileToDataUrl, hexToHsl,
 } from '@/lib/theme';
 import { FontPicker } from '@/components/settings/FontPicker';
 import LoginScreenPanel from '@/components/settings/LoginScreenPanel';
@@ -217,6 +217,10 @@ const BrandingPanel = () => {
       if (useStore.getState().receiptLogoAuto && (kind === 'logoLogin' || (kind === 'logo' && !branding.logoLoginUrl))) {
         try { await generateReceiptLogo(data, receiptWidth); } catch (e: any) { setError('El logo se subió, pero no se pudo preparar para los recibos: ' + (e.message || '')); }
       }
+      // La imagen para compartir el enlace sale del logo principal sobre el color de la barra, mientras nadie suba una a mano
+      if (useStore.getState().branding.ogImageAuto && kind === 'logo') {
+        try { await uploadShareImage(data); } catch (e: any) { setError('El logo se subió, pero no se pudo preparar la imagen para compartir: ' + (e.message || '')); }
+      }
     } catch (e: any) {
       setError(e.message || 'No se pudo subir la imagen');
     }
@@ -265,6 +269,37 @@ const BrandingPanel = () => {
     } catch (e: any) {
       setError(e.message);
     }
+  };
+
+  // Imagen de vista previa al compartir el enlace (WhatsApp, redes): 1200×630 JPG con el logo principal sobre el color de la
+  // barra en modo claro (el logo principal está hecho para ese fondo)
+  const shareRef = useRef<HTMLInputElement>(null);
+  const shareSrc = branding.logoUrl;
+  const uploadShareImage = async (logoSrc: string) => {
+    const data = await generateShareImage(logoSrc, resolveTheme({ ...theme, mode: 'light' }).surface);
+    const r = await api.uploadBrandingImage('ogImage', 'compartir.jpg', data);
+    await api.updateSettings({ ogImageAuto: '1' });
+    setBranding({ ogImageUrl: r.url, ogImageAuto: true });
+  };
+  const regenerateShareImage = async () => {
+    if (!shareSrc) { setError('Primero sube el logo principal'); return; }
+    setBusy('share'); setError('');
+    try { await uploadShareImage(shareSrc); } catch (e: any) { setError(e.message || 'No se pudo generar la imagen para compartir'); }
+    setBusy('');
+  };
+  const onShareFile = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy('share'); setError('');
+    try {
+      const data = await fileToDataUrl(file);
+      const r = await api.uploadBrandingImage('ogImage', file.name, data);
+      await api.updateSettings({ ogImageAuto: '0' });
+      setBranding({ ogImageUrl: r.url, ogImageAuto: false });
+    } catch (e: any) { setError(e.message || 'No se pudo subir la imagen'); }
+    setBusy('');
+  };
+  const removeShareImage = async () => {
+    try { await api.removeBrandingImage('ogImage'); await api.updateSettings({ ogImageAuto: '1' }); setBranding({ ogImageUrl: '', ogImageAuto: true }); } catch (e: any) { setError(e.message); }
   };
 
   const onFontFile = async (file: File | undefined) => {
@@ -545,6 +580,23 @@ const BrandingPanel = () => {
               <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('pos:settings-tab', { detail: 'recibos' }))} className="px-3 py-2 rounded-lg border border-border text-xs text-brand-dark hover:bg-muted/30" title="Subir otro logo, invertirlo o ver el recibo completo">Ajustar</button>
             </div>
             <p className="text-[10px] text-muted-foreground leading-snug">{receiptLogoAuto ? 'Se genera solo, en blanco y negro, del logo de inicio de sesión (o del principal) cada vez que lo cambias.' : 'Tiene un logo subido a mano en Recibos; "Generar del logo" vuelve a usar el de la marca.'}</p>
+          </div>
+
+          <div className="space-y-2" data-share-image-slot>
+            <p className="text-xs font-medium text-muted-foreground">Al compartir el enlace (WhatsApp, redes)</p>
+            <div className="h-28 rounded-lg border border-border bg-white paper flex items-center justify-center p-2">
+              {branding.ogImageUrl ? <img src={branding.ogImageUrl} alt="Vista previa al compartir" className="max-h-full max-w-full object-contain rounded" data-share-image-preview />
+                : <span className="text-[11px] text-muted-foreground text-center">Sin imagen: al compartir el enlace sale solo el nombre</span>}
+            </div>
+            <input ref={shareRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={e => { onShareFile(e.target.files?.[0]); e.target.value = ''; }} data-share-image-input />
+            <div className="flex gap-2">
+              <button type="button" disabled={busy === 'share' || !shareSrc} onClick={regenerateShareImage} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" data-share-regenerate>
+                <RefreshCw size={13} /> {busy === 'share' ? 'Generando...' : 'Generar del logo'}
+              </button>
+              <button type="button" onClick={() => shareRef.current?.click()} className="px-3 py-2 rounded-lg border border-border text-xs text-brand-dark hover:bg-muted/30" title="Subir una imagen propia (JPG o PNG, 1200×630)"><Upload size={13} /></button>
+              {branding.ogImageUrl && <button type="button" onClick={removeShareImage} className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600" data-share-remove><Trash2 size={13} /></button>}
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug">{branding.ogImageAuto ? 'Es la miniatura que ve quien recibe el enlace del sistema. Se genera sola del logo principal sobre el color de la barra (JPG 1200×630).' : 'Tiene una imagen subida a mano; "Generar del logo" vuelve a usar el de la marca.'}</p>
           </div>
         </div>
       </section>

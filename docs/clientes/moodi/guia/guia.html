@@ -12,8 +12,12 @@
   body { font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif; color: var(--tinta); font-size: 11.5pt; line-height: 1.5; background: #fff; }
   h1, h2, h3, h4, .display { font-family: 'Baloo 2', 'Quicksand', sans-serif; color: var(--morado); margin: 0; line-height: 1.15; }
   @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
-  .page { page-break-after: always; break-after: page; }
-  .page:last-child { page-break-after: auto; }
+  .page { margin-top: 14mm; }
+  .page.solo { break-after: page; page-break-after: always; margin-top: 0; }
+  .page.solo + .page { margin-top: 0; }
+  .cap { break-after: avoid; page-break-after: avoid; break-inside: avoid; page-break-inside: avoid; }
+  .intro { break-after: avoid; page-break-after: avoid; }
+  .inicio { break-inside: avoid; page-break-inside: avoid; }
   p { margin: 0 0 8px; }
   ul, ol { margin: 4px 0 10px; padding-left: 20px; }
   li { margin-bottom: 4px; }
@@ -24,15 +28,19 @@
   .ruta { font-weight: 700; color: var(--morado2); }
 
   /* Portada */
-  .cover { height: 257mm; background: var(--morado); color: #fff; border-radius: 18px; padding: 22mm 18mm; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+  .cover { height: 257mm; background: var(--morado); color: #fff; border-radius: 18px; padding: 24mm 20mm; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+  body.solo-portada .cover { width: 210mm; height: 297mm; border-radius: 0; padding: 30mm 24mm 26mm; }
+  body.solo-portada .page:not(.portada) { display: none; }
+  .cover .barra { width: 34mm; height: 6px; border-radius: 3px; background: var(--coral); margin: 16mm 0 10mm; position: relative; }
+  .cover .chips { position: relative; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12mm; }
+  .cover .chips span { background: rgba(255,255,255,.12); border: 1.5px solid rgba(252,248,201,.55); color: var(--crema); border-radius: 999px; padding: 5px 14px; font-weight: 700; font-size: 10.5pt; }
   .cover .blob { position: absolute; border-radius: 50%; background: var(--morado2); }
-  .cover .b1 { width: 160mm; height: 160mm; right: -60mm; top: -50mm; }
-  .cover .b2 { width: 90mm; height: 90mm; left: -30mm; bottom: 10mm; background: #70477C; }
+  .cover .b1 { width: 190mm; height: 190mm; right: -70mm; top: -70mm; }
+  .cover .b2 { width: 120mm; height: 120mm; left: -45mm; bottom: -30mm; background: #70477C; }
+  .cover .b3 { width: 46mm; height: 46mm; right: 18mm; bottom: 52mm; background: var(--coral); opacity: .9; }
   .cover img.logo { width: 70mm; position: relative; }
-  .cover h1 { color: var(--crema); font-size: 42pt; font-weight: 800; position: relative; }
+  .cover h1 { color: var(--crema); font-size: 44pt; font-weight: 800; position: relative; }
   .cover .sub { color: #fff; font-size: 16pt; font-weight: 600; opacity: .95; position: relative; margin-top: 6px; }
-  .cover .fotos { position: relative; display: flex; gap: 10px; }
-  .cover .fotos img { width: calc((100% - 30px) / 4); aspect-ratio: 1 / 1; height: auto; border-radius: 14px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
   .cover .pie { position: relative; display: flex; justify-content: space-between; align-items: flex-end; font-size: 10pt; color: #E9DCEC; }
   .cover .pie b { color: #fff; }
 
@@ -45,12 +53,13 @@
   .intro { color: var(--gris); font-size: 11pt; margin-bottom: 10px; }
 
   figure { margin: 8px 0 12px; }
-  figure img { width: 100%; border-radius: 10px; border: 1px solid var(--linea); box-shadow: 0 3px 12px rgba(91,55,102,.10); display: block; }
+  figure img { width: 100%; max-height: 78mm; object-fit: cover; object-position: top; border-radius: 10px; border: 1px solid var(--linea); box-shadow: 0 3px 12px rgba(91,55,102,.10); display: block; }
   figcaption { font-size: 9.5pt; color: var(--gris); margin-top: 5px; text-align: center; }
   .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
   .tres { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: start; }
   .movil { display: grid; grid-template-columns: 50mm 1fr; gap: 14px; align-items: start; }
-  .movil img { width: 100%; height: 92mm; object-fit: cover; object-position: top; border-radius: 14px; border: 1px solid var(--linea); box-shadow: 0 3px 12px rgba(91,55,102,.12); }
+  .movil { font-size: 10.5pt; }
+  .movil img { width: 100%; height: 70mm; object-fit: cover; object-position: top; border-radius: 14px; border: 1px solid var(--linea); box-shadow: 0 3px 12px rgba(91,55,102,.12); }
   figure, .caja, table, .modo, .perfil div, .acceso, .flujo, li, .pasos li, .dos > *, .movil { break-inside: avoid; page-break-inside: avoid; }
   h3, h4, .cap { break-after: avoid; page-break-after: avoid; }
 
@@ -92,26 +101,24 @@
 <body>
 
 <!-- ============ PORTADA ============ -->
-<section class="page">
+<section class="page solo portada">
   <div class="cover">
-    <div class="blob b1"></div><div class="blob b2"></div>
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
     <div>
       <img class="logo" src="logo-claro.webp" alt="Moodi">
-      <h1 style="margin-top:18mm">Guía de uso del<br>punto de venta</h1>
+      <div class="barra"></div>
+      <h1>Guía de uso del<br>punto de venta</h1>
       <div class="sub">Todo lo que necesitas para vender, cobrar y cerrar la caja en Moodi Shake</div>
-    </div>
-    <div class="fotos">
-      <img src="malteada-de-oreo.webp" alt=""><img src="waffle-comelon.webp" alt=""><img src="soda-manguito-viche.webp" alt=""><img src="canasta-de-fresa.webp" alt="">
+      <div class="chips"><span>Punto de Venta</span><span>Para llevar</span><span>Domicilios</span><span>Caja</span><span>Reportes</span></div>
     </div>
     <div class="pie">
       <div><b>moodi.stiven.app</b><br>Versión de octubre de 2026</div>
-      <div style="text-align:right">Preparada por <b>DT Growth Partners</b><br>Stiven Antequera</div>
     </div>
   </div>
 </section>
 
 <!-- ============ ÍNDICE ============ -->
-<section class="page">
+<section class="page solo">
   <div class="cap"><div class="num">☰</div><h2>Contenido</h2></div>
   <p class="intro">Esta guía está pensada para leerse de corrido la primera vez y después consultar solo el capítulo que necesites. Las imágenes son de tu propio sistema, tal como lo vas a ver.</p>
   <div class="indice">
@@ -192,7 +199,7 @@
   <div class="caja"><div class="t">Lo que es igual en todos los modos</div>El menú, los precios, la caja, los recibos y los reportes son los mismos. Una venta hecha en Para llevar o en Domicilios aparece en la caja y en los reportes igual que una del Punto de Venta.</div>
   <h3>Cómo encender o apagar módulos</h3>
   <p>En <span class="ruta">Configuración → Restaurante → Módulos del restaurante</span>. Lo que esté marcado aparece en el menú de la izquierda; lo que no, se oculta y nadie lo ve.</p>
-  <figure><img src="capturas/19-config-restaurante.jpg" alt="Módulos del restaurante"><figcaption>Hoy Moodi tiene activados Para llevar y Domicilios. Mesas y Cocina están apagados.</figcaption></figure>
+  </div>
 </section>
 
 <!-- ============ 3 ============ -->
@@ -222,9 +229,11 @@
 
 <!-- ============ 4 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">4</div><h2>Punto de Venta</h2></div>
   <p class="intro">La pantalla principal para vender en el mostrador. A la izquierda el menú con fotos, a la derecha la cuenta que se está armando.</p>
   <figure><img src="capturas/04-pos-carrito.jpg" alt="Punto de venta con productos"><figcaption>Una cuenta con tres productos lista para cobrar.</figcaption></figure>
+  </div>
   <div class="dos">
     <div>
       <h3>Armar la cuenta</h3>
@@ -253,9 +262,11 @@
 
 <!-- ============ 5 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">5</div><h2>Para llevar</h2></div>
   <p class="intro">Para pedidos que se preparan y el cliente espera o pasa a recoger. Cada pedido tiene nombre y va cambiando de columna.</p>
   <figure><img src="capturas/06-para-llevar.jpg" alt="Tablero Para llevar"><figcaption>Tablero de Para llevar: Pendientes, En preparación y Listos para recoger.</figcaption></figure>
+  </div>
   <div class="flujo"><span class="paso">Pendiente</span><span class="fl">→</span><span class="paso">En preparación</span><span class="fl">→</span><span class="paso">Listo para recoger</span><span class="fl">→</span><span class="paso fin">Entregado</span></div>
   <div class="dos">
     <div>
@@ -283,9 +294,11 @@
 
 <!-- ============ 6 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">6</div><h2>Domicilios</h2></div>
   <p class="intro">Pedidos para enviar. Guarda la dirección y el teléfono del cliente, asigna el repartidor y controla el tiempo.</p>
   <figure><img src="capturas/07-domicilios.jpg" alt="Tablero de domicilios"><figcaption>Tablero de Domicilios. Con "Lista" se ven como tabla, útil cuando hay muchos.</figcaption></figure>
+  </div>
   <div class="flujo"><span class="paso">Pendiente</span><span class="fl">→</span><span class="paso">En preparación</span><span class="fl">→</span><span class="paso">Listo para enviar</span><span class="fl">→</span><span class="paso">En camino</span><span class="fl">→</span><span class="paso fin">Entregado</span></div>
   <div class="dos">
     <div>
@@ -310,9 +323,11 @@
 
 <!-- ============ 7 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">7</div><h2>Mesas (modo restaurante)</h2></div>
   <p class="intro">Hoy está apagado. Si en algún momento atienden clientes sentados con cuenta abierta, se activa en <span class="ruta">Configuración → Restaurante → Mesas</span> y aparece en el menú.</p>
   <figure><img src="capturas/05-mesas.jpg" alt="Plano de mesas"><figcaption>Plano del salón. Ya quedó preparado con 8 mesas; con "Editar plano" se agregan, quitan o mueven.</figcaption></figure>
+  </div>
   <div class="dos">
     <div>
       <h3>Cómo funciona</h3>
@@ -338,9 +353,11 @@
 
 <!-- ============ 8 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">8</div><h2>Caja y cierre del día</h2></div>
   <p class="intro">La sección <b>Caja</b> reúne todo el dinero: ventas, movimientos, arqueos, propinas, descuentos y facturas.</p>
   <figure><img src="capturas/09-caja.jpg" alt="Caja: ventas"><figcaption>Pestaña Ventas: cada venta del día con filtros por hora, medio de pago, cliente y estado. Toca una para ver el detalle, reimprimir o anular.</figcaption></figure>
+  </div>
   <table>
     <tr><th>Pestaña</th><th>Para qué sirve</th></tr>
     <tr><td><b>Ventas</b></td><td>Lista de ventas del día (o del período que elijas). Ver el detalle, reimprimir el recibo, corregir el medio de pago o anular una venta equivocada. <b>Exportar</b> baja un Excel.</td></tr>
@@ -380,9 +397,11 @@
 
 <!-- ============ 10 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">10</div><h2>El menú</h2></div>
   <p class="intro">Aquí viven los productos: nombre, categoría, precio, foto, descripción y si está disponible. Ya está cargado el menú completo de Moodi (33 productos en 10 categorías).</p>
   <figure><img src="capturas/13-menu.jpg" alt="Menú"><figcaption>Menú → Productos. Cada tarjeta tiene Editar, Foto y el interruptor de disponible.</figcaption></figure>
+  </div>
   <div class="dos">
     <div>
       <h3>Lo que van a usar seguido</h3>
@@ -410,8 +429,10 @@
 
 <!-- ============ 11 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">11</div><h2>Clientes y factura electrónica</h2></div>
   <figure><img src="capturas/14-clientes.jpg" alt="Clientes"><figcaption>Directorio de clientes.</figcaption></figure>
+  </div>
   <div class="dos">
     <div>
       <h3>Clientes</h3>
@@ -427,9 +448,11 @@
 
 <!-- ============ 12 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">12</div><h2>Usuarios y permisos</h2></div>
   <p class="intro">En <span class="ruta">Configuración → Usuarios</span> se crea un usuario por persona y se elige qué puede ver y hacer.</p>
   <figure><img src="capturas/18-config-usuarios.jpg" alt="Usuarios y permisos"></figure>
+  </div>
   <h3>Perfiles listos para usar</h3>
   <div class="perfil">
     <div><b>Administrador</b>Acceso total. Para la dueña o el encargado.</div>
@@ -472,9 +495,11 @@
 
 <!-- ============ 14 ============ -->
 <section class="page">
+  <div class="inicio">
   <div class="cap"><div class="num">14</div><h2>Impresión de recibos</h2></div>
   <p class="intro">Se puede trabajar sin imprimir (el recibo también se comparte por WhatsApp). Si quieren papel, hay dos formas.</p>
   <figure><img src="capturas/22-config-impresoras.jpg" alt="Impresoras"></figure>
+  </div>
   <div class="dos">
     <div>
       <h3>Desde el navegador (como está hoy)</h3>
@@ -538,9 +563,9 @@
   </dl>
   <div class="caja" style="margin-top:18px">
     <div class="t">Soporte</div>
-    <p style="margin:0">DT Growth Partners · Stiven Antequera. Escríbenos por WhatsApp cuando necesiten ayuda, quieran activar algo nuevo o se les ocurra una mejora. El sistema se actualiza solo, sin que tengan que hacer nada.</p>
+    <p style="margin:0">Stiven Antequera. Escríbeme por WhatsApp cuando necesiten ayuda, quieran activar algo nuevo o se les ocurra una mejora. El sistema se actualiza solo, sin que tengan que hacer nada.</p>
   </div>
-  <p style="text-align:center;margin-top:28px"><img src="logo.webp" alt="Moodi" style="width:36mm"><br><span style="color:var(--gris);font-size:10pt">¿Cuál es tu MOOD de hoy?</span></p>
+  <p style="text-align:center;margin-top:16px"><img src="logo.webp" alt="Moodi" style="width:28mm"><br><span style="color:var(--gris);font-size:10pt">¿Cuál es tu MOOD de hoy?</span></p>
 </section>
 
 </body>

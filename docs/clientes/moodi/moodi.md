@@ -28,3 +28,6 @@
 - **28-oct-2026 (noche):** la imagen provisional de los 23 productos sin foto es ahora el logo apilado lila sin fondo
   (`logo--04.webp` reducido a 600 px, `producto-moodi-sin-fondo.webp`); las tarjetas ya no ponen sombra ni recuadro crema a
   las fotos. Guía regenerada.
+- **28-oct-2026 (noche, 2):** guía rediseñada: portada a sangre sin fotos ni "preparada por", capítulos de corrido (sin
+  páginas medio vacías), 19 páginas. `guia/pdf.cjs` necesita `python` con `pypdf` para unir la portada; sin eso queda la
+  portada dentro de los márgenes. Las fotos de producto ya no se usan en la portada (las 4 copias en `guia/` sobran).
