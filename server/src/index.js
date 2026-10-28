@@ -86,6 +86,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', business });
 });
 
+// La página de la app (cualquier ruta que no sea /api, /socket.io ni un archivo del build) con los metadatos del negocio.
+// En producción nginx sirve los archivos y manda aquí lo demás; en desarrollo Vite sirve la página y esto no se usa.
+app.get(/^\/(?!api\/|socket\.io\/|assets\/).*/, require('./indexHtml').indexHandler);
+
 // Socket.IO
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);

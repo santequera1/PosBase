@@ -6,10 +6,24 @@ server {
     index index.html;
 
     location / {
+        # Los archivos del build se sirven directo; la página de la app (en cualquier ruta) la entrega el servidor
+        # con el nombre, la descripción y el logo del negocio (vista previa al compartir el enlace por WhatsApp).
+        try_files $uri @app;
+    }
+
+    location @app {
         # La página principal se revalida siempre: así cada versión nueva llega sin borrar caché
         expires -1;
         add_header Cache-Control "no-cache, must-revalidate" always;
-        try_files $uri $uri/ /index.html;
+        proxy_pass http://127.0.0.1:__PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Si el servidor está caído o reiniciando, se entrega el index.html del build tal cual
+        proxy_intercept_errors on;
+        error_page 502 503 504 =200 /index.html;
     }
 
     location /assets/ {

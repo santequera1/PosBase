@@ -1,6 +1,6 @@
 # PosBase — POS para restaurantes, comidas rápidas y heladerías
 
-Producto de DT Growth Partners (Stiven Antequera). **Un solo repositorio = el producto; cada cliente es una instalación
+Producto de Stiven Antequera (no mencionar "DT Growth Partners": no trabaja ahí). **Un solo repositorio = el producto; cada cliente es una instalación
 aparte en el VPS** (carpeta, base de datos, logos, `.env`, subdominio y proceso PM2 propios). No se copia el código por
 cliente: las mejoras se hacen aquí y se despliegan a las instalaciones con `scripts/instancias/actualizar.sh`.
 
