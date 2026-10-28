@@ -32,7 +32,7 @@
   .cover h1 { color: var(--crema); font-size: 42pt; font-weight: 800; position: relative; }
   .cover .sub { color: #fff; font-size: 16pt; font-weight: 600; opacity: .95; position: relative; margin-top: 6px; }
   .cover .fotos { position: relative; display: flex; gap: 10px; }
-  .cover .fotos img { width: 40mm; height: 40mm; border-radius: 14px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  .cover .fotos img { width: calc((100% - 30px) / 4); aspect-ratio: 1 / 1; height: auto; border-radius: 14px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
   .cover .pie { position: relative; display: flex; justify-content: space-between; align-items: flex-end; font-size: 10pt; color: #E9DCEC; }
   .cover .pie b { color: #fff; }
 

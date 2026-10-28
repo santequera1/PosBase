@@ -17,7 +17,11 @@
 - **Pendiente:** fotos de productos, lista de sabores de helado ("helado a elección"), NIT, dirección e impresoras.
 - **Claves:** en `documentacionyclaves.md` (local).
 - **28-oct-2026:** fotos de producto subidas (10 de 33, editadas con IA desde las fotos del cliente; están en
-  `fotos-productos/listas/`). Usuario `caja` (perfil Cajero) creado. Guía de uso entregada:
-  `Guia-de-uso-Moodi-Shake.pdf` (fuente en `guia/guia.html`; se regenera con `node guia/pdf.js <raíz del repo> salida.pdf`
+  `fotos-productos/finales/fondo-blanco/`, versión con fondo blanco; `listas/` es la primera versión con fondo). Usuario `caja` (perfil Cajero) creado. Guía de uso entregada:
+  `Guia-de-uso-Moodi-Shake.pdf` (fuente en `guia/guia.html`; se regenera con `node guia/pdf.cjs <raíz del repo> salida.pdf`
   y las capturas se toman con el script de la sesión contra moodi.stiven.app). Café (capuchino, espresso, lattes) no está
   en el menú: pendiente confirmar si lo venden.
+- **28-oct-2026 (tarde):** Stiven había aplicado el estilo "Heladería pastel"; se volvió a los colores propios de Moodi (morado
+  #6A4275 / #5B3766, coral #F2685B, tarjetas #FCF8C9; respaldo `antes-colores-2026-10-28-15-04.db`). Fondo del login un poco
+  más oscuro que el del tema (#f8f3db) con la opción nueva Marca → Pantalla de acceso → "Color de fondo del formulario".
+  Logo del login: el horizontal "moodi" (lo subió Stiven ese día). Guía regenerada con las fotos de fondo blanco.
