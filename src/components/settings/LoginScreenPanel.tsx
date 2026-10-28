@@ -18,6 +18,15 @@ async function compressPhoto(file: File): Promise<string> {
 
 const INPUT = 'w-full px-3 py-2 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50';
 
+/** Aclara (k > 0) u oscurece (k < 0) un color hex en proporción k (0.05 = 5 %). */
+function shade(hex: string, k: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
+  return '#' + [ch(n >> 16), ch((n >> 8) & 255), ch(n & 255)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
 /** Configuración → Marca → Pantalla de acceso: textos (editables u ocultos) y foto opcional al lado. */
 const LoginScreenPanel = () => {
   const branding = useStore(s => s.branding);
@@ -66,6 +75,13 @@ const LoginScreenPanel = () => {
   };
   const removePhoto = async () => {
     try { await api.removeBrandingImage('loginImage'); setBranding({ loginImageUrl: '' }); } catch (e: any) { setError(e.message); }
+  };
+  // Color de fondo solo del login (vacío = el fondo del tema)
+  const themeBg = branding.theme?.background || '#ffffff';
+  const loginBg = branding.loginBg || themeBg;
+  const setLoginBg = async (hex: string) => {
+    const v = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.toLowerCase() : '';
+    try { await api.updateSettings({ loginBg: v }); setBranding({ loginBg: v }); } catch (e: any) { setError(e.message); }
   };
   const Toggle = ({ on, set, label }: { on: boolean; set: (v: boolean) => void; label: string }) => (
     <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer shrink-0">
@@ -135,6 +151,20 @@ const LoginScreenPanel = () => {
           </span>
         )}
         {branding.loginImageUrl && <button type="button" onClick={removePhoto} title="Quitar la foto" className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
+      </div>
+
+      <div className="rounded-lg border border-dashed border-border p-3 flex flex-wrap items-center gap-3" data-login-bg>
+        <span className="w-10 h-10 rounded-lg border border-border shrink-0" style={{ background: loginBg }} aria-hidden />
+        <div className="flex-1 min-w-[180px]">
+          <p className="text-xs font-semibold text-brand-dark">Color de fondo del formulario</p>
+          <p className="text-[11px] text-muted-foreground">Solo cambia la pantalla de acceso; el resto del sistema sigue con el fondo del tema ({themeBg}).</p>
+        </div>
+        <label className="flex items-center gap-2 text-[11px] font-semibold text-brand-dark cursor-pointer">
+          <input type="color" value={loginBg} onChange={e => setLoginBg(e.target.value)} className="w-8 h-8 p-0 border-0 bg-transparent cursor-pointer" data-login-bg-input /> Elegir
+        </label>
+        <button type="button" onClick={() => setLoginBg(shade(loginBg, -0.05))} title="Oscurece el color un 5 %" className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-brand-dark hover:bg-brand-card" data-login-bg-darker>Un poco más oscuro</button>
+        <button type="button" onClick={() => setLoginBg(shade(loginBg, 0.08))} title="Aclara el color un poco" className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-brand-dark hover:bg-brand-card" data-login-bg-lighter>Más claro</button>
+        {branding.loginBg && <button type="button" onClick={() => setLoginBg('')} className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-brand-dark" data-login-bg-reset>Usar el del tema</button>}
       </div>
 
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}

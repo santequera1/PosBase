@@ -232,9 +232,11 @@ export interface Branding {
   loginImageFocus: string;
   /** cover = la foto llena el panel (se recorta) · contain = se ve completa, con la misma foto difuminada de fondo */
   loginImageFit: string;
+  /** Color de fondo solo de la pantalla de acceso (hex); vacío = el fondo del tema */
+  loginBg: string;
 }
 
-export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center', loginImageFit: 'cover' };
+export const DEFAULT_BRANDING: Branding = { logoUrl: '', logoDarkUrl: '', logoSmallUrl: '', logoSmallRound: false, logoLoginUrl: '', faviconUrl: '', appleIconUrl: '', theme: null, customFonts: [], loginTitle: '', loginSubtitle: '', loginShowTitle: true, loginShowSubtitle: true, loginImageUrl: '', loginImageFocus: 'center', loginImageFit: 'cover', loginBg: '' };
 
 function parseJson<T>(value: unknown, fallback: T): T {
   if (value === undefined || value === null || value === '') return fallback;
@@ -261,6 +263,7 @@ export function brandingFromSettings(s: any): Branding {
     loginImageUrl: s?.loginImageUrl ? String(s.loginImageUrl) : '',
     loginImageFocus: s?.loginImageFocus ? String(s.loginImageFocus) : 'center',
     loginImageFit: s?.loginImageFit === 'contain' ? 'contain' : 'cover',
+    loginBg: /^#[0-9a-fA-F]{6}$/.test(String(s?.loginBg || '')) ? String(s.loginBg) : '',
   };
 }
 

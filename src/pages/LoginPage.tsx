@@ -93,7 +93,7 @@ const LoginPage = () => {
   const LABEL = 'block text-xs font-semibold uppercase tracking-[0.14em] text-brand-muted';
 
   return (
-    <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-[minmax(440px,1fr)_1.1fr] bg-brand-bg" data-login>
+    <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-[minmax(440px,1fr)_1.1fr] bg-brand-bg" style={branding.loginBg ? { background: branding.loginBg } : undefined} data-login>
 
       <main className="flex-1 flex flex-col px-6 sm:px-12 lg:px-16 py-8">
         <img src={formLogo} alt={businessName} className="h-44 lg:h-32 w-auto max-w-full lg:max-w-[320px] object-contain self-center lg:self-start lg:object-left" data-login-logo />
