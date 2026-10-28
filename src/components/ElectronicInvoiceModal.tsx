@@ -64,6 +64,8 @@ const FLABEL = 'block text-[11px] font-semibold text-gray-500 mb-1';
 
 export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose: () => void }) => {
   const { businessName, businessNit, businessAddress, businessPhone, businessSlogan, dianResolution, taxType, taxRate } = useStore();
+  // Logo de la marca para fondo claro (el de inicio de sesión, o el principal); al imprimir sale en blanco y negro
+  const docLogo = useStore(s => s.branding.logoLoginUrl || s.branding.logoUrl || '');
   const customers = useStore(s => s.customers);
   // La venta puede no estar en la lista del día (p. ej. una venta de días anteriores): se lleva una copia local al día
   const storeOrder = useStore(s => s.orders.find(o => o.id === order?.id));
@@ -262,6 +264,7 @@ export const ElectronicInvoiceModal = ({ order, onClose }: { order: any; onClose
 
           <div className="flex flex-wrap justify-between gap-4 border-b border-gray-200 pb-4">
             <div>
+              {docLogo && <img src={docLogo} alt="" className="doc-logo h-12 max-w-[170px] object-contain object-left mb-2" data-invoice-logo />}
               <p className="font-display font-bold text-xl text-brand-dark">{businessName}</p>
               {businessSlogan && <p className="text-gray-500">{businessSlogan}</p>}
               <p>NIT {businessNit || '—'}</p>

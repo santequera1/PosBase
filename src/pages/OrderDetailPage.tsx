@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, MapPin, Upload, X, Truck, Edit2, FileText, Image, Eye, UserPlus, MessageCircle } from 'lucide-react';
 import { useStore, type OrderStatus, type OrderType, type PaymentMethod, type Driver } from '@/store/useStore';
 import { canDo } from '@/lib/permissions';
+import { receiptLogoHtml } from '@/lib/receiptDesign';
 import { StatusBadge, getDeliveredLabel } from '@/components/StatusBadge';
 import { OrderTypeBadge } from '@/components/OrderTypeBadge';
 import { formatPrice, formatTime } from '@/lib/format';
@@ -152,7 +153,7 @@ const OrderDetailPage = () => {
       .right{text-align:right}
       .bold{font-weight:bold}
       .center{text-align:center}
-    </style></head><body>${el.innerHTML}</body></html>`);
+    </style></head><body>${receiptLogoHtml(useStore.getState().receiptDesign, useStore.getState().receiptLogo)}${el.innerHTML}</body></html>`);
     w.document.close();
     w.print();
   };

@@ -292,6 +292,7 @@
   body.print-invoice .print-overlay > div { max-width: none !important; width: 100% !important; }
   body.print-invoice .print-area { box-shadow: none !important; border-radius: 0 !important; padding: 8mm 10mm !important; break-inside: avoid; }
   body.print-invoice .print-area button { display: none !important; }
+  body.print-invoice .print-area .doc-logo { filter: grayscale(1); }
 }
 
 /* Vista previa en pantalla de tickets térmicos (cierre de caja) */

@@ -11,6 +11,18 @@ import {
 } from '@/lib/theme';
 import { FontPicker } from '@/components/settings/FontPicker';
 import LoginScreenPanel from '@/components/settings/LoginScreenPanel';
+import { imageToRaster, loadImage } from '@/components/settings/ReceiptLogo';
+import { rasterToPng } from '@/lib/receiptDesign';
+
+/** Logo que se imprime arriba de recibos y precuentas: el de fondo claro (inicio de sesión) o el principal, en blanco y negro. */
+export const receiptLogoSource = (b: { logoLoginUrl?: string; logoUrl?: string }) => b.logoLoginUrl || b.logoUrl || '';
+/** Genera el logo del recibo (1 bit) a partir de una imagen y lo guarda. Ancho en puntos de impresora (256 = 32 mm). */
+export async function generateReceiptLogo(src: string, width = 256) {
+  const raster = imageToRaster(await loadImage(src), width);
+  await api.saveReceiptLogo({ on: true, ...raster });
+  useStore.setState({ receiptLogo: raster });
+  return raster;
+}
 
 const INPUT = 'w-full px-3 py-2 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -125,6 +137,19 @@ const BrandingPanel = () => {
   const [busy, setBusy] = useState<string>('');
   const [fontFamilyName, setFontFamilyName] = useState('');
   const [faviconBg, setFaviconBg] = useState<'transparent' | 'dark'>('dark');
+  const receiptLogo = useStore(s => s.receiptLogo);
+  const receiptLogoAuto = useStore(s => s.receiptLogoAuto);
+  const [receiptWidth, setReceiptWidth] = useState<number>(receiptLogo?.w || 256);
+  const receiptSrc = receiptLogoSource(branding);
+  // Generar (o volver a generar) el logo del recibo desde el logo de la marca
+  const regenerateReceiptLogo = async (width = receiptWidth) => {
+    if (!receiptSrc) { setError('Primero sube el logo principal'); return; }
+    setBusy('receipt');
+    setError('');
+    try { await generateReceiptLogo(receiptSrc, width); await api.updateSettings({ receiptLogoAuto: '1' }); useStore.setState({ receiptLogoAuto: true }); }
+    catch (e: any) { setError(e.message || 'No se pudo generar el logo del recibo'); }
+    setBusy('');
+  };
   const fontFileRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
 
@@ -188,6 +213,10 @@ const BrandingPanel = () => {
         patch.appleIconUrl = appleR.url;
       }
       setBranding(patch);
+      // El logo del recibo sale solo de este logo (el de fondo claro manda) mientras nadie suba uno a mano en Recibos
+      if (useStore.getState().receiptLogoAuto && (kind === 'logoLogin' || (kind === 'logo' && !branding.logoLoginUrl))) {
+        try { await generateReceiptLogo(data, receiptWidth); } catch (e: any) { setError('El logo se subió, pero no se pudo preparar para los recibos: ' + (e.message || '')); }
+      }
     } catch (e: any) {
       setError(e.message || 'No se pudo subir la imagen');
     }
@@ -495,6 +524,27 @@ const BrandingPanel = () => {
               <button type="button" onClick={() => faviconRef.current?.click()} className="px-3 py-2 rounded-lg border border-border text-xs text-brand-dark hover:bg-muted/30" title="Subir favicon propio"><Upload size={13} /></button>
               {branding.faviconUrl && <button type="button" onClick={() => removeImage('favicon')} className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-red-600"><Trash2 size={13} /></button>}
             </div>
+          </div>
+
+          <div className="space-y-2" data-receipt-logo-slot>
+            <p className="text-xs font-medium text-muted-foreground">Recibos e impresiones</p>
+            <div className="h-28 rounded-lg border border-border bg-white paper flex items-center justify-center p-3">
+              {receiptLogo ? <img src={rasterToPng(receiptLogo)} alt="Logo del recibo" className="max-h-full max-w-full object-contain" style={{ imageRendering: 'pixelated' }} data-receipt-logo-preview />
+                : <span className="text-[11px] text-muted-foreground text-center">Sin logo: los recibos empiezan con el nombre del negocio</span>}
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span>Tamaño:</span>
+              {([[192, 'Pequeño'], [256, 'Mediano'], [320, 'Grande']] as Array<[number, string]>).map(([w, l]) => (
+                <button key={w} type="button" onClick={() => { setReceiptWidth(w); regenerateReceiptLogo(w); }} className={cn('px-2 py-0.5 rounded-full border', receiptWidth === w ? 'border-brand-primary text-brand-primary font-semibold' : 'border-border')} data-receipt-size={w}>{l}</button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button type="button" disabled={busy === 'receipt' || !receiptSrc} onClick={() => regenerateReceiptLogo()} className="flex-1 px-3 py-2 rounded-lg bg-brand-button text-brand-on-button text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" data-receipt-regenerate>
+                <RefreshCw size={13} /> {busy === 'receipt' ? 'Generando...' : 'Generar del logo'}
+              </button>
+              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('pos:settings-tab', { detail: 'recibos' }))} className="px-3 py-2 rounded-lg border border-border text-xs text-brand-dark hover:bg-muted/30" title="Subir otro logo, invertirlo o ver el recibo completo">Ajustar</button>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug">{receiptLogoAuto ? 'Se genera solo, en blanco y negro, del logo de inicio de sesión (o del principal) cada vez que lo cambias.' : 'Tiene un logo subido a mano en Recibos; "Generar del logo" vuelve a usar el de la marca.'}</p>
           </div>
         </div>
       </section>

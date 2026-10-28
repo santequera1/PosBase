@@ -44,6 +44,12 @@ const SettingsPage = () => {
   const { deliveryFee, tableCount, categories, user, addCategory, updateCategory, deleteCategory } = useStore();
   const isAdmin = user?.role === 'admin';
   const [tab, setTab] = useState<Tab>('negocio');
+  // Otra pestaña puede pedir abrir una (ej. Marca → "Ajustar en Recibos")
+  useEffect(() => {
+    const go = (e: Event) => { const t = (e as CustomEvent).detail; if (typeof t === 'string') setTab(t as Tab); };
+    window.addEventListener('pos:settings-tab', go);
+    return () => window.removeEventListener('pos:settings-tab', go);
+  }, []);
 
   const [businessName, setBusinessName] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');

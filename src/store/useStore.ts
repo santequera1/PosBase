@@ -312,6 +312,8 @@ interface AppState {
   /** Recibos (Configuración → Recibos): diseño, logo en 1 bit y texto final */
   receiptDesign: ReceiptDesign;
   receiptLogo: RasterLogo | null;
+  /** El logo del recibo se genera solo del logo de la marca (hasta que alguien suba uno a mano en Recibos) */
+  receiptLogoAuto: boolean;
   receiptFooter: string;
   businessPhone: string;
   businessNit: string;
@@ -416,6 +418,7 @@ export const useStore = create<AppState>((set, get) => ({
   businessType: '',
   receiptDesign: { ...DEFAULT_RECEIPT_DESIGN },
   receiptLogo: null,
+  receiptLogoAuto: true,
   receiptFooter: '',
   businessPhone: '',
   businessNit: '',
@@ -527,6 +530,7 @@ export const useStore = create<AppState>((set, get) => ({
         businessType: settings.businessType ? String(settings.businessType) : '',
         receiptDesign: parseReceiptDesign(settings.receiptDesign),
         receiptLogo: parseRasterLogo(settings.receiptLogo),
+        receiptLogoAuto: String(settings.receiptLogoAuto ?? '1') !== '0',
         receiptFooter: settings.receiptFooter ? String(settings.receiptFooter) : '',
         businessSlogan: settings.businessSlogan || '',
         businessAddress: settings.businessAddress ? String(settings.businessAddress) : '',

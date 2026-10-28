@@ -61,7 +61,7 @@ function drawRaster(canvas: HTMLCanvasElement, r: RasterLogo) {
   ctx.putImageData(img, 0, 0);
 }
 
-const loadImage = (src: string) => new Promise<HTMLImageElement>((ok, fail) => {
+export const loadImage = (src: string) => new Promise<HTMLImageElement>((ok, fail) => {
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => ok(img);
@@ -96,13 +96,14 @@ export const ReceiptLogoSection = ({ logo, onSaved }: { logo: (RasterLogo & { on
   const save = async () => {
     if (!preview) return;
     setBusy(true);
-    try { await api.saveReceiptLogo({ on: true, ...preview }); toast.success('Logo guardado: saldrá en precuentas y recibos'); onSaved({ on: true, ...preview }); }
+    // Subido a mano: desde ahora Marca no lo vuelve a generar solo al cambiar el logo
+    try { await api.saveReceiptLogo({ on: true, ...preview }); await api.updateSettings({ receiptLogoAuto: '0' }); useStore.setState({ receiptLogoAuto: false }); toast.success('Logo guardado: saldrá en precuentas y recibos'); onSaved({ on: true, ...preview }); }
     catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
   const remove = async () => {
     setBusy(true);
-    try { await api.saveReceiptLogo({ on: false }); setPreview(null); setSrc(''); toast.success('Logo quitado de los recibos'); onSaved(null); }
+    try { await api.saveReceiptLogo({ on: false }); await api.updateSettings({ receiptLogoAuto: '0' }); useStore.setState({ receiptLogoAuto: false }); setPreview(null); setSrc(''); toast.success('Logo quitado de los recibos'); onSaved(null); }
     catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
