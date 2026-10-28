@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Guía de uso · Moodi Shake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --morado: #5B3766; --morado2: #6A4275; --lila: #B897C4; --coral: #F2685B; --crema: #FCF8C9; --cremita: #FFFDF0; --tinta: #2E1D33; --gris: #6E6276; --verde: #2FA36B; --linea: #E8DFEA; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif; color: var(--tinta); font-size: 11.5pt; line-height: 1.5; background: #fff; }
+  h1, h2, h3, h4, .display { font-family: 'Baloo 2', 'Quicksand', sans-serif; color: var(--morado); margin: 0; line-height: 1.15; }
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  .page { page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 4px 0 10px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  b, strong { color: var(--tinta); font-weight: 700; }
+  .tag { display: inline-block; background: var(--crema); color: var(--morado); font-weight: 700; border-radius: 999px; padding: 1px 9px; font-size: 9.5pt; }
+  .btn { display: inline-block; background: var(--morado); color: #fff; font-weight: 700; border-radius: 999px; padding: 0 8px; font-size: 9.5pt; white-space: nowrap; }
+  .btn.coral { background: var(--coral); }
+  .ruta { font-weight: 700; color: var(--morado2); }
+
+  /* Portada */
+  .cover { height: 257mm; background: var(--morado); color: #fff; border-radius: 18px; padding: 22mm 18mm; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+  .cover .blob { position: absolute; border-radius: 50%; background: var(--morado2); }
+  .cover .b1 { width: 160mm; height: 160mm; right: -60mm; top: -50mm; }
+  .cover .b2 { width: 90mm; height: 90mm; left: -30mm; bottom: 10mm; background: #70477C; }
+  .cover img.logo { width: 70mm; position: relative; }
+  .cover h1 { color: var(--crema); font-size: 42pt; font-weight: 800; position: relative; }
+  .cover .sub { color: #fff; font-size: 16pt; font-weight: 600; opacity: .95; position: relative; margin-top: 6px; }
+  .cover .fotos { position: relative; display: flex; gap: 10px; }
+  .cover .fotos img { width: 40mm; height: 40mm; border-radius: 14px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  .cover .pie { position: relative; display: flex; justify-content: space-between; align-items: flex-end; font-size: 10pt; color: #E9DCEC; }
+  .cover .pie b { color: #fff; }
+
+  /* Encabezado de capítulo */
+  .cap { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid var(--crema); padding-bottom: 8px; margin-bottom: 14px; }
+  .cap .num { width: 38px; height: 38px; border-radius: 12px; background: var(--coral); color: #fff; font-family: 'Baloo 2'; font-weight: 800; font-size: 18pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .cap h2 { font-size: 22pt; font-weight: 800; }
+  h3 { font-size: 14pt; font-weight: 700; margin: 14px 0 6px; }
+  h4 { font-size: 11.5pt; font-weight: 700; color: var(--coral); margin: 10px 0 4px; }
+  .intro { color: var(--gris); font-size: 11pt; margin-bottom: 10px; }
+
+  figure { margin: 8px 0 12px; }
+  figure img { width: 100%; border-radius: 10px; border: 1px solid var(--linea); box-shadow: 0 3px 12px rgba(91,55,102,.10); display: block; }
+  figcaption { font-size: 9.5pt; color: var(--gris); margin-top: 5px; text-align: center; }
+  .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .tres { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: start; }
+  .movil { display: grid; grid-template-columns: 50mm 1fr; gap: 14px; align-items: start; }
+  .movil img { width: 100%; height: 92mm; object-fit: cover; object-position: top; border-radius: 14px; border: 1px solid var(--linea); box-shadow: 0 3px 12px rgba(91,55,102,.12); }
+  figure, .caja, table, .modo, .perfil div, .acceso, .flujo, li, .pasos li, .dos > *, .movil { break-inside: avoid; page-break-inside: avoid; }
+  h3, h4, .cap { break-after: avoid; page-break-after: avoid; }
+
+  .caja { background: var(--cremita); border: 1.5px solid var(--crema); border-radius: 12px; padding: 10px 14px; margin: 10px 0; }
+  .caja.tip { border-color: #CFE9DC; background: #F3FBF6; }
+  .caja.ojo { border-color: #F9CFC9; background: #FFF4F2; }
+  .caja .t { font-family: 'Baloo 2'; font-weight: 700; color: var(--morado); font-size: 11.5pt; margin-bottom: 2px; }
+  .pasos { counter-reset: paso; list-style: none; padding: 0; margin: 6px 0 10px; }
+  .pasos li { position: relative; padding-left: 34px; margin-bottom: 7px; min-height: 24px; }
+  .pasos li::before { counter-increment: paso; content: counter(paso); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--morado); color: #fff; font-family: 'Baloo 2'; font-weight: 700; font-size: 11pt; display: flex; align-items: center; justify-content: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5pt; margin: 6px 0 12px; }
+  th { text-align: left; background: var(--morado); color: #fff; padding: 6px 9px; font-family: 'Baloo 2'; font-weight: 600; font-size: 10.5pt; }
+  td { padding: 6px 9px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--cremita); }
+  .flujo { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .flujo .paso { background: var(--crema); color: var(--morado); font-weight: 700; border-radius: 10px; padding: 6px 12px; font-size: 10.5pt; }
+  .flujo .paso.fin { background: var(--verde); color: #fff; }
+  .flujo .fl { color: var(--coral); font-weight: 800; }
+  .indice { columns: 2; column-gap: 24px; }
+  .indice div { break-inside: avoid; display: flex; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px dashed var(--linea); }
+  .indice .n { font-family: 'Baloo 2'; font-weight: 800; color: var(--coral); width: 22px; }
+  .indice .d { color: var(--gris); font-size: 10pt; }
+  .modos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 10px 0; }
+  .modo { border: 2px solid var(--crema); border-radius: 14px; padding: 12px 14px; background: var(--cremita); }
+  .modo .ic { font-size: 22pt; }
+  .modo h3 { margin: 4px 0 4px; }
+  .modo p { font-size: 10.5pt; color: var(--gris); margin: 0 0 6px; }
+  .modo .usa { font-size: 10pt; color: var(--morado); font-weight: 700; }
+  .perfil { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .perfil div { border-left: 4px solid var(--coral); background: var(--cremita); padding: 6px 10px; border-radius: 0 8px 8px 0; font-size: 10.5pt; }
+  .perfil b { display: block; color: var(--morado); font-family: 'Baloo 2'; font-size: 11.5pt; }
+  .acceso { background: var(--morado); color: #fff; border-radius: 14px; padding: 14px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 14px; }
+  .acceso .k { font-size: 9.5pt; color: #D9C8DE; text-transform: uppercase; letter-spacing: .5px; }
+  .acceso .v { font-family: 'Baloo 2'; font-size: 15pt; font-weight: 700; color: var(--crema); }
+  .faq dt { font-weight: 700; color: var(--morado); margin-top: 8px; }
+  .faq dd { margin: 2px 0 0; color: var(--tinta); }
+</style>
+</head>
+<body>
+
+<!-- ============ PORTADA ============ -->
+<section class="page">
+  <div class="cover">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <div>
+      <img class="logo" src="logo-claro.webp" alt="Moodi">
+      <h1 style="margin-top:18mm">Guía de uso del<br>punto de venta</h1>
+      <div class="sub">Todo lo que necesitas para vender, cobrar y cerrar la caja en Moodi Shake</div>
+    </div>
+    <div class="fotos">
+      <img src="malteada-de-oreo.webp" alt=""><img src="waffle-comelon.webp" alt=""><img src="soda-manguito-viche.webp" alt=""><img src="canasta-de-fresa.webp" alt="">
+    </div>
+    <div class="pie">
+      <div><b>moodi.stiven.app</b><br>Versión de octubre de 2026</div>
+      <div style="text-align:right">Preparada por <b>DT Growth Partners</b><br>Stiven Antequera</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ÍNDICE ============ -->
+<section class="page">
+  <div class="cap"><div class="num">☰</div><h2>Contenido</h2></div>
+  <p class="intro">Esta guía está pensada para leerse de corrido la primera vez y después consultar solo el capítulo que necesites. Las imágenes son de tu propio sistema, tal como lo vas a ver.</p>
+  <div class="indice">
+    <div><span class="n">1</span><span>Antes de empezar<br><span class="d">Dónde entrar, con qué usuario y desde qué aparatos</span></span></div>
+    <div><span class="n">2</span><span>Tres formas de usar el sistema<br><span class="d">Mostrador, pedidos con nombre o restaurante con mesas</span></span></div>
+    <div><span class="n">3</span><span>El día a día en 3 pasos<br><span class="d">Abrir caja, vender, cerrar caja</span></span></div>
+    <div><span class="n">4</span><span>Punto de Venta<br><span class="d">Vender rápido en el mostrador</span></span></div>
+    <div><span class="n">5</span><span>Para llevar<br><span class="d">Pedidos a nombre del cliente con estados</span></span></div>
+    <div><span class="n">6</span><span>Domicilios<br><span class="d">Dirección, repartidor y cobro contra entrega</span></span></div>
+    <div><span class="n">7</span><span>Mesas (modo restaurante)<br><span class="d">Si algún día atienden en mesa</span></span></div>
+    <div><span class="n">8</span><span>Caja y cierre del día<br><span class="d">Arqueo, movimientos y reportes</span></span></div>
+    <div><span class="n">9</span><span>Historial y reportes<br><span class="d">Buscar una venta, ver cuánto se vendió</span></span></div>
+    <div><span class="n">10</span><span>El menú<br><span class="d">Productos, precios, fotos y agotados</span></span></div>
+    <div><span class="n">11</span><span>Clientes y factura electrónica<br><span class="d">Directorio y facturas cuando las necesiten</span></span></div>
+    <div><span class="n">12</span><span>Usuarios y permisos<br><span class="d">Quién puede hacer qué</span></span></div>
+    <div><span class="n">13</span><span>Configuración y marca<br><span class="d">Datos del negocio, colores, recibos</span></span></div>
+    <div><span class="n">14</span><span>Impresión de recibos<br><span class="d">Desde el navegador o con impresora térmica</span></span></div>
+    <div><span class="n">15</span><span>Finanzas y personal<br><span class="d">Gastos, nómina y propinas (para más adelante)</span></span></div>
+    <div><span class="n">16</span><span>Preguntas frecuentes<br><span class="d">Qué hacer cuando algo no sale como esperabas</span></span></div>
+  </div>
+</section>
+
+<!-- ============ 1 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">1</div><h2>Antes de empezar</h2></div>
+  <h3>Dónde entrar</h3>
+  <p>El sistema funciona en internet, así que no hay nada que instalar. Se entra desde cualquier navegador (recomendamos <b>Google Chrome</b>) en esta dirección:</p>
+  <div class="acceso">
+    <div><div class="k">Dirección</div><div class="v">moodi.stiven.app</div></div>
+    <div><div class="k">Usuarios</div><div class="v">admin · caja</div><div style="font-size:10pt;color:#E9DCEC">Las contraseñas se entregan por WhatsApp, no en este documento.</div></div>
+  </div>
+  <div class="dos">
+    <div>
+      <h3>Dos usuarios, dos funciones</h3>
+      <ul>
+        <li><b>admin</b> (Alejandra): acceso total. Configura, cambia precios, ve reportes, crea usuarios.</li>
+        <li><b>caja</b>: para quien atienda. Vende, cobra, abre y cierra la caja, pero no puede cambiar la marca ni los usuarios.</li>
+      </ul>
+      <p>Lo ideal es que cada persona entre con su propio usuario: así el sistema registra quién tomó cada pedido y quién cerró la caja. En el capítulo 12 verás cómo crear más.</p>
+      <div class="caja tip"><div class="t">Recordar usuario</div>En la pantalla de ingreso marca <b>Recordar usuario</b> para no escribirlo cada vez. La contraseña sí se pide siempre.</div>
+    </div>
+    <figure><img src="capturas/01-login.jpg" alt="Pantalla de ingreso"><figcaption>Pantalla de ingreso, con la portada del menú de Moodi.</figcaption></figure>
+  </div>
+  <h3>En qué aparatos funciona</h3>
+  <div class="movil">
+    <img src="capturas/24-celular-pos.jpg" alt="Punto de venta en el celular">
+    <div>
+      <p>Funciona igual en <b>computador, tablet y celular</b>. En el celular el menú se acomoda abajo y el carrito se abre con el botón de la cuenta.</p>
+      <h4>Dejarlo como una app</h4>
+      <ul>
+        <li><b>Celular (Android):</b> abre la dirección en Chrome → menú ⋮ → <b>Agregar a pantalla de inicio</b>. Queda con el ícono de Moodi.</li>
+        <li><b>iPhone:</b> en Safari, botón compartir → <b>Agregar a pantalla de inicio</b>.</li>
+        <li><b>Computador:</b> en Chrome → menú ⋮ → <b>Guardar y compartir → Crear acceso directo</b> y marca "Abrir como ventana".</li>
+      </ul>
+      <h4>Internet</h4>
+      <p>Necesita conexión. Si se va el internet, lo que ya se cobró está guardado; solo espera a que vuelva para seguir vendiendo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">2</div><h2>Tres formas de usar el sistema</h2></div>
+  <p class="intro">El sistema se adapta a cómo trabajan. No tienen que usar todo: pueden empezar con lo más simple y activar lo demás cuando lo necesiten.</p>
+  <div class="modos">
+    <div class="modo"><div class="ic">🛍️</div><h3>Venta directa en mostrador</h3><p>El cliente pide, se cobra y se entrega. Todo pasa en la pantalla <b>Punto de Venta</b>. Es la forma más rápida.</p><div class="usa">Recomendada para el día a día de Moodi.</div></div>
+    <div class="modo"><div class="ic">📋</div><h3>Pedidos con nombre y estado</h3><p>Para cuando hay que preparar y el cliente espera o pasa después: <b>Para llevar</b> y <b>Domicilios</b>. Cada pedido va cambiando de estado hasta que se entrega.</p><div class="usa">Ya está activado.</div></div>
+    <div class="modo"><div class="ic">🪑</div><h3>Restaurante con mesas</h3><p>Plano del local, cuentas abiertas por mesa, comandas a cocina, precuenta y cuentas separadas.</p><div class="usa">Está apagado. Se enciende en un minuto si lo necesitan (cap. 7).</div></div>
+  </div>
+  <h3>¿Cuál uso en cada caso?</h3>
+  <table>
+    <tr><th>Situación</th><th>Dónde se hace</th><th>Qué pasa</th></tr>
+    <tr><td>Cliente en el mostrador que pide, paga y recibe</td><td><b>Punto de Venta</b></td><td>Se cobra en el momento. Queda la venta y, si quieren, el recibo.</td></tr>
+    <tr><td>Cliente que pide varias cosas y espera a que las preparen</td><td><b>Para llevar</b></td><td>El pedido queda a su nombre: Pendiente → En preparación → Listo → Entregado. Se cobra antes o al recoger.</td></tr>
+    <tr><td>Pedido por teléfono o WhatsApp para enviar</td><td><b>Domicilios</b></td><td>Lleva dirección, repartidor, tiempo estimado y costo de envío. Se puede cobrar contra entrega.</td></tr>
+    <tr><td>Clientes sentados que piden por partes</td><td><b>Mesas</b> (si lo activan)</td><td>Cuenta abierta por mesa, se agregan productos, se imprime la precuenta y al final se cobra.</td></tr>
+  </table>
+  <div class="caja"><div class="t">Lo que es igual en todos los modos</div>El menú, los precios, la caja, los recibos y los reportes son los mismos. Una venta hecha en Para llevar o en Domicilios aparece en la caja y en los reportes igual que una del Punto de Venta.</div>
+  <h3>Cómo encender o apagar módulos</h3>
+  <p>En <span class="ruta">Configuración → Restaurante → Módulos del restaurante</span>. Lo que esté marcado aparece en el menú de la izquierda; lo que no, se oculta y nadie lo ve.</p>
+  <figure><img src="capturas/19-config-restaurante.jpg" alt="Módulos del restaurante"><figcaption>Hoy Moodi tiene activados Para llevar y Domicilios. Mesas y Cocina están apagados.</figcaption></figure>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">3</div><h2>El día a día en 3 pasos</h2></div>
+  <p class="intro">Esto es lo mínimo que hay que hacer todos los días para que las cuentas cuadren. Toma dos minutos al abrir y cinco al cerrar.</p>
+  <div class="flujo"><span class="paso">1 · Abrir la caja</span><span class="fl">→</span><span class="paso">2 · Vender todo el día</span><span class="fl">→</span><span class="paso fin">3 · Cerrar la caja</span></div>
+  <h3>Paso 1 · Abrir la caja (al llegar)</h3>
+  <ol class="pasos">
+    <li>Entra a <span class="ruta">Caja → Arqueos de Caja</span>.</li>
+    <li>En <b>Monto inicial</b> escribe el efectivo con el que empiezan (la base para dar vueltos, por ejemplo 100.000).</li>
+    <li>Toca <span class="btn">Iniciar arqueo</span>. Arriba a la izquierda del Punto de Venta verás <span class="tag">● Caja Activa</span>.</li>
+  </ol>
+  <figure><img src="capturas/10-caja-arqueos.jpg" alt="Abrir caja"><figcaption>Apertura de caja: hora, monto inicial y responsable.</figcaption></figure>
+  <h3>Paso 2 · Vender</h3>
+  <p>Con la caja abierta, todas las ventas del día quedan dentro de ese turno, sin importar si se hicieron en Punto de Venta, Para llevar o Domicilios. Los capítulos 4 a 6 explican cada pantalla.</p>
+  <h3>Paso 3 · Cerrar la caja (al terminar)</h3>
+  <ol class="pasos">
+    <li>Cuenta el efectivo que hay en la caja (incluida la base).</li>
+    <li>Entra a <span class="ruta">Caja → Arqueos de Caja</span> y toca el arqueo abierto.</li>
+    <li>Escribe lo que contaste en <b>Efectivo</b>, y lo que llegó por <b>Transferencias</b> y <b>Tarjeta</b> (lo ves en el banco o el datáfono).</li>
+    <li>El sistema compara con lo que debería haber y muestra la <b>diferencia</b>. Si hay, anota el motivo en las notas.</li>
+    <li>Toca <span class="btn">Cerrar caja</span>. Puedes imprimir el reporte de cierre.</li>
+  </ol>
+  <div class="caja ojo"><div class="t">¿Por qué es importante?</div>Si no se abre la caja, las ventas quedan "sueltas", sin turno, y al final del día nadie sabe cuánto efectivo debería haber. Si quieren, el sistema puede <b>exigir caja abierta para vender</b> (Configuración → Restaurante → Caja y cocina), así no se olvida.</div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">4</div><h2>Punto de Venta</h2></div>
+  <p class="intro">La pantalla principal para vender en el mostrador. A la izquierda el menú con fotos, a la derecha la cuenta que se está armando.</p>
+  <figure><img src="capturas/04-pos-carrito.jpg" alt="Punto de venta con productos"><figcaption>Una cuenta con tres productos lista para cobrar.</figcaption></figure>
+  <div class="dos">
+    <div>
+      <h3>Armar la cuenta</h3>
+      <ul>
+        <li>Toca un producto o su botón <b>+</b> para agregarlo. Tócalo otra vez para sumar unidades, o usa <b>− / +</b> en la cuenta.</li>
+        <li>Filtra por <b>categoría</b> (Malteadas, Sodas, Waffles…) o escribe en <b>Buscar producto</b>.</li>
+        <li>El ojito de cada tarjeta muestra la descripción completa.</li>
+        <li><span class="btn">+ Personalizado</span>: para cobrar algo que no está en el menú (escribes nombre y precio).</li>
+        <li><span class="btn coral">+ Nueva</span> en "Cuentas": atiende varios clientes a la vez; cada cuenta se cobra por separado.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Cobrar</h3>
+      <ol class="pasos">
+        <li>Toca <span class="btn">COBRAR $ …</span>.</li>
+        <li>Elige cómo paga: <b>Efectivo</b> (escribe con cuánto paga y el sistema calcula el vuelto), <b>Transferencia / QR</b>, <b>Tarjeta</b> o <b>mixto</b> (parte y parte).</li>
+        <li>Si quieren, agrega <b>propina</b> o <b>descuento</b> (solo quien tenga permiso).</li>
+        <li>Confirma. Sale la opción de imprimir el recibo.</li>
+      </ol>
+      <div class="caja tip"><div class="t">Transferencias con vuelto</div>Si el cliente transfiere de más, puedes escribir lo que llegó y la diferencia queda registrada como propina, así el banco y la caja cuadran.</div>
+    </div>
+  </div>
+  <h3>Cliente y factura</h3>
+  <p>Por defecto la venta va a <b>Consumidor Final</b>. Con <span class="btn">Cambiar / F.E.</span> eliges un cliente del directorio (o lo creas) y, cuando tengan activada la facturación electrónica, desde ahí mismo se marca que necesita factura.</p>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">5</div><h2>Para llevar</h2></div>
+  <p class="intro">Para pedidos que se preparan y el cliente espera o pasa a recoger. Cada pedido tiene nombre y va cambiando de columna.</p>
+  <figure><img src="capturas/06-para-llevar.jpg" alt="Tablero Para llevar"><figcaption>Tablero de Para llevar: Pendientes, En preparación y Listos para recoger.</figcaption></figure>
+  <div class="flujo"><span class="paso">Pendiente</span><span class="fl">→</span><span class="paso">En preparación</span><span class="fl">→</span><span class="paso">Listo para recoger</span><span class="fl">→</span><span class="paso fin">Entregado</span></div>
+  <div class="dos">
+    <div>
+      <h3>Tomar un pedido</h3>
+      <ol class="pasos">
+        <li>Toca <span class="btn">+ Nuevo pedido</span> y escribe el nombre del cliente (y teléfono si quieres avisarle).</li>
+        <li>Agrega los productos y toca <b>Confirmar</b>: el pedido pasa a <b>En preparación</b>.</li>
+        <li>Cuando esté listo, toca <span class="btn">Listo</span>. Cuando lo recoja, <span class="btn">Entregar</span>.</li>
+      </ol>
+      <h3>Cobrar</h3>
+      <p>Se puede cobrar en cualquier momento con <b>Cobrar</b>: al tomar el pedido o al entregarlo. Si lo entregas sin cobrar, el sistema te pide el cobro ahí mismo.</p>
+    </div>
+    <div>
+      <h3>Botones de cada tarjeta</h3>
+      <ul>
+        <li><b>Ver / editar</b>: abre el pedido para agregar o quitar productos.</li>
+        <li><b>Precuenta</b>: imprime la cuenta antes de cobrar.</li>
+        <li><b>Devolver a preparación</b>: si el cliente agrega algo cuando ya estaba listo, el pedido vuelve atrás para modificarlo.</li>
+        <li>La tarjeta muestra el tiempo que lleva el pedido y quién lo tomó.</li>
+      </ul>
+      <div class="caja"><div class="t">Entregados hoy</div>Abajo del tablero quedan los pedidos ya entregados en el día, por si hay que revisar uno o reimprimir su recibo.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">6</div><h2>Domicilios</h2></div>
+  <p class="intro">Pedidos para enviar. Guarda la dirección y el teléfono del cliente, asigna el repartidor y controla el tiempo.</p>
+  <figure><img src="capturas/07-domicilios.jpg" alt="Tablero de domicilios"><figcaption>Tablero de Domicilios. Con "Lista" se ven como tabla, útil cuando hay muchos.</figcaption></figure>
+  <div class="flujo"><span class="paso">Pendiente</span><span class="fl">→</span><span class="paso">En preparación</span><span class="fl">→</span><span class="paso">Listo para enviar</span><span class="fl">→</span><span class="paso">En camino</span><span class="fl">→</span><span class="paso fin">Entregado</span></div>
+  <div class="dos">
+    <div>
+      <h3>Tomar un domicilio</h3>
+      <ol class="pasos">
+        <li><span class="btn">+ Nuevo domicilio</span>: nombre, teléfono, dirección y barrio. Si el cliente ya pidió antes, al escribir el teléfono se llenan solos sus datos.</li>
+        <li>Costo de envío y tiempo estimado (vienen con un valor por defecto que se cambia en Configuración → Restaurante).</li>
+        <li>Agrega los productos y confirma.</li>
+        <li>Cuando esté listo, elige el <b>repartidor</b> en la tarjeta y toca <span class="btn">Enviar</span>.</li>
+        <li>Al volver el repartidor, toca <span class="btn">Entregado</span>.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Cobro contra entrega</h3>
+      <p>Si el cliente paga en efectivo al recibir, no hace falta cobrar antes: al marcar <b>Entregado</b> se registra el cobro. Si paga por transferencia, cóbralo cuando llegue el comprobante.</p>
+      <h3>Repartidores</h3>
+      <p>En la pestaña <b>Repartidores</b> se ve cuánto efectivo tiene cada uno por entregar a la caja. Si al repartidor le crean un usuario con perfil <b>Domiciliario</b>, en su celular ve solo <b>Mis domicilios</b>: sus pedidos con la dirección y un botón para abrir el mapa y otro para marcar entregado.</p>
+      <div class="caja tip"><div class="t">Avisar por WhatsApp</div>Desde el pedido se puede enviar un mensaje de WhatsApp al cliente ("tu pedido va en camino") con un solo toque.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">7</div><h2>Mesas (modo restaurante)</h2></div>
+  <p class="intro">Hoy está apagado. Si en algún momento atienden clientes sentados con cuenta abierta, se activa en <span class="ruta">Configuración → Restaurante → Mesas</span> y aparece en el menú.</p>
+  <figure><img src="capturas/05-mesas.jpg" alt="Plano de mesas"><figcaption>Plano del salón. Ya quedó preparado con 8 mesas; con "Editar plano" se agregan, quitan o mueven.</figcaption></figure>
+  <div class="dos">
+    <div>
+      <h3>Cómo funciona</h3>
+      <ol class="pasos">
+        <li>Toca una mesa <b>libre</b> (verde) para abrirla: número de personas y quién atiende.</li>
+        <li>Agrega productos. Si usan cocina, <b>A cocina</b> manda la comanda; se pueden mandar varias tandas.</li>
+        <li>La mesa queda <b>ocupada</b> (morada). Tócala para ver la cuenta, agregar más o imprimir la <b>precuenta</b>.</li>
+        <li><b>Cobrar</b> cierra la cuenta y libera la mesa.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Cosas útiles</h3>
+      <ul>
+        <li><b>Cuentas separadas</b>: cada persona paga lo suyo.</li>
+        <li><b>Cambiar de mesa</b> o <b>unir mesas</b> cuando se juntan grupos.</li>
+        <li><b>Propina sugerida</b>: sale en la precuenta (10 % en mesas, configurable).</li>
+        <li><b>Cocina (monitor)</b>: una pantalla en la cocina donde llegan las comandas y se marcan listas. También se activa en Configuración → Restaurante.</li>
+      </ul>
+      <div class="caja"><div class="t">Para Moodi</div>Si solo venden en mostrador y para llevar, no hace falta activar Mesas. Está listo por si el local crece.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">8</div><h2>Caja y cierre del día</h2></div>
+  <p class="intro">La sección <b>Caja</b> reúne todo el dinero: ventas, movimientos, arqueos, propinas, descuentos y facturas.</p>
+  <figure><img src="capturas/09-caja.jpg" alt="Caja: ventas"><figcaption>Pestaña Ventas: cada venta del día con filtros por hora, medio de pago, cliente y estado. Toca una para ver el detalle, reimprimir o anular.</figcaption></figure>
+  <table>
+    <tr><th>Pestaña</th><th>Para qué sirve</th></tr>
+    <tr><td><b>Ventas</b></td><td>Lista de ventas del día (o del período que elijas). Ver el detalle, reimprimir el recibo, corregir el medio de pago o anular una venta equivocada. <b>Exportar</b> baja un Excel.</td></tr>
+    <tr><td><b>Movimientos de caja</b></td><td>Dinero que entra o sale sin ser una venta: pagar el domicilio de un insumo, sacar plata para una compra, meter cambio. Cada uno con motivo. Así el cierre cuadra.</td></tr>
+    <tr><td><b>Arqueos de Caja</b></td><td>Abrir y cerrar la caja (capítulo 3) y ver los cierres anteriores con su diferencia. <b>Conciliación</b> compara varios días.</td></tr>
+    <tr><td><b>Propinas</b></td><td>Lo que se recibió de propina y a quién se le entrega.</td></tr>
+    <tr><td><b>Descuentos</b></td><td>Todos los descuentos aplicados, con quién lo hizo y el motivo.</td></tr>
+    <tr><td><b>Facturas electrónicas</b></td><td>Cuando se active la facturación con la DIAN: emitir y consultar facturas.</td></tr>
+  </table>
+  <h3>Entender el cierre</h3>
+  <ul>
+    <li><b>$ Sistema</b>: lo que debería haber según las ventas, la base y los movimientos.</li>
+    <li><b>$ Usuario</b>: lo que contaron.</li>
+    <li><b>Diferencia</b>: si es negativa falta plata; si es positiva sobra. Lo normal es que sea 0 o muy pequeña (vueltos). Si se repite, revisen los movimientos sin registrar.</li>
+    <li><b>Reporte X</b>: un resumen a mitad del día sin cerrar. <b>Reporte Z</b>: el del cierre.</li>
+  </ul>
+  <div class="caja tip"><div class="t">Un hábito que ahorra dolores de cabeza</div>Cada vez que salga plata de la caja por algo que no es una venta, regístrenlo en <b>Movimientos de caja</b> en el momento. Es 10 segundos y evita "¿dónde quedaron 20.000?" en la noche.</div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">9</div><h2>Historial y reportes</h2></div>
+  <div class="dos">
+    <div>
+      <h3>Historial de pedidos</h3>
+      <p>Todos los pedidos de todos los modos, con búsqueda por nombre, número o fecha. Abre uno para ver qué llevó, cómo pagó, quién lo atendió, y para reimprimir o compartir el recibo por WhatsApp.</p>
+      <figure><img src="capturas/11-historial.jpg" alt="Historial de pedidos"></figure>
+    </div>
+    <div>
+      <h3>Ventas e Ingresos</h3>
+      <p>Cuánto se vendió por día, semana o mes; qué productos salen más; cómo pagan los clientes; comparación con períodos anteriores. Es la pantalla para ver cómo va el negocio.</p>
+      <figure><img src="capturas/12-ventas-ingresos.jpg" alt="Ventas e ingresos"></figure>
+    </div>
+  </div>
+  <div class="caja"><div class="t">Para el contador</div>Los reportes y las ventas se exportan a Excel con el botón <b>Exportar</b>. Cuando activen la facturación electrónica, las facturas quedan también en <b>Caja → Facturas electrónicas</b>.</div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">10</div><h2>El menú</h2></div>
+  <p class="intro">Aquí viven los productos: nombre, categoría, precio, foto, descripción y si está disponible. Ya está cargado el menú completo de Moodi (33 productos en 10 categorías).</p>
+  <figure><img src="capturas/13-menu.jpg" alt="Menú"><figcaption>Menú → Productos. Cada tarjeta tiene Editar, Foto y el interruptor de disponible.</figcaption></figure>
+  <div class="dos">
+    <div>
+      <h3>Lo que van a usar seguido</h3>
+      <ul>
+        <li><b>Cambiar un precio</b>: Editar → precio → Guardar. Aplica de inmediato en todas las pantallas.</li>
+        <li><b>Se acabó algo</b>: apaga el interruptor verde. El producto se ve gris en el Punto de Venta y no se puede vender. Vuélvelo a encender cuando llegue.</li>
+        <li><b>Producto nuevo</b>: <span class="btn">+ Agregar producto</span> → nombre, categoría, precio, descripción y foto.</li>
+        <li><b>Foto</b>: toca <b>Foto</b> en la tarjeta y sube una imagen (sirve la del celular). Ya quedaron las 10 fotos que enviaron; a las demás se les puede poner cuando las tengan.</li>
+        <li><b>Tamaños</b>: un producto puede tener Mediana / Grande con precios distintos (como el Moodi Tropical).</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Categorías</h3>
+      <p>Se manejan en <span class="ruta">Configuración → Categorías</span>: nombre, emoji o foto, y orden en que aparecen.</p>
+      <h3>Pestañas para más adelante</h3>
+      <ul>
+        <li><b>Ingredientes</b> y <b>Recetas y costos</b>: cuánto cuesta hacer cada producto.</li>
+        <li><b>Inventario</b>: controlar existencias y recibir alertas de stock bajo.</li>
+        <li><b>Rentabilidad</b>: qué productos dejan más.</li>
+      </ul>
+      <p>No son obligatorias. El negocio funciona completo sin ellas; se activan cuando quieran llevar ese control.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">11</div><h2>Clientes y factura electrónica</h2></div>
+  <figure><img src="capturas/14-clientes.jpg" alt="Clientes"><figcaption>Directorio de clientes.</figcaption></figure>
+  <div class="dos">
+    <div>
+      <h3>Clientes</h3>
+      <p>Cada vez que toman un domicilio o un pedido con teléfono, el cliente queda guardado. La próxima vez, con el teléfono se llenan sus datos. Desde su ficha se ve cuántas veces ha comprado y qué pide.</p>
+    </div>
+    <div>
+      <h3>Factura electrónica (F.E.)</h3>
+      <p>El sistema está preparado para emitir facturas electrónicas validadas por la DIAN cuando el negocio lo necesite. Para activarlo se requiere el NIT, la resolución de facturación y una cuenta con el proveedor tecnológico. Mientras tanto, los recibos normales funcionan igual.</p>
+      <p>Cuando un cliente pida factura: en el cobro, <b>Cambiar / F.E.</b> → datos del cliente → marcar factura electrónica.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">12</div><h2>Usuarios y permisos</h2></div>
+  <p class="intro">En <span class="ruta">Configuración → Usuarios</span> se crea un usuario por persona y se elige qué puede ver y hacer.</p>
+  <figure><img src="capturas/18-config-usuarios.jpg" alt="Usuarios y permisos"></figure>
+  <h3>Perfiles listos para usar</h3>
+  <div class="perfil">
+    <div><b>Administrador</b>Acceso total. Para la dueña o el encargado.</div>
+    <div><b>Cajero</b>Vende, cobra, abre y cierra caja, anula y aplica descuentos. No toca marca ni usuarios.</div>
+    <div><b>Mesero</b>Toma pedidos (mesas, para llevar, domicilios) pero no cobra ni ve reportes.</div>
+    <div><b>Cocina</b>Entra directo al monitor de cocina.</div>
+    <div><b>Domiciliario</b>Solo ve "Mis domicilios" en su celular.</div>
+    <div><b>Personalizado</b>Marca una a una las secciones y acciones permitidas.</div>
+  </div>
+  <h3>Crear uno</h3>
+  <ol class="pasos">
+    <li><span class="btn">+ Nuevo usuario</span>: nombre, usuario (sin espacios) y contraseña (mínimo 6 caracteres).</li>
+    <li>Elige el perfil. Si quieres ajustar algo, marca o desmarca permisos sueltos (por ejemplo, un cajero que no pueda anular).</li>
+    <li>Guardar. Los cambios aplican al instante, sin que la persona vuelva a entrar.</li>
+  </ol>
+  <div class="caja ojo"><div class="t">Si alguien se va</div>No borres el usuario: <b>desactívalo</b>. Así no entra más, pero su historial de ventas sigue intacto.</div>
+</section>
+
+<!-- ============ 13 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">13</div><h2>Configuración y marca</h2></div>
+  <table>
+    <tr><th>Pestaña</th><th>Qué hay ahí</th></tr>
+    <tr><td><b>Negocio</b></td><td>Nombre, eslogan, teléfono, dirección, NIT, horario e impuesto. Estos datos salen en los recibos.</td></tr>
+    <tr><td><b>Marca</b></td><td>Colores, letras, logos (barra lateral, inicio de sesión, menú recogido) y el logo que sale en los recibos. Ya está con la identidad de Moodi.</td></tr>
+    <tr><td><b>Usuarios</b></td><td>Capítulo 12.</td></tr>
+    <tr><td><b>Categorías</b></td><td>Las del menú, con su emoji o foto y orden.</td></tr>
+    <tr><td><b>Restaurante</b></td><td>Módulos (Mesas, Para llevar, Domicilios, Cocina), propina sugerida, costo y tiempos de domicilio, descuento de trabajadores y "exigir caja abierta para vender".</td></tr>
+    <tr><td><b>Impresoras</b></td><td>Cómo se imprime (capítulo 14).</td></tr>
+    <tr><td><b>Recibos</b></td><td>Qué datos salen en el recibo, el logo, un texto de encabezado y el mensaje final ("¡Gracias por tu visita!"). Con vista previa.</td></tr>
+    <tr><td><b>Secciones</b></td><td>Ocultar partes del sistema que no usen (por ejemplo Finanzas o Nómina) para que el menú quede más simple.</td></tr>
+    <tr><td><b>Factura electrónica</b></td><td>Activación con la DIAN cuando la necesiten.</td></tr>
+  </table>
+  <div class="dos">
+    <figure><img src="capturas/20-config-marca.jpg" alt="Marca"><figcaption>Marca: colores y logos de Moodi, con modo claro y oscuro.</figcaption></figure>
+    <figure><img src="capturas/21-config-recibos.jpg" alt="Recibos"><figcaption>Recibos: lo que sale impreso, con vista previa.</figcaption></figure>
+  </div>
+  <div class="caja tip"><div class="t">Modo oscuro</div>La luna en la parte superior cambia la pantalla a modo oscuro solo en ese aparato. Útil en la noche o en tablets con mucho brillo.</div>
+</section>
+
+<!-- ============ 14 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">14</div><h2>Impresión de recibos</h2></div>
+  <p class="intro">Se puede trabajar sin imprimir (el recibo también se comparte por WhatsApp). Si quieren papel, hay dos formas.</p>
+  <figure><img src="capturas/22-config-impresoras.jpg" alt="Impresoras"></figure>
+  <div class="dos">
+    <div>
+      <h3>Desde el navegador (como está hoy)</h3>
+      <p>Al imprimir sale el cuadro de impresión de Windows y se elige la impresora. Sirve con cualquier impresora instalada en el computador, incluidas las térmicas USB. Es lo más simple para empezar.</p>
+      <ul>
+        <li>En el cuadro de impresión, elige la impresora térmica y marca "Guardar configuración" para no repetirlo.</li>
+        <li>Solo imprime en el computador donde se cobra.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Con el agente (impresoras térmicas)</h3>
+      <p>Un pequeño programa que se instala una vez en el computador de la caja. Los recibos salen solos, sin cuadros de diálogo, y se puede imprimir desde el celular o la tablet. Funciona con impresoras de red (IP) y USB.</p>
+      <p>La instalación la hacemos nosotros con ustedes en 10 minutos cuando tengan la impresora. El logo, los datos y los textos del recibo se ajustan en <b>Configuración → Recibos</b> y sirven para las dos formas.</p>
+    </div>
+  </div>
+  <div class="caja"><div class="t">¿Qué impresora comprar?</div>Una térmica de 58 u 80 mm (80 mm se lee mejor). Si es USB, se conecta al computador de la caja. Si es de red (cable o wifi), puede estar en cualquier parte del local. Antes de comprar, escríbenos y te decimos si es compatible.</div>
+</section>
+
+<!-- ============ 15 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">15</div><h2>Finanzas y personal</h2></div>
+  <p class="intro">Dos secciones para cuando quieran llevar más control. No son necesarias para vender, y se pueden ocultar en Configuración → Secciones.</p>
+  <div class="dos">
+    <div>
+      <h3>Finanzas</h3>
+      <p>Gastos del negocio (arriendo, servicios, insumos), cuentas por pagar a proveedores con recordatorio de vencimiento, y un resumen de ingresos contra gastos para ver la utilidad del mes. Los gastos pagados desde la caja se descuentan del arqueo automáticamente.</p>
+      <figure><img src="capturas/16-finanzas.jpg" alt="Finanzas"></figure>
+    </div>
+    <div>
+      <h3>Personal &amp; Nómina</h3>
+      <p>Lista de colaboradores con su pago (por día, quincena o mes), asistencia, anticipos, propinas repartidas, consumos del personal con descuento, y liquidaciones con comprobante. Cada colaborador puede entrar a <b>Mi cuenta</b> y ver lo suyo.</p>
+      <figure><img src="capturas/15-personal.jpg" alt="Personal y nómina"></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16 ============ -->
+<section class="page">
+  <div class="cap"><div class="num">16</div><h2>Preguntas frecuentes</h2></div>
+  <dl class="faq">
+    <dt>Cobré una venta equivocada. ¿Qué hago?</dt>
+    <dd>En <b>Caja → Ventas</b> busca la venta, ábrela y toca el ícono de anular (la papelera). Pide un motivo y queda registrada como anulada; no desaparece, para que el cierre siga cuadrando. Solo el administrador y el cajero pueden anular.</dd>
+    <dt>El cliente pagó con otro medio del que marqué.</dt>
+    <dd>En el detalle de la venta puedes corregir el medio de pago. Hazlo el mismo día, antes de cerrar la caja.</dd>
+    <dt>El cliente agregó algo cuando el pedido ya estaba listo.</dt>
+    <dd>En la tarjeta del pedido toca <b>Devolver a preparación</b>, luego <b>Ver / editar</b> y agrega lo nuevo.</dd>
+    <dt>Se me olvidó abrir la caja y ya vendí.</dt>
+    <dd>Ábrela ahora. Las ventas anteriores quedan fuera del turno de hoy, pero siguen en los reportes. Para que no vuelva a pasar, activa "Exigir caja abierta para vender".</dd>
+    <dt>Un producto se agotó.</dt>
+    <dd>Menú → apaga el interruptor del producto. Se ve gris y no se puede vender. Enciéndelo cuando vuelva.</dd>
+    <dt>Olvidé mi contraseña.</dt>
+    <dd>El administrador la cambia en Configuración → Usuarios → editar. Si es la del administrador, escríbenos y la reiniciamos.</dd>
+    <dt>No sale el recibo.</dt>
+    <dd>Revisa que la impresora esté encendida y con papel. Si imprimes desde el navegador, que esté elegida en el cuadro de impresión. Si usan el agente, que el computador de la caja esté prendido.</dd>
+    <dt>La pantalla se ve rara o no carga.</dt>
+    <dd>Recarga con <b>Ctrl + F5</b> (en el celular, cierra y vuelve a abrir). Casi siempre es porque salió una actualización.</dd>
+    <dt>¿Se pierde algo si se va la luz o el internet?</dt>
+    <dd>No. Todo lo cobrado está guardado en el servidor. Al volver la conexión, sigue donde iba.</dd>
+    <dt>¿Puedo ver las ventas desde mi casa?</dt>
+    <dd>Sí. Entra con tu usuario desde cualquier celular o computador. Los reportes y la caja se ven en tiempo real.</dd>
+  </dl>
+  <div class="caja" style="margin-top:18px">
+    <div class="t">Soporte</div>
+    <p style="margin:0">DT Growth Partners · Stiven Antequera. Escríbenos por WhatsApp cuando necesiten ayuda, quieran activar algo nuevo o se les ocurra una mejora. El sistema se actualiza solo, sin que tengan que hacer nada.</p>
+  </div>
+  <p style="text-align:center;margin-top:28px"><img src="logo.webp" alt="Moodi" style="width:36mm"><br><span style="color:var(--gris);font-size:10pt">¿Cuál es tu MOOD de hoy?</span></p>
+</section>
+
+</body>
+</html>
