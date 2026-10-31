@@ -11,6 +11,7 @@ import { printDocument, escHtml, docLogo } from '@/lib/printDoc';
 import { downloadXlsx } from '@/lib/xlsx';
 import { readSpreadsheet, normHeader } from '@/lib/xlsxRead';
 import { NiceSelect } from '@/components/ui/nice-select';
+import { upcomingCuts } from '@/lib/payrollDates';
 
 const PAY_METHOD: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia' };
 
@@ -446,11 +447,12 @@ export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name:
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-brand-dark">{l.employeeName} <span className="font-normal text-muted-foreground">· {formatPrice(l.amount)} en {l.installments} cuota(s) de {formatPrice(l.installmentAmount)} {l.frequencyLabel}</span></p>
-                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · pagado {formatPrice(l.paidTotal)} ({l.paymentsCount} cuota(s){l.paymentsBefore ? `, ${l.paymentsBefore} de antes` : ''}){l.status === 'active' ? ` · faltan ${l.remainingInstallments}` : ''}</p>
+                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · pagado {formatPrice(l.paidTotal)} ({l.paymentsCount} cuota(s){l.paymentsBefore ? `, ${l.paymentsBefore} de antes` : ''}){l.status === 'active' ? ` · faltan ${l.remainingInstallments} · termina aprox. el ${fmtDate(upcomingCuts(getColombiaTodayStr(), l.remainingInstallments, l.frequency === 'monthly').slice(-1)[0] || '')}` : ''}</p>
                     </div>
                     {l.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Pagado</span> : <span className="text-sm font-bold text-amber-700">{formatPrice(l.balance)}</span>}
                     <button onClick={() => setDetail(l)} className="px-2 py-1 rounded-lg border border-border text-[11px] font-semibold">Ver</button>
-                    {l.paymentsCount === 0 && <button onClick={() => remove(l)} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={14} /></button>}
+                    {/* Se puede borrar mientras ninguna cuota se haya descontado en una liquidación (las "de antes" no cuentan) */}
+                    {l.paymentsCount === (l.paymentsBefore || 0) && <button onClick={() => remove(l)} title="Eliminar este préstamo (por ejemplo, si se registró dos veces)" data-loan-remove={l.id} className="p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={14} /></button>}
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
                 </li>
@@ -488,11 +490,6 @@ export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name:
 type LoanEmp = { id: number; name: string; payMode?: string; baseAmount?: number };
 /** Sueldo que recibe por quincena (para mostrar qué tanto pesa la cuota). */
 const fortnightPay = (e?: LoanEmp) => !e || !e.baseAmount ? 0 : e.payMode === 'monthly' ? Math.round(e.baseAmount / 2) : e.payMode === 'biweekly' ? e.baseAmount : e.payMode === 'per_day' || e.payMode === 'per_shift' ? e.baseAmount * 15 : 0;
-const addPeriods = (dateStr: string, n: number, monthly: boolean) => {
-  const d = new Date(dateStr + 'T12:00:00');
-  if (monthly) d.setMonth(d.getMonth() + n); else d.setDate(d.getDate() + n * 15);
-  return d.toISOString().slice(0, 10);
-};
 
 export const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: LoanEmp[]; hasShift: boolean; onClose: () => void; onSaved: (l: any) => void }) => {
   const [f, setF] = useState({ employeeId: employees[0]?.id || 0, date: getColombiaTodayStr(), amount: '', installments: '2', installmentAmount: '', frequency: 'biweekly', paidInstallments: '0', fromCashRegister: false, notes: '' });
@@ -506,6 +503,8 @@ export const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees
   const emp = employees.find(e => e.id === f.employeeId);
   const pay = fortnightPay(emp);
   const monthly = f.frequency === 'monthly';
+  // Cortes reales (15 y 30): la primera cuota pendiente va en la liquidación del período en curso
+  const cuts = upcomingCuts(getColombiaTodayStr(), remaining, monthly);
   const save = async () => {
     setError('');
     try { onSaved(await api.addLoan({ ...f, amount: Number(f.amount), installments: n, installmentAmount: f.installmentAmount === '' ? undefined : Number(f.installmentAmount), paidInstallments: paidBefore, fromCashRegister: f.fromCashRegister && hasShift })); }
@@ -528,8 +527,9 @@ export const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees
         <div><label className={LABEL}>Cuotas ya pagadas (si venía de antes)</label><input type="number" min={0} max={n - 1} value={f.paidInstallments} onChange={e => set({ paidInstallments: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-paid-before /><p className="text-[10px] text-muted-foreground mt-1">Si ya le habían descontado cuotas antes de registrarlo aquí.</p></div>
         <div className="rounded-lg bg-brand-card border border-brand-accent/30 p-2.5 text-[11px] text-brand-dark space-y-0.5" data-loan-summary>
           <p><b>{formatPrice(cuota)}</b> {monthly ? 'cada mes' : 'cada quincena'}{pay > 0 ? <span className="text-muted-foreground"> · {Math.round((cuota / (monthly ? pay * 2 : pay)) * 100)} % de lo que recibe {monthly ? 'al mes' : 'por quincena'} ({formatPrice(monthly ? pay * 2 : pay)})</span> : null}</p>
-          <p>{paidBefore > 0 ? `Ya pagó ${paidBefore} de ${n}; ` : ''}Faltan <b>{remaining}</b> cuota(s) = {formatPrice(Math.max(0, (Number(f.amount) || 0) - paidBefore * cuota))}{Number(f.amount) > 0 ? ` · termina aprox. el ${fmtDate(addPeriods(f.date || getColombiaTodayStr(), remaining, monthly))}` : ''}.</p>
-          <p className="text-muted-foreground">Sin intereses. La cuota se resta sola en cada liquidación de nómina{monthly ? ' que cierre la segunda quincena del mes' : ''}.</p>
+          <p>{paidBefore > 0 ? `Ya pagó ${paidBefore} de ${n}; ` : ''}Faltan <b>{remaining}</b> cuota(s) = {formatPrice(Math.max(0, (Number(f.amount) || 0) - paidBefore * cuota))}.</p>
+          {Number(f.amount) > 0 && cuts.length > 0 && <p data-loan-dates>Próxima cuota en la liquidación del <b>{fmtDate(cuts[0])}</b>; la última, el <b>{fmtDate(cuts[cuts.length - 1])}</b> (si paga puntual).</p>}
+          <p className="text-muted-foreground">Sin intereses. La cuota se resta sola en cada liquidación de nómina{monthly ? ' que cierre la segunda quincena del mes' : ' (cortes del 15 y del 30)'}.</p>
         </div>
         <div className="col-span-2"><label className={LABEL}>Notas</label><input value={f.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} placeholder="Ej. para matrícula, firmó libranza" /></div>
         <label className={cn('col-span-2 flex items-start gap-2 p-3 rounded-lg border text-xs', hasShift ? 'border-brand-accent/40 bg-brand-card cursor-pointer' : 'border-border bg-muted/30 opacity-70')}>
