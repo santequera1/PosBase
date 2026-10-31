@@ -90,6 +90,9 @@ function initPayrollExtras(db) {
     CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id);
   `);
   ensureConsumoCols(db);
+  // Cada cuánto se descuenta la cuota del préstamo: cada quincena (biweekly) o una vez al mes (monthly, en la segunda quincena)
+  addCol(db, 'employee_loans', 'frequency', "TEXT DEFAULT 'biweekly'");
+  addCol(db, 'loan_payments', 'notes', "TEXT DEFAULT ''");
   // Adicionales pagados por vez (armado de carne, lavado de campana...): tarifas editables en Personal → Novedades
   if (!db.prepare("SELECT 1 FROM settings WHERE key = 'payrollTasks'").get()) {
     db.prepare("INSERT INTO settings (key, value) VALUES ('payrollTasks', ?)").run(JSON.stringify([{ id: 'armado_carne', name: 'Armado de carne', amount: 0 }, { id: 'lavado_campana', name: 'Lavado de campana', amount: 0 }]));
@@ -123,13 +126,23 @@ function ensureConsumoCols(db) { addCol(db, 'employee_loans', 'kind', "TEXT DEFA
 
 function loanPlan(db, empId, to, { skip = [], payoff = [] } = {}) {
   const lines = [];
+  const month = String(to).slice(0, 7);
+  const dayOfTo = Number(String(to).slice(8, 10));
   for (const l of db.prepare("SELECT * FROM employee_loans WHERE employee_id = ? AND status = 'active' AND date <= ? ORDER BY date, id").all(empId, to)) {
     const balance = l.amount - l.paid_total;
     if (balance <= 0) continue;
     const number = db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ?').get(l.id).c + 1;
     const isPayoff = payoff.includes(l.id);
     const amount = isPayoff ? balance : Math.min(l.installment_amount, balance);
-    lines.push({ id: l.id, date: l.date, notes: l.notes, total: l.amount, installments: l.installments, number, balance, amount, payoff: isPayoff, skipped: !isPayoff && skip.includes(l.id) });
+    const frequency = l.frequency === 'monthly' ? 'monthly' : 'biweekly';
+    // Cuota mensual: se descuenta una sola vez por mes, en la liquidación que cierra la segunda quincena (o el mes)
+    let notDue = '';
+    if (frequency === 'monthly' && !isPayoff) {
+      if (db.prepare("SELECT 1 FROM loan_payments WHERE loan_id = ? AND substr(date, 1, 7) = ? AND settlement_id IS NOT NULL").get(l.id, month)) notDue = 'cuota mensual ya descontada este mes';
+      else if (dayOfTo < 16) notDue = 'cuota mensual: se descuenta en la segunda quincena';
+    }
+    lines.push({ id: l.id, date: l.date, notes: l.notes, kind: l.kind || 'loan', total: l.amount, installments: l.installments, installmentAmount: l.installment_amount, frequency, number, balance, amount,
+      payoff: isPayoff, skipped: Boolean(notDue) || (!isPayoff && skip.includes(l.id)), notDue });
   }
   return { lines, total: lines.filter(x => !x.skipped).reduce((a, x) => a + x.amount, 0) };
 }

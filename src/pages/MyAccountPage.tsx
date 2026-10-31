@@ -100,8 +100,8 @@ const MyAccountPage = () => {
           <div className="divide-y divide-border text-xs">
             {prestamos.map((l: any) => (
               <div key={l.id} className={cn('px-4 py-2.5 flex justify-between gap-2', l.status !== 'active' && 'opacity-60')}>
-                <span><b>Préstamo</b> · {fmtDate(l.date)}{l.notes ? ` · ${l.notes}` : ''}<span className="block text-[11px] text-muted-foreground">{l.installments} cuota(s) de {formatPrice(l.installmentAmount)} · pagado {formatPrice(l.paidTotal)}</span></span>
-                <span className="text-right">{formatPrice(l.amount)}<span className="block font-bold">{l.status === 'active' ? `saldo ${formatPrice(l.balance)}` : 'pagado'}</span></span>
+                <span><b>Préstamo</b> · {fmtDate(l.date)}{l.notes ? ` · ${l.notes}` : ''}<span className="block text-[11px] text-muted-foreground">{l.installments} cuota(s) de {formatPrice(l.installmentAmount)} {l.frequencyLabel || 'cada quincena'} · pagado {formatPrice(l.paidTotal)} ({l.paymentsCount} cuota(s)){l.status === 'active' ? ` · faltan ${l.remainingInstallments}` : ''}</span></span>
+                <span className="text-right">{formatPrice(l.amount)}<span className="block font-bold">{l.status === 'active' ? `debe ${formatPrice(l.balance)}` : 'pagado'}</span></span>
               </div>
             ))}
             {advances.map((a: any) => <div key={'a' + a.id} className="px-4 py-2.5 flex justify-between"><span><b>Anticipo</b> · {fmtDate(a.date)}{a.notes ? ` · ${a.notes}` : ''}</span><span className="font-bold">{formatPrice(a.amount)}</span></div>)}

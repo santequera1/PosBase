@@ -571,11 +571,15 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                 )}
                 {(preview.loans || []).map((l: any) => (
                   <div key={l.id} className="py-1.5" data-loan-line>
-                    <div className={cn('flex justify-between', l.skipped ? 'text-muted-foreground line-through' : 'text-red-700')}><span>Préstamo: cuota {l.payoff ? 'final (saldo completo)' : `${l.number} de ${l.installments}`}{l.notes ? ` · ${l.notes}` : ''}</span><span>− {formatPrice(l.amount)}</span></div>
+                    <div className={cn('flex justify-between', l.skipped ? 'text-muted-foreground line-through' : 'text-red-700')}><span>{l.kind === 'consumo' ? 'Consumo' : 'Préstamo'}: {l.payoff ? 'saldo completo' : l.kind === 'consumo' ? 'se descuenta completo' : `cuota ${l.number} de ${l.installments} (${l.frequency === 'monthly' ? 'mensual' : 'quincenal'})`}{l.notes ? ` · ${l.notes}` : ''}</span><span>− {formatPrice(l.amount)}</span></div>
                     <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground mt-0.5">
                       <span>Saldo antes: {formatPrice(l.balance)}</span>
-                      <label className="flex items-center gap-1"><input type="checkbox" checked={l.skipped} onChange={e => setLoanOpts(e.target.checked ? [...skipLoans, l.id] : skipLoans.filter(x => x !== l.id), payoffLoans.filter(x => x !== l.id))} /> No descontar esta vez</label>
-                      <label className="flex items-center gap-1"><input type="checkbox" checked={l.payoff} onChange={e => setLoanOpts(skipLoans.filter(x => x !== l.id), e.target.checked ? [...payoffLoans, l.id] : payoffLoans.filter(x => x !== l.id))} /> Cobrar el saldo completo</label>
+                      {l.notDue ? <span className="text-amber-700">{l.notDue}</span> : (
+                        <>
+                          <label className="flex items-center gap-1"><input type="checkbox" checked={l.skipped} onChange={e => setLoanOpts(e.target.checked ? [...skipLoans, l.id] : skipLoans.filter(x => x !== l.id), payoffLoans.filter(x => x !== l.id))} /> No descontar esta vez</label>
+                          <label className="flex items-center gap-1"><input type="checkbox" checked={l.payoff} onChange={e => setLoanOpts(skipLoans.filter(x => x !== l.id), e.target.checked ? [...payoffLoans, l.id] : payoffLoans.filter(x => x !== l.id))} /> Cobrar el saldo completo</label>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

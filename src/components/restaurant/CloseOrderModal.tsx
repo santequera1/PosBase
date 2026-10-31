@@ -48,10 +48,9 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
   const [mixLines, setMixLines] = useState<MixedLine[]>([{ method: 'cash', amount: '' }, { method: 'transfer', amount: '' }]);
   const [mixReceived, setMixReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
   const [markDelivered, setMarkDelivered] = useState(order.type !== 'delivery' || order.status === 'shipped');
-  // Descuento de nómina: empleado (por defecto el del descuento de trabajador, si lo hay) y en cuántas quincenas/meses
+  // Descuento de nómina: empleado (por defecto el del descuento de trabajador, si lo hay); el consumo se descuenta completo en su próxima quincena
   const staffAll = restaurant?.staff.all || [];
   const [payEmp, setPayEmp] = useState<number>(order.discountEmployeeId || 0);
-  const [payInst, setPayInst] = useState(1);
   // El trabajador al que se le hizo el descuento es, por defecto, a quien se le carga a la nómina
   useEffect(() => { if (cat?.employeeId && !payEmp) setPayEmp(cat.employeeId); }, [cat?.employeeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saving, setSaving] = useState(false);
@@ -82,7 +81,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
         paymentMethod: method, discount: disc, discountReason, tip: tip + overpay, tipTo, markDelivered,
         ...(cat ? { discountId: cat.discountId, discountValue: cat.value, discountEmployeeId: cat.employeeId } : {}),
         cashReceived: method === 'cash' ? (received || due) : undefined,
-        ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: payInst } : {}),
+        ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: 1 } : {}),
         paymentSplit: method === 'mixed' ? { parts: mix.parts } : undefined,
         ...(method === 'mixed' && mix.change > 0 ? { cashReceived: mix.cashReceived } : method === 'mixed' && Number(mixReceived) > 0 ? { cashReceived: Math.round(Number(mixReceived)) } : {}),
       });
@@ -101,7 +100,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
           <p className="text-2xl font-bold text-brand-dark">{formatPrice(done.amountDue || done.total)}</p>
           <p className="text-xs text-muted-foreground">{PAYMENT_LABEL[done.paymentMethod] || done.paymentMethod}{done.paymentStatus === 'pending' ? ' · queda por cobrar' : ''}{done.cashChange ? ` · vueltas ${formatPrice(done.cashChange)}` : ''}</p>
           {done.tip ? <p className="text-xs text-muted-foreground">Propina {formatPrice(done.tip)} registrada en Personal.</p> : null}
-          {done.paymentMethod === 'payroll' && <p className="text-xs font-semibold text-emerald-700" data-payroll-done>Cargado a la nómina de {staffAll.find(e => e.id === payEmp)?.name || 'el empleado'}{payInst > 1 ? ` en ${payInst} cuotas` : ''}: queda en su perfil (Personal → Préstamos y consumos).</p>}
+          {done.paymentMethod === 'payroll' && <p className="text-xs font-semibold text-emerald-700" data-payroll-done>Cargado a la nómina de {staffAll.find(e => e.id === payEmp)?.name || 'el empleado'}: queda en su perfil (Personal → Préstamos y consumos).</p>}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={print} className="py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-brand-dark flex items-center justify-center gap-1.5"><Printer size={15} /> Imprimir recibo</button>
@@ -193,9 +192,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
                   <option value="0">Elige el empleado...</option>
                   {staffAll.map(e => <option key={e.id} value={String(e.id)}>{e.name}</option>)}
                 </NiceSelect></div>
-              <div className="flex items-center gap-1.5 flex-wrap"><span className="text-xs text-muted-foreground">Descontar en</span>
-                {[1, 2, 3].map(n => <Chip key={n} active={payInst === n} onClick={() => setPayInst(n)}>{n === 1 ? '1 pago' : `${n} cuotas`}</Chip>)}</div>
-              <p className="text-[11px] text-muted-foreground">No entra a la caja hoy. Queda en el perfil del empleado y se descuenta sola en su próxima liquidación de nómina (quincenal o mensual){payInst > 1 ? ` en ${payInst} cuotas de ${formatPrice(Math.ceil(total / payInst))}` : ''}. Sin propina.</p>
+              <p className="text-[11px] text-muted-foreground">No entra a la caja hoy. Queda como consumo del empleado y se descuenta completo en su próxima quincena. Sin propina.</p>
             </div>
           )}
           {method === 'credit' && <p className="text-[11px] text-amber-700">Queda pendiente de pago. Aparecerá en Historial → Por cobrar hasta que se registre el pago.</p>}

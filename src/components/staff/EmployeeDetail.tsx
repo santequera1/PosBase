@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Phone, Mail, IdCard, Landmark, CalendarDays, Link2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Phone, Mail, IdCard, Landmark, CalendarDays, Link2, Pencil, Trash2, UtensilsCrossed } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -138,22 +138,30 @@ export const EmployeeDetail = ({ employee, onClose, onEdit }: { employee: any; o
         {/* Préstamos y consumos */}
         <Section title="Préstamos y consumos por nómina" right={<button onClick={() => setNewLoan(true)} className="px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold flex items-center gap-1" data-account-new-loan><Plus size={12} /> Nuevo préstamo</button>}>
           {!loans ? <p className="p-3 text-xs text-muted-foreground">Cargando…</p> : rows.length === 0 ? <p className="p-3 text-xs text-muted-foreground text-center">Sin préstamos ni consumos.</p> : (
-            <div className="overflow-x-auto"><table className="w-full text-xs">
-              <thead className="text-muted-foreground"><tr><th className="text-left px-3 py-1.5">Fecha</th><th className="text-left px-3 py-1.5">Concepto</th><th className="text-right px-3 py-1.5">Valor</th><th className="text-right px-3 py-1.5">Cuota</th><th className="text-right px-3 py-1.5">Pagado</th><th className="text-right px-3 py-1.5">Saldo</th><th className="px-2 py-1.5" /></tr></thead>
-              <tbody>{rows.map(r => (
-                <tr key={r.id} className={cn('border-t border-border', r.status !== 'active' && 'opacity-50')} data-account-row={r.kind}>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{fmtDate(r.date)}</td>
-                  <td className="px-3 py-1.5"><span className="font-semibold">{r.kind === 'consumo' ? `Consumo${r.orderId ? ` · venta #${r.orderId}` : ''}` : 'Préstamo'}</span><span className="block text-[10px] text-muted-foreground">{r.installments} cuota(s){r.notes && r.kind !== 'consumo' ? ` · ${r.notes}` : ''}{r.status === 'paid' ? ' · pagado' : ''}</span></td>
-                  <td className="px-3 py-1.5 text-right">{formatPrice(r.amount)}</td>
-                  <td className="px-3 py-1.5 text-right">{formatPrice(r.installmentAmount)}</td>
-                  <td className="px-3 py-1.5 text-right">{formatPrice(r.paidTotal)}</td>
-                  <td className="px-3 py-1.5 text-right font-bold">{formatPrice(r.balance)}</td>
-                  <td className="px-2 py-1 text-right">{r.paidTotal > 0
-                    ? <span className="text-[10px] text-muted-foreground" title="Ya tiene cuotas descontadas en una liquidación">—</span>
-                    : <button onClick={() => removeRow(r)} className="p-1.5 rounded-lg text-red-600 hover:bg-red-50" title={r.kind === 'consumo' ? 'Quitar este consumo (anula la venta)' : 'Eliminar este préstamo'} data-remove-loan={r.id}><Trash2 size={13} /></button>}</td>
-                </tr>
-              ))}</tbody>
-            </table></div>
+            <ul className="divide-y divide-border">{rows.map(r => {
+              const pct = r.amount ? Math.round((r.paidTotal / r.amount) * 100) : 0;
+              const consumo = r.kind === 'consumo';
+              return (
+                <li key={r.id} className={cn('px-3 py-2.5 flex items-start gap-3', r.status !== 'active' && 'opacity-50')} data-account-row={r.kind}>
+                  <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', consumo ? 'bg-amber-50 text-amber-700' : 'bg-brand-button/10 text-brand-primary')}>{consumo ? <UtensilsCrossed size={15} /> : <Landmark size={15} />}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-semibold text-brand-dark truncate">{consumo ? `Consumo${r.orderId ? ` · venta #${r.orderId}` : ''}` : 'Préstamo'}{r.notes && !consumo ? <span className="font-normal text-muted-foreground"> · {r.notes}</span> : null}</p>
+                      <p className="text-xs font-bold text-brand-dark whitespace-nowrap">{formatPrice(r.amount)}</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{fmtDate(r.date)} · {consumo ? 'se descuenta completo en la próxima quincena' : `${formatPrice(r.installmentAmount)} ${r.frequencyLabel || 'cada quincena'} · ${r.installments} cuota(s)`}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">pagado {formatPrice(r.paidTotal)}</span>
+                      <span className={cn('text-[11px] font-bold whitespace-nowrap', r.status === 'active' ? 'text-amber-700' : 'text-emerald-700')}>{r.status === 'active' ? `debe ${formatPrice(r.balance)}${!consumo && r.remainingInstallments ? ` · faltan ${r.remainingInstallments}` : ''}` : 'pagado'}</span>
+                    </div>
+                  </div>
+                  {r.paidTotal > 0 && r.paymentsCount > (r.paymentsBefore || 0)
+                    ? <span className="text-[10px] text-muted-foreground mt-2" title="Ya tiene cuotas descontadas en una liquidación">—</span>
+                    : <button onClick={() => removeRow(r)} className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 mt-1" title={consumo ? 'Quitar este consumo (anula la venta)' : 'Eliminar este préstamo'} data-remove-loan={r.id}><Trash2 size={13} /></button>}
+                </li>
+              );
+            })}</ul>
           )}
           <p className="px-3 py-2 text-[11px] text-muted-foreground">Las cuotas se descuentan solas en cada liquidación. Los consumos salen de ventas cobradas con <b>Nómina</b>. Si uno se cargó por error, quítalo con el ícono de la papelera (anula esa venta). Lo que ya se descontó en una liquidación no se puede quitar.</p>
         </Section>

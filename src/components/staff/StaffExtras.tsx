@@ -118,27 +118,38 @@ export const TipsAccountPanel = ({ isAdmin }: { isAdmin: boolean }) => {
 
       <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
         <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><HandCoins size={13} /> Propinas por colaborador</p>{cfg && <span className="text-[10px] text-muted-foreground">{cfg.payout === 'separate' ? 'Se pagan aparte' : 'Se pagan en la liquidación de nómina'}</span>}</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs" data-tips-statement>
-            <thead><tr className="text-muted-foreground bg-muted/30">{['Colaborador', 'Puntos', 'Saldo anterior', 'Directas', 'Común', 'Ganado', 'Pagado', 'Saldo', ''].map((h, i) => <th key={i} className={cn('px-3 py-1.5 font-semibold whitespace-nowrap', i === 0 ? 'text-left' : 'text-right')}>{h}</th>)}</tr></thead>
-            <tbody>
-              {rows.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Sin propinas en el período.</td></tr>}
-              {rows.map((r: any) => (
-                <tr key={r.employeeId} className={cn('border-t border-border', !r.active && 'opacity-60')}>
-                  <td className="px-3 py-2 font-semibold text-brand-dark whitespace-nowrap">{r.name}<span className="block text-[10px] font-normal text-muted-foreground">{r.position}</span></td>
-                  <td className="px-3 py-2 text-right">{r.points}</td>
-                  <td className="px-3 py-2 text-right text-muted-foreground">{formatPrice(r.previousBalance)}</td>
-                  <td className="px-3 py-2 text-right">{formatPrice(r.direct)}</td>
-                  <td className="px-3 py-2 text-right"><button onClick={() => setDetail(r)} className="underline decoration-dotted">{formatPrice(r.shared)}</button></td>
-                  <td className="px-3 py-2 text-right font-semibold">{formatPrice(r.accrued)}</td>
-                  <td className="px-3 py-2 text-right text-emerald-700">{formatPrice(r.paid)}</td>
-                  <td className={cn('px-3 py-2 text-right font-bold', r.balance > 0 ? 'text-amber-700' : 'text-brand-dark')}>{formatPrice(r.balance)}</td>
-                  <td className="px-3 py-2 text-right">{r.balance > 0 && cfg?.payout === 'separate' && <button onClick={() => setAbono(r)} data-tip-abono={r.employeeId} className="px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold whitespace-nowrap">Abonar</button>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {rows.length === 0 ? <p className="p-6 text-center text-xs text-muted-foreground">Sin propinas en el período.</p> : (
+          <ul className="divide-y divide-border" data-tips-statement>
+            {rows.map((r: any) => (
+              <li key={r.employeeId} className={cn('px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3', !r.active && 'opacity-60')} data-tips-row={r.employeeId}>
+                <div className="flex items-center gap-3 lg:w-64 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-brand-accent/30 text-brand-dark flex items-center justify-center text-sm font-bold shrink-0">{String(r.name).split(' ').map((p: string) => p[0]).slice(0, 2).join('')}</div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-brand-dark truncate">{r.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.position || 'Sin cargo'}{cfg?.commonSplit === 'points' ? ` · ${r.points} pts` : ''}{!r.active ? ' · inactivo' : ''}</p>
+                  </div>
+                </div>
+                <div className="flex-1 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-brand-card px-3 py-1.5">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ganado en el período</p>
+                    <p className="text-sm font-bold text-brand-dark">{formatPrice(r.accrued)}</p>
+                    <p className="text-[10px] text-muted-foreground">{r.direct ? `directas ${formatPrice(r.direct)} · ` : ''}<button onClick={() => setDetail(r)} className="underline decoration-dotted" title="Ver el reparto día por día">común {formatPrice(r.shared)}</button></p>
+                  </div>
+                  <div className="rounded-lg bg-brand-card px-3 py-1.5">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Pagado</p>
+                    <p className="text-sm font-bold text-emerald-700">{formatPrice(r.paid)}</p>
+                    {r.previousBalance ? <p className="text-[10px] text-muted-foreground">venía con {formatPrice(r.previousBalance)} pendiente</p> : null}
+                  </div>
+                  <div className={cn('rounded-lg px-3 py-1.5', r.balance > 0 ? 'bg-amber-50' : 'bg-brand-card')}>
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Por pagar</p>
+                    <p className={cn('text-sm font-bold', r.balance > 0 ? 'text-amber-700' : 'text-brand-dark')}>{formatPrice(r.balance)}</p>
+                  </div>
+                </div>
+                <div className="lg:w-24 flex lg:justify-end">{r.balance > 0 && cfg?.payout === 'separate' && <button onClick={() => setAbono(r)} data-tip-abono={r.employeeId} className="px-3 py-1.5 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-semibold whitespace-nowrap">Abonar</button>}</div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
@@ -434,8 +445,8 @@ export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name:
                 <li key={l.id} className="px-4 py-2.5 space-y-1.5">
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-brand-dark">{l.employeeName} <span className="font-normal text-muted-foreground">· {formatPrice(l.amount)} en {l.installments} cuota(s) de {formatPrice(l.installmentAmount)}</span></p>
-                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · pagado {formatPrice(l.paidTotal)} en {l.paymentsCount} cuota(s){l.status === 'active' ? ` · faltan ${Math.max(1, Math.ceil(l.balance / Math.max(1, l.installmentAmount)))}` : ''}</p>
+                      <p className="text-sm font-semibold text-brand-dark">{l.employeeName} <span className="font-normal text-muted-foreground">· {formatPrice(l.amount)} en {l.installments} cuota(s) de {formatPrice(l.installmentAmount)} {l.frequencyLabel}</span></p>
+                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · pagado {formatPrice(l.paidTotal)} ({l.paymentsCount} cuota(s){l.paymentsBefore ? `, ${l.paymentsBefore} de antes` : ''}){l.status === 'active' ? ` · faltan ${l.remainingInstallments}` : ''}</p>
                     </div>
                     {l.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Pagado</span> : <span className="text-sm font-bold text-amber-700">{formatPrice(l.balance)}</span>}
                     <button onClick={() => setDetail(l)} className="px-2 py-1 rounded-lg border border-border text-[11px] font-semibold">Ver</button>
@@ -451,36 +462,75 @@ export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name:
       {show && <LoanModal employees={employees} hasShift={!!currentShift} onClose={() => setShow(false)} onSaved={l => { setShow(false); if (l.fromCashRegister) refreshCurrentShift(); load(); }} />}
       {detail && (
         <Modal title={`Préstamo de ${detail.employeeName}`} onClose={() => setDetail(null)}>
-          <p className="text-xs text-muted-foreground">{formatPrice(detail.amount)} el {fmtDate(detail.date)} · {detail.installments} cuota(s) de {formatPrice(detail.installmentAmount)} · sin intereses</p>
-          <table className="w-full text-xs"><thead><tr className="text-muted-foreground"><th className="text-left py-1">Cuota</th><th className="text-left">Fecha</th><th className="text-left">Liquidación</th><th className="text-right">Valor</th></tr></thead>
-            <tbody>{payments.map((p, i) => <tr key={p.id} className="border-t border-border"><td className="py-1">{i + 1}</td><td>{fmtDate(p.date)}</td><td>#{p.settlementId}</td><td className="text-right font-semibold">{formatPrice(p.amount)}</td></tr>)}
-              {payments.length === 0 && <tr><td colSpan={4} className="py-3 text-center text-muted-foreground">Aún no se ha descontado ninguna cuota.</td></tr>}
-              <tr className="border-t border-border font-bold"><td colSpan={3} className="py-1">Saldo</td><td className="text-right">{formatPrice(detail.balance)}</td></tr></tbody></table>
+          <div className="grid grid-cols-3 gap-2">
+            <KpiCard label="Prestado" value={formatPrice(detail.amount)} sub={`${fmtDate(detail.date)} · ${detail.installments} cuotas de ${formatPrice(detail.installmentAmount)} ${detail.frequencyLabel}`} />
+            <KpiCard label="Pagado" value={formatPrice(detail.paidTotal)} sub={`${detail.paymentsCount} cuota(s)`} />
+            <KpiCard label="Saldo" value={formatPrice(detail.balance)} sub={detail.status === 'active' ? `faltan ${detail.remainingInstallments}` : 'pagado'} className={detail.balance > 0 ? 'bg-amber-50 border-amber-200' : ''} />
+          </div>
+          <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${detail.amount ? Math.round((detail.paidTotal / detail.amount) * 100) : 0}%` }} /></div>
+          {payments.length === 0 ? <p className="py-2 text-center text-xs text-muted-foreground">Aún no se ha descontado ninguna cuota.</p> : (
+            <ul className="divide-y divide-border rounded-xl border border-border overflow-hidden text-xs" data-loan-payments>
+              {payments.map((p, i) => (
+                <li key={p.id} className="flex items-center gap-3 px-3 py-2">
+                  <span className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                  <span className="flex-1 min-w-0"><span className="font-semibold text-brand-dark">{fmtDate(p.date)}</span><span className="block text-[11px] text-muted-foreground truncate">{p.settlementId ? `Descontada en la liquidación #${p.settlementId}` : p.notes || 'Antes de registrarlo en el sistema'}</span></span>
+                  <span className="font-bold text-brand-dark">{formatPrice(p.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Modal>
       )}
     </div>
   );
 };
 
-export const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: Array<{ id: number; name: string }>; hasShift: boolean; onClose: () => void; onSaved: (l: any) => void }) => {
-  const [f, setF] = useState({ employeeId: employees[0]?.id || 0, date: getColombiaTodayStr(), amount: '', installments: '2', installmentAmount: '', fromCashRegister: false, notes: '' });
+type LoanEmp = { id: number; name: string; payMode?: string; baseAmount?: number };
+/** Sueldo que recibe por quincena (para mostrar qué tanto pesa la cuota). */
+const fortnightPay = (e?: LoanEmp) => !e || !e.baseAmount ? 0 : e.payMode === 'monthly' ? Math.round(e.baseAmount / 2) : e.payMode === 'biweekly' ? e.baseAmount : e.payMode === 'per_day' || e.payMode === 'per_shift' ? e.baseAmount * 15 : 0;
+const addPeriods = (dateStr: string, n: number, monthly: boolean) => {
+  const d = new Date(dateStr + 'T12:00:00');
+  if (monthly) d.setMonth(d.getMonth() + n); else d.setDate(d.getDate() + n * 15);
+  return d.toISOString().slice(0, 10);
+};
+
+export const LoanModal = ({ employees, hasShift, onClose, onSaved }: { employees: LoanEmp[]; hasShift: boolean; onClose: () => void; onSaved: (l: any) => void }) => {
+  const [f, setF] = useState({ employeeId: employees[0]?.id || 0, date: getColombiaTodayStr(), amount: '', installments: '2', installmentAmount: '', frequency: 'biweekly', paidInstallments: '0', fromCashRegister: false, notes: '' });
   const [error, setError] = useState('');
   const set = (p: any) => setF(x => ({ ...x, ...p }));
-  const auto = Number(f.amount) > 0 ? Math.ceil(Number(f.amount) / Math.max(1, Number(f.installments) || 1)) : 0;
+  const n = Math.max(1, Number(f.installments) || 1);
+  const auto = Number(f.amount) > 0 ? Math.ceil(Number(f.amount) / n) : 0;
+  const cuota = Number(f.installmentAmount) || auto;
+  const paidBefore = Math.max(0, Math.min(n - 1, Number(f.paidInstallments) || 0));
+  const remaining = n - paidBefore;
+  const emp = employees.find(e => e.id === f.employeeId);
+  const pay = fortnightPay(emp);
+  const monthly = f.frequency === 'monthly';
   const save = async () => {
     setError('');
-    try { onSaved(await api.addLoan({ ...f, amount: Number(f.amount), installments: Number(f.installments) || 1, installmentAmount: f.installmentAmount === '' ? undefined : Number(f.installmentAmount), fromCashRegister: f.fromCashRegister && hasShift })); }
+    try { onSaved(await api.addLoan({ ...f, amount: Number(f.amount), installments: n, installmentAmount: f.installmentAmount === '' ? undefined : Number(f.installmentAmount), paidInstallments: paidBefore, fromCashRegister: f.fromCashRegister && hasShift })); }
     catch (e: any) { setError(e.message); }
   };
   return (
     <Modal title="Nuevo préstamo (libranza)" onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2"><label className={LABEL}>Colaborador</label><NiceSelect value={f.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</NiceSelect></div>
-        <div><label className={LABEL}>Fecha</label><input type="date" value={f.date} onChange={e => set({ date: e.target.value })} className={INPUT} /></div>
+        <div><label className={LABEL}>Fecha del préstamo</label><input type="date" value={f.date} onChange={e => set({ date: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Valor prestado</label><input type="number" min={0} value={f.amount} onChange={e => set({ amount: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-amount /></div>
-        <div><label className={LABEL}>Número de cuotas</label><input type="number" min={1} max={120} value={f.installments} onChange={e => set({ installments: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-installments /></div>
+        <div className="col-span-2"><label className={LABEL}>La cuota se descuenta</label>
+          <div className="flex gap-2">
+            <Chip active={!monthly} onClick={() => set({ frequency: 'biweekly' })} data-loan-freq="biweekly">Cada quincena</Chip>
+            <Chip active={monthly} onClick={() => set({ frequency: 'monthly' })} data-loan-freq="monthly">Cada mes (en la segunda quincena)</Chip>
+          </div>
+        </div>
+        <div><label className={LABEL}>Número de cuotas ({monthly ? 'meses' : 'quincenas'})</label><input type="number" min={1} max={120} value={f.installments} onChange={e => set({ installments: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-installments /></div>
         <div><label className={LABEL}>Valor de la cuota</label><input type="number" min={0} value={f.installmentAmount} placeholder={auto ? String(auto) : ''} onChange={e => set({ installmentAmount: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
-        <p className="col-span-2 text-[11px] text-muted-foreground">Sin intereses: se descuenta {formatPrice(Number(f.installmentAmount) || auto)} en cada liquidación hasta completar {formatPrice(Number(f.amount) || 0)}.</p>
+        <div><label className={LABEL}>Cuotas ya pagadas (si venía de antes)</label><input type="number" min={0} max={n - 1} value={f.paidInstallments} onChange={e => set({ paidInstallments: e.target.value })} className={cn(INPUT, 'font-mono')} data-loan-paid-before /><p className="text-[10px] text-muted-foreground mt-1">Si ya le habían descontado cuotas antes de registrarlo aquí.</p></div>
+        <div className="rounded-lg bg-brand-card border border-brand-accent/30 p-2.5 text-[11px] text-brand-dark space-y-0.5" data-loan-summary>
+          <p><b>{formatPrice(cuota)}</b> {monthly ? 'cada mes' : 'cada quincena'}{pay > 0 ? <span className="text-muted-foreground"> · {Math.round((cuota / (monthly ? pay * 2 : pay)) * 100)} % de lo que recibe {monthly ? 'al mes' : 'por quincena'} ({formatPrice(monthly ? pay * 2 : pay)})</span> : null}</p>
+          <p>{paidBefore > 0 ? `Ya pagó ${paidBefore} de ${n}; ` : ''}Faltan <b>{remaining}</b> cuota(s) = {formatPrice(Math.max(0, (Number(f.amount) || 0) - paidBefore * cuota))}{Number(f.amount) > 0 ? ` · termina aprox. el ${fmtDate(addPeriods(f.date || getColombiaTodayStr(), remaining, monthly))}` : ''}.</p>
+          <p className="text-muted-foreground">Sin intereses. La cuota se resta sola en cada liquidación de nómina{monthly ? ' que cierre la segunda quincena del mes' : ''}.</p>
+        </div>
         <div className="col-span-2"><label className={LABEL}>Notas</label><input value={f.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} placeholder="Ej. para matrícula, firmó libranza" /></div>
         <label className={cn('col-span-2 flex items-start gap-2 p-3 rounded-lg border text-xs', hasShift ? 'border-brand-accent/40 bg-brand-card cursor-pointer' : 'border-border bg-muted/30 opacity-70')}>
           <input type="checkbox" disabled={!hasShift} checked={f.fromCashRegister && hasShift} onChange={e => set({ fromCashRegister: e.target.checked })} className="mt-0.5" />

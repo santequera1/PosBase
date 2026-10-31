@@ -18,3 +18,7 @@
   cuotas (Anticipos y préstamos → Nuevo préstamo), adicionales con tarifa (Novedades → "Adicionales y tarifas" → novedad
   "Adicional"). Sus adicionales tenían tarifa 0: deben ponerla. Un empleado (Brayan) está como "Quincenal 2.000.000":
   confirmar si es mensual.
+- **31-oct-2026 (2):** préstamos con cuota "cada quincena" o "cada mes" (la mensual se descuenta solo en la liquidación que
+  cierra la segunda quincena) y "cuotas ya pagadas" para los que venían de antes (el de Viviana: 10 millones, 20 cuotas
+  mensuales, va por la 2.ª). El consumo por nómina ya no pregunta en cuántas cuotas: siempre se descuenta completo en la
+  quincena siguiente. Propinas por colaborador y préstamos del detalle ya no son tablas sino filas tipo tarjeta.

@@ -398,7 +398,7 @@ router.post('/settlements', ADMIN, (req, res) => {
     extras: c.extras.lines, hours: c.extras.hoursSummary, hourlyValue: c.extras.hourlyValue, hoursPerDay: c.extras.hoursPerDay, sundayPct: c.extras.sundayPct,
     allowance: c.allowance, legalDeductions: c.legalDeductions.lines, salaryBase: c.salaryBase, tipsDirect: c.tipsDirect, tipsShared: c.tipsShared, tipsSeparate: c.tipsSeparate,
     novelties: c.novelties.map(n => ({ id: n.id, date: n.date, type: n.type, label: n.label, group: n.group, quantity: n.quantity, amount: n.amount, notes: n.notes })),
-    loans: c.loans.filter(l => !l.skipped).map(l => ({ id: l.id, number: l.number, installments: l.installments, amount: l.amount, balance: l.balance - l.amount, payoff: l.payoff, notes: l.notes })),
+    loans: c.loans.filter(l => !l.skipped).map(l => ({ id: l.id, number: l.number, installments: l.installments, frequency: l.frequency, amount: l.amount, balance: l.balance - l.amount, payoff: l.payoff, notes: l.notes })),
   });
   const info = db.prepare(`INSERT INTO payroll_settlements (employee_id, period_start, period_end, pay_mode, units, unit_amount, base_total, tips_total, advances_total, bonuses, deductions, total, status, notes,
     extras_total, allowance_total, legal_deductions_total, details, novelties_extras, novelties_bonus, novelties_absence, novelties_deductions, loans_total)
@@ -557,8 +557,12 @@ router.put('/novelties/tasks', ADMIN, (req, res) => res.json(PX.saveTasks(getDb(
 /* ------------------------------------------------------------------ */
 const LOAN_SELECT = `SELECT l.id, l.employee_id AS employeeId, e.name AS employeeName, e.document, l.date, l.amount, l.installments, l.installment_amount AS installmentAmount, l.paid_total AS paidTotal,
   l.amount - l.paid_total AS balance, l.status, l.from_cash_register AS fromCashRegister, l.notes, l.created_by AS createdBy, l.created_at AS createdAt, COALESCE(l.kind, 'loan') AS kind, l.order_id AS orderId,
-  (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id) AS paymentsCount FROM employee_loans l JOIN employees e ON e.id = l.employee_id`;
-const mapLoan = r => ({ ...r, fromCashRegister: Boolean(r.fromCashRegister) });
+  COALESCE(l.frequency, 'biweekly') AS frequency,
+  (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id) AS paymentsCount,
+  (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id AND p.settlement_id IS NULL) AS paymentsBefore FROM employee_loans l JOIN employees e ON e.id = l.employee_id`;
+const LOAN_FREQ_LABEL = { biweekly: 'cada quincena', monthly: 'cada mes' };
+const mapLoan = r => ({ ...r, fromCashRegister: Boolean(r.fromCashRegister), frequencyLabel: LOAN_FREQ_LABEL[r.frequency] || r.frequency,
+  remainingInstallments: r.status === 'active' && r.installmentAmount > 0 ? Math.max(1, Math.ceil(r.balance / r.installmentAmount)) : 0 });
 
 router.get('/loans', ADMIN, (req, res) => {
   const db = getDb();
@@ -573,7 +577,7 @@ router.get('/loans', ADMIN, (req, res) => {
 });
 
 router.get('/loans/:id/payments', ADMIN, (req, res) => {
-  res.json(getDb().prepare('SELECT p.id, p.date, p.amount, p.settlement_id AS settlementId FROM loan_payments p WHERE p.loan_id = ? ORDER BY p.id').all(Number(req.params.id)));
+  res.json(getDb().prepare("SELECT p.id, p.date, p.amount, p.settlement_id AS settlementId, COALESCE(p.notes, '') AS notes FROM loan_payments p WHERE p.loan_id = ? ORDER BY p.id").all(Number(req.params.id)));
 });
 
 router.post('/loans', ADMIN, (req, res) => {
@@ -586,6 +590,10 @@ router.post('/loans', ADMIN, (req, res) => {
   let installmentAmount = Math.round(Number(req.body.installmentAmount));
   if (!Number.isFinite(installmentAmount) || installmentAmount <= 0) installmentAmount = Math.ceil(amount / installments);
   if (installmentAmount > amount) return res.status(400).json({ error: 'La cuota no puede ser mayor al préstamo' });
+  const frequency = req.body.frequency === 'monthly' ? 'monthly' : 'biweekly';
+  // Préstamo que venía de antes: cuotas que ya se habían descontado (no pasan por la caja ni por una liquidación)
+  const paidBefore = Math.max(0, Math.min(installments - 1, Math.round(Number(req.body.paidInstallments) || 0)));
+  const paidTotal = Math.min(amount, paidBefore * installmentAmount);
   const date = isDate(req.body.date) ? req.body.date : today(db);
   const fromCash = Boolean(req.body.fromCashRegister);
   let cashMovementId = null;
@@ -594,18 +602,28 @@ router.post('/loans', ADMIN, (req, res) => {
     if (r.error) return res.status(400).json({ error: r.error });
     cashMovementId = r.id;
   }
-  const info = db.prepare('INSERT INTO employee_loans (employee_id, date, amount, installments, installment_amount, from_cash_register, cash_movement_id, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(emp.id, date, amount, installments, installmentAmount, fromCash ? 1 : 0, cashMovementId, String(req.body.notes || '').trim(), req.user?.name || '');
-  res.status(201).json(mapLoan(db.prepare(`${LOAN_SELECT} WHERE l.id = ?`).get(info.lastInsertRowid)));
+  const id = db.transaction(() => {
+    const info = db.prepare('INSERT INTO employee_loans (employee_id, date, amount, installments, installment_amount, from_cash_register, cash_movement_id, notes, created_by, frequency, paid_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(emp.id, date, amount, installments, installmentAmount, fromCash ? 1 : 0, cashMovementId, String(req.body.notes || '').trim(), req.user?.name || '', frequency, paidTotal);
+    const loanId = Number(info.lastInsertRowid);
+    for (let i = 0; i < paidBefore; i++) {
+      db.prepare("INSERT INTO loan_payments (loan_id, employee_id, date, amount, settlement_id, notes) VALUES (?, ?, ?, ?, NULL, 'Descontada antes de registrar el préstamo en el sistema')")
+        .run(loanId, emp.id, date, i === paidBefore - 1 ? paidTotal - installmentAmount * (paidBefore - 1) : installmentAmount);
+    }
+    return loanId;
+  })();
+  res.status(201).json(mapLoan(db.prepare(`${LOAN_SELECT} WHERE l.id = ?`).get(id)));
 });
 
 router.delete('/loans/:id', ADMIN, (req, res) => {
   const db = getDb();
   const cur = db.prepare('SELECT * FROM employee_loans WHERE id = ?').get(Number(req.params.id));
   if (!cur) return res.status(404).json({ error: 'Préstamo no encontrado' });
-  if (db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ?').get(cur.id).c > 0) return res.status(400).json({ error: 'Este préstamo ya tiene cuotas descontadas en nómina; no se puede eliminar' });
+  // Solo bloquea si hay cuotas descontadas en una liquidación; las "de antes del sistema" se borran con el préstamo
+  if (db.prepare('SELECT COUNT(*) AS c FROM loan_payments WHERE loan_id = ? AND settlement_id IS NOT NULL').get(cur.id).c > 0) return res.status(400).json({ error: 'Este préstamo ya tiene cuotas descontadas en nómina; no se puede eliminar' });
   if (cur.kind === 'consumo') return res.status(400).json({ error: `Es el consumo de la venta #${cur.order_id}: para quitarlo, anula esa venta en Caja → Ventas` });
   removeCashMovementIfOpen(db, cur.cash_movement_id);
+  db.prepare('DELETE FROM loan_payments WHERE loan_id = ?').run(cur.id);
   db.prepare('DELETE FROM employee_loans WHERE id = ?').run(cur.id);
   res.json({ success: true });
 });
