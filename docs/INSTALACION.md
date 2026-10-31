@@ -88,5 +88,4 @@ creadas antes se actualizan una sola vez con:
 sudo python3 scripts/instancias/nginx-pagina-app.py dominio1 dominio2 ... && sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Hecho el 28-oct-2026 en demo, moodi, fritop y pokotoon; **pendiente en pos.wailus.co (Wonka's)**: desplegar y correr el
-script fuera del horario de atención.
+Hecho el 28-oct-2026 en demo, moodi, fritop y pokotoon, y el 31-oct-2026 en pos.wailus.co (Wonka's).

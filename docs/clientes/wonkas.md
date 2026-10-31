@@ -12,3 +12,9 @@
 - **Nómina:** novedades operativas (cobros al personal), consumos por nómina con descuento de empleado 50 % (sin bebidas).
 - **Datos:** recetas e ingredientes importados de Fudo; clientes importados de Fudo (teléfonos normalizados a 10 dígitos).
 - **Claves:** en `documentacionyclaves.md` (local).
+- **31-oct-2026, nómina por quincena (pedido de Vero):** sueldo mensual pagado por días (quincena = 15, mes = 30; el 31
+  no se paga), campo "Días trabajados en el período" en Liquidaciones (para faltas o pago por día sin asistencia), cortes
+  el 15 y el 30 (lo del 31 —consumos, novedades, asistencia— cae en la quincena siguiente). Ya existían: préstamos por
+  cuotas (Anticipos y préstamos → Nuevo préstamo), adicionales con tarifa (Novedades → "Adicionales y tarifas" → novedad
+  "Adicional"). Sus adicionales tenían tarifa 0: deben ponerla. Un empleado (Brayan) está como "Quincenal 2.000.000":
+  confirmar si es mensual.
