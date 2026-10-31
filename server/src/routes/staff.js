@@ -20,6 +20,8 @@ router.use((req, res, next) => {
 router.use(L.syncOnWrite(getDb));
 const ADMIN = requireRole('admin');
 const STAFF = requireRole('admin', 'cashier');
+// Avisa a los demás equipos que el personal cambió (listas de meseros, domiciliarios y empleados del cobro por nómina)
+const emitStaff = req => { if (req.app && req.app.io) req.app.io.emit('staff:updated', {}); };
 
 const PAY_MODES = ['monthly', 'biweekly', 'per_shift', 'per_day', 'hourly'];
 const PAY_MODE_LABEL = { monthly: 'Sueldo mensual', biweekly: 'Sueldo quincenal', per_shift: 'Pago por turno', per_day: 'Pago por día', hourly: 'Pago por hora' };
@@ -123,6 +125,7 @@ router.post('/employees/import', ADMIN, (req, res) => {
     });
   });
   tx();
+  if (!dryRun && (result.created || result.updated)) emitStaff(req);
   res.json(result);
 });
 
@@ -133,6 +136,7 @@ router.post('/employees', ADMIN, (req, res) => {
   if (!PAY_MODES.includes(p.payMode)) return res.status(400).json({ error: 'Modalidad de pago inválida' });
   if (p.userId && !db.prepare('SELECT id FROM users WHERE id = ?').get(p.userId)) return res.status(400).json({ error: 'Usuario de acceso no encontrado' });
   const info = insertEmployee(db, p);
+  emitStaff(req);
   res.status(201).json({ ...mapEmp(db.prepare(`${EMP_SELECT} WHERE id = ?`).get(info.lastInsertRowid)), monthAttendance: 0, monthHours: 0, unsettledAdvances: 0 });
 });
 
@@ -147,6 +151,7 @@ router.put('/employees/:id', ADMIN, (req, res) => {
   db.prepare(`UPDATE employees SET user_id = ?, name = ?, document = ?, phone = ?, email = ?, position = ?, pay_mode = ?, base_amount = ?, start_date = ?, active = ?, notes = ?,
     hours_per_day = ?, overtime = ?, legal_deductions = ?, transport_allowance = ?, tip_points = ?, bank_account = ? WHERE id = ?`)
     .run(p.userId, p.name, p.document, p.phone, p.email, p.position, p.payMode, p.baseAmount, p.startDate, p.active, p.notes, p.hoursPerDay, p.overtime, p.legalDeductions, p.transportAllowance, p.tipPoints, p.bankAccount, id);
+  emitStaff(req);
   res.json(mapEmp(db.prepare(`${EMP_SELECT} WHERE id = ?`).get(id)));
 });
 
@@ -163,9 +168,11 @@ router.delete('/employees/:id', ADMIN, (req, res) => {
   if (orderCols.length) refs += db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE ${orderCols.map(c => `${c} = ?`).join(' OR ')}`).get(...orderCols.map(() => id)).c;
   if (refs > 0) {
     db.prepare('UPDATE employees SET active = 0 WHERE id = ?').run(id);
+    emitStaff(req);
     return res.json({ success: true, deactivated: true, message: 'El colaborador tiene historial; se marcó como inactivo' });
   }
   db.prepare('DELETE FROM employees WHERE id = ?').run(id);
+  emitStaff(req);
   res.json({ success: true, deleted: true });
 });
 

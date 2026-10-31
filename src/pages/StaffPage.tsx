@@ -670,10 +670,12 @@ const StaffPage = () => {
   const [summary, setSummary] = useState<any>(null);
   const [search, setSearch] = useState('');
 
+  const loadRestaurantConfig = useStore(s => s.loadRestaurantConfig);
   const loadEmployees = () => api.getEmployees(true).then(setEmployees).catch(() => {});
   const loadSummary = () => { if (isAdmin) api.getStaffSummary().then(setSummary).catch(() => {}); };
   useEffect(() => { loadEmployees(); loadSummary(); }, []);
-  const reloadAll = () => { loadEmployees(); loadSummary(); };
+  // También refresca las listas de meseros/domiciliarios/empleados que usan los pedidos y el cobro por nómina en este equipo
+  const reloadAll = () => { loadEmployees(); loadSummary(); loadRestaurantConfig(); };
 
   const active = employees.filter(e => e.active);
   const filtered = search ? employees.filter(e => e.name.toLowerCase().includes(search.toLowerCase())) : employees;

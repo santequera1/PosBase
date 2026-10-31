@@ -101,6 +101,8 @@ const SocketProvider = () => {
     socket.on('order:new', handleOrderEvent);
     socket.on('order:updated', handleOrderEvent);
     socket.on('product:updated', handleProductEvent);
+    // Personal nuevo o cambiado en otro equipo: refresca las listas de meseros, domiciliarios y empleados (cobro por nómina)
+    socket.on('staff:updated', () => { useStore.getState().loadRestaurantConfig(); });
     return () => { socket.disconnect(); };
   }, [user, handleOrderEvent, handleProductEvent]);
 
