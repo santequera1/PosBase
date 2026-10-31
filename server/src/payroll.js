@@ -60,6 +60,30 @@ function saveConfig(db, body) {
   return readConfig(db);
 }
 
+/**
+ * Días de salario de un período con la convención laboral colombiana de 30 días por mes: el día 31 no cuenta,
+ * febrero completa 30 y una quincena (1–15 o 16–30) siempre vale 15 días. Un período que empieza el 31 cuenta desde el 1.
+ */
+function days30(from, to) {
+  const lastOf = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const [fy, fm, fd] = String(from).split('-').map(Number);
+  const [ty, tm, td] = String(to).split('-').map(Number);
+  if (![fy, fm, fd, ty, tm, td].every(Number.isFinite)) return 0;
+  const start = fd === 31 ? fy * 360 + fm * 30 + 1 : fy * 360 + (fm - 1) * 30 + Math.min(fd, 30);
+  const end = ty * 360 + (tm - 1) * 30 + (td === lastOf(ty, tm) ? 30 : Math.min(td, 30));
+  return Math.max(0, end - start + 1);
+}
+
+/** Valor de un día de salario según la modalidad (mensual ÷ 30, quincenal ÷ 15, por día = el valor del día). */
+function dayValueOf(emp, hoursPerDay = 8) {
+  switch (emp.payMode) {
+    case 'monthly': return emp.baseAmount / 30;
+    case 'biweekly': return emp.baseAmount / 15;
+    case 'hourly': return emp.baseAmount * hoursPerDay;
+    default: return emp.baseAmount;
+  }
+}
+
 /** Recargo dominical/festivo vigente según la fecha (Ley 2466 de 2025). */
 function sundayPctFor(dateStr) {
   if (dateStr < '2025-07-01') return 75;
@@ -205,13 +229,14 @@ function computeExtras(emp, attendance, cfg, periodEnd) {
 }
 
 /** Auxilio de transporte proporcional al período (solo hasta 2 SMMLV de sueldo mensual equivalente). */
-function computeAllowance(emp, cfg, from, to, attendanceCount) {
+function computeAllowance(emp, cfg, from, to, attendanceCount, daysWorked = null) {
   if (!emp.transportAllowance) return { amount: 0, reason: 'no aplica' };
   const monthlyEq = emp.payMode === 'monthly' ? emp.baseAmount : emp.payMode === 'biweekly' ? emp.baseAmount * 2 : null;
   if (monthlyEq !== null && monthlyEq > cfg.smmlv * 2) return { amount: 0, reason: 'sueldo mayor a 2 SMMLV' };
   if (emp.payMode === 'monthly' || emp.payMode === 'biweekly') {
-    const days = Math.min(30, Math.round((new Date(to + 'T00:00:00Z') - new Date(from + 'T00:00:00Z')) / 86400000) + 1);
-    return { amount: Math.round((cfg.transportAllowance * days) / 30), days, reason: `${days} día(s) del período` };
+    // Proporcional a los días de salario del período (quincena = 15) o a los días trabajados que se escribieron
+    const days = Math.min(30, daysWorked !== null && daysWorked !== undefined ? daysWorked : days30(from, to));
+    return { amount: Math.round((cfg.transportAllowance * days) / 30), days, reason: `${days} día(s)${daysWorked !== null && daysWorked !== undefined ? ' trabajados' : ' del período'}` };
   }
   return { amount: Math.round((cfg.transportAllowance * attendanceCount) / 30), days: attendanceCount, reason: `${attendanceCount} día(s) trabajados` };
 }
@@ -225,4 +250,4 @@ function computeLegalDeductions(emp, cfg, salaryBase) {
   return { lines, total: lines.reduce((a, l) => a + l.amount, 0) };
 }
 
-module.exports = { DEFAULT_CONFIG, CONFIG_KEYS, readConfig, saveConfig, sundayPctFor, colombianHolidays, isSundayOrHoliday, classifyAttendance, hourlyValue, computeExtras, computeAllowance, computeLegalDeductions };
+module.exports = { DEFAULT_CONFIG, CONFIG_KEYS, readConfig, saveConfig, sundayPctFor, colombianHolidays, isSundayOrHoliday, classifyAttendance, hourlyValue, computeExtras, computeAllowance, computeLegalDeductions, days30, dayValueOf };

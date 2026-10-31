@@ -333,8 +333,8 @@ export const api = {
   },
   addAdvance: (data: any) => request<any>('/staff/advances', { method: 'POST', body: JSON.stringify(data) }),
   deleteAdvance: (id: number) => request<any>(`/staff/advances/${id}`, { method: 'DELETE' }),
-  previewSettlement: (employeeId: number, from: string, to: string, loans: { skipLoans?: number[]; payoffLoans?: number[] } = {}) =>
-    request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}&skipLoans=${(loans.skipLoans || []).join(',')}&payoffLoans=${(loans.payoffLoans || []).join(',')}`),
+  previewSettlement: (employeeId: number, from: string, to: string, loans: { skipLoans?: number[]; payoffLoans?: number[] } = {}, days?: number | string) =>
+    request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}&skipLoans=${(loans.skipLoans || []).join(',')}&payoffLoans=${(loans.payoffLoans || []).join(',')}${days !== undefined && days !== '' ? `&days=${days}` : ''}`),
   getMyAccount: () => request<any>('/staff/me'),
   getSetupStatus: () => request<any>('/setup/status'),
   getDemoPacks: () => request<any>('/demo/packs'),

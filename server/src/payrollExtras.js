@@ -307,11 +307,15 @@ const NOV_SELECT = `SELECT n.id, n.employee_id AS employeeId, e.name AS employee
   FROM payroll_novelties n JOIN employees e ON e.id = n.employee_id`;
 const mapNovelty = r => { const t = NOVELTY_TYPES[r.type] || { label: r.type, group: 'bonus', unit: 'valor' }; return { ...r, label: r.taskLabel ? `${t.label.split(' (')[0]}: ${r.taskLabel}` : t.label, group: t.group, unit: t.unit, sign: SIGN[t.group] || 1, signedAmount: (SIGN[t.group] || 1) * r.amount }; };
 
-/** Novedades pendientes (sin liquidar) del período, agrupadas para la liquidación. */
+/**
+ * Novedades pendientes (sin liquidar) hasta el cierre del período, agrupadas para la liquidación. Entran también las
+ * anteriores al período que nadie liquidó (p. ej. las del día 31 cuando el corte es el 30): cada una sale con su fecha.
+ */
 function noveltiesFor(db, empId, from, to, settlementId = null) {
+  void from;
   const rows = (settlementId
     ? db.prepare(`${NOV_SELECT} WHERE n.settlement_id = ? ORDER BY n.date, n.id`).all(settlementId)
-    : db.prepare(`${NOV_SELECT} WHERE n.employee_id = ? AND n.date BETWEEN ? AND ? AND n.settlement_id IS NULL ORDER BY n.date, n.id`).all(empId, from, to)).map(mapNovelty);
+    : db.prepare(`${NOV_SELECT} WHERE n.employee_id = ? AND n.date <= ? AND n.settlement_id IS NULL ORDER BY n.date, n.id`).all(empId, to)).map(mapNovelty);
   const sum = g => rows.filter(r => r.group === g).reduce((a, r) => a + r.amount, 0);
   return { rows, extras: sum('extras'), bonus: sum('bonus'), absence: sum('absence'), deductions: sum('deduction') };
 }

@@ -288,20 +288,42 @@ router.delete('/advances/:id', ADMIN, (req, res) => {
 /* ------------------------------------------------------------------ */
 /* Liquidaciones                                                        */
 /* ------------------------------------------------------------------ */
-function computeSettlement(db, emp, from, to, loanOpts = {}) {
-  const attendance = db.prepare('SELECT date, check_in AS checkIn, check_out AS checkOut, hours, source FROM attendance WHERE employee_id = ? AND date BETWEEN ? AND ? ORDER BY date').all(emp.id, from, to);
-  let units, unitAmount = emp.baseAmount, baseTotal;
+/** Si el período empieza el 1 y el mes anterior tuvo 31, ese día 31 entra aquí (el corte anterior fue el 30). */
+function attendanceFrom(from) {
+  if (!from.endsWith('-01')) return from;
+  const [y, m] = from.split('-').map(Number);
+  const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+  return new Date(Date.UTC(py, pm, 0)).getUTCDate() === 31 ? `${py}-${String(pm).padStart(2, '0')}-31` : from;
+}
+
+/**
+ * Liquidación de un período. `opts.days`: días trabajados que escribe el administrador (sueldo mensual o quincenal con
+ * faltas, o pago por día sin asistencia registrada); si no viene, el sueldo fijo se paga por los días del período
+ * (quincena = 15, mes = 30) y el pago por día por las asistencias.
+ */
+function computeSettlement(db, emp, from, to, loanOpts = {}, opts = {}) {
+  const attendance = db.prepare('SELECT date, check_in AS checkIn, check_out AS checkOut, hours, source FROM attendance WHERE employee_id = ? AND date BETWEEN ? AND ? ORDER BY date').all(emp.id, attendanceFrom(from), to);
+  const periodDays = payroll.days30(from, to);
+  const daysGiven = opts.days !== undefined && opts.days !== null && opts.days !== '' && Number.isFinite(Number(opts.days)) ? Math.max(0, Math.min(31, Number(opts.days))) : null;
+  const dayValue = payroll.dayValueOf(emp, Number(emp.hoursPerDay) > 0 ? Number(emp.hoursPerDay) : 8);
+  let units, unitAmount = emp.baseAmount, baseTotal, unitLabel = UNIT_LABEL[emp.payMode], daysWorked = null;
   switch (emp.payMode) {
     case 'monthly':
-    case 'biweekly':
-      units = 1; baseTotal = emp.baseAmount; break;
+    case 'biweekly': {
+      // Sueldo fijo: se paga por días (mes = 30, quincena = 15); con faltas, el administrador escribe los días trabajados
+      daysWorked = daysGiven !== null ? daysGiven : periodDays;
+      units = daysWorked; unitAmount = Math.round(dayValue); unitLabel = 'días';
+      baseTotal = Math.round(emp.baseAmount * daysWorked / (emp.payMode === 'monthly' ? 30 : 15));
+      break;
+    }
     case 'hourly':
       units = Math.round(attendance.reduce((a, r) => a + (Number(r.hours) || 0), 0) * 100) / 100;
       baseTotal = Math.round(units * emp.baseAmount); break;
     case 'per_day':
     case 'per_shift':
     default:
-      units = attendance.length; baseTotal = units * emp.baseAmount;
+      daysWorked = daysGiven !== null ? daysGiven : attendance.length;
+      units = daysWorked; baseTotal = Math.round(units * emp.baseAmount);
   }
 
   // Propinas: si se pagan aparte (Personal → Propinas) no entran a la liquidación de nómina
@@ -321,13 +343,14 @@ function computeSettlement(db, emp, from, to, loanOpts = {}) {
   const cfg = payroll.readConfig(db);
   const extras = emp.overtime ? payroll.computeExtras(emp, attendance, cfg, to) : { ...payroll.computeExtras(emp, [], cfg, to), disabled: true };
   const extrasTotal = extras.extrasTotal;
-  const allowance = payroll.computeAllowance(emp, cfg, from, to, attendance.length);
+  const allowance = payroll.computeAllowance(emp, cfg, from, to, attendance.length, daysWorked);
   const salaryBase = Math.max(0, baseTotal + extrasTotal + novelties.extras + novelties.bonus - novelties.absence);
   const legalDeductions = payroll.computeLegalDeductions(emp, cfg, salaryBase);
 
   return {
-    employee: mapEmp(emp), periodStart: from, periodEnd: to, payMode: emp.payMode, payModeLabel: PAY_MODE_LABEL[emp.payMode], unitLabel: UNIT_LABEL[emp.payMode],
-    units, unitAmount, baseTotal, attendance, tipsDirect, tipsShared, sharedDetail, tipsTotal, tipsSeparate, tipsAccrued: acc.total, advances, advancesTotal,
+    employee: mapEmp(emp), periodStart: from, periodEnd: to, payMode: emp.payMode, payModeLabel: PAY_MODE_LABEL[emp.payMode], unitLabel,
+    units, unitAmount, baseTotal, periodDays, daysWorked, dayValue: Math.round(dayValue), daysGiven: daysGiven !== null,
+    attendance, tipsDirect, tipsShared, sharedDetail, tipsTotal, tipsSeparate, tipsAccrued: acc.total, advances, advancesTotal,
     extras, extrasTotal, allowance, allowanceTotal: allowance.amount, salaryBase, legalDeductions, legalDeductionsTotal: legalDeductions.total, config: cfg,
     novelties: novelties.rows, noveltiesExtras: novelties.extras, noveltiesBonus: novelties.bonus, noveltiesAbsence: novelties.absence, noveltiesDeductions: novelties.deductions,
     loans: loans.lines, loansTotal: loans.total, loanPlan: loans,
@@ -337,6 +360,7 @@ function computeSettlement(db, emp, from, to, loanOpts = {}) {
 
 const idList = v => (Array.isArray(v) ? v : String(v || '').split(',')).map(Number).filter(n => n > 0);
 const loanOptsFrom = q => ({ skip: idList(q.skipLoans), payoff: idList(q.payoffLoans) });
+const calcOptsFrom = q => ({ days: q.days });
 
 router.get('/settlements/preview', ADMIN, (req, res) => {
   const db = getDb();
@@ -344,7 +368,7 @@ router.get('/settlements/preview', ADMIN, (req, res) => {
   if (!emp) return res.status(404).json({ error: 'Colaborador no encontrado' });
   const { from, to } = req.query;
   if (!isDate(from) || !isDate(to) || from > to) return res.status(400).json({ error: 'Período inválido' });
-  res.json(computeSettlement(db, emp, from, to, loanOptsFrom(req.query)));
+  res.json(computeSettlement(db, emp, from, to, loanOptsFrom(req.query), calcOptsFrom(req.query)));
 });
 
 router.get('/settlements', ADMIN, (req, res) => {
@@ -365,11 +389,12 @@ router.post('/settlements', ADMIN, (req, res) => {
   if (!isDate(from) || !isDate(to) || from > to) return res.status(400).json({ error: 'Período inválido' });
   const overlap = db.prepare("SELECT id FROM payroll_settlements WHERE employee_id = ? AND NOT (period_end < ? OR period_start > ?)").get(emp.id, from, to);
   if (overlap) return res.status(409).json({ error: 'Ya existe una liquidación que se cruza con ese período para este colaborador' });
-  const c = computeSettlement(db, emp, from, to, loanOptsFrom(req.body));
+  const c = computeSettlement(db, emp, from, to, loanOptsFrom(req.body), calcOptsFrom(req.body));
   const bonuses = Math.max(0, Math.round(Number(req.body.bonuses) || 0));
   const deductions = Math.max(0, Math.round(Number(req.body.deductions) || 0));
   const total = c.baseTotal + c.extrasTotal + c.allowanceTotal + c.tipsTotal + bonuses + c.noveltiesExtras + c.noveltiesBonus - c.noveltiesAbsence - c.noveltiesDeductions - c.advancesTotal - c.loansTotal - c.legalDeductionsTotal - deductions;
   const details = JSON.stringify({
+    unitLabel: c.unitLabel, periodDays: c.periodDays, daysWorked: c.daysWorked, dayValue: c.dayValue,
     extras: c.extras.lines, hours: c.extras.hoursSummary, hourlyValue: c.extras.hourlyValue, hoursPerDay: c.extras.hoursPerDay, sundayPct: c.extras.sundayPct,
     allowance: c.allowance, legalDeductions: c.legalDeductions.lines, salaryBase: c.salaryBase, tipsDirect: c.tipsDirect, tipsShared: c.tipsShared, tipsSeparate: c.tipsSeparate,
     novelties: c.novelties.map(n => ({ id: n.id, date: n.date, type: n.type, label: n.label, group: n.group, quantity: n.quantity, amount: n.amount, notes: n.notes })),
@@ -694,13 +719,12 @@ router.get('/me', (req, res) => {
   PX.ensureConsumoCols(db);
   const emp = req.user && db.prepare(`${EMP_SELECT} WHERE user_id = ? AND active = 1 ORDER BY id LIMIT 1`).get(req.user.id);
   if (!emp) return res.json({ linked: false });
-  // Período en curso: el mes para sueldo mensual; la quincena para los demás
+  // Período en curso: la quincena (cortes el 15 y el 30; el 31 pasa a la primera quincena del mes siguiente)
   const t = today(db);
   const day = Number(t.slice(8, 10));
   const lastDay = new Date(Date.UTC(Number(t.slice(0, 4)), Number(t.slice(5, 7)), 0)).getUTCDate();
-  const monthly = emp.payMode === 'monthly';
-  const from = monthly || day <= 15 ? `${t.slice(0, 7)}-01` : `${t.slice(0, 7)}-16`;
-  const to = monthly || day > 15 ? `${t.slice(0, 7)}-${String(lastDay).padStart(2, '0')}` : `${t.slice(0, 7)}-15`;
+  const from = day <= 15 ? `${t.slice(0, 7)}-01` : `${t.slice(0, 7)}-16`;
+  const to = day <= 15 ? `${t.slice(0, 7)}-15` : `${t.slice(0, 7)}-${String(Math.min(30, lastDay)).padStart(2, '0')}`;
   let preview = null;
   try {
     const c = computeSettlement(db, emp, from, to);

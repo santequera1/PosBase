@@ -329,7 +329,8 @@ export const NoveltiesTab = ({ employees }: { employees: Array<{ id: number; nam
 };
 
 const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array<{ id: number; name: string; payModeLabel?: string }>; types: any[]; onClose: () => void; onSaved: () => void }) => {
-  const [form, setForm] = useState({ employeeId: employees[0]?.id || 0, type: 'holiday_worked', date: getColombiaTodayStr(), quantity: '1', amount: '', notes: '', taskId: '' });
+  // Sin tipo elegido al abrir: así nadie registra por error un "festivo trabajado" en una quincena sin festivos
+  const [form, setForm] = useState({ employeeId: employees[0]?.id || 0, type: '', date: getColombiaTodayStr(), quantity: '1', amount: '', notes: '', taskId: '' });
   const [pv, setPv] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   useEffect(() => { api.getNoveltyTasks().then(ts => { setTasks(ts); if (ts[0]) setForm(f => ({ ...f, taskId: f.taskId || ts[0].id })); }).catch(() => {}); }, []);
@@ -359,6 +360,7 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
           <NiceSelect value={form.employeeId} onChange={e => set({ employeeId: Number(e.target.value) })} className={INPUT}>{employees.map(e => <option key={e.id} value={e.id}>{e.name}{e.payModeLabel ? ` · ${e.payModeLabel}` : ''}</option>)}</NiceSelect></div>
         <div className="col-span-2"><label className={LABEL}>Tipo</label>
           <NiceSelect value={form.type} onChange={e => set({ type: e.target.value, amount: '' })} className={INPUT} data-novelty-type>
+            <option value="">Elige qué pasó…</option>
             {groups.map(({ g, items }) => <optgroup key={g} label={GROUP_LABEL[g]}>{items.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>)}
           </NiceSelect>
           {t?.help && <p className="text-[10px] text-muted-foreground mt-1">{t.help}</p>}
@@ -385,7 +387,7 @@ const NoveltyModal = ({ employees, types, onClose, onSaved }: { employees: Array
         <div className="col-span-2"><label className={LABEL}>{form.type === 'operational' ? 'Concepto (obligatorio)' : 'Notas'}</label><input value={form.notes} onChange={e => set({ notes: e.target.value })} className={INPUT} placeholder={form.type === 'operational' ? 'Ej. domicilio repetido: pedido incompleto #1234' : 'Ej. 20 de julio, meta de ventas, cuota 2 de 5'} data-novelty-notes /></div>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <button onClick={save} disabled={saving || !form.employeeId || (!t?.auto && !(Number(form.amount) > 0))} data-novelty-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Guardando...' : 'Guardar novedad'}</button>
+      <button onClick={save} disabled={saving || !form.employeeId || !form.type || (!t?.auto && !(Number(form.amount) > 0))} data-novelty-save className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">{saving ? 'Guardando...' : 'Guardar novedad'}</button>
     </Modal>
   );
 };
@@ -433,7 +435,7 @@ export const LoansPanel = ({ employees }: { employees: Array<{ id: number; name:
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-brand-dark">{l.employeeName} <span className="font-normal text-muted-foreground">· {formatPrice(l.amount)} en {l.installments} cuota(s) de {formatPrice(l.installmentAmount)}</span></p>
-                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · {l.paymentsCount} cuota(s) descontada(s)</p>
+                      <p className="text-[11px] text-muted-foreground">{fmtDate(l.date)}{l.fromCashRegister ? ' · salió de caja' : ''}{l.notes ? ` · ${l.notes}` : ''} · pagado {formatPrice(l.paidTotal)} en {l.paymentsCount} cuota(s){l.status === 'active' ? ` · faltan ${Math.max(1, Math.ceil(l.balance / Math.max(1, l.installmentAmount)))}` : ''}</p>
                     </div>
                     {l.status === 'paid' ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Pagado</span> : <span className="text-sm font-bold text-amber-700">{formatPrice(l.balance)}</span>}
                     <button onClick={() => setDetail(l)} className="px-2 py-1 rounded-lg border border-border text-[11px] font-semibold">Ver</button>

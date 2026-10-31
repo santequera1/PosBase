@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils';
 import { Modal, Chip, KpiCard, fmtDate } from '@/components/common/Primitives';
 import { LoanModal } from '@/components/staff/StaffExtras';
 
-/** Período de pago en curso: quincena (1–15 / 16–fin de mes) o mes completo. */
+/** Período de pago en curso: quincena (1–15 / 16–30; el 31 pasa a la siguiente) o mes completo. */
 function currentPeriod(kind: 'quincena' | 'mes', today = getColombiaTodayStr()) {
   const [y, m, d] = today.split('-').map(Number);
   const last = new Date(y, m, 0).getDate();
   const mm = String(m).padStart(2, '0');
   if (kind === 'mes') return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
-  return d <= 15 ? { from: `${y}-${mm}-01`, to: `${y}-${mm}-15` } : { from: `${y}-${mm}-16`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
+  return d <= 15 ? { from: `${y}-${mm}-01`, to: `${y}-${mm}-15` } : { from: `${y}-${mm}-16`, to: `${y}-${mm}-${String(Math.min(30, last)).padStart(2, '0')}` };
 }
 
 const Section = ({ title, children, right }: { title: string; children: any; right?: any }) => (

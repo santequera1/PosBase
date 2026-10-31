@@ -9,8 +9,9 @@ const UNIT: Record<string, string> = { monthly: 'mes', biweekly: 'quincena', per
 export function payslipHtml(s: any, emp?: { name?: string; document?: string; position?: string }) {
   const st = useStore.getState();
   const det = s.details || {};
+  const unit = det.unitLabel || UNIT[s.payMode] || '';
   const earn: Array<[string, number]> = [
-    [`Básico${s.units ? ` (${s.units} ${UNIT[s.payMode] || ''} × ${formatPrice(s.unitAmount || 0)})` : ''}`, s.baseTotal || 0],
+    [`Básico${s.units ? ` (${s.units} ${unit} × ${formatPrice(s.unitAmount || 0)})` : ''}`, s.baseTotal || 0],
     ['Horas extra y recargos', s.extrasTotal || 0],
     ['Auxilio de transporte', s.allowanceTotal || 0],
     ['Propinas', s.tipsTotal || 0],

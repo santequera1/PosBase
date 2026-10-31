@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus, Edit2, Trash2, UsersRound, CalendarCheck, HandCoins, PiggyBank, FileSpreadsheet, Search, Banknote, ArrowLeftRight, CreditCard,
   CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2, ClipboardList, Upload,
@@ -31,8 +31,8 @@ const PAY_MODES: Array<{ id: PayMode; label: string; hint: string }> = [
   { id: 'per_shift', label: 'Por turno', hint: 'Se paga cada turno/asistencia registrada' },
   { id: 'per_day', label: 'Por día', hint: 'Igual que por turno, cuenta días asistidos' },
   { id: 'hourly', label: 'Por hora', hint: 'Se multiplican las horas registradas' },
-  { id: 'biweekly', label: 'Quincenal fijo', hint: 'Sueldo fijo por quincena' },
-  { id: 'monthly', label: 'Mensual fijo', hint: 'Sueldo fijo por mes' },
+  { id: 'biweekly', label: 'Quincenal fijo', hint: 'Sueldo de la quincena (15 días); con faltas se paga por días' },
+  { id: 'monthly', label: 'Mensual fijo', hint: 'Sueldo del mes; cada quincena se paga la mitad o los días trabajados' },
 ];
 const POSITIONS = ['Mesero', 'Cajero', 'Cocina', 'Auxiliar de cocina', 'Bartender', 'Administrador', 'Domiciliario', 'Oficios varios', 'Heladero', 'Ayudante', 'Otro'];
 const METHOD_META: Record<string, { label: string; icon: any }> = {
@@ -466,6 +466,9 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
   const [preview, setPreview] = useState<any>(null);
   const [skipLoans, setSkipLoans] = useState<number[]>([]);
   const [payoffLoans, setPayoffLoans] = useState<number[]>([]);
+  // Días trabajados escritos a mano ('' = los del período o las asistencias)
+  const [days, setDays] = useState('');
+  const daysTimer = useRef<any>(null);
   const [bonuses, setBonuses] = useState('');
   const [deductions, setDeductions] = useState('');
   const [notes, setNotes] = useState('');
@@ -482,20 +485,28 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
 
   const calculate = async () => {
     if (!employeeId) return;
-    setCalculating(true); setError(''); setPreview(null); setSkipLoans([]); setPayoffLoans([]);
+    setCalculating(true); setError(''); setPreview(null); setSkipLoans([]); setPayoffLoans([]); setDays('');
     try { setPreview(await api.previewSettlement(employeeId, from, to)); } catch (e: any) { setError(e.message); }
     setCalculating(false);
   };
   const setLoanOpts = async (skip: number[], payoff: number[]) => {
     setSkipLoans(skip); setPayoffLoans(payoff);
-    try { setPreview(await api.previewSettlement(employeeId, from, to, { skipLoans: skip, payoffLoans: payoff })); } catch (e: any) { setError(e.message); }
+    try { setPreview(await api.previewSettlement(employeeId, from, to, { skipLoans: skip, payoffLoans: payoff }, days)); } catch (e: any) { setError(e.message); }
+  };
+  // Al cambiar los días trabajados se recalcula (con una pequeña espera para no pedirlo en cada tecla)
+  const applyDays = (v: string) => {
+    setDays(v);
+    clearTimeout(daysTimer.current);
+    daysTimer.current = setTimeout(async () => {
+      try { setPreview(await api.previewSettlement(employeeId, from, to, { skipLoans, payoffLoans }, v)); } catch (e: any) { setError(e.message); }
+    }, 350);
   };
   const total = preview ? preview.subtotal + (Number(bonuses) || 0) - (Number(deductions) || 0) : 0;
   const save = async () => {
     setError('');
     try {
-      await api.createSettlement({ employeeId, from, to, bonuses: Number(bonuses) || 0, deductions: Number(deductions) || 0, notes, skipLoans, payoffLoans });
-      setPreview(null); setBonuses(''); setDeductions(''); setNotes(''); loadList(); onChanged();
+      await api.createSettlement({ employeeId, from, to, bonuses: Number(bonuses) || 0, deductions: Number(deductions) || 0, notes, skipLoans, payoffLoans, days: days === '' ? undefined : Number(days) });
+      setPreview(null); setBonuses(''); setDeductions(''); setNotes(''); setDays(''); loadList(); onChanged();
     } catch (e: any) { setError(e.message); }
   };
   const pay = async () => {
@@ -530,7 +541,21 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
               <p className="font-bold text-brand-dark">{preview.employee.name} · {preview.payModeLabel}</p>
               <p className="text-[11px] text-muted-foreground">Período {fmtDate(preview.periodStart)} a {fmtDate(preview.periodEnd)}</p>
               <div className="divide-y divide-border">
-                <div className="flex justify-between py-1.5"><span>{preview.payMode === 'monthly' || preview.payMode === 'biweekly' ? `Sueldo fijo (${preview.unitLabel})` : `${preview.units} ${preview.unitLabel} × ${formatPrice(preview.unitAmount)}`}</span><span className="font-semibold">{formatPrice(preview.baseTotal)}</span></div>
+                <div className="flex justify-between py-1.5" data-base-line>
+                  <span>{`${preview.units} ${preview.unitLabel} × ${formatPrice(preview.unitAmount)}`}{(preview.payMode === 'monthly' || preview.payMode === 'biweekly') && <span className="text-[11px] text-muted-foreground"> · {preview.payModeLabel.toLowerCase()} {formatPrice(preview.employee.baseAmount)}</span>}</span>
+                  <span className="font-semibold">{formatPrice(preview.baseTotal)}</span>
+                </div>
+                {preview.daysWorked !== null && preview.daysWorked !== undefined && (
+                  <div className="py-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" data-days-row>
+                    <label className="font-semibold text-brand-dark">Días trabajados en el período</label>
+                    <input type="number" min={0} max={31} step={0.5} value={days === '' ? preview.daysWorked : days} onChange={e => applyDays(e.target.value)} className={cn(INPUT, 'w-20 py-1 font-mono text-xs')} data-days-input />
+                    <span className="text-muted-foreground">
+                      {preview.payMode === 'monthly' || preview.payMode === 'biweekly'
+                        ? `El período tiene ${preview.periodDays} días de salario (${preview.payMode === 'monthly' ? 'mes de 30, quincena de 15' : 'quincena de 15'}). Si faltó, escribe los días que sí trabajó; el 31 no se paga.`
+                        : `Asistencias registradas: ${preview.attendance.length}. Si no marcaron asistencia, escribe los días.`}
+                    </span>
+                  </div>
+                )}
                 {(preview.extras?.lines || []).map((l: any) => <div key={l.key} className="flex justify-between py-1.5"><span>{l.label} <span className="text-[11px] text-muted-foreground">· {l.hours} h × {formatPrice(preview.extras.hourlyValue)}</span></span><span className="font-semibold text-emerald-700">+ {formatPrice(l.amount)}</span></div>)}
                 {preview.extras && !preview.extras.disabled && preview.extras.lines.length === 0 && preview.extras.hoursSummary.total > 0 && <p className="text-[11px] text-muted-foreground py-1">Sin horas extra ni recargos: las {preview.extras.hoursSummary.total} h del período fueron ordinarias diurnas.</p>}
                 {preview.extras?.disabled && preview.attendance.length > 0 && <p className="text-[11px] text-muted-foreground py-1">Este colaborador no tiene activadas las extras y recargos (edítalo para activarlas).</p>}

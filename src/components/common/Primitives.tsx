@@ -59,11 +59,13 @@ export function periodPresets(todayStr: string) {
   const pad = (n: number) => String(n).padStart(2, '0');
   const lastDay = (yy: number, mm: number) => new Date(yy, mm, 0).getDate();
   const prevM = m === 1 ? 12 : m - 1, prevY = m === 1 ? y - 1 : y;
+  // Quincenas con cortes el 15 y el 30: el día 31 queda para la primera quincena del mes siguiente (en nómina no se paga)
+  const q2End = (yy: number, mm: number) => pad(Math.min(30, lastDay(yy, mm)));
   const thisFortnight = d <= 15
     ? { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-15` }
-    : { from: `${y}-${pad(m)}-16`, to: `${y}-${pad(m)}-${pad(lastDay(y, m))}` };
+    : { from: `${y}-${pad(m)}-16`, to: `${y}-${pad(m)}-${q2End(y, m)}` };
   const prevFortnight = d <= 15
-    ? { from: `${prevY}-${pad(prevM)}-16`, to: `${prevY}-${pad(prevM)}-${pad(lastDay(prevY, prevM))}` }
+    ? { from: `${prevY}-${pad(prevM)}-16`, to: `${prevY}-${pad(prevM)}-${q2End(prevY, prevM)}` }
     : { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-15` };
   return [
     { label: 'Esta quincena', ...thisFortnight },
