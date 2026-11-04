@@ -88,7 +88,7 @@ const MyAccountPage = () => {
               <div key={c.id} className={cn('px-4 py-2.5 text-xs', c.status !== 'active' && 'opacity-60')}>
                 <div className="flex justify-between gap-2"><span className="font-semibold text-brand-dark">{fmtDate(c.date)}{c.orderId ? ` · venta #${c.orderId}` : ''}</span><span className="font-bold">{formatPrice(c.amount)}</span></div>
                 {c.items?.length ? <p className="text-muted-foreground">{c.items.map((i: any) => `${i.quantity}× ${i.name}${i.size ? ' (' + i.size + ')' : ''}`).join(' · ')}</p> : null}
-                <p className="text-[11px] text-muted-foreground">{c.status === 'active' ? `Saldo por descontar ${formatPrice(c.balance)} · ${c.installments} cuota(s) de ${formatPrice(c.installmentAmount)}` : 'Ya descontado'}{c.order?.discount ? ` · con descuento de empleado (${formatPrice(c.order.discount)})` : ''}</p>
+                <p className="text-[11px] text-muted-foreground">{c.status === 'active' ? `Saldo por descontar ${formatPrice(c.balance)} · ${c.installments} cuota(s) de ${formatPrice(c.installmentAmount)}` : c.pendingSettlementId ? `Descontado en la liquidación #${c.pendingSettlementId} (pendiente de pago)` : 'Ya descontado'}{c.order?.discount ? ` · con descuento de empleado (${formatPrice(c.order.discount)})` : ''}</p>
               </div>
             ))}
           </div>

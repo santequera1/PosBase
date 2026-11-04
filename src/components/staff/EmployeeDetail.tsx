@@ -153,7 +153,7 @@ export const EmployeeDetail = ({ employee, onClose, onEdit }: { employee: any; o
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap">pagado {formatPrice(r.paidTotal)}</span>
-                      <span className={cn('text-[11px] font-bold whitespace-nowrap', r.status === 'active' ? 'text-amber-700' : 'text-emerald-700')}>{r.status === 'active' ? `debe ${formatPrice(r.balance)}${!consumo && r.remainingInstallments ? ` · faltan ${r.remainingInstallments}` : ''}` : 'pagado'}</span>
+                      <span className={cn('text-[11px] font-bold whitespace-nowrap', r.status === 'active' ? 'text-amber-700' : r.pendingSettlementId ? 'text-sky-700' : 'text-emerald-700')} title={r.pendingSettlementId ? 'Se descontó al crear esa liquidación; el pago aún no se ha registrado' : undefined}>{r.status === 'active' ? `debe ${formatPrice(r.balance)}${!consumo && r.remainingInstallments ? ` · faltan ${r.remainingInstallments}` : ''}` : r.pendingSettlementId ? `en la liquidación #${r.pendingSettlementId} (sin pagar aún)` : `pagado${r.lastSettlementId ? ` · liquidación #${r.lastSettlementId}` : ''}`}</span>
                     </div>
                   </div>
                   {r.paidTotal > 0 && r.paymentsCount > (r.paymentsBefore || 0)

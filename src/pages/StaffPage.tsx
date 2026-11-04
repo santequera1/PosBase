@@ -504,6 +504,8 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
   const total = preview ? preview.subtotal + (Number(bonuses) || 0) - (Number(deductions) || 0) : 0;
   const save = async () => {
     setError('');
+    // Liquidar antes de que termine el período: lo que se consuma o se registre después queda para la siguiente quincena
+    if (to > today && !window.confirm(`El período termina el ${fmtDate(to)} y hoy es ${fmtDate(today)}. Si guardas ahora, los consumos, novedades y días que lleguen después de hoy NO entran en esta liquidación (quedan para la siguiente). ¿Guardar de todas formas?`)) return;
     try {
       await api.createSettlement({ employeeId, from, to, bonuses: Number(bonuses) || 0, deductions: Number(deductions) || 0, notes, skipLoans, payoffLoans, days: days === '' ? undefined : Number(days) });
       setPreview(null); setBonuses(''); setDeductions(''); setNotes(''); setDays(''); loadList(); onChanged();

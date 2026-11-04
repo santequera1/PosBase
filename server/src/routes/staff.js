@@ -566,7 +566,9 @@ const LOAN_SELECT = `SELECT l.id, l.employee_id AS employeeId, e.name AS employe
   l.amount - l.paid_total AS balance, l.status, l.from_cash_register AS fromCashRegister, l.notes, l.created_by AS createdBy, l.created_at AS createdAt, COALESCE(l.kind, 'loan') AS kind, l.order_id AS orderId,
   COALESCE(l.frequency, 'biweekly') AS frequency,
   (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id) AS paymentsCount,
-  (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id AND p.settlement_id IS NULL) AS paymentsBefore FROM employee_loans l JOIN employees e ON e.id = l.employee_id`;
+  (SELECT COUNT(*) FROM loan_payments p WHERE p.loan_id = l.id AND p.settlement_id IS NULL) AS paymentsBefore,
+  (SELECT MAX(p.settlement_id) FROM loan_payments p JOIN payroll_settlements s ON s.id = p.settlement_id WHERE p.loan_id = l.id AND s.status = 'pending') AS pendingSettlementId,
+  (SELECT MAX(p.settlement_id) FROM loan_payments p WHERE p.loan_id = l.id AND p.settlement_id IS NOT NULL) AS lastSettlementId FROM employee_loans l JOIN employees e ON e.id = l.employee_id`;
 const LOAN_FREQ_LABEL = { biweekly: 'cada quincena', monthly: 'cada mes' };
 const mapLoan = r => ({ ...r, fromCashRegister: Boolean(r.fromCashRegister), frequencyLabel: LOAN_FREQ_LABEL[r.frequency] || r.frequency,
   remainingInstallments: r.status === 'active' && r.installmentAmount > 0 ? Math.max(1, Math.ceil(r.balance / r.installmentAmount)) : 0 });
