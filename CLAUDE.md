@@ -21,7 +21,7 @@ Dominios nuevos: `*.stiven.app` (comodín apuntando al VPS). Estilos predetermin
 Registro de instalaciones en el VPS: `/home/ubuntu/apps/pos-instancias.tsv` (slug, carpeta, puerto, dominio, pm2).
 
 ## Stack
-- Frontend: React 18 + Vite + TypeScript + Tailwind + zustand (`src/`). Build: `npm run build` → `dist/`.
+- Frontend: React 18 + Vite + TypeScript + Tailwind + zustand (`src/`). Build: `npm run build` → `dist/` (pantallas en archivos aparte, `React.lazy` en `src/App.tsx`, y copias `.gz` para nginx).
 - Backend: Express + better-sqlite3 + socket.io + JWT (`server/src/`). Una base SQLite por instalación (`server/data.db`, o `DB_PATH`).
 - Producción: nginx sirve `dist/` y hace proxy de `/api` y `/socket.io` al puerto de la instalación; PM2 mantiene el proceso.
 - Variables (`server/.env`): `PORT`, `JWT_SECRET`, `SETUP_TOKEN` (solo instalaciones nuevas), `NODE_ENV`, opcional `WHATSAPP_AI_API_KEY`.

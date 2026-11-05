@@ -89,3 +89,30 @@ sudo python3 scripts/instancias/nginx-pagina-app.py dominio1 dominio2 ... && sud
 ```
 
 Hecho el 28-oct-2026 en demo, moodi, fritop y pokotoon, y el 31-oct-2026 en pos.wailus.co (Wonka's).
+
+## Monitoreo de uso (quién está usando cada instalación)
+
+`scripts/instancias/monitoreo.cjs` recorre el registro `pos-instancias.tsv`, abre cada base en solo lectura y cruza con el
+log de nginx (`/var/log/nginx/access.log*`, unos 14 días) para sacar, por instalación: usuarios, ventas por día y por
+cajero, turnos de caja, asistencia, liquidaciones, agente de impresión, inicios de sesión por día (hora, IP, tipo de
+equipo) e intentos fallidos. No modifica nada.
+
+```bash
+scp scripts/instancias/monitoreo.cjs ubuntu@51.195.109.26:/home/ubuntu/monitoreo.cjs
+ssh ubuntu@51.195.109.26 "node /home/ubuntu/monitoreo.cjs > /home/ubuntu/monitoreo.json"
+scp ubuntu@51.195.109.26:/home/ubuntu/monitoreo.json .
+```
+
+## Compresión y carga de la app (nov-2026)
+
+El build (`npm run build`) parte la app en archivos por pantalla (cada una se baja al abrirla) y deja junto a cada
+archivo una copia `.gz` (`scripts/comprimir-dist.cjs`). nginx entrega esos `.gz` con `gzip_static` y comprime al vuelo
+lo demás (JSON de la API, SVG). Antes el JavaScript viajaba sin comprimir (2,2 MB) y en una conexión lenta la página
+tardaba casi un minuto en abrir; ahora la pantalla de acceso pesa ~170 KB.
+
+Las instalaciones nuevas ya salen con esto (`nginx.conf.tpl`). Para las que existían:
+
+```bash
+sudo python3 /home/ubuntu/apps/pos-demo/scripts/instancias/nginx-compresion.py demo.stiven.app pos.wailus.co fritop.stiven.app moodi.stiven.app pokotoon.stiven.app
+sudo nginx -t && sudo systemctl reload nginx
+```

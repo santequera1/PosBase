@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense, type ComponentType } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,31 +7,43 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useStore } from "@/store/useStore";
 import { AppLayout } from "@/components/AppLayout";
-import POSPage from "@/pages/POSPage";
-import CashShiftPage from "@/pages/CashShiftPage";
 import LoginPage from "@/pages/LoginPage";
-import DashboardPage from "@/pages/DashboardPage";
-import OrdersPage from "@/pages/OrdersPage";
-import NewOrderPage from "@/pages/NewOrderPage";
-import OrderDetailPage from "@/pages/OrderDetailPage";
-import KitchenPage from "@/pages/KitchenPage";
-import MenuModulePage from "@/pages/MenuModulePage";
-import CustomersPage from "@/pages/CustomersPage";
-import CustomerDetailPage from "@/pages/CustomerDetailPage";
-import ReportsPage from "@/pages/ReportsPage";
-import MyAccountPage from "@/pages/MyAccountPage";
 import SetupPage from "@/pages/SetupPage";
-import SettingsPage from "@/pages/SettingsPage";
-import StaffPage from "@/pages/StaffPage";
-import FinancePage from "@/pages/FinancePage";
-import TablesPage from "@/pages/TablesPage";
-import CounterPage from "@/pages/CounterPage";
-import DeliveryPage from "@/pages/DeliveryPage";
-import OpenOrderPage from "@/pages/OpenOrderPage";
 import NotFound from "@/pages/NotFound";
 import NoAccess from "@/pages/NoAccess";
-import CourierPage from "@/pages/CourierPage";
-import CajaPage from "@/pages/CajaPage";
+
+/**
+ * Cada pantalla se baja solo cuando se abre (la de acceso va en el archivo principal, que así queda liviano).
+ * Si justo se publicó una versión nueva y el archivo de una pantalla ya no existe, se recarga la página una vez.
+ */
+const RECARGA = 'pos-recarga-por-version';
+const pagina = (cargar: () => Promise<{ default: ComponentType<any> }>) => lazy(() =>
+  cargar().then(m => { sessionStorage.removeItem(RECARGA); return m; }).catch(err => {
+    if (!sessionStorage.getItem(RECARGA)) { sessionStorage.setItem(RECARGA, '1'); window.location.reload(); }
+    throw err;
+  })
+);
+const POSPage = pagina(() => import("@/pages/POSPage"));
+const CashShiftPage = pagina(() => import("@/pages/CashShiftPage"));
+const DashboardPage = pagina(() => import("@/pages/DashboardPage"));
+const OrdersPage = pagina(() => import("@/pages/OrdersPage"));
+const NewOrderPage = pagina(() => import("@/pages/NewOrderPage"));
+const OrderDetailPage = pagina(() => import("@/pages/OrderDetailPage"));
+const KitchenPage = pagina(() => import("@/pages/KitchenPage"));
+const MenuModulePage = pagina(() => import("@/pages/MenuModulePage"));
+const CustomersPage = pagina(() => import("@/pages/CustomersPage"));
+const CustomerDetailPage = pagina(() => import("@/pages/CustomerDetailPage"));
+const ReportsPage = pagina(() => import("@/pages/ReportsPage"));
+const MyAccountPage = pagina(() => import("@/pages/MyAccountPage"));
+const SettingsPage = pagina(() => import("@/pages/SettingsPage"));
+const StaffPage = pagina(() => import("@/pages/StaffPage"));
+const FinancePage = pagina(() => import("@/pages/FinancePage"));
+const TablesPage = pagina(() => import("@/pages/TablesPage"));
+const CounterPage = pagina(() => import("@/pages/CounterPage"));
+const DeliveryPage = pagina(() => import("@/pages/DeliveryPage"));
+const OpenOrderPage = pagina(() => import("@/pages/OpenOrderPage"));
+const CourierPage = pagina(() => import("@/pages/CourierPage"));
+const CajaPage = pagina(() => import("@/pages/CajaPage"));
 import { can, homePath, type ViewKey } from "@/lib/permissions";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -59,19 +71,21 @@ const Home = () => {
   return <Navigate to={homePath(user, modules, hidden)} replace />;
 };
 
+const Cargando = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="text-center">
+      <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+      <p className="text-sm text-muted-foreground">Cargando...</p>
+    </div>
+  </div>
+);
+
 const ProtectedRoutes = () => {
   const user = useStore(s => s.user);
   const restoring = useStore(s => s.restoring);
 
   // While restoring session, show loading
-  if (restoring) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">Cargando...</p>
-      </div>
-    </div>
-  );
+  if (restoring) return <Cargando />;
 
   if (!user) return <Navigate to="/login" replace />;
   return <AppLayout />;
@@ -131,6 +145,7 @@ const App = () => (
       <UpdateNotifier />
       <BrowserRouter>
         <SetupGate />
+        <Suspense fallback={<Cargando />}>
         <Routes>
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -161,6 +176,7 @@ const App = () => (
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
