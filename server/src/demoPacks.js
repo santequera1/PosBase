@@ -3,8 +3,11 @@
  * ventas) para mostrar el sistema "con cara del negocio" del prospecto. SOLO se pueden aplicar en instalaciones de
  * demostración (DEMO_MODE=1 en server/.env): aplicar un paquete borra el menú y las ventas.
  *
- * Logos y fotos: cuando el diseñador entregue cada marca, van en public/demo-packs/<id>/ (logo.png, logo-login.png,
- * y fotos con el nombre del producto en minúsculas y guiones, p. ej. pizza-margarita.webp) y se enlazan solos.
+ * Logos y fotos: cuando el diseñador entregue cada marca, van en public/demo-packs/<id>/ y se enlazan solos:
+ *   logo (barra lateral), logo-oscuro (barra en modo oscuro), logo-pequeno (menú recogido), logo-login (formulario de
+ *   acceso y fondos claros), favicon y apple-icon (ícono de la pestaña y del celular), portada-login (foto al lado del
+ *   formulario) y una foto por producto con el nombre en minúsculas y guiones (p. ej. pizza-margarita.webp).
+ * Hecho: hamburgueseria (Mr. Franky's). Los demás paquetes siguen sin logos ni fotos.
  */
 const fs = require('fs');
 const path = require('path');
@@ -22,16 +25,19 @@ const GELATO_SIZES = JSON.stringify([{ name: 'Pequeño (1 sabor)', price: 15000 
 
 const PACKS = [
   {
+    // Marca Mr. Franky's (identidad de docs/clientes/mrfrankys/): rojo #F9002B, beige #F8EFDC y negro; barra lateral negra con el
+    // logotipo rojo, fondo beige, botones rojos. Las fotos de los productos y los logos están en public/demo-packs/hamburgueseria/.
     id: 'hamburgueseria', label: 'Hamburguesería / comida rápida', type: 'fastfood', modules: { ...MOD.restaurant, tables: true }, tables: 8, deliveryFee: 5000,
-    brand: { businessName: 'Bruto Burger', slogan: 'Hamburguesas a la parrilla', receiptFooter: '¡Gracias por elegir Bruto Burger! Pide a domicilio por WhatsApp' },
-    theme: T('#161616', '#FF6B1A', '#FFF8F1', '#FFE6D1', '#0B0B0B', '#6B5E55', '#E0461B', 'Oswald', 'Lobster'),
+    brand: { businessName: "Mr. Franky's", slogan: 'Muerde, disfruta y repite', receiptFooter: "¡Gracias por elegir Mr. Franky's! Pide a domicilio por WhatsApp", loginBg: '#F8EFDC', loginImageFit: 'cover', loginImageFocus: 'center', loginShowTitle: false },
+    theme: T('#CC0023', '#F9002B', '#F8EFDC', '#FFF9EE', '#000000', '#6B5B52', '#F9002B', 'Oswald', 'Lobster'),
     sales: { perDay: [14, 22], dineIn: 0.45, delivery: 0.35 },
     menu: [
-      ['Hamburguesas', '🍔', '#E0461B', [['Bruta clásica', 24000, 'Carne de res 150 g, queso, tocineta y salsa de la casa'], ['Doble Bruta', 32000, 'Doble carne, doble queso cheddar'], ['Burger BBQ', 29000, 'Aros de cebolla y salsa BBQ ahumada'], ['Burger de pollo crispy', 26000, 'Pechuga apanada y salsa miel mostaza'], ['Burger vegetariana', 25000, 'Medallón de garbanzo y vegetales']]],
-      ['Perros y salchipapas', '🌭', '#F59E0B', [['Perro sencillo', 15000], ['Perro especial', 19000, 'Tocineta, queso y papita ripio'], ['Salchipapa personal', 18000], ['Salchipapa para compartir', 32000]]],
-      ['Combos', '🍱', '#B45309', [['Combo Bruta + papas + gaseosa', 33000], ['Combo pareja (2 burgers + papas + 2 gaseosas)', 62000], ['Combo familiar (4 burgers + papas grandes)', 115000]]],
-      ['Acompañamientos', '🍟', '#CA8A04', [['Papas a la francesa', 8000], ['Papas con queso y tocineta', 14000], ['Aros de cebolla', 10000], ['Alitas BBQ x6', 22000]]],
-      ['Bebidas', '🥤', '#0E7490', [['Gaseosa personal', 5000], ['Limonada natural', 7000], ['Limonada de coco', 11000], ['Malteada de vainilla', 13000], ['Cerveza nacional', 7000]]],
+      ['Hamburguesas', '🍔', '#F9002B', [['Franky clásica', 22000, 'Carne de res 150 g, cheddar, tomate, cebolla, pepinillos y salsa Franky'], ['Franky tocineta', 26000, 'Carne, doble cheddar, tocineta crocante, lechuga y tomate'], ['Franky BBQ bacon', 27000, 'Carne a la parrilla, tocineta, cheddar fundido y salsa BBQ ahumada'], ['Doble Franky', 32000, 'Doble carne, doble cheddar, tocineta, tomate y lechuga'], ['Franky de pollo crispy', 24000, 'Pechuga apanada, queso, lechuga y mayonesa de ajo'], ['Franky veggie', 23000, 'Medallón de garbanzo, aguacate y vegetales']]],
+      ['Pollo', '🍗', '#F59E0B', [['Presas de pollo x2', 16000, 'Dos presas apanadas con papas'], ['Nuggets x8', 15000, 'Con salsa a elección'], ['Alitas BBQ x6', 22000, 'Bañadas en salsa BBQ de la casa'], ['Pollo crispy en caja', 19000, 'Trocitos de pechuga apanada con papas']]],
+      ['Combos', '🍱', '#B45309', [['Combo Franky clásica + papas + gaseosa', 30000], ['Combo pollo crispy + papas + gaseosa', 28000, 'Caja de pollo crispy, papas y gaseosa'], ['Combo Franky + nuggets', 31000, 'Hamburguesa clásica, 4 nuggets y gaseosa'], ['Combo pareja (2 burgers + papas + 2 gaseosas)', 58000], ['Combo familiar (4 burgers + papas grandes + 4 gaseosas)', 110000]]],
+      ['Acompañamientos', '🍟', '#CA8A04', [['Papas a la francesa', 8000], ['Papas con queso y tocineta', 14000], ['Aros de cebolla', 10000], ['Salsas de la casa x3', 3000, 'Cheddar, ranch y ketchup']]],
+      ['Bebidas', '🥤', '#0E7490', [['Gaseosa personal', 5000], ['Limonada natural', 7000], ['Limonada de coco', 11000], ['Café americano', 4500], ['Cerveza nacional', 7000]]],
+      ['Malteadas y postres', '🍦', '#DB2777', [['Malteada de fresa', 13000, 'Con crema batida y cereza'], ['Malteada de vainilla', 13000], ['Malteada de chocolate', 13000], ['Brownie con helado', 12000]]],
     ],
   },
   {
@@ -125,7 +131,8 @@ function listPacks(db) {
   return PACKS.map(p => ({
     id: p.id, label: p.label, businessName: p.brand.businessName, slogan: p.brand.slogan, theme: p.theme, modules: p.modules,
     products: p.menu.reduce((a, c) => a + c[3].length, 0), sample: p.menu.flatMap(c => c[3].slice(0, 2).map(x => x[0])).slice(0, 5),
-    logo: asset(p.id, 'logo'), current: current === p.id,
+    // Para la tarjeta del paquete (fondo claro) sirve el logo del inicio de sesión; el de la barra lateral suele ser claro
+    logo: asset(p.id, 'logo-login') || asset(p.id, 'logo'), current: current === p.id,
   }));
 }
 
@@ -162,6 +169,22 @@ function applyPack(db, packId, userName = 'Demo') {
     setSetting(db, 'logoDarkUrl', asset(p.id, 'logo-oscuro') || '');
     setSetting(db, 'logoSmallUrl', asset(p.id, 'logo-pequeno') || '');
     setSetting(db, 'logoLoginUrl', asset(p.id, 'logo-login') || asset(p.id, 'logo') || '');
+    setSetting(db, 'logoSmallRound', '0');
+    // Ícono de la pestaña y del celular, foto y color de fondo de la pantalla de acceso (si el paquete los trae)
+    setSetting(db, 'faviconUrl', asset(p.id, 'favicon') || '');
+    setSetting(db, 'appleIconUrl', asset(p.id, 'apple-icon') || '');
+    setSetting(db, 'loginImageUrl', asset(p.id, 'portada-login') || '');
+    setSetting(db, 'loginImageFit', p.brand.loginImageFit || 'cover');
+    setSetting(db, 'loginImageFocus', p.brand.loginImageFocus || 'center');
+    setSetting(db, 'loginBg', p.brand.loginBg || '');
+    setSetting(db, 'loginTitle', '');
+    // Si el logo ya trae el nombre del negocio, no se repite como título encima de "Iniciar sesión"
+    setSetting(db, 'loginShowTitle', p.brand.loginShowTitle === false ? '0' : '1');
+    // Logo del recibo térmico (mapa de bits ya preparado) si el paquete lo trae; si no, el automático a partir del logo
+    const receiptLogo = (() => { try { const f = path.join(PUBLIC_DIR, 'demo-packs', p.id, 'recibo-logo.json'); return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''; } catch { return ''; } })();
+    setSetting(db, 'receiptLogo', receiptLogo);
+    setSetting(db, 'receiptLogoAuto', receiptLogo ? '0' : '1');
+    setSetting(db, 'loginSubtitle', '');
     setSetting(db, 'demoPack', p.id);
     setSetting(db, 'invoicePrefix', p.brand.businessName.normalize('NFKD').replace(/[^A-Za-z ]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 3) || 'POS');
 

@@ -52,8 +52,13 @@ dependencias solo si cambiaron, compilan, reinician y verifican `/api/health`. L
   ventas y 3 mesas ocupadas. Al aplicarlo se borran ventas, menú y clientes de la instalación; usuarios y personal se quedan.
 - En una instalación normal (sin `DEMO_MODE`) la pestaña no existe y la API responde 403.
 - Los paquetes están en `server/src/demoPacks.js`. Logos y fotos (los hace el diseñador) van en
-  `public/demo-packs/<id>/`: `logo`, `logo-login` y una foto por producto con el nombre en minúsculas y guiones
-  (`Pizza margarita` → `pizza-margarita`), en `.webp`, `.png`, `.jpg` o `.svg`. Si no hay archivo, se usa el nombre o un ícono.
+  `public/demo-packs/<id>/` y se enlazan solos al aplicar el paquete: `logo` (barra lateral), `logo-oscuro` (barra en modo
+  oscuro), `logo-pequeno` (menú recogido), `logo-login` (formulario de acceso y fondos claros), `favicon` y `apple-icon`
+  (ícono de la pestaña y del celular), `portada-login` (foto al lado del formulario), `recibo-logo.json` (logo del recibo
+  térmico ya en mapa de bits) y una foto por producto con el nombre en minúsculas y guiones (`Pizza margarita` →
+  `pizza-margarita`), en `.webp`, `.png`, `.jpg` o `.svg`. Si no hay archivo, se usa el nombre o un ícono.
+- Hecho (nov-2026): **hamburguesería = Mr. Franky's** (rojo `#F9002B`, beige `#F8EFDC`, negro; 28 productos, 15 con foto).
+  Los originales están en `docs/clientes/mrfrankys/` (ver su README). Los otros 5 paquetes siguen sin logos ni fotos.
 - Después de cambiar de paquete en una demo con reinicio nocturno, volver a tomar la foto (`reiniciar-demo.sh --foto`),
   o a las 3:00 a. m. vuelve al paquete anterior.
 - Demo fija de un paquete: `nueva-instancia.sh <slug> <slug>.stiven.app`, configuración inicial, `DEMO_MODE=1`,

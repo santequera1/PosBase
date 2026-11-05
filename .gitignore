@@ -56,3 +56,9 @@ scripts/wonkas/
 scripts/brand-assets/
 # Copias de las facturas electrónicas emitidas (PDF/XML con datos de clientes)
 server/einvoices/
+
+# Mr. Franky's (marca de la demo de hamburguesería): las láminas de Behance y los originales pesados (fotos PNG, portadas)
+# quedan solo en local; al repo van los logos @4x, el favicon SVG y el paquete ya convertido en public/demo-packs/
+docs/clientes/mrfrankys/referencia-behance/*.jpg
+docs/clientes/mrfrankys/referencia-behance/contenido/productos/
+docs/clientes/mrfrankys/referencia-behance/contenido/sistema/
