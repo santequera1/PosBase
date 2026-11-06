@@ -42,7 +42,8 @@ dependencias solo si cambiaron, compilan, reinician y verifican `/api/health`. L
   cd /home/ubuntu/apps/pos-demo/server && node ../scripts/instancias/datos-demo.cjs http://127.0.0.1:<puerto> <admin> <clave>
   bash /home/ubuntu/apps/pos-demo/scripts/instancias/reiniciar-demo.sh --foto   # guarda la foto e instala el cron
   ```
-- Cada noche (3:00 a. m.) vuelve a la foto: los prospectos pueden tocar todo sin dañarla.
+- Cada noche (08:00 UTC = 3:00 a. m. Colombia; el VPS va en UTC) vuelve a la foto: los prospectos pueden tocar todo sin dañarla.
+  Ojo: cualquier cambio que se haga en la demo (fuentes, menú, ventas) se pierde en el reinicio si no se vuelve a tomar la foto.
 - Usuarios de prueba (clave `Demo2026*`): `caja`, `mesero1`, `mesero2`, `cocina`, `domi1`, `domi2`. El administrador de la
   demo está en `documentacionyclaves.md`.
 
@@ -60,7 +61,7 @@ dependencias solo si cambiaron, compilan, reinician y verifican `/api/health`. L
 - Hecho (nov-2026): **hamburguesería = Mr. Franky's** (rojo `#F9002B`, beige `#F8EFDC`, negro; 28 productos, 15 con foto).
   Los originales están en `docs/clientes/mrfrankys/` (ver su README). Los otros 5 paquetes siguen sin logos ni fotos.
 - Después de cambiar de paquete en una demo con reinicio nocturno, volver a tomar la foto (`reiniciar-demo.sh --foto`),
-  o a las 3:00 a. m. vuelve al paquete anterior.
+  o a las 3:00 a. m. (Colombia) vuelve al paquete anterior.
 - Demo fija de un paquete: `nueva-instancia.sh <slug> <slug>.stiven.app`, configuración inicial, `DEMO_MODE=1`,
   `datos-demo.cjs ... --solo-usuarios`, aplicar el paquete y `DEMO_SLUG=<slug> reiniciar-demo.sh --foto` (cada demo tiene su cron).
 

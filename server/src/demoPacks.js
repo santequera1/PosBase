@@ -6,7 +6,9 @@
  * Logos y fotos: cuando el diseñador entregue cada marca, van en public/demo-packs/<id>/ y se enlazan solos:
  *   logo (barra lateral), logo-oscuro (barra en modo oscuro), logo-pequeno (menú recogido), logo-login (formulario de
  *   acceso y fondos claros), favicon y apple-icon (ícono de la pestaña y del celular), portada-login (foto al lado del
- *   formulario) y una foto por producto con el nombre en minúsculas y guiones (p. ej. pizza-margarita.webp).
+ *   formulario), sin-foto (imagen de relleno para los productos que aún no tienen foto) y una foto por producto con el
+ *   nombre en minúsculas y guiones (p. ej. pizza-margarita.webp). Las fotos van en lienzo cuadrado (900x900, el
+ *   sujeto ocupa ~90 %) para que en las tarjetas del POS todas se vean del mismo tamaño.
  * Hecho: hamburgueseria (Mr. Franky's). Los demás paquetes siguen sin logos ni fotos.
  */
 const fs = require('fs');
@@ -29,7 +31,7 @@ const PACKS = [
     // logotipo rojo, fondo beige, botones rojos. Las fotos de los productos y los logos están en public/demo-packs/hamburgueseria/.
     id: 'hamburgueseria', label: 'Hamburguesería / comida rápida', type: 'fastfood', modules: { ...MOD.restaurant, tables: true }, tables: 8, deliveryFee: 5000,
     brand: { businessName: "Mr. Franky's", slogan: 'Muerde, disfruta y repite', receiptFooter: "¡Gracias por elegir Mr. Franky's! Pide a domicilio por WhatsApp", loginBg: '#F8EFDC', loginImageFit: 'cover', loginImageFocus: 'center', loginShowTitle: false },
-    theme: T('#CC0023', '#F9002B', '#F8EFDC', '#FFF9EE', '#000000', '#6B5B52', '#F9002B', 'Oswald', 'Lobster'),
+    theme: T('#CC0023', '#F9002B', '#F8EFDC', '#FFF9EE', '#000000', '#6B5B52', '#F9002B', 'Poppins', 'Lobster'),
     sales: { perDay: [14, 22], dineIn: 0.45, delivery: 0.35 },
     menu: [
       ['Hamburguesas', '🍔', '#F9002B', [['Franky clásica', 22000, 'Carne de res 150 g, cheddar, tomate, cebolla, pepinillos y salsa Franky'], ['Franky tocineta', 26000, 'Carne, doble cheddar, tocineta crocante, lechuga y tomate'], ['Franky BBQ bacon', 27000, 'Carne a la parrilla, tocineta, cheddar fundido y salsa BBQ ahumada'], ['Doble Franky', 32000, 'Doble carne, doble cheddar, tocineta, tomate y lechuga'], ['Franky de pollo crispy', 24000, 'Pechuga apanada, queso, lechuga y mayonesa de ajo'], ['Franky veggie', 23000, 'Medallón de garbanzo, aguacate y vegetales']]],
@@ -192,10 +194,12 @@ function applyPack(db, packId, userName = 'Demo') {
     const insCat = db.prepare('INSERT INTO categories (id, name, emoji, color) VALUES (?, ?, ?, ?)');
     const insProd = db.prepare('INSERT INTO products (name, category_id, price, available, image, description, sizes, featured, station) VALUES (?, ?, ?, 1, ?, ?, ?, 0, ?)');
     let catId = p.gelato ? 1 : 101;
+    // Productos sin foto propia: la imagen de relleno del paquete (p. ej. el logotipo), mientras llegan las fotos
+    const sinFoto = asset(p.id, 'sin-foto');
     for (const [cat, emoji, color, prods, catSizes] of p.menu) {
       insCat.run(catId, cat, emoji, color);
       const station = /bebida|caf|malteada/i.test(cat) ? 'barra' : 'cocina';
-      for (const [name, price, desc, sizes] of prods) insProd.run(name, catId, price, asset(p.id, slug(name)), desc || null, sizes ? JSON.stringify(sizes) : (catSizes || null), station);
+      for (const [name, price, desc, sizes] of prods) insProd.run(name, catId, price, asset(p.id, slug(name)) || sinFoto, desc || null, sizes ? JSON.stringify(sizes) : (catSizes || null), station);
       catId++;
     }
 
