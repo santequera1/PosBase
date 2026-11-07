@@ -369,7 +369,7 @@ export function autoFixTheme(raw: ThemeInput): ThemeInput {
 
 export const THEME_PRESETS: Array<{ name: string; description: string; theme: ThemeInput }> = [
   // Predeterminados por tipo de negocio (los usa el asistente de configuración inicial)
-  { name: 'Restaurante', description: 'Negro, amarillo y crema · Inter (el estilo de Wonka\'s)', theme: { primary: '#111111', accent: '#F7C600', background: '#FFFBEA', dark: '#0B0B0B', card: '#FFF3C4', muted: '#6E6A5A', wine: '#D99A00', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Lobster', mode: 'light' } },
+  { name: 'Restaurante', description: 'Negro, amarillo y crema · Inter', theme: { primary: '#111111', accent: '#F7C600', background: '#FFFBEA', dark: '#0B0B0B', card: '#FFF3C4', muted: '#6E6A5A', wine: '#D99A00', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Lobster', mode: 'light' } },
   { name: 'Natural', description: 'Verde, café, crema y durazno · Inter', theme: { primary: '#5E4B35', accent: '#A3CB5D', background: '#FBFAF1', dark: '#3D3122', card: '#F3F3DA', muted: '#8B7355', wine: '#E9A47A', fontHeading: 'Inter', fontBody: 'Inter', fontScript: 'Caveat', mode: 'light' } },
   { name: 'Heladería pastel', description: 'Lila, amarillo crema y coral · Inter + Fredoka', theme: { primary: '#7A4E86', accent: '#C49CC6', background: '#FFFDF0', dark: '#4A2D55', card: '#FBF5BE', muted: '#8A7391', wine: '#EF6A5C', fontHeading: 'Inter', fontBody: 'Fredoka', fontScript: 'Pacifico', mode: 'light' } },
   { name: 'Clásico', description: 'Azul marino, dorado y crema', theme: { primary: '#364266', accent: '#C6BF81', background: '#FEF3DE', mode: 'light' } },

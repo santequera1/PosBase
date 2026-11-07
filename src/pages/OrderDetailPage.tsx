@@ -172,7 +172,7 @@ const OrderDetailPage = () => {
     const padding = 20;
 
     const lines: string[] = [];
-    lines.push(businessName || 'FRITOP');
+    lines.push(businessName || 'Mi negocio');
     lines.push('Recibo de Pedido');
     lines.push('─'.repeat(35));
     lines.push(`Pedido # ${order.id}`);
@@ -560,7 +560,7 @@ const OrderDetailPage = () => {
       {/* Printable receipt (hidden) */}
       <div className="hidden">
         <div ref={receiptRef}>
-          <h2>{businessName || 'FRITOP'}</h2>
+          <h2>{businessName || 'Mi negocio'}</h2>
           <p className="center">Recibo de Pedido</p>
           <div className="line"></div>
           <p><b>Pedido #</b>{order.id}</p>

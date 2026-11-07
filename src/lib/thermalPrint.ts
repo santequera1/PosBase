@@ -93,8 +93,8 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
     minute: '2-digit',
   });
 
-  const customerName = order.customerName || order.customer?.name || 'Consumidor Final';
-  const customerDoc = order.customerDoc || order.customer?.documentId || order.customer?.doc || '222222222222';
+  const customerName = escHtml(order.customerName || order.customer?.name || 'Consumidor Final');
+  const customerDoc = escHtml(order.customerDoc || order.customer?.documentId || order.customer?.doc || '222222222222');
 
   let paymentMethodLabel = 'Efectivo';
   if (order.paymentMethod === 'mixed' || order.paymentSplit) paymentMethodLabel = 'Mixto / Combinado';
@@ -127,12 +127,12 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div style="font-size: 8px; margin-bottom: 2px;">
         <div class="row"><span><strong>Cliente:</strong> ${customerName}</span></div>
         <div class="row"><span><strong>C.C / NIT:</strong> ${customerDoc}</span></div>
-        ${order.type === 'dine-in' ? `<div class="row"><span><strong>Mesa:</strong> ${order.tableLabel || order.tableNumber || ''}${order.people ? ` · ${order.people} personas` : ''}${order.waiterName ? ` · Atiende: ${order.waiterName}` : ''}</span></div>` : ''}
-        ${order.type === 'pickup' && order.label ? `<div class="row"><span><strong>Para llevar:</strong> ${order.label}</span></div>` : ''}
-        ${order.type === 'delivery' ? `<div class="row"><span><strong>Domicilio:</strong> ${c.address || ''}${c.address2 ? `, ${c.address2}` : ''}${c.neighborhood ? ` · ${c.neighborhood}` : ''}</span></div>${c.phone ? `<div class="row"><span><strong>Tel:</strong> ${c.phone}</span></div>` : ''}${order.driverName ? `<div class="row"><span><strong>Repartidor:</strong> ${order.driverName}</span></div>` : ''}` : ''}
+        ${order.type === 'dine-in' ? `<div class="row"><span><strong>Mesa:</strong> ${escHtml(order.tableLabel || order.tableNumber || '')}${order.people ? ` · ${escHtml(order.people)} personas` : ''}${order.waiterName ? ` · Atiende: ${escHtml(order.waiterName)}` : ''}</span></div>` : ''}
+        ${order.type === 'pickup' && order.label ? `<div class="row"><span><strong>Para llevar:</strong> ${escHtml(order.label)}</span></div>` : ''}
+        ${order.type === 'delivery' ? `<div class="row"><span><strong>Domicilio:</strong> ${escHtml(c.address)}${c.address2 ? `, ${escHtml(c.address2)}` : ''}${c.neighborhood ? ` · ${escHtml(c.neighborhood)}` : ''}</span></div>${c.phone ? `<div class="row"><span><strong>Tel:</strong> ${escHtml(c.phone)}</span></div>` : ''}${order.driverName ? `<div class="row"><span><strong>Repartidor:</strong> ${escHtml(order.driverName)}</span></div>` : ''}` : ''}
         ${order.electronicInvoice && order.electronicInvoice.number ? (order.electronicInvoice.test === false
-          ? `<div class="row"><span><strong>FACTURA ELECTRÓNICA DE VENTA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE: ${String(order.electronicInvoice.cufe)}</div><div style="font-size: 6.5px;">Validada por la DIAN${order.electronicInvoice.publicUrl ? ` · ${order.electronicInvoice.publicUrl}` : ''}</div>`
-          : `<div class="row"><span><strong>F.E. PRUEBA:</strong> ${order.electronicInvoice.number}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE (simulado): ${String(order.electronicInvoice.cufe).slice(0, 48)}…</div><div style="font-size: 6.5px; font-weight: bold;">DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL</div>`) : ''}
+          ? `<div class="row"><span><strong>FACTURA ELECTRÓNICA DE VENTA:</strong> ${escHtml(order.electronicInvoice.number)}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE: ${escHtml(order.electronicInvoice.cufe)}</div><div style="font-size: 6.5px;">Validada por la DIAN${order.electronicInvoice.publicUrl ? ` · ${escHtml(order.electronicInvoice.publicUrl)}` : ''}</div>`
+          : `<div class="row"><span><strong>F.E. PRUEBA:</strong> ${escHtml(order.electronicInvoice.number)}</span></div><div style="font-size: 6.5px; word-break: break-all;">CUFE (simulado): ${escHtml(String(order.electronicInvoice.cufe).slice(0, 48))}…</div><div style="font-size: 6.5px; font-weight: bold;">DOCUMENTO DE PRUEBA · SIN VALIDEZ FISCAL</div>`) : ''}
       </div>
 
       <div class="divider"></div>
@@ -147,10 +147,10 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
           <div style="margin: 2px 0;">
             <div class="row" style="font-size: ${fontSize};">
               <span style="width: 18px; font-weight: bold;">${item.quantity || 1}x</span>
-              <span style="flex: 1; text-align: left; padding-left: 2px;" class="item-desc">${item.name}</span>
+              <span style="flex: 1; text-align: left; padding-left: 2px;" class="item-desc">${escHtml(item.name)}</span>
               <span style="width: 50px; text-align: right; font-weight: bold; white-space: nowrap;">${formatPrice((item.price || 0) * (item.quantity || 1))}</span>
             </div>
-            ${item.flavors ? `<div class="item-flavors">• ${item.flavors}</div>` : ''}
+            ${item.flavors ? `<div class="item-flavors">• ${escHtml(item.flavors)}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -160,7 +160,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div style="font-size: 8.5px;">
         <div class="row"><span>Subtotal:</span><span style="white-space: nowrap;">${formatPrice(subtotal)}</span></div>
         ${order.deliveryFee > 0 ? `<div class="row"><span>Envío:</span><span style="white-space: nowrap;">${formatPrice(order.deliveryFee)}</span></div>` : ''}
-        ${discount > 0 ? `<div class="row font-bold" style="color: #000;"><span>Descuento${order.discountReason ? ` (${order.discountReason})` : ''}:</span><span style="white-space: nowrap;">-${formatPrice(discount)}</span></div>` : ''}
+        ${discount > 0 ? `<div class="row font-bold" style="color: #000;"><span>Descuento${order.discountReason ? ` (${escHtml(order.discountReason)})` : ''}:</span><span style="white-space: nowrap;">-${formatPrice(discount)}</span></div>` : ''}
         ${biz.taxRate > 0 ? `<div class="row" style="font-size: 7.5px;"><span>Base gravable:</span><span style="white-space: nowrap;">${formatPrice(taxBase)}</span></div><div class="row" style="font-size: 7.5px;"><span>${biz.taxLabel} ${biz.taxRate}% (incluido):</span><span style="white-space: nowrap;">${formatPrice(taxAmount)}</span></div>` : ''}
         <div class="row font-bold" style="font-size: 10px; margin-top: 3px; border-top: 1px solid #000; padding-top: 2px;">
           <span>${tip > 0 ? 'TOTAL:' : 'TOTAL A PAGAR:'}</span>
@@ -173,7 +173,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
         </div>
         ${order.paymentSplit ? `
           <div style="font-size: 7.5px; padding-left: 3px;">
-            ${splitParts(order.paymentSplit).map(p => `<div>• ${PAY_NAMES[p.method] || p.method}: ${formatPrice(p.amount)}</div>`).join('')}
+            ${splitParts(order.paymentSplit).map(p => `<div>• ${escHtml(PAY_NAMES[p.method] || p.method)}: ${formatPrice(p.amount)}</div>`).join('')}
           </div>
         ` : ''}
         ${order.paymentMethod === 'cash' && order.cashReceived > 0 ? `
@@ -188,7 +188,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
         ${rc.footer ? `<p style="white-space: pre-line;">${escHtml(rc.footer)}</p>` : ''}
         ${thanksText(rc.d, biz.name) ? `<p class="font-bold">${escHtml(thanksText(rc.d, biz.name))}</p>` : ''}
         ${rc.d.showHours && biz.hours ? `<p style="font-size: 7px; white-space: pre-line;">Horario: ${escHtml(biz.hours)}</p>` : ''}
-        ${biz.dianResolution ? `<p style="font-size: 6.5px; margin-top: 2px;">${biz.dianResolution}</p>` : ''}
+        ${biz.dianResolution ? `<p style="font-size: 6.5px; margin-top: 2px;">${escHtml(biz.dianResolution)}</p>` : ''}
       </div>
     </div>
   `;
@@ -201,7 +201,7 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
   const fontSize = '8px';
 
   const shiftId = shiftData.id || 1;
-  const cashier = shiftData.cashierName || shiftData.cashier_name || 'Cajero Gia';
+  const cashier = shiftData.cashierName || shiftData.cashier_name || 'Cajero';
   const initial = shiftData.initialCash !== undefined ? shiftData.initialCash : shiftData.initial_cash || 0;
   const cash = shiftData.cashSales !== undefined ? shiftData.cashSales : shiftData.cash_sales || 0;
   const withdrawals = shiftData.totalWithdrawals !== undefined ? shiftData.totalWithdrawals : shiftData.total_withdrawals || 0;

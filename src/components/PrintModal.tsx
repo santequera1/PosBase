@@ -1,8 +1,6 @@
-import { splitParts, PAY_NAMES } from '@/lib/paymentSplit';
 import React, { useState } from 'react';
 import { X, Printer, FileCheck2 } from 'lucide-react';
 import { ElectronicInvoiceModal } from '@/components/ElectronicInvoiceModal';
-import { formatPrice } from '@/lib/format';
 import { printThermal, generateSalesTicketHtml } from '@/lib/thermalPrint';
 import { printReceipt, netPrintOn } from '@/lib/netPrint';
 import { useStore } from '@/store/useStore';
@@ -19,34 +17,22 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
   const [paperSize, setPaperSize] = useState<'80mm' | '58mm'>('80mm');
   const [isPrinting, setIsPrinting] = useState(false);
   const [showFe, setShowFe] = useState(false);
-  const { businessName, businessSlogan, businessAddress, businessPhone, businessNit, taxType, taxRate } = useStore();
+  const design = useStore(s => s.receiptDesign);
+  const logo = useStore(s => s.receiptLogo);
+  const footer = useStore(s => s.receiptFooter);
+  useStore(s => s.businessName); // el recibo toma los datos del negocio del store: se repinta si cambian
 
   if (!isOpen || !order) return null;
 
-  const items = order.items || [];
-  const subtotal = order.subtotal || items.reduce((a: number, i: any) => a + (i.price || 0) * (i.quantity || 1), 0);
-  const discount = order.discount || 0;
-  const total = order.total !== undefined ? order.total : Math.max(0, subtotal - discount);
   const docNumber = orderNumber(order.id || 1001);
-  const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
-
-  const formattedDate = orderDate.toLocaleDateString('es-CO', {
-    timeZone: 'America/Bogota',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-  const formattedTime = orderDate.toLocaleTimeString('es-CO', {
-    timeZone: 'America/Bogota',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // La vista previa es el mismo recibo que sale en el papel: logo, textos y datos según Configuración → Recibos
+  const ticketHtml = generateSalesTicketHtml(order, { paperSize, design, logo, footer });
 
   const handlePrint = async () => {
     setIsPrinting(true);
     try {
       if (netPrintOn()) await printReceipt(order);
-      else await printThermal(generateSalesTicketHtml(order, { paperSize }), `Factura-${docNumber}`);
+      else await printThermal(ticketHtml, `Factura-${docNumber}`);
     } catch (e) {
       console.error('Print error:', e);
     } finally {
@@ -88,106 +74,11 @@ export const PrintModal: React.FC<PrintModalProps> = ({ isOpen, onClose, order }
         {/* Live Visual Preview (Compact Ticket) */}
         <div className="flex-1 overflow-y-auto p-4 bg-gray-100 flex justify-center items-start">
           <div
-            className="paper bg-white p-3.5 rounded-xl shadow-md border border-gray-300 text-left font-mono text-[10.5px] text-[#111] space-y-2 transition-all"
-            style={{ width: paperSize === '58mm' ? '220px' : '260px' }}
-          >
-            {/* Header */}
-            <div className="text-center pb-1.5 border-b border-gray-300">
-              <p className="font-bold text-[10.5px] tracking-tight text-brand-dark">{businessName}</p>
-              <p className="font-bold text-[10px] text-brand-dark">{businessSlogan.toUpperCase()}</p>
-              <p className="text-[9px] text-gray-600">NIT: {businessNit} • {businessAddress}</p>
-              <p className="text-[9px] text-gray-600">Tel: {businessPhone}</p>
-            </div>
-
-            {/* Document Info */}
-            <div className="text-center py-0.5 border-b border-gray-300">
-              <p className="font-bold text-[11px] text-brand-dark">Doc. Ingreso No. {docNumber}</p>
-              <p className="text-[9px] text-gray-500">{formattedDate} {formattedTime}</p>
-            </div>
-
-            {/* Customer Info */}
-            <div className="text-[9.5px] space-y-0.5 border-b border-dashed border-gray-300 pb-1.5">
-              <p><span className="font-bold">Cliente:</span> {order.customerName || order.customer?.name || 'Consumidor Final'}</p>
-              <p><span className="font-bold">C.C / NIT:</span> {order.customerDoc || order.customer?.documentId || order.customer?.doc || '222222222222'}</p>
-              {order.electronicInvoice && <p className="text-amber-700 font-bold">F.E. PRUEBA {order.electronicInvoice.number} · sin validez fiscal</p>}
-            </div>
-
-            {/* Items Table */}
-            <div className="py-1 border-b border-dashed border-gray-300">
-              <div className="flex justify-between font-bold text-[9px] border-b border-dashed border-gray-300 pb-0.5 mb-1">
-                <span className="w-8">Cant.</span>
-                <span className="flex-1">Producto</span>
-                <span className="w-16 text-right">Total</span>
-              </div>
-              <div className="space-y-1">
-                {items.map((item: any, idx: number) => (
-                  <div key={idx} className="text-[9.5px]">
-                    <div className="flex justify-between">
-                      <span className="w-8 font-bold">{item.quantity || 1}x</span>
-                      <span className="flex-1 truncate">{item.name}</span>
-                      <span className="w-16 text-right font-bold">{formatPrice((item.price || 0) * (item.quantity || 1))}</span>
-                    </div>
-                    {item.flavors && (
-                      <div className="text-[8.5px] text-gray-600 pl-4 truncate">
-                        • {item.flavors}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Totals */}
-            <div className="space-y-0.5 pt-1 text-[10px]">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>{formatPrice(subtotal)}</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between font-bold text-red-600">
-                  <span>Descuento:</span>
-                  <span>-{formatPrice(discount)}</span>
-                </div>
-              )}
-              {taxType !== 'none' && taxRate > 0 && (
-                <>
-                  <div className="flex justify-between text-[9px] text-gray-600"><span>Base gravable:</span><span>{formatPrice(Math.round(total / (1 + taxRate / 100)))}</span></div>
-                  <div className="flex justify-between text-[9px] text-gray-600"><span>{taxType.toUpperCase()} {taxRate}% (incluido):</span><span>{formatPrice(total - Math.round(total / (1 + taxRate / 100)))}</span></div>
-                </>
-              )}
-              <div className="flex justify-between font-bold text-xs pt-1 border-t border-gray-300 text-brand-dark">
-                <span>TOTAL:</span>
-                <span>{formatPrice(total)}</span>
-              </div>
-              <div className="pt-0.5 text-[9px] text-gray-600">
-                <div className="flex justify-between">
-                  <span>Pago:</span>
-                  <span className="font-semibold text-gray-800">
-                    {order.paymentMethod === 'mixed' || order.paymentSplit
-                      ? 'Mixto / Combinado'
-                      : order.paymentMethod === 'cash'
-                      ? 'Efectivo'
-                      : order.paymentMethod === 'card_debit'
-                      ? 'T. Débito'
-                      : order.paymentMethod === 'card_credit'
-                      ? 'T. Crédito'
-                      : order.paymentMethod === 'transfer'
-                      ? 'QR / Nequi'
-                      : 'Tarjeta'}
-                  </span>
-                </div>
-                {order.paymentSplit && (
-                  <div className="text-[8.5px] text-gray-500 pl-2">
-                    {splitParts(order.paymentSplit).map((p, i) => <div key={i}>• {PAY_NAMES[p.method] || p.method}: {formatPrice(p.amount)}</div>)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="text-center pt-1 border-t border-dashed border-gray-300 text-[8.5px] text-gray-500">
-              ¡Gracias por su compra en Gia!
-            </div>
-          </div>
+            className="ticket-preview paper bg-white p-3.5 rounded-xl shadow-md border border-gray-300 text-left transition-all"
+            style={{ width: paperSize === '58mm' ? '240px' : '300px', maxWidth: '100%' }}
+            data-print-preview
+            dangerouslySetInnerHTML={{ __html: ticketHtml }}
+          />
         </div>
 
         {/* Footer Action Buttons */}
