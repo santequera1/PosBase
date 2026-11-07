@@ -783,3 +783,6 @@ router.get('/me', (req, res) => {
 });
 
 module.exports = router;
+// La demo liquida con el mismo cálculo (demoData.js)
+module.exports.computeSettlement = computeSettlement;
+module.exports.EMP_SELECT = EMP_SELECT;

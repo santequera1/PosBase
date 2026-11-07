@@ -96,7 +96,8 @@ function postSale(db, o, ctx) {
     lines.push({ account: map.employeeAdvances, debit: due, third: thirdEmployee(db, o.payroll_employee_id) || third, description: 'Descuento de nómina (consumo de empleado)', docRef });
   } else if (o.payment_method === 'platform') {
     lines.push({ account: map.platformReceivable, debit: due, third, description: 'Por cobrar a la plataforma', docRef });
-  } else if (o.payment_status && o.payment_status !== 'paid') {
+  } else if (o.payment_method === 'credit' || (o.payment_status && o.payment_status !== 'paid')) {
+    // A crédito siempre va a cartera, aunque ya esté pagada: lo que entra al banco son sus abonos (si no, se contaría dos veces)
     lines.push({ account: map.customerReceivable, debit: due, third, description: 'Venta a crédito', docRef });
   } else if (o.payment_method === 'mixed' && o.payment_split) {
     const sps = require('./paymentSplit').splitParts(o.payment_split);

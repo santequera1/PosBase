@@ -42,15 +42,23 @@ dependencias solo si cambiaron, compilan, reinician y verifican `/api/health`. L
   cd /home/ubuntu/apps/pos-demo/server && node ../scripts/instancias/datos-demo.cjs http://127.0.0.1:<puerto> <admin> <clave>
   bash /home/ubuntu/apps/pos-demo/scripts/instancias/reiniciar-demo.sh --foto   # guarda la foto e instala el cron
   ```
-- Cada noche (08:00 UTC = 3:00 a. m. Colombia; el VPS va en UTC) vuelve a la foto: los prospectos pueden tocar todo sin dañarla.
-  Ojo: cualquier cambio que se haga en la demo (fuentes, menú, ventas) se pierde en el reinicio si no se vuelve a tomar la foto.
+- Cada noche (08:00 UTC = 3:00 a. m. Colombia; el VPS va en UTC) vuelve a la foto y regenera seis meses de operación con
+  fechas de hoy (`regenerar-demo.cjs`): los prospectos pueden tocar todo sin dañarla y nunca ven datos viejos.
+  De la foto salen marca, fuentes, menú, mesas y usuarios; todo lo demás se genera de nuevo.
+  Ojo: un cambio de fuentes o de menú en la demo se pierde en el reinicio si no se vuelve a tomar la foto.
+- Durante el día, las ventas de hoy van apareciendo solas cada 10 minutos desde las 8 a. m. y las cuentas en curso se
+  mantienen recientes. Lo hace el mismo servidor, solo con `DEMO_MODE=1`.
+- Las notas crédito y débito son comprobantes de contabilidad manuales: el sistema no emite esos documentos ante la DIAN.
+  Las facturas electrónicas de la demo son simuladas.
 - Usuarios de prueba (clave `Demo2026*`): `caja`, `mesero1`, `mesero2`, `cocina`, `domi1`, `domi2`. El administrador de la
   demo está en `documentacionyclaves.md`.
 
 ### Paquetes de demostración (cambiar de negocio ficticio)
 - Con `DEMO_MODE=1` en `server/.env` aparece **Configuración → Modo demostración**: 6 negocios ficticios (hamburguesería,
-  heladería, italiana, café, comida típica, mariscos). Cada uno trae marca, colores, letras, menú, mesas, una semana de
-  ventas y 3 mesas ocupadas. Al aplicarlo se borran ventas, menú y clientes de la instalación; usuarios y personal se quedan.
+  heladería, italiana, café, comida típica, mariscos). Cada uno trae marca, colores, letras, menú, mesas y seis meses de
+  operación ficticia (`server/src/demoData.js`): clientes, ventas, cajas, compras, cartera, inventario, personal, nómina y
+  contabilidad. Al aplicarlo se borra toda la operación de la instalación y se crea otra plantilla de personal; solo se
+  quedan los usuarios. Tarda entre 5 y 15 segundos.
 - En una instalación normal (sin `DEMO_MODE`) la pestaña no existe y la API responde 403.
 - Los paquetes están en `server/src/demoPacks.js`. Logos y fotos (los hace el diseñador) van en
   `public/demo-packs/<id>/` y se enlazan solos al aplicar el paquete: `logo` (barra lateral), `logo-oscuro` (barra en modo

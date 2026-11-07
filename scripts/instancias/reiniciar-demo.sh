@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deja la demo como recién instalada cada noche: restaura la base "foto" (snapshot) y reinicia el proceso.
+# Deja la demo como nueva cada noche: restaura la base "foto" (marca, menú, usuarios), regenera seis meses de operación
+# con fechas de hoy y reinicia el proceso.
 # La foto se toma una vez, con los datos de demostración cargados:
 #   bash reiniciar-demo.sh --foto      → guarda la base actual como foto
 #   bash reiniciar-demo.sh             → restaura la foto (lo corre cron a las 08:00 UTC = 3:00 a. m. Colombia; el VPS va en UTC)
@@ -20,5 +21,11 @@ fi
 pm2 stop "pos-$SLUG" >/dev/null
 rm -f "$DIR/server/data.db-wal" "$DIR/server/data.db-shm"
 cp "$SNAP" "$DIR/server/data.db"
+# Ventas, nómina, compras y contabilidad con fechas de hoy; si algo falla, la demo arranca con los datos de la foto
+if ! (cd "$DIR/server" && node ../scripts/instancias/regenerar-demo.cjs); then
+  echo "$(date '+%F %T') no se pudieron regenerar los datos: quedó la foto"
+  rm -f "$DIR/server/data.db-wal" "$DIR/server/data.db-shm"
+  cp "$SNAP" "$DIR/server/data.db"
+fi
 pm2 start "pos-$SLUG" >/dev/null
 echo "$(date '+%F %T') demo reiniciada"

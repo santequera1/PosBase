@@ -11,7 +11,7 @@ propios pueden llegar mal escritos (p. ej. "Wonka's" como "OneCast"/"Wumpa"; "st
 | Cliente | Dominio | Carpeta en VPS | PM2 | Puerto | Notas |
 |---|---|---|---|---|---|
 | Wonka's Burger (producción real desde 8-oct-2026) | pos.wailus.co | /home/ubuntu/apps/posbase | posbase-api | 3065 | Factus producción, impresión en red (agente en PC de caja) — ver `docs/clientes/wonkas.md` |
-| Demo para prospectos | demo.stiven.app | /home/ubuntu/apps/pos-demo | pos-demo | 3101 | se reinicia cada noche desde una foto |
+| Demo para prospectos | demo.stiven.app | /home/ubuntu/apps/pos-demo | pos-demo | 3101 | cada noche vuelve a la foto y regenera seis meses de datos con fechas de hoy |
 | Fritop (nueva, en revisión) | fritop.stiven.app | /home/ubuntu/apps/pos-fritop | pos-fritop | 3102 | migrada el 22-oct-2026 desde la versión vieja; ver `docs/clientes/fritop/fritop.md` (identidad visual y menú en esa carpeta) |
 | Moodi Shake (heladería, prospecto) | moodi.stiven.app | /home/ubuntu/apps/pos-moodi | pos-moodi | 3103 | tipo heladería, estilo "Heladería pastel" y su logo; ver `docs/clientes/moodi/moodi.md` |
 | Pokotoon (hamburguesas y perros, C.C. Gran Manzana) | pokotoon.stiven.app | /home/ubuntu/apps/pos-pokotoon | pos-pokotoon | 3104 | creada el 25-oct-2026, comidas rápidas; ver `docs/clientes/pokoton/pokotoon.md` |
@@ -43,7 +43,7 @@ Registro de instalaciones en el VPS: `/home/ubuntu/apps/pos-instancias.tsv` (slu
 - No emitir facturas electrónicas reales (Factus producción va a la DIAN) sin el usuario.
 - La pantalla de sabores (helados) depende de `businessType = icecream`; las categorías 1-3 de otros negocios son normales. El viejo ajuste del catálogo GIA (`syncSpecialProducts` en db.js) solo corre con `legacyGiaCatalog=1`: nunca activarlo.
 - Diferencias entre clientes = configuración (Configuración, módulos, Personal → Propinas…), nunca código aparte.
-- Paquetes de demostración (`server/src/demoPacks.js`, solo con `DEMO_MODE=1`): borran ventas/menú/clientes; nunca activar `DEMO_MODE` en un cliente.
+- Paquetes de demostración (`server/src/demoPacks.js` y `demoData.js`, solo con `DEMO_MODE=1`): borran toda la operación, y con `DEMO_MODE=1` el servidor crea ventas solo; nunca activar `DEMO_MODE` en un cliente.
 - Desplegar primero a la demo, probar, y luego a los clientes (`actualizar.sh demo`, luego `actualizar.sh wonkas`).
 - Probar antes de desplegar: el chequeo de tipos real es `npx tsc --noEmit -p tsconfig.app.json` (el `tsconfig.json` raíz no revisa nada). Hay errores de tipo viejos en CheckoutModal, InventoryModule, POSPage y ProductsPage que no afectan el build.
 - Pruebas: los scripts de prueba levantan el servidor con `DB_PATH` apuntando a una copia de la base (o restauran la base al terminar) y Playwright contra Vite. Nunca probar contra producción.

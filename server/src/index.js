@@ -97,6 +97,9 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
+// Demostración (DEMO_MODE=1): las ventas de hoy van apareciendo durante el día
+require('./demoPacks').startDemoTicker(getDb);
+
 server.listen(PORT, () => {
   console.log(`🍦 POS Backend running on http://localhost:${PORT}`);
 });

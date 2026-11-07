@@ -323,4 +323,6 @@ router.get('/:id/report', (req, res) => {
 });
 
 module.exports = router;
+// La demo cierra sus cajas con el mismo cálculo (demoData.js)
+module.exports.getShiftLiveStats = getShiftLiveStats;
 module.exports.getShiftLiveStats = getShiftLiveStats;

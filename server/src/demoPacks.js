@@ -1,7 +1,7 @@
 /**
- * Paquetes de demostración: cada uno es un negocio ficticio completo (marca, estilo, menú, mesas y una semana de
- * ventas) para mostrar el sistema "con cara del negocio" del prospecto. SOLO se pueden aplicar en instalaciones de
- * demostración (DEMO_MODE=1 en server/.env): aplicar un paquete borra el menú y las ventas.
+ * Paquetes de demostración: cada uno es un negocio ficticio completo (marca, estilo, menú, mesas y seis meses de
+ * operación, ver demoData.js) para mostrar el sistema "con cara del negocio" del prospecto. SOLO se pueden aplicar en
+ * instalaciones de demostración (DEMO_MODE=1 en server/.env): aplicar un paquete borra el menú y toda la operación.
  *
  * Logos y fotos: cuando el diseñador entregue cada marca, van en public/demo-packs/<id>/ y se enlazan solos:
  *   logo (barra lateral), logo-oscuro (barra en modo oscuro), logo-pequeno (menú recogido), logo-login (formulario de
@@ -13,6 +13,8 @@
  */
 const fs = require('fs');
 const path = require('path');
+
+const DD = require('./demoData');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 
@@ -138,23 +140,15 @@ function listPacks(db) {
   }));
 }
 
-const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-const NAMES = ['María Gómez', 'Carlos Pérez', 'Ana Torres', 'Luis Ramírez', 'Sofía Herrera', 'Jorge Díaz', 'Valentina Ruiz', 'Andrés Castro', 'Laura Méndez', 'Felipe Rojas'];
-const HOODS = ['Centro', 'Manga', 'Bocagrande', 'El Prado', 'Crespo', 'Pie de la Popa'];
-
-/** Aplica un paquete: borra menú, ventas, cajas, clientes y asientos, y deja el negocio ficticio listo con una semana de ventas. */
-function applyPack(db, packId, userName = 'Demo') {
+/** Aplica un paquete: borra menú y operación, y deja el negocio ficticio listo con seis meses de datos. */
+function applyPack(db, packId) {
   const p = PACKS.find(x => x.id === packId);
   if (!p) throw new Error('Paquete no encontrado');
   db.pragma('foreign_keys = OFF');
+  let seed;
   const tx = db.transaction(() => {
-    // 1) Limpiar lo transaccional (los usuarios y colaboradores de la demo se conservan)
-    for (const t of ['order_item_cancellations', 'order_payments', 'order_items', 'stock_movements', 'ingredient_movements', 'print_jobs', 'tips', 'tip_payouts', 'cash_movements', 'cash_shifts', 'journal_lines', 'journal_entries', 'recipe_items', 'expense_payments', 'expenses', 'payroll_novelties', 'advances', 'loan_payments', 'employee_loans', 'attendance']) {
-      try { db.prepare(`DELETE FROM ${t}`).run(); } catch { /* tabla opcional */ }
-    }
-    db.prepare('DELETE FROM orders').run();
-    db.prepare("DELETE FROM customers WHERE document_id != '222222222222'").run();
+    // 1) Limpiar la operación completa (los usuarios se conservan)
+    DD.wipeOperation(db);
     db.prepare('DELETE FROM products').run();
     db.prepare('DELETE FROM categories').run();
 
@@ -211,71 +205,52 @@ function applyPack(db, packId, userName = 'Demo') {
       for (let n = 1; n <= p.tables; n++) { const s = tableSpot(n, p.tables); db.prepare("INSERT INTO tables (room_id, label, shape, seats, x, y, w, h, sort_order) VALUES (?, ?, ?, 4, ?, ?, ?, ?, ?)").run(room, String(n), n % 3 === 0 ? 'round' : 'square', s.x, s.y, s.w, s.h, n); }
     }
 
-    // 5) Caja abierta y una semana de ventas
-    const cashier = db.prepare("SELECT id, name FROM users WHERE role != 'kitchen' ORDER BY (role = 'admin'), id LIMIT 1").get() || { id: 1, name: userName };
-    const now = db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d;
-    const shiftId = Number(db.prepare("INSERT INTO cash_shifts (user_id, cashier_name, opened_at, initial_cash, status, notes, branch_id) VALUES (?, ?, ?, 200000, 'open', 'Caja de la demo', 1)").run(cashier.id, cashier.name, now).lastInsertRowid);
-    const products = db.prepare('SELECT id, name, price, sizes FROM products').all();
-    const tableRows = db.prepare('SELECT id, label FROM tables').all();
-    const staff = db.prepare("SELECT e.id, e.name, u.profile FROM employees e LEFT JOIN users u ON u.id = e.user_id WHERE e.active = 1").all();
-    const waiters = staff.filter(s => s.profile === 'waiter');
-    const couriers = staff.filter(s => s.profile === 'courier');
-    const insOrder = db.prepare(`INSERT INTO orders (type, status, customer_name, customer_phone, customer_address, customer_neighborhood, table_id, table_label, table_number, people, waiter_id, waiter_name, driver_id, driver_name,
-      subtotal, delivery_fee, discount, total, tip, tip_to, payment_method, payment_status, payment_split, cash_received, created_at, closed_at, delivered_at, shift_id, cashier_name, created_by, channel, branch_id)
-      VALUES (?, 'delivered', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`);
-    const insItem = db.prepare("INSERT INTO order_items (order_id, product_id, name, size, quantity, price, batch, sent_at, kitchen_status) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'ready')");
-    const insTip = db.prepare('INSERT INTO tips (date, employee_id, amount, method, shift_id, notes) VALUES (?, NULL, ?, ?, ?, ?)');
-    for (let day = 6; day >= 0; day--) {
-      const n = rnd(p.sales.perDay[0], p.sales.perDay[1]);
-      for (let i = 0; i < n; i++) {
-        const r = Math.random();
-        const type = r < p.sales.dineIn && tableRows.length ? 'dine-in' : r < p.sales.dineIn + p.sales.delivery ? 'delivery' : 'pickup';
-        const hour = rnd(11, 21), min = rnd(0, 59);
-        const at = db.prepare('SELECT datetime(date(?, ?), ?, ?) AS d').get(now, `-${day} days`, `+${hour} hours`, `+${min} minutes`).d;
-        if (day === 0 && at > now) continue;
-        const items = Array.from({ length: rnd(1, type === 'dine-in' ? 5 : 3) }, () => {
-          const pr = pick(products);
-          let size = null, price = pr.price;
-          try { const s = pr.sizes ? JSON.parse(pr.sizes) : null; if (Array.isArray(s) && s.length) { const z = pick(s); size = z.name; price = z.price; } } catch { /* sin tamaños */ }
-          return { pr, size, price, qty: rnd(1, 2) };
-        });
-        const subtotal = items.reduce((a, x) => a + x.price * x.qty, 0);
-        const fee = type === 'delivery' ? p.deliveryFee : 0;
-        const total = subtotal + fee;
-        const tip = type === 'dine-in' && Math.random() < 0.6 ? Math.round(total * 0.1 / 100) * 100 : 0;
-        const m = pick(['cash', 'cash', 'transfer', 'transfer', 'card', 'mixed']);
-        const split = m === 'mixed' ? JSON.stringify({ parts: [{ method: 'cash', amount: Math.round((total + tip) / 2) }, { method: 'transfer', amount: total + tip - Math.round((total + tip) / 2) }] }) : null;
-        const t = type === 'dine-in' ? pick(tableRows) : null;
-        const w = type === 'dine-in' && waiters.length ? pick(waiters) : null;
-        const c = type === 'delivery' && couriers.length ? pick(couriers) : null;
-        const name = type === 'dine-in' ? 'Consumidor Final' : pick(NAMES);
-        const info = insOrder.run(type, name, type === 'delivery' ? '300' + rnd(1000000, 9999999) : null, type === 'delivery' ? `Calle ${rnd(1, 80)} # ${rnd(1, 50)}-${rnd(1, 99)}` : null, type === 'delivery' ? pick(HOODS) : null,
-          t ? t.id : null, t ? t.label : null, t ? Number(t.label) : null, type === 'dine-in' ? rnd(1, 6) : 0, w ? w.id : null, w ? w.name : null, c ? c.id : null, c ? c.name : null,
-          subtotal, fee, total, tip, tip ? 'common' : null, m, split, m === 'cash' ? Math.ceil((total + tip) / 10000) * 10000 : 0, at, at, at, day === 0 ? shiftId : null, cashier.name, cashier.name, type === 'delivery' ? pick(['whatsapp', 'phone']) : 'local');
-        const oid = Number(info.lastInsertRowid);
-        for (const x of items) insItem.run(oid, x.pr.id, x.pr.name, x.size, x.qty, x.price, at);
-        if (tip) insTip.run(at.slice(0, 10), tip, m === 'transfer' ? 'transfer' : m === 'card' ? 'card' : 'cash', day === 0 ? shiftId : null, `Propina pedido #${oid}`);
-      }
-    }
-    // 6) Algunas mesas ocupadas ahora mismo (para que el plano no se vea vacío)
-    if (tableRows.length) {
-      const busy = [...tableRows].sort(() => Math.random() - 0.5).slice(0, Math.min(3, tableRows.length));
-      for (const t of busy) {
-        const items = Array.from({ length: rnd(2, 4) }, () => { const pr = pick(products); return { pr, qty: rnd(1, 2) }; });
-        const subtotal = items.reduce((a, x) => a + x.pr.price * x.qty, 0);
-        const w = waiters.length ? pick(waiters) : null;
-        const at = db.prepare('SELECT datetime(?, ?) AS d').get(now, `-${rnd(5, 50)} minutes`).d;
-        const oid = Number(db.prepare(`INSERT INTO orders (type, status, customer_name, table_id, table_label, table_number, people, waiter_id, waiter_name, subtotal, delivery_fee, discount, total,
-          payment_method, payment_status, created_at, shift_id, cashier_name, created_by, channel, branch_id) VALUES ('dine-in', 'open', 'Consumidor Final', ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 'cash', 'pending', ?, ?, ?, ?, 'local', 1)`)
-          .run(t.id, t.label, Number(t.label), rnd(2, 5), w ? w.id : null, w ? w.name : null, subtotal, subtotal, at, shiftId, cashier.name, w ? w.name : cashier.name).lastInsertRowid);
-        for (const x of items) db.prepare("INSERT INTO order_items (order_id, product_id, name, quantity, price, batch, sent_at, kitchen_status) VALUES (?, ?, ?, ?, ?, 1, ?, 'pending')").run(oid, x.pr.id, x.pr.name, x.qty, x.pr.price, at);
-      }
-    }
+    // 5) Seis meses de operación con fechas de hoy
+    seed = DD.seedBusiness(db, p);
   });
   tx();
   db.pragma('foreign_keys = ON');
-  try { require('./ledger').syncLedger(db); } catch (e) { console.warn('Contabilidad de la demo:', e.message); }
-  return { pack: p.id, businessName: p.brand.businessName, orders: db.prepare('SELECT COUNT(*) AS c FROM orders').get().c };
+  return { pack: p.id, businessName: p.brand.businessName, ...finishSeed(db, seed) };
 }
 
-module.exports = { PACKS, listPacks, applyPack, demoEnabled };
+/** Contabiliza lo generado y agrega los comprobantes manuales. Devuelve conteos y los errores contables, si hubo. */
+function finishSeed(db, seed) {
+  const L = require('./ledger');
+  const first = L.syncLedger(db);
+  db.transaction(() => DD.postManualAccounting(seed.ctx, seed.days, seed.today, seed.openingValue))();
+  const count = t => db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get().c;
+  return { orders: count('orders'), customers: count('customers'), expenses: count('expenses'), employees: count('employees'), settlements: count('payroll_settlements'), entries: count('journal_entries'), ledgerErrors: first.errors || [] };
+}
+
+/**
+ * Regenera la operación con fechas de hoy sin tocar marca, menú ni mesas: lo guardado en la foto de la demo se respeta.
+ * Lo corre reiniciar-demo.sh cada madrugada.
+ */
+function refreshDemoData(db, nowOverride = null) {
+  if (!demoEnabled()) throw new Error('Esta instalación no es de demostración');
+  const p = PACKS.find(x => x.id === readSetting(db, 'demoPack'));
+  if (!p) throw new Error('La demo no tiene un paquete aplicado');
+  db.pragma('foreign_keys = OFF');
+  let seed;
+  db.transaction(() => { DD.wipeOperation(db); seed = DD.seedBusiness(db, p, nowOverride); })();
+  db.pragma('foreign_keys = ON');
+  return { pack: p.id, ...finishSeed(db, seed) };
+}
+
+/** Mientras la demo está encendida, las ventas de hoy van apareciendo: "hoy" nunca se ve vacío y las cuentas en curso siguen frescas. */
+function startDemoTicker(getDb, everyMs = 10 * 60 * 1000) {
+  if (!demoEnabled()) return null;
+  const tick = () => {
+    try {
+      const db = getDb();
+      const p = PACKS.find(x => x.id === readSetting(db, 'demoPack'));
+      if (p) DD.topUpToday(db, p);
+    } catch (e) { console.warn('Ventas de la demo:', e.message); }
+  };
+  setTimeout(tick, 5000).unref();
+  const t = setInterval(tick, everyMs);
+  t.unref();
+  return t;
+}
+
+module.exports = { PACKS, listPacks, applyPack, refreshDemoData, startDemoTicker, demoEnabled };
