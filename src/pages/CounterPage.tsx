@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat, Receipt, Undo2 } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, PackageCheck, Printer, ShoppingBag, ChefHat, Receipt, Undo2, Bike } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -38,7 +38,10 @@ const CounterPage = () => {
   const setStatus = async (o: Order, status: string) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, status)); } catch (e: any) { toast.error(e.message); } };
   const backToPrep = async (o: Order) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, 'preparing')); toast.success('Pedido de nuevo en preparación: modifícalo con "Ver / editar"'); } catch (e: any) { toast.error(e.message); } };
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
-  const actionsFor = (o: Order): CardAction[] => {
+  // El cliente cambió de idea y ahora lo quiere a domicilio: se abren los datos del pedido para poner la dirección
+  const actionsFor = (o: Order): CardAction[] => o.paymentStatus === 'paid' ? baseActions(o)
+    : [...baseActions(o), { label: 'Pasar a domicilio', icon: Bike, title: 'El cliente ya no lo recoge: pide la dirección y el pedido pasa a Domicilios', onClick: () => navigate(`/cuenta/${o.id}?tipo=delivery`) }];
+  const baseActions = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
     // Pendiente → A preparación (envía la comanda a cocina) → Listo → Entregar
     const toKitchen: CardAction = { label: (o.unsentCount || 0) > 0 ? 'Confirmar a cocina' : 'A preparación', icon: ChefHat, onClick: () => setStatus(o, 'preparing').then(() => toast.success('Pedido en preparación')), primary: true };

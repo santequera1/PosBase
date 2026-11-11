@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat, Undo2 } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat, Undo2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -53,7 +53,16 @@ const DeliveryPage = () => {
   const assign = async (o: Order, driverId: number) => { try { handleOrderEvent(await api.updateOrderHeader(o.id, { driverId: driverId || null })); } catch (e: any) { toast.error(e.message); } };
   const deliver = (o: Order) => { if (o.paymentStatus === 'paid') setStatus(o, 'delivered'); else setClosing(o); };
   const backToPrep = async (o: Order) => { try { handleOrderEvent(await api.setRestaurantStatus(o.id, 'preparing')); toast.success('Pedido de nuevo en preparación: modifícalo con "Ver / editar"'); } catch (e: any) { toast.error(e.message); } };
-  const actionsFor = (o: Order): CardAction[] => {
+  // El cliente ya no quiere domicilio, él mismo lo recoge: pasa a Para llevar sin envío ni repartidor
+  const toPickup = async (o: Order) => {
+    if (!window.confirm(`¿Pasar el pedido de ${o.customer.name} a Para llevar?
+
+Se quita el envío${o.deliveryFee ? ` (${formatPrice(o.deliveryFee)})` : ''} y el repartidor.`)) return;
+    try { handleOrderEvent(await api.updateOrderHeader(o.id, { type: 'pickup' })); toast.success('El pedido pasó a Para llevar'); } catch (e: any) { toast.error(e.message); }
+  };
+  const actionsFor = (o: Order): CardAction[] => o.paymentStatus === 'paid' ? baseActions(o)
+    : [...baseActions(o), { label: 'Pasar a para llevar', icon: ShoppingBag, title: 'El cliente lo recoge: se quita el envío y el repartidor', onClick: () => toPickup(o) }];
+  const baseActions = (o: Order): CardAction[] => {
     const view: CardAction = { label: o.status === 'open' ? 'Agregar productos' : 'Ver / editar', icon: Eye, onClick: () => navigate(`/cuenta/${o.id}`) };
     // Antes de cobrar: precuenta; ya cobrado: el ticket
     const print: CardAction = o.paymentStatus === 'paid' ? { label: 'Ticket', icon: Printer, onClick: () => printReceipt(o) } : { label: 'Precuenta', icon: Printer, onClick: () => { printPreBill(o, suggestedTipPct(o)).catch(() => {}); } };

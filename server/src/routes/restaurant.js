@@ -452,6 +452,26 @@ router.patch('/orders/:id', (req, res) => {
   const b = req.body || {};
   const sets = [], vals = [];
   const set = (col, v) => { sets.push(`${col} = ?`); vals.push(v); };
+  // Para llevar ↔ domicilio (el cliente cambió de idea): solo pedidos abiertos y sin cobrar, porque cambia el valor del envío
+  let newType = order.type;
+  if (b.type !== undefined && b.type !== order.type) {
+    const SWITCH = ['pickup', 'delivery'];
+    if (!SWITCH.includes(order.type) || !SWITCH.includes(b.type)) return res.status(400).json({ error: 'Solo se puede cambiar entre para llevar y domicilio' });
+    if (!ACTIVE.includes(order.status)) return res.status(400).json({ error: 'El pedido ya está cerrado' });
+    if (order.payment_status === 'paid') return res.status(400).json({ error: 'El pedido ya está cobrado: no se puede cambiar de tipo' });
+    newType = b.type;
+    set('type', newType);
+    if (newType === 'delivery') {
+      const address = String((b.customer && b.customer.address !== undefined ? b.customer.address : order.customer_address) || '').trim();
+      if (!address) return res.status(400).json({ error: 'El domicilio necesita una dirección' });
+      if (b.deliveryFee === undefined) b.deliveryFee = readRestaurantConfig(db).deliveryFee;
+    } else {
+      // Pasa a para llevar: sin envío ni repartidor; si ya iba en camino, queda listo para recoger
+      delete b.deliveryFee; delete b.driverId;
+      set('delivery_fee', 0); set('driver_id', null); set('driver_name', null); set('shipped_at', null);
+      if (order.status === 'shipped') set('status', 'ready');
+    }
+  }
   if (b.people !== undefined) set('people', Math.max(0, Math.round(Number(b.people) || 0)));
   if (b.waiterId !== undefined) { const w = employee(db, b.waiterId); set('waiter_id', w ? w.id : null); set('waiter_name', w ? w.name : null); }
   if (b.driverId !== undefined) { const d = employee(db, b.driverId); set('driver_id', d ? d.id : null); set('driver_name', d ? d.name : null); }
@@ -459,7 +479,7 @@ router.patch('/orders/:id', (req, res) => {
   if (b.channel !== undefined && CHANNEL_IDS.includes(b.channel)) set('channel', b.channel);
   if (b.notes !== undefined) set('notes', String(b.notes).trim());
   if (b.estimatedMinutes !== undefined) set('estimated_minutes', b.estimatedMinutes ? Math.round(Number(b.estimatedMinutes)) : null);
-  if (b.deliveryFee !== undefined && order.type === 'delivery') set('delivery_fee', Math.max(0, Math.round(Number(b.deliveryFee) || 0)));
+  if (b.deliveryFee !== undefined && newType === 'delivery') set('delivery_fee', Math.max(0, Math.round(Number(b.deliveryFee) || 0)));
   if (b.paymentMethod !== undefined && ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'].includes(b.paymentMethod) && order.payment_status !== 'paid') set('payment_method', b.paymentMethod);
   if (b.payWith !== undefined && order.payment_status !== 'paid') set('cash_received', Math.max(0, Math.round(Number(b.payWith) || 0)));
   if (b.customer && typeof b.customer === 'object') {
@@ -475,7 +495,7 @@ router.patch('/orders/:id', (req, res) => {
     if (c.saveCustomer) { const id = upsertCustomer(db, { ...c, name: c.name || order.customer_name, phone: c.phone ?? order.customer_phone, address: c.address ?? order.customer_address, address2: c.address2 ?? order.customer_address2, neighborhood: c.neighborhood ?? order.customer_neighborhood }, true); if (id) set('customer_id', id); }
   }
   if (sets.length) { vals.push(order.id); db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals); }
-  if (b.deliveryFee !== undefined) recomputeTotals(db, order.id);
+  if (b.deliveryFee !== undefined || newType !== order.type) recomputeTotals(db, order.id);
   const formatted = fmt(db, order.id);
   emit(req, 'order:updated', formatted);
   res.json(formatted);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split, BadgePercent, PiggyBank } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split, BadgePercent, PiggyBank, Bike } from 'lucide-react';
 import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
 import { toast } from 'sonner';
 import { useStore, type Order, type OrderItem } from '@/store/useStore';
@@ -36,6 +36,9 @@ const OpenOrderPage = () => {
   const [mobileView, setMobileView] = useState<'catalog' | 'account'>('catalog');
   const [showClose, setShowClose] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  // Al abrir "Datos del pedido" para pasar de para llevar a domicilio (o al revés)
+  const [editType, setEditType] = useState<'pickup' | 'delivery' | undefined>(undefined);
+  const [params, setParams] = useSearchParams();
   const [showDiscount, setShowDiscount] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showMove, setShowMove] = useState<'move' | 'merge' | null>(null);
@@ -61,6 +64,13 @@ const OpenOrderPage = () => {
     } catch (e: any) { setError(e.message); }
   }, [orderId]);
   useEffect(() => { load(); }, [load]);
+  // Desde la tarjeta "Pasar a domicilio": llega con ?tipo=delivery y se abren los datos del pedido con el tipo ya cambiado
+  useEffect(() => {
+    const t = params.get('tipo');
+    if (!t || !order) return;
+    if ((t === 'delivery' || t === 'pickup') && order.type !== t && (order.type === 'pickup' || order.type === 'delivery') && order.paymentStatus !== 'paid') { setEditType(t); setShowEdit(true); }
+    setParams({}, { replace: true });
+  }, [order, params, setParams]);
 
   // Cambios que llegan por socket (cocina marcó listo, otro cajero cobró...)
   const live = orders.find(o => o.id === orderId);
@@ -222,6 +232,7 @@ const OpenOrderPage = () => {
             {showMenu && (
               <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-xl shadow-elevated z-30 overflow-hidden text-sm" onMouseLeave={() => setShowMenu(false)}>
                 <button onClick={() => { setShowMenu(false); setShowEdit(true); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Pencil size={14} /> Editar datos del pedido</button>
+                {(order.type === 'pickup' || order.type === 'delivery') && order.paymentStatus !== 'paid' && <button onClick={() => { setShowMenu(false); setEditType(order.type === 'pickup' ? 'delivery' : 'pickup'); setShowEdit(true); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-switch-type>{order.type === 'pickup' ? <><Bike size={14} /> Pasar a domicilio</> : <><ShoppingBag size={14} /> Pasar a para llevar</>}</button>}
                 {(order.type === 'dine-in' || order.type === 'pickup') && <button onClick={() => { setShowMenu(false); setShowMove('move'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-move-table><ArrowLeftRight size={14} /> {order.type === 'pickup' ? 'Pasar a una mesa' : 'Cambiar de mesa'}</button>}
                 {(order.type === 'dine-in' || order.type === 'pickup') && <button onClick={() => { setShowMenu(false); setShowMove('merge'); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2"><Merge size={14} /> {order.type === 'pickup' ? 'Unir a una mesa ocupada' : 'Unir con otra mesa'}</button>}
                 {<button onClick={() => { setShowMenu(false); openSplit(); }} className="w-full text-left px-3 py-2 hover:bg-brand-card flex items-center gap-2" data-split-menu><Split size={14} /> Cuentas separadas</button>}
@@ -335,7 +346,7 @@ const OpenOrderPage = () => {
       {splitChild && <CloseOrderModal order={splitChild} onClose={afterSplit} onClosed={() => { splitPaid.current = true; }} onPrebill={() => { splitKeep.current = true; }} />}
       {showDiscount && <OrderDiscountModal order={order} onClose={() => setShowDiscount(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowDiscount(false); }} flush={flush} />}
       {showDeposit && <DepositModal order={order} total={total} onClose={() => setShowDeposit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowDeposit(false); }} />}
-      {showEdit && <EditHeaderModal order={order} onClose={() => setShowEdit(false)} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowEdit(false); }} />}
+      {showEdit && <EditHeaderModal order={order} initialType={editType} onClose={() => { setShowEdit(false); setEditType(undefined); }} onSaved={o => { setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setShowEdit(false); setEditType(undefined); }} />}
       {showMove && <MoveTableModal mode={showMove} order={order} onClose={() => setShowMove(null)} onDone={(o, merged) => { setShowMove(null); if (merged) navigate(`/cuenta/${o.id}`); else setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); }} />}
     </div>
   );
@@ -442,39 +453,53 @@ const DepositModal = ({ order, total, onClose, onSaved }: { order: Order; total:
 };
 
 /* ---------- Editar cabecera ---------- */
-const EditHeaderModal = ({ order, onClose, onSaved }: { order: Order; onClose: () => void; onSaved: (o: Order) => void }) => {
+const EditHeaderModal = ({ order, initialType, onClose, onSaved }: { order: Order; initialType?: 'pickup' | 'delivery'; onClose: () => void; onSaved: (o: Order) => void }) => {
   const restaurant = useStore(s => s.restaurant);
+  // Para llevar ↔ domicilio: solo si el pedido no está cobrado (cambia el valor del envío)
+  const canSwitch = (order.type === 'pickup' || order.type === 'delivery') && order.paymentStatus !== 'paid';
+  const startType = canSwitch && initialType ? initialType : order.type;
   const [f, setF] = useState<any>({
+    type: startType,
     people: String(order.people || ''), waiterId: order.waiterId || 0, driverId: order.driverId || 0, label: order.label || '', channel: order.channel || 'local', notes: order.notes || '',
     name: order.customer.name === 'Consumidor Final' ? '' : order.customer.name, phone: order.customer.phone || '', address: order.customer.address || '', address2: order.customer.address2 || '', neighborhood: order.customer.neighborhood || '',
-    estimatedMinutes: order.estimatedMinutes || 0, deliveryFee: String(order.deliveryFee || 0), saveCustomer: false,
+    estimatedMinutes: order.estimatedMinutes || 0, deliveryFee: String(order.type === 'delivery' ? order.deliveryFee || 0 : restaurant?.deliveryFee || 0), saveCustomer: false,
     payWith: order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '',
   });
   const set = (p: any) => setF((x: any) => ({ ...x, ...p }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const isDelivery = f.type === 'delivery';
   const save = async () => {
+    if (isDelivery && !String(f.address || '').trim()) { setError('Escribe la dirección del domicilio'); return; }
     setSaving(true); setError('');
     try {
       const body: any = { label: f.label, channel: f.channel, notes: f.notes, customer: { name: f.name || 'Consumidor Final', phone: f.phone, address: f.address, address2: f.address2, neighborhood: f.neighborhood, saveCustomer: f.saveCustomer } };
       if (order.type === 'dine-in') { body.people = Number(f.people) || 1; body.waiterId = f.waiterId || null; }
-      if (order.type === 'delivery') { body.driverId = f.driverId || null; body.estimatedMinutes = f.estimatedMinutes || null; body.deliveryFee = Number(f.deliveryFee) || 0; if (order.paymentStatus !== 'paid') body.payWith = Number(f.payWith) || 0; }
-      onSaved(await api.updateOrderHeader(order.id, body));
+      if (f.type !== order.type) body.type = f.type;
+      if (isDelivery) { body.driverId = f.driverId || null; body.estimatedMinutes = f.estimatedMinutes || null; body.deliveryFee = Number(f.deliveryFee) || 0; if (order.paymentStatus !== 'paid') body.payWith = Number(f.payWith) || 0; }
+      const saved = await api.updateOrderHeader(order.id, body);
+      if (body.type) toast.success(body.type === 'delivery' ? 'El pedido pasó a Domicilios' : 'El pedido pasó a Para llevar');
+      onSaved(saved);
     } catch (e: any) { setError(e.message); }
     setSaving(false);
   };
   return (
     <Modal title="Datos del pedido" onClose={onClose} wide>
       <div className="grid sm:grid-cols-2 gap-3 text-sm">
+        {canSwitch && <div className="sm:col-span-2" data-order-type>
+          <label className={LABEL}>Tipo de pedido</label>
+          <div className="flex flex-wrap gap-1.5"><Chip active={f.type === 'pickup'} onClick={() => set({ type: 'pickup' })}><ShoppingBag size={13} className="inline -mt-0.5 mr-1" />Para llevar (lo recoge)</Chip><Chip active={f.type === 'delivery'} onClick={() => set({ type: 'delivery' })}><Bike size={13} className="inline -mt-0.5 mr-1" />Domicilio</Chip></div>
+          {f.type !== order.type && <p className="text-[11px] text-muted-foreground mt-1">{f.type === 'delivery' ? 'Escribe la dirección y revisa el costo del envío; el pedido pasa a Domicilios.' : `Se quita el envío${order.deliveryFee ? ` (${formatPrice(order.deliveryFee)})` : ''} y el repartidor; el pedido pasa a Para llevar.`}</p>}
+        </div>}
         {order.type === 'dine-in' && <>
           <div><label className={LABEL}>Personas</label><input type="number" min={1} value={f.people} onChange={e => set({ people: e.target.value })} className={cn(INPUT, 'font-mono')} /></div>
           <div><label className={LABEL}>Mesero</label><NiceSelect value={f.waiterId} onChange={e => set({ waiterId: Number(e.target.value) })} className={INPUT}><option value={0}>— Sin asignar —</option>{(restaurant?.staff.waiters || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</NiceSelect></div>
         </>}
-        <div><label className={LABEL}>{order.type === 'pickup' ? 'Nombre o etiqueta' : 'Etiqueta'}</label><input value={f.label} onChange={e => set({ label: e.target.value })} className={INPUT} /></div>
+        <div><label className={LABEL}>{f.type === 'pickup' ? 'Nombre o etiqueta' : 'Etiqueta'}</label><input value={f.label} onChange={e => set({ label: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Cliente</label><input value={f.name} onChange={e => set({ name: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Teléfono</label><input value={f.phone} onChange={e => set({ phone: e.target.value })} className={INPUT} /></div>
         <div><label className={LABEL}>Canal</label><NiceSelect value={f.channel} onChange={e => set({ channel: e.target.value })} className={INPUT}>{Object.entries(CHANNEL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NiceSelect></div>
-        {order.type === 'delivery' && <>
+        {isDelivery && <>
           <div className="sm:col-span-2"><label className={LABEL}>Dirección</label><input value={f.address} onChange={e => set({ address: e.target.value })} className={INPUT} /></div>
           <div><label className={LABEL}>Piso / apto</label><input value={f.address2} onChange={e => set({ address2: e.target.value })} className={INPUT} /></div>
           <div><label className={LABEL}>Barrio</label><input value={f.neighborhood} onChange={e => set({ neighborhood: e.target.value })} className={INPUT} /></div>
