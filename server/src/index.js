@@ -75,6 +75,8 @@ app.use('/api/print-agent', printingRoutes.agentRouter);
 
 // WhatsApp AI Integration (API Key authenticated)
 app.use('/api/whatsapp-ai', require('./routes/whatsappAi'));
+// Bot de WhatsApp para clientes: solo consulta (menú con precios y clientes), clave BOT_API_KEY
+app.use('/api/bot', require('./routes/botApi'));
 
 // Health check
 app.get('/api/health', (req, res) => {
