@@ -9,6 +9,8 @@ const CHANNELS = [
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'rappi', label: 'Rappi' },
   { id: 'didi', label: 'DiDi Food' },
+  { id: 'web', label: 'Página web' },
+  { id: 'meta_ads', label: 'Meta Ads' },
   { id: 'other', label: 'Otro' },
 ];
 
@@ -108,6 +110,7 @@ function initRestaurantSchema(db) {
   addCol(db, 'orders', 'discount_name', 'TEXT');
   addCol(db, 'orders', 'cancel_reason', 'TEXT');
   addCol(db, 'orders', 'created_by', 'TEXT');
+  addCol(db, 'orders', 'external_ref', 'TEXT'); // pedido creado por el bot de WhatsApp: su referencia, para no duplicarlo si reintenta
   // Conciliación de arqueos (la hace un supervisor)
   addCol(db, 'cash_shifts', 'reconciled_at', 'TEXT');
   addCol(db, 'cash_shifts', 'reconciled_by', 'TEXT');

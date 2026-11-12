@@ -1,7 +1,7 @@
 /** Tipos, etiquetas y utilidades del módulo Restaurante (mesas, para llevar, domicilios, cocina). */
 import type { Order, OrderStatus, OrderType } from '@/store/useStore';
 
-export type Channel = 'local' | 'phone' | 'whatsapp' | 'rappi' | 'didi' | 'other';
+export type Channel = 'local' | 'phone' | 'whatsapp' | 'rappi' | 'didi' | 'web' | 'meta_ads' | 'other';
 export type TableShape = 'square' | 'round' | 'rect';
 export type TableState = 'free' | 'occupied' | 'billing';
 
@@ -64,7 +64,7 @@ export interface KitchenTicket {
 
 export const TYPE_LABEL: Record<OrderType, string> = { 'dine-in': 'Mesa', pickup: 'Para llevar', delivery: 'Domicilio' };
 export const TYPE_EMOJI: Record<OrderType, string> = { 'dine-in': '🍽️', pickup: '🛍️', delivery: '🛵' };
-export const CHANNEL_LABEL: Record<Channel, string> = { local: 'En el local', phone: 'Teléfono', whatsapp: 'WhatsApp', rappi: 'Rappi', didi: 'DiDi Food', other: 'Otro' };
+export const CHANNEL_LABEL: Record<Channel, string> = { local: 'En el local', phone: 'Teléfono', whatsapp: 'WhatsApp', rappi: 'Rappi', didi: 'DiDi Food', web: 'Página web', meta_ads: 'Meta Ads', other: 'Otro' };
 export const STATION_LABEL: Record<string, string> = { cocina: 'Cocina', barra: 'Barra', none: 'No se prepara' };
 
 export const STATUS_LABEL: Record<string, string> = {

@@ -239,24 +239,32 @@ router.delete('/tables/:id', ADMIN, (req, res) => {
 // Abre una cuenta (mesa, para llevar o domicilio) sin productos todavía
 router.post('/orders', (req, res) => {
   const db = getDb();
-  const b = req.body || {};
+  const r = createOrder(db, req.body || {}, req.user);
+  if (r.error) return res.status(r.status || 400).json({ error: r.error, ...(r.code ? { code: r.code } : {}) });
+  const formatted = fmt(db, r.id);
+  emit(req, 'order:new', formatted);
+  res.status(201).json(formatted);
+});
+
+/** Crea la cuenta (la usan la caja y el bot de WhatsApp). Devuelve { id } o { error, status, code }. */
+function createOrder(db, b, user) {
   const cfg = readRestaurantConfig(db);
   const type = TYPES.includes(b.type) ? b.type : 'pickup';
   const shift = getOpenShift(db);
-  if (cfg.requireOpenShift && !shift) return res.status(400).json({ error: 'Abre la caja antes de registrar ventas' });
+  if (cfg.requireOpenShift && !shift) return { status: 400, code: 'CASH_CLOSED', error: 'Abre la caja antes de registrar ventas' };
 
   let table = null;
   if (type === 'dine-in') {
     table = db.prepare('SELECT * FROM tables WHERE id = ? AND active = 1').get(Number(b.tableId));
-    if (!table) return res.status(400).json({ error: 'Selecciona una mesa' });
+    if (!table) return { status: 400, error: 'Selecciona una mesa' };
     const openCount = db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE table_id = ? AND split_from IS NULL AND status IN (${ACTIVE_SQL})`).get(table.id).c;
-    if (openCount && !b.additional) return res.status(409).json({ error: `La mesa ${table.label} ya tiene una cuenta abierta`, code: 'TABLE_BUSY' });
+    if (openCount && !b.additional) return { status: 409, code: 'TABLE_BUSY', error: `La mesa ${table.label} ya tiene una cuenta abierta` };
     // Varias cuentas en la misma mesa: cada una se nombra Cuenta 2, Cuenta 3... (si no traen nombre)
     if (openCount && !String(b.label || '').trim()) b.label = `Cuenta ${openCount + 1}`;
   }
   const c = b.customer || {};
   const custName = String(c.name || '').trim() || (type === 'dine-in' ? 'Consumidor Final' : (String(b.label || '').trim() || 'Consumidor Final'));
-  if (type === 'delivery' && !String(c.address || '').trim()) return res.status(400).json({ error: 'El domicilio necesita una dirección' });
+  if (type === 'delivery' && !String(c.address || '').trim()) return { status: 400, error: 'El domicilio necesita una dirección' };
   const customerId = upsertCustomer(db, { ...c, name: custName }, c.saveCustomer !== false && type !== 'dine-in');
   const waiter = employee(db, b.waiterId);
   const driver = employee(db, b.driverId);
@@ -275,16 +283,14 @@ router.post('/orders', (req, res) => {
     String(c.address2 || '').trim(), String(c.neighborhood || '').trim(), customerId,
     table ? table.id : null, table ? table.label : null, table ? (parseInt(table.label, 10) || null) : null, people,
     waiter ? waiter.id : null, waiter ? waiter.name : null, driver ? driver.id : null, driver ? driver.name : null, channel, String(b.label || '').trim() || null,
-    deliveryFee, deliveryFee, paymentMethod, String(b.notes || '').trim(), shift ? shift.id : null, req.user?.name || null, req.user?.id || null,
+    deliveryFee, deliveryFee, paymentMethod, String(b.notes || '').trim(), shift ? shift.id : null, user?.name || null, user?.id || null,
     b.estimatedMinutes ? Math.round(Number(b.estimatedMinutes)) : null,
   );
-  db.prepare('UPDATE orders SET created_by = COALESCE(created_by, ?), branch_id = ? WHERE id = ?').run(req.user?.name || null, currentBranch(), info.lastInsertRowid);
+  db.prepare('UPDATE orders SET created_by = COALESCE(created_by, ?), branch_id = ? WHERE id = ?').run(user?.name || null, currentBranch(), info.lastInsertRowid);
   // Domicilio en efectivo: con cuánto paga el cliente (para que el repartidor lleve el vuelto)
   if (type === 'delivery' && paymentMethod === 'cash' && Number(b.payWith) > 0) db.prepare('UPDATE orders SET cash_received = ? WHERE id = ?').run(Math.round(Number(b.payWith)), info.lastInsertRowid);
-  const formatted = fmt(db, info.lastInsertRowid);
-  emit(req, 'order:new', formatted);
-  res.status(201).json(formatted);
-});
+  return { id: Number(info.lastInsertRowid) };
+}
 
 // Pedidos activos (tablero para llevar / domicilios / mesas)
 router.get('/orders/active', (req, res) => {
@@ -921,3 +927,5 @@ router.get('/couriers/:driverId', requireRole('admin', 'cashier'), (req, res) =>
 });
 
 module.exports = router;
+// Para el bot de WhatsApp (routes/botApi.js): crea pedidos con las mismas reglas que la caja
+module.exports.helpers = { createOrder, sendUnsent, recomputeTotals, fmt, getOrder, ACTIVE };

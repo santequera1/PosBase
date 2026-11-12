@@ -202,7 +202,7 @@ function kitchenTicket(printer, order, items, { station, batch, now }) {
   const info = [`Pedido #${order.id}`, batch ? `tanda ${batch}` : '', order.people ? `${order.people} pers.` : ''].filter(Boolean).join(' · ');
   t.line(info);
   if (order.waiter_name) t.line(`Mesero: ${order.waiter_name}`);
-  if (order.channel && order.channel !== 'local') t.line(`Canal: ${order.channel}`);
+  if (order.channel && order.channel !== 'local') t.line(`Canal: ${(require('./restaurantSchema').CHANNELS.find(c => c.id === order.channel) || {}).label || order.channel}`);
   t.line(fmtDateTime(now)).align('left');
   customerBlock(t, order);
   t.sep('=');
