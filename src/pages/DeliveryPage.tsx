@@ -116,7 +116,7 @@ Se quita el envío${o.deliveryFee ? ` (${formatPrice(o.deliveryFee)})` : ''} y e
                           <td className="px-3 py-1.5 font-semibold text-brand-dark whitespace-nowrap">{orderTitle(o)} <span className="text-muted-foreground font-normal">#{o.id}</span></td>
                           <td className="px-3 py-1.5 whitespace-nowrap"><span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', col?.cls)}>{col?.title || o.status}</span></td>
                           <td className="px-3 py-1.5">{o.createdAt.slice(11, 16)}</td>
-                          <td className="px-3 py-1.5 truncate max-w-[220px]">{o.customer.address}{o.customer.neighborhood ? ` · ${o.customer.neighborhood}` : ''}</td>
+                          <td className="px-3 py-1.5 truncate max-w-[220px]">{o.customer.neighborhood && <b className="text-brand-dark">{o.customer.neighborhood} · </b>}{o.customer.address}</td>
                           <td className="px-2 py-1"><NiceSelect value={o.driverId || 0} onChange={e => assign(o, Number(e.target.value))} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] min-w-[8rem]" title="Repartidor"><option value={0}>Sin repartidor</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></td>
                           <td className="px-3 py-1.5 whitespace-nowrap">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar{o.paymentMethod === 'cash' && o.cashReceived && o.cashReceived > o.total ? <span className="block text-[10px] font-normal">paga con {formatPrice(o.cashReceived)} · vuelto {formatPrice(o.cashReceived - o.total)}</span> : null}</span>}</td>
                           <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
@@ -163,7 +163,7 @@ Se quita el envío${o.deliveryFee ? ` (${formatPrice(o.deliveryFee)})` : ''} y e
                     <tr key={o.id} className="border-t border-border">
                       <td className="px-3 py-1.5 font-semibold text-brand-dark">{orderTitle(o)} <span className="text-muted-foreground font-normal">#{o.id}</span></td>
                       <td className="px-3 py-1.5">{(o.deliveredAt || o.createdAt).slice(11, 16)}</td>
-                      <td className="px-3 py-1.5 truncate max-w-[240px]">{o.customer.address}{o.customer.neighborhood ? ` · ${o.customer.neighborhood}` : ''}</td>
+                      <td className="px-3 py-1.5 truncate max-w-[240px]">{o.customer.neighborhood && <b className="text-brand-dark">{o.customer.neighborhood} · </b>}{o.customer.address}</td>
                       <td className="px-2 py-1"><NiceSelect value={o.driverId || 0} onChange={e => assignDone(o, Number(e.target.value))} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] min-w-[8rem]" title="Domiciliario" data-done-driver={o.id}><option value={0}>— Sin asignar</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></td>
                       <td className="px-3 py-1.5">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
                       <td className="px-3 py-1.5 text-right">{formatPrice(o.deliveryFee || 0)}</td>

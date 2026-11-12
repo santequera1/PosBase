@@ -30,7 +30,13 @@ export const OrderCard = ({ order, actions, children }: { order: Order; actions:
       </div>
       {order.type === 'delivery' && (
         <div className="text-[11px] text-muted-foreground space-y-0.5">
-          <p className="flex items-center gap-1 text-brand-dark"><MapPin size={11} className="shrink-0" /> <span className="truncate">{order.customer.address}{order.customer.address2 ? `, ${order.customer.address2}` : ''}{order.customer.neighborhood ? ` · ${order.customer.neighborhood}` : ''}</span></p>
+          {/* El barrio va primero y no se corta (lo pidió la caja de Wonka's para ver a dónde va sin abrir el pedido) */}
+          <p className="flex items-center gap-1 text-brand-dark min-w-0" title={[order.customer.neighborhood, order.customer.address, order.customer.address2].filter(Boolean).join(' · ')}>
+            <MapPin size={11} className="shrink-0" />
+            {order.customer.neighborhood && <b className="font-bold shrink-0 max-w-[60%] truncate" data-order-neighborhood>{order.customer.neighborhood}</b>}
+            {order.customer.neighborhood && order.customer.address && <span className="shrink-0 text-muted-foreground">·</span>}
+            <span className="truncate">{order.customer.address}{order.customer.address2 ? `, ${order.customer.address2}` : ''}</span>
+          </p>
           <p className="flex items-center gap-3"><span className="flex items-center gap-1"><User size={11} /> {order.customer.name}</span>{order.customer.phone && <span className="flex items-center gap-1"><Phone size={11} /> {order.customer.phone}</span>}</p>
           {order.driverName && <p className="flex items-center gap-1 font-semibold text-brand-primary"><Bike size={11} /> {order.driverName}</p>}
         </div>

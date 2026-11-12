@@ -202,7 +202,7 @@ const OpenOrderPage = () => {
           <button onClick={leave} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Volver sin cobrar"><ArrowLeft size={18} /></button>
           <div className="min-w-0 flex-1">
             <p className="font-bold text-sm truncate">{orderTitle(order)} <span className="font-normal opacity-70">· {TYPE_LABEL[order.type]}{order.channel && order.channel !== 'local' ? ` · ${CHANNEL_LABEL[order.channel as Channel]}` : ''}</span></p>
-            <p className="text-[11px] opacity-70 truncate">{order.type === 'dine-in' ? `${order.people || 0} personas${order.waiterName ? ` · ${order.waiterName}` : ''}` : order.type === 'delivery' ? `${order.customer.address || ''}${order.customer.neighborhood ? ` · ${order.customer.neighborhood}` : ''}` : order.customer.phone || ''} · {elapsedLabel(order.createdAt)}</p>
+            <p className="text-[11px] opacity-70 truncate">{order.type === 'dine-in' ? `${order.people || 0} personas${order.waiterName ? ` · ${order.waiterName}` : ''}` : order.type === 'delivery' ? `${order.customer.neighborhood ? `${order.customer.neighborhood} · ` : ''}${order.customer.address || ''}` : order.customer.phone || ''} · {elapsedLabel(order.createdAt)}</p>
           </div>
           <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', STATUS_CLASS[order.status])}>{statusLabel(order)}</span>
         </div>
