@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Edit2, Trash2, X, KeyRound, UserX, UserCheck, Check, Info } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, KeyRound, UserX, UserCheck, Check, Info, IdCard } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ interface AppUser {
   active: boolean;
   profile: ProfileKey;
   perms: { views: string[]; actions: string[] };
+  employee?: { id: number; name: string } | null;
 }
 
 const INPUT = 'w-full px-3.5 py-2.5 rounded-lg border border-input bg-card text-sm font-sans outline-none focus:ring-2 focus:ring-primary/20';
@@ -38,13 +39,20 @@ const UsersPanel = () => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<AppUser | null>(null);
-  const [form, setForm] = useState({ username: '', name: '', password: '', profile: 'cashier' as ProfileKey, views: [] as string[], actions: [] as string[] });
+  const [form, setForm] = useState({ username: '', name: '', password: '', profile: 'cashier' as ProfileKey, views: [] as string[], actions: [] as string[], employeeLink: 'auto' });
+  const [initialLink, setInitialLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  // Fichas de Personal: cada usuario se vincula a la suya para ver "Mi cuenta (nómina)"
+  const [employees, setEmployees] = useState<any[]>([]);
+  const loadEmployees = () => api.getEmployees(true).then(setEmployees).catch(() => setEmployees([]));
+  const norm = (x: string) => x.trim().toLowerCase();
+  const freeEmployees = employees.filter(e => e.active && !e.userId);
 
   const load = () => {
     setLoading(true);
     api.getUsers().then(setUsers).catch(e => setError(e.message)).finally(() => setLoading(false));
+    loadEmployees();
   };
   useEffect(load, []);
 
@@ -58,13 +66,18 @@ const UsersPanel = () => {
   const openCreate = () => {
     setEditing(null);
     const t = PROFILES.find(x => x.key === 'cashier')!;
-    setForm({ username: '', name: '', password: '', profile: 'cashier', views: [...t.views], actions: [...t.actions] });
+    setForm({ username: '', name: '', password: '', profile: 'cashier', views: [...t.views], actions: [...t.actions], employeeLink: 'auto' });
+    setInitialLink('auto');
     setError('');
     setShowForm(true);
   };
   const openEdit = (u: AppUser) => {
     setEditing(u);
-    setForm({ username: u.username, name: u.name, password: '', profile: u.profile, views: [...(u.perms?.views || [])], actions: [...(u.perms?.actions || [])] });
+    // Sin ficha: se propone la ficha libre con su mismo nombre (si existe)
+    const current = u.employee ? String(u.employee.id) : '';
+    const same = !u.employee && freeEmployees.find(e => norm(e.name) === norm(u.name));
+    setForm({ username: u.username, name: u.name, password: '', profile: u.profile, views: [...(u.perms?.views || [])], actions: [...(u.perms?.actions || [])], employeeLink: same ? String(same.id) : current });
+    setInitialLink(current);
     setError('');
     setShowForm(true);
   };
@@ -74,6 +87,7 @@ const UsersPanel = () => {
     setError('');
     try {
       const payload: any = { name: form.name, profile: form.profile, permissions: { views: form.views, actions: form.actions } };
+      if (!editing || form.employeeLink !== initialLink) payload.employeeLink = form.employeeLink === '' ? 'none' : form.employeeLink;
       if (editing) {
         const updated = await api.updateUser(editing.id, { ...payload, password: form.password || undefined });
         setUsers(us => us.map(u => (u.id === updated.id ? updated : u)));
@@ -82,6 +96,7 @@ const UsersPanel = () => {
         setUsers(us => [...us, created]);
       }
       setShowForm(false);
+      if (payload.employeeLink !== undefined) loadEmployees();
     } catch (e: any) {
       setError(e.message || 'No se pudo guardar');
     }
@@ -136,6 +151,7 @@ const UsersPanel = () => {
                     <p className="text-sm font-semibold text-brand-dark truncate">{u.name} {isMe && <span className="text-[10px] text-muted-foreground font-normal">(tú)</span>}</p>
                     <p className="text-[11px] text-muted-foreground truncate"><span className="font-mono">@{u.username}</span> · <span className="font-semibold">{PROFILE_LABEL[u.profile] || u.profile}</span>{!u.active && ' · Desactivado'}</p>
                     <p className="text-[10px] text-muted-foreground truncate" title={viewLabels}>{viewLabels}{u.role !== 'admin' && u.perms?.actions.length ? ` · puede: ${ACTIONS.filter(a => u.perms.actions.includes(a.key)).map(a => a.label.toLowerCase()).join(', ')}` : ''}</p>
+                    <p className={cn('text-[10px] font-semibold truncate flex items-center gap-1', u.employee ? 'text-emerald-700' : 'text-muted-foreground')} data-user-my-account={u.employee ? 'si' : 'no'}><IdCard size={11} className="shrink-0" />{u.employee ? `Ve "Mi cuenta" (su nómina): ficha de ${u.employee.name}` : 'Sin ficha en Personal: no ve "Mi cuenta"'}</p>
                   </div>
                   <button onClick={() => openEdit(u)} title="Editar permisos / contraseña" className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-button/5"><Edit2 size={15} /></button>
                   {!isMe && (
@@ -172,6 +188,18 @@ const UsersPanel = () => {
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Nombre completo</label>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="María Pérez" className={INPUT} />
               </div>
+            </div>
+
+            <div data-form-employee>
+              <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><IdCard size={12} /> Ficha en Personal (para ver "Mi cuenta (nómina)")</label>
+              <select value={form.employeeLink} onChange={e => setForm({ ...form, employeeLink: e.target.value })} className={INPUT} data-employee-link>
+                {!editing && <option value="auto">Automática: su ficha con el mismo nombre, o una nueva (recomendado)</option>}
+                {editing?.employee && <option value={String(editing.employee.id)}>{editing.employee.name} (vinculada)</option>}
+                {freeEmployees.map(e => <option key={e.id} value={String(e.id)}>{e.name}{e.position ? ` · ${e.position}` : ''}{norm(e.name) === norm(form.name) ? ' (mismo nombre)' : ''}</option>)}
+                <option value="new">Crear una ficha nueva con este nombre</option>
+                <option value="">Sin ficha (no verá su nómina)</option>
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-1">{form.employeeLink === '' ? 'Sin ficha la persona ve "Mi cuenta" vacía.' : form.employeeLink === 'new' || form.employeeLink === 'auto' ? 'Si se crea una ficha nueva, ponle el sueldo y la modalidad de pago en Personal & Nómina.' : form.employeeLink !== initialLink ? 'Se vinculará a esa ficha al guardar.' : 'Ve su nómina en "Mi cuenta".'}</p>
             </div>
 
             <div>
@@ -214,6 +242,10 @@ const UsersPanel = () => {
                     <PermCheck key={a.key} testId={`action-${a.key}`} checked={isAdminForm || form.actions.includes(a.key)} disabled={isAdminForm} onChange={on => toggleAction(a.key, on)} icon={a.icon} label={a.label} description={a.description} />
                   ))}
                 </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-[11px] text-emerald-900" data-form-my-account>
+                <IdCard size={15} className="shrink-0 mt-0.5" />
+                <span><b>Mi cuenta (nómina)</b>: la tienen todos los perfiles, también Cocina y Domiciliario. Ahí cada persona ve su quincena, festivos, novedades y descuentos, turnos, consumos, préstamos y comprobantes; nunca los de otros. Solo necesita estar vinculada a su ficha (arriba).</span>
               </div>
               {form.profile === 'custom' && <p className="text-[11px] text-violet-800 bg-violet-50 rounded-lg px-2 py-1">Perfil personalizado: se guardan exactamente las casillas marcadas.</p>}
             </div>

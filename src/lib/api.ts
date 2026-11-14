@@ -336,6 +336,10 @@ export const api = {
   previewSettlement: (employeeId: number, from: string, to: string, loans: { skipLoans?: number[]; payoffLoans?: number[] } = {}, days?: number | string) =>
     request<any>(`/staff/settlements/preview?employeeId=${employeeId}&from=${from}&to=${to}&skipLoans=${(loans.skipLoans || []).join(',')}&payoffLoans=${(loans.payoffLoans || []).join(',')}${days !== undefined && days !== '' ? `&days=${days}` : ''}`),
   getMyAccount: () => request<any>('/staff/me'),
+  // Festivos: calendario del año, quién trabajó cada uno y recargo en grupo
+  getHolidays: (year: number) => request<any>(`/staff/holidays/${year}`),
+  getHolidayDay: (date: string) => request<any>(`/staff/holidays/day/${date}`),
+  markHolidayWorked: (date: string, employeeIds: number[]) => request<any>(`/staff/holidays/day/${date}/worked`, { method: 'POST', body: JSON.stringify({ employeeIds }) }),
   getSetupStatus: () => request<any>('/setup/status'),
   getDemoPacks: () => request<any>('/demo/packs'),
   applyDemoPack: (pack: string) => request<any>('/demo/apply', { method: 'POST', body: JSON.stringify({ pack }) }),

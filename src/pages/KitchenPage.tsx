@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChefHat, Play, CheckCircle2, Undo2, ArrowLeft, LogOut, RefreshCw, Printer } from 'lucide-react';
+import { ChefHat, Play, CheckCircle2, Undo2, ArrowLeft, LogOut, RefreshCw, Printer, IdCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -74,6 +74,8 @@ const KitchenPage = () => {
           </div>
           <button onClick={toggleAutoPrint} title={autoPrint ? 'Las comandas nuevas se imprimen solas en este equipo' : 'Imprimir automáticamente las comandas nuevas en este equipo'} className={cn('h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold', autoPrint ? 'bg-emerald-500 text-white' : 'bg-white/10 hover:bg-white/20')}><Printer size={15} /> {autoPrint ? 'Auto' : 'Imprimir'}</button>
           <button onClick={() => { setLoading(true); load(); }} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Actualizar"><RefreshCw size={16} className={cn(loading && 'animate-spin')} /></button>
+          {/* Mi cuenta (nómina, festivos, consumos, comprobantes): la cocina no tiene menú, así que se entra desde aquí */}
+          {user && <button onClick={() => navigate('/mi-cuenta')} className="h-9 px-3 rounded-xl bg-white/10 hover:bg-white/20 flex items-center gap-1.5 text-xs font-bold" title="Mi cuenta: mi nómina, festivos, consumos y comprobantes" data-kitchen-my-account><IdCard size={15} /> Mi cuenta</button>}
           {user?.role === 'kitchen' && <button onClick={logout} className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center" title="Cerrar sesión"><LogOut size={16} /></button>}
         </div>
       </div>

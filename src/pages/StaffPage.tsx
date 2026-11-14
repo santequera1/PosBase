@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus, Edit2, Trash2, UsersRound, CalendarCheck, HandCoins, PiggyBank, FileSpreadsheet, Search, Banknote, ArrowLeftRight, CreditCard,
-  CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2, ClipboardList, Upload,
+  CheckCircle2, Clock, AlertTriangle, Calculator, Link2, Info, Settings2, ClipboardList, Upload, CalendarDays,
 } from 'lucide-react';
 import { TipsAccountPanel, NoveltiesTab, ImportEmployeesModal, LoansPanel } from '@/components/staff/StaffExtras';
 import { EmployeeDetail } from '@/components/staff/EmployeeDetail';
+import { HolidaysTab } from '@/components/staff/HolidaysTab';
 import { downloadXlsx } from '@/lib/xlsx';
 import { openPayslip } from '@/lib/payslip';
 import { api } from '@/lib/api';
@@ -17,7 +18,7 @@ import { NiceSelect } from '@/components/ui/nice-select';
 /* ------------------------------------------------------------------ */
 /* Tipos y constantes                                                   */
 /* ------------------------------------------------------------------ */
-type Tab = 'colaboradores' | 'asistencia' | 'propinas' | 'anticipos' | 'novedades' | 'liquidaciones';
+type Tab = 'colaboradores' | 'asistencia' | 'propinas' | 'anticipos' | 'novedades' | 'festivos' | 'liquidaciones';
 type PayMode = 'monthly' | 'biweekly' | 'per_shift' | 'per_day' | 'hourly';
 
 interface Employee {
@@ -721,6 +722,7 @@ const StaffPage = () => {
     { id: 'propinas', label: 'Propinas', icon: HandCoins },
     { id: 'anticipos', label: 'Anticipos y préstamos', icon: PiggyBank },
     { id: 'novedades', label: 'Novedades', icon: ClipboardList, admin: true },
+    { id: 'festivos', label: 'Festivos', icon: CalendarDays, admin: true },
     { id: 'liquidaciones', label: 'Liquidaciones', icon: FileSpreadsheet, admin: true },
   ];
 
@@ -778,6 +780,7 @@ const StaffPage = () => {
         </div>
       )}
       {tab === 'novedades' && isAdmin && <NoveltiesTab employees={active} />}
+      {tab === 'festivos' && isAdmin && <HolidaysTab />}
       {tab === 'liquidaciones' && isAdmin && <SettlementsTab employees={active} onChanged={reloadAll} />}
     </div>
   );

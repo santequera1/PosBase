@@ -44,12 +44,13 @@ const navFor = (modules?: { tables?: boolean; counter?: boolean; delivery?: bool
   { path: '/finance', label: 'Finanzas', icon: Landmark, view: 'finance' },
   { path: '/staff', label: 'Personal & Nómina', icon: UsersRound, view: 'staff' },
   { path: '/settings', label: 'Configuración', icon: Settings, view: 'settings' },
-  { path: '/mi-cuenta', label: 'Mi cuenta', icon: IdCard },
+  { path: '/mi-cuenta', label: 'Mi cuenta (nómina)', icon: IdCard },
 ];
 
 const visibleFor = (items: NavItem[], user?: PermUser | null) => {
   const hidden = useStore.getState().hiddenViews || [];
-  return items.filter(i => (i.path !== '/mi-cuenta' || (user as any)?.linked !== false) && (!i.view || (can(user, i.view) && !hidden.includes(i.view) && !(i.view === 'courier' && user?.role === 'admin'))));
+  // "Mi cuenta (nómina)" la tienen todos los usuarios (sin ficha en Personal, la página explica cómo vincularla)
+  return items.filter(i => (!i.view || (can(user, i.view) && !hidden.includes(i.view) && !(i.view === 'courier' && user?.role === 'admin'))));
 };
 
 export const AppLayout = () => {
@@ -295,7 +296,7 @@ export const AppLayout = () => {
                 <p className="text-sm font-bold font-serif text-brand-primary">{user?.name}</p>
                 <p className="text-xs text-brand-muted capitalize">{user?.role}</p>
               </div>
-              {user?.linked !== false && <button onClick={() => { navigate('/mi-cuenta'); setShowUserMenu(false); }}
+              {user && <button onClick={() => { navigate('/mi-cuenta'); setShowUserMenu(false); }}
                 className="w-full px-3 py-2 text-left text-sm hover:bg-brand-card transition-colors flex items-center gap-2 text-brand-primary" data-menu-my-account>
                 <IdCard size={14} /> Mi cuenta (nómina)
               </button>}
@@ -333,7 +334,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
 
   const modules = useStore(s => s.restaurant?.modules);
   const user = useStore(s => s.user);
-  const mainItems = visibleFor([
+  const baseMain = visibleFor([
     { path: '/mis-domicilios', label: 'Mis pedidos', icon: Bike, view: 'courier' },
     { path: '/pos', label: 'POS Caja', icon: Store, view: 'pos' },
     ...(modules?.tables ? [{ path: '/tables', label: 'Mesas', icon: LayoutGrid, view: 'tables' as ViewKey }] : []),
@@ -344,6 +345,9 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
     { path: '/orders', label: 'Pedidos', icon: ClipboardList, view: 'orders' },
     ...(!modules?.tables && !modules?.delivery ? [{ path: '/reports', label: 'Reportes', icon: BarChart3, view: 'reports' as ViewKey }] : []),
   ], user).slice(0, 5);
+  // Domiciliarios, cocina y meseros tienen pocas secciones: "Mi cuenta" va a la vista en la barra, no escondida en "Más"
+  const myInMain = baseMain.length < 4;
+  const mainItems: NavItem[] = myInMain ? [...baseMain, { path: '/mi-cuenta', label: 'Mi cuenta', icon: IdCard }] : baseMain;
 
   const moreItems = visibleFor([
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, view: 'reports' },
@@ -354,7 +358,7 @@ const MobileNav = ({ navigate, location, pendingCount, logout }: { navigate: any
     { path: '/staff', label: 'Personal', icon: UsersRound, view: 'staff' },
     { path: '/settings', label: 'Config', icon: Settings, view: 'settings' },
     { path: '/mi-cuenta', label: 'Mi cuenta', icon: IdCard },
-  ], user);
+  ], user).filter(i => !(myInMain && i.path === '/mi-cuenta'));
 
   return (
     <>

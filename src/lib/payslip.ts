@@ -6,24 +6,43 @@ const esc = (s: any) => String(s ?? '').replace(/[<>&"]/g, c => ({ '<': '&lt;', 
 const d = (s?: string) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : '');
 const UNIT: Record<string, string> = { monthly: 'mes', biweekly: 'quincena', per_shift: 'turnos', per_day: 'días', hourly: 'horas' };
 
+/** Texto de una novedad para el colaborador: "Festivo trabajado (02/11/2026 · Todos los Santos)", "Bonificación · motivo (dd/mm/aaaa)". */
+export function noveltyText(n: any) {
+  if (n.type === 'holiday_worked') {
+    const name = n.holidayName || (/^Festivo:\s*/i.test(n.notes || '') ? String(n.notes).replace(/^Festivo:\s*/i, '') : '');
+    return `${name ? 'Festivo trabajado' : 'Festivo o dominical trabajado'} (${d(n.date)}${name ? ' · ' + name : ''})`;
+  }
+  const label = String(n.label || n.type || 'Novedad');
+  return `${label}${n.notes && !label.includes(n.notes) ? ' · ' + n.notes : ''}${n.date ? ` (${d(n.date)})` : ''}`;
+}
+/** Novedades de la liquidación separadas en devengado y deducciones; si no cuadran con los totales guardados se muestran agrupadas. */
+export function settlementNovelties(s: any) {
+  const novs: any[] = (s.details && s.details.novelties) || [];
+  const plus = novs.filter(n => n.group === 'extras' || n.group === 'bonus');
+  const minus = novs.filter(n => n.group === 'absence' || n.group === 'deduction');
+  const sum = (l: any[]) => l.reduce((a, n) => a + (Number(n.amount) || 0), 0);
+  const ok = novs.length > 0 && sum(plus) === (s.noveltiesExtras || 0) + (s.noveltiesBonus || 0) && sum(minus) === (s.noveltiesAbsence || 0) + (s.noveltiesDeductions || 0);
+  return { itemized: ok, plus, minus };
+}
+
 export function payslipHtml(s: any, emp?: { name?: string; document?: string; position?: string }) {
   const st = useStore.getState();
   const det = s.details || {};
   const unit = det.unitLabel || UNIT[s.payMode] || '';
+  const nv = settlementNovelties(s);
   const earn: Array<[string, number]> = [
     [`Básico${s.units ? ` (${s.units} ${unit} × ${formatPrice(s.unitAmount || 0)})` : ''}`, s.baseTotal || 0],
     ['Horas extra y recargos', s.extrasTotal || 0],
     ['Auxilio de transporte', s.allowanceTotal || 0],
     ['Propinas', s.tipsTotal || 0],
-    ['Novedades (extras y bonificaciones)', (s.noveltiesExtras || 0) + (s.noveltiesBonus || 0)],
+    ...(nv.itemized ? nv.plus.map((n: any) => [noveltyText(n), n.amount] as [string, number]) : [['Novedades (extras y bonificaciones)', (s.noveltiesExtras || 0) + (s.noveltiesBonus || 0)] as [string, number]]),
     ['Bonificación', s.bonuses || 0],
   ];
   const ded: Array<[string, number]> = [
     ['Salud y pensión', s.legalDeductionsTotal || 0],
     ['Anticipos', s.advancesTotal || 0],
     ['Préstamos y consumos', s.loansTotal || 0],
-    ['Ausencias', s.noveltiesAbsence || 0],
-    ['Otras deducciones (novedades)', s.noveltiesDeductions || 0],
+    ...(nv.itemized ? nv.minus.map((n: any) => [noveltyText(n), n.amount] as [string, number]) : [['Ausencias', s.noveltiesAbsence || 0], ['Otras deducciones (novedades)', s.noveltiesDeductions || 0]] as Array<[string, number]>),
     ['Descuentos', s.deductions || 0],
   ];
   const rows = (list: Array<[string, number]>) => list.filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${formatPrice(v)}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">—</td></tr>';
@@ -31,7 +50,7 @@ export function payslipHtml(s: any, emp?: { name?: string; document?: string; po
   const totalDed = ded.reduce((a, [, v]) => a + v, 0);
   const loanLines = (det.loans || []).map((l: any) => `<li>${esc(l.notes || (l.number ? 'Préstamo #' + l.number : 'Préstamo / consumo'))}: ${formatPrice(l.amount)}${l.balance > 0 ? ` · queda ${formatPrice(l.balance)}` : ''}</li>`).join('');
   const legalLines = (det.legalDeductions || []).map((l: any) => `<li>${esc(l.label)}: ${formatPrice(l.amount)}</li>`).join('');
-  const novLines = (det.novelties || []).map((n: any) => `<li>${esc(n.label || n.type)}${n.notes && !String(n.label || '').includes(n.notes) ? ' · ' + esc(n.notes) : ''}: ${['absence', 'deduction'].includes(n.group) ? '−' : '+'}${formatPrice(n.amount)}</li>`).join('');
+  const novLines = nv.itemized ? '' : (det.novelties || []).map((n: any) => `<li>${esc(n.label || n.type)}${n.notes && !String(n.label || '').includes(n.notes) ? ' · ' + esc(n.notes) : ''}: ${['absence', 'deduction'].includes(n.group) ? '−' : '+'}${formatPrice(n.amount)}</li>`).join('');
   const name = emp?.name || s.employeeName || '';
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante de nómina · ${esc(name)} · ${d(s.periodStart)} a ${d(s.periodEnd)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">

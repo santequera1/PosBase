@@ -413,7 +413,7 @@ router.post('/settlements', ADMIN, (req, res) => {
     unitLabel: c.unitLabel, periodDays: c.periodDays, daysWorked: c.daysWorked, dayValue: c.dayValue,
     extras: c.extras.lines, hours: c.extras.hoursSummary, hourlyValue: c.extras.hourlyValue, hoursPerDay: c.extras.hoursPerDay, sundayPct: c.extras.sundayPct,
     allowance: c.allowance, legalDeductions: c.legalDeductions.lines, salaryBase: c.salaryBase, tipsDirect: c.tipsDirect, tipsShared: c.tipsShared, tipsSeparate: c.tipsSeparate,
-    novelties: c.novelties.map(n => ({ id: n.id, date: n.date, type: n.type, label: n.label, group: n.group, quantity: n.quantity, amount: n.amount, notes: n.notes })),
+    novelties: c.novelties.map(n => ({ id: n.id, date: n.date, type: n.type, label: n.label, group: n.group, quantity: n.quantity, amount: n.amount, notes: n.notes, holidayName: n.type === 'holiday_worked' ? payroll.holidayName(n.date) : undefined })),
     loans: c.loans.filter(l => !l.skipped).map(l => ({ id: l.id, number: l.number, installments: l.installments, frequency: l.frequency, amount: l.amount, balance: l.balance - l.amount, payoff: l.payoff, notes: l.notes })),
   });
   const info = db.prepare(`INSERT INTO payroll_settlements (employee_id, period_start, period_end, pay_mode, units, unit_amount, base_total, tips_total, advances_total, bonuses, deductions, total, status, notes,
@@ -701,10 +701,14 @@ router.post('/novelties', ADMIN, (req, res) => {
   const db = getDb();
   const r = noveltyInput(db, req.body || {});
   if (r.error) return res.status(400).json({ error: r.error });
-  const info = db.prepare('INSERT INTO payroll_novelties (employee_id, date, type, quantity, amount, pct, notes, created_by, label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(r.emp.id, r.date, r.type, r.quantity, r.amount, r.pct, String(req.body.notes || '').trim(), req.user?.name || '', r.label);
-  res.status(201).json({ ...PX.mapNovelty(db.prepare(`${PX.NOV_SELECT} WHERE n.id = ?`).get(info.lastInsertRowid)), warnings: r.warnings });
+  res.status(201).json({ ...insertNovelty(db, r, req.body.notes, req.user?.name), warnings: r.warnings });
 });
+
+function insertNovelty(db, r, notes, createdBy) {
+  const info = db.prepare('INSERT INTO payroll_novelties (employee_id, date, type, quantity, amount, pct, notes, created_by, label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(r.emp.id, r.date, r.type, r.quantity, r.amount, r.pct, String(notes || '').trim(), createdBy || '', r.label);
+  return PX.mapNovelty(db.prepare(`${PX.NOV_SELECT} WHERE n.id = ?`).get(info.lastInsertRowid));
+}
 
 router.delete('/novelties/:id', ADMIN, (req, res) => {
   const db = getDb();
@@ -741,10 +745,87 @@ router.put('/payroll-config', ADMIN, (req, res) => {
   try { res.json({ ...payroll.saveConfig(getDb(), req.body || {}), defaults: payroll.DEFAULT_CONFIG }); }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
+/* ------------------------------------------------------------------ */
+/* Festivos: calendario del año y, por festivo, quién trabajó y a quién se le sumó el recargo */
+/* ------------------------------------------------------------------ */
+const isHolidayDate = d => isDate(d) && payroll.colombianHolidays(Number(d.slice(0, 4))).has(d);
+
 router.get('/holidays/:year', STAFF, (req, res) => {
+  const db = getDb();
   const year = Number(req.params.year);
   if (!Number.isInteger(year) || year < 2000 || year > 2100) return res.status(400).json({ error: 'Año inválido' });
-  res.json([...payroll.colombianHolidays(year)].sort());
+  const t = today(db);
+  const range = [`${year}-01-01`, `${year}-12-31`];
+  const paid = new Map(db.prepare("SELECT date, COUNT(DISTINCT employee_id) AS c, SUM(amount) AS total FROM payroll_novelties WHERE type = 'holiday_worked' AND date BETWEEN ? AND ? GROUP BY date").all(...range).map(r => [r.date, r]));
+  const att = new Map(db.prepare('SELECT date, COUNT(DISTINCT employee_id) AS c FROM attendance WHERE date BETWEEN ? AND ? GROUP BY date').all(...range).map(r => [r.date, r.c]));
+  // Desde cuándo se lleva la nómina en el sistema (primera liquidación o primera ficha): lo anterior no se marca como "sin recargo"
+  const first = db.prepare('SELECT MIN(period_start) AS d FROM payroll_settlements').get().d || String(db.prepare('SELECT MIN(created_at) AS d FROM employees').get().d || t).slice(0, 10);
+  res.json({
+    year, today: t, trackedFrom: first,
+    holidays: [...payroll.colombianHolidays(year)].sort().map(date => ({
+      date, name: payroll.holidayName(date), past: date <= t, beforeSystem: date < first,
+      paidCount: paid.get(date)?.c || 0, paidTotal: paid.get(date)?.total || 0, attendanceCount: att.get(date) || 0,
+    })),
+  });
+});
+
+/** Colaboradores frente a un festivo: si marcaron asistencia, si ya tienen el recargo y cuánto les correspondería. */
+function holidayStaff(db, date) {
+  const cfg = payroll.readConfig(db);
+  const emps = db.prepare(`${EMP_SELECT} WHERE active = 1 OR id IN (SELECT employee_id FROM payroll_novelties WHERE type = 'holiday_worked' AND date = ?) ORDER BY name COLLATE NOCASE`).all(date);
+  const novs = db.prepare(`SELECT n.id, n.employee_id AS employeeId, n.amount, n.settlement_id AS settlementId, s.status AS settlementStatus
+    FROM payroll_novelties n LEFT JOIN payroll_settlements s ON s.id = n.settlement_id WHERE n.type = 'holiday_worked' AND n.date = ?`).all(date);
+  const att = db.prepare('SELECT employee_id AS employeeId, check_in AS checkIn, check_out AS checkOut, hours FROM attendance WHERE date = ?').all(date);
+  const sets = db.prepare('SELECT id, employee_id AS employeeId, status FROM payroll_settlements WHERE period_start <= ? AND period_end >= ?').all(date, date);
+  return emps.map(r => {
+    const emp = mapEmp(r);
+    const n = novs.find(x => x.employeeId === r.id);
+    const a = att.find(x => x.employeeId === r.id);
+    const s = sets.find(x => x.employeeId === r.id);
+    const sug = PX.noveltyAmount(emp, 'holiday_worked', 1, date, cfg);
+    return {
+      employeeId: r.id, name: r.name, position: r.position, payModeLabel: emp.payModeLabel, active: emp.active,
+      attendance: a ? { checkIn: a.checkIn, checkOut: a.checkOut, hours: a.hours } : null,
+      autoPaid: Boolean(emp.overtime && a && !n),
+      novelty: n ? { id: n.id, amount: n.amount, settlementId: n.settlementId, settlementStatus: n.settlementStatus } : null,
+      periodSettlement: s ? { id: s.id, status: s.status } : null,
+      suggested: sug.amount || 0, pct: sug.pct,
+    };
+  });
+}
+
+router.get('/holidays/day/:date', ADMIN, (req, res) => {
+  const db = getDb();
+  const date = req.params.date;
+  if (!isHolidayDate(date)) return res.status(400).json({ error: 'Esa fecha no es festivo' });
+  const cfg = payroll.readConfig(db);
+  res.json({ date, name: payroll.holidayName(date), past: date <= today(db), pct: cfg.sundayPct !== null && cfg.sundayPct !== undefined ? cfg.sundayPct : payroll.sundayPctFor(date), staff: holidayStaff(db, date) });
+});
+
+// Marca de una vez a los que trabajaron el festivo: a cada uno se le suma la novedad "Festivo trabajado" (recargo de ley)
+router.post('/holidays/day/:date/worked', ADMIN, (req, res) => {
+  const db = getDb();
+  const date = req.params.date;
+  if (!isHolidayDate(date)) return res.status(400).json({ error: 'Esa fecha no es festivo' });
+  if (date > today(db)) return res.status(400).json({ error: 'Ese festivo todavía no ha llegado' });
+  const ids = [...new Set(idList(req.body && req.body.employeeIds))];
+  if (!ids.length) return res.status(400).json({ error: 'Elige al menos un colaborador' });
+  const name = payroll.holidayName(date);
+  const staff = new Map(holidayStaff(db, date).map(s => [s.employeeId, s]));
+  const created = [], skipped = [];
+  db.transaction(() => {
+    for (const id of ids) {
+      const s = staff.get(id);
+      if (!s) { skipped.push({ employeeId: id, reason: 'Colaborador no encontrado' }); continue; }
+      if (s.novelty) { skipped.push({ employeeId: id, name: s.name, reason: 'Ya tenía el recargo sumado' }); continue; }
+      if (s.autoPaid) { skipped.push({ employeeId: id, name: s.name, reason: 'Marcó asistencia ese día y el recargo sale solo en su liquidación' }); continue; }
+      const r = noveltyInput(db, { employeeId: id, date, type: 'holiday_worked', quantity: 1, notes: `Festivo: ${name}` });
+      if (r.error) { skipped.push({ employeeId: id, name: s.name, reason: r.error }); continue; }
+      const nov = insertNovelty(db, r, `Festivo: ${name}`, req.user?.name);
+      created.push({ employeeId: id, name: s.name, amount: nov.amount, periodSettled: Boolean(s.periodSettlement) });
+    }
+  })();
+  res.json({ created, skipped, date, name, staff: holidayStaff(db, date) });
 });
 
 /* ------------------------------------------------------------------ */
@@ -761,28 +842,69 @@ router.get('/me', (req, res) => {
   const lastDay = new Date(Date.UTC(Number(t.slice(0, 4)), Number(t.slice(5, 7)), 0)).getUTCDate();
   const from = day <= 15 ? `${t.slice(0, 7)}-01` : `${t.slice(0, 7)}-16`;
   const to = day <= 15 ? `${t.slice(0, 7)}-15` : `${t.slice(0, 7)}-${String(Math.min(30, lastDay)).padStart(2, '0')}`;
+  const tipsHidden = Boolean(PX.readTipsConfig(db).hideFromStaff);
+  const novOut = n => ({ id: n.id, date: n.date, type: n.type, label: n.label, notes: n.notes, group: n.group, quantity: n.quantity, unit: n.unit, amount: n.amount,
+    settlementId: n.settlementId || null, holidayName: n.type === 'holiday_worked' ? payroll.holidayName(n.date) : '' });
+  // Comprobantes: a cada novedad de festivo se le pone el nombre del festivo
+  const workerSet = st => {
+    const det = st.details || null;
+    if (det && Array.isArray(det.novelties)) det.novelties = det.novelties.map(n => ({ ...n, holidayName: n.holidayName || (n.type === 'holiday_worked' ? payroll.holidayName(n.date) : '') }));
+    return st;
+  };
+  // ¿Ya está hecha la liquidación de esta quincena? Entonces se muestra la real (con el festivo y las demás novedades), no una estimación
+  const currentRow = db.prepare(`${SET_SELECT} WHERE s.employee_id = ? AND s.period_start <= ? AND s.period_end >= ? ORDER BY s.id DESC LIMIT 1`).get(emp.id, to, from);
+  const currentSettlement = currentRow ? workerSet(mapSet(currentRow)) : null;
   let preview = null;
-  try {
-    const c = computeSettlement(db, emp, from, to);
-    preview = { periodStart: from, periodEnd: to, units: c.units, unitLabel: c.unitLabel, baseTotal: c.baseTotal, extrasTotal: c.extrasTotal, allowanceTotal: c.allowanceTotal,
-      tipsTotal: c.tipsTotal, tipsAccrued: c.tipsAccrued, tipsSeparate: c.tipsSeparate, advancesTotal: c.advancesTotal, loansTotal: c.loansTotal, legalDeductionsTotal: c.legalDeductionsTotal,
-      noveltiesExtras: c.noveltiesExtras, noveltiesBonus: c.noveltiesBonus, noveltiesAbsence: c.noveltiesAbsence, noveltiesDeductions: c.noveltiesDeductions, subtotal: c.subtotal,
-      attendance: c.attendance.length };
-  } catch (e) { preview = null; }
+  if (!currentSettlement) {
+    try {
+      const c = computeSettlement(db, emp, from, to);
+      preview = { periodStart: from, periodEnd: to, units: c.units, unitLabel: c.unitLabel, baseTotal: c.baseTotal, extrasTotal: c.extrasTotal, allowanceTotal: c.allowanceTotal,
+        tipsTotal: c.tipsTotal, tipsAccrued: c.tipsAccrued, tipsSeparate: c.tipsSeparate, advancesTotal: c.advancesTotal, loansTotal: c.loansTotal, legalDeductionsTotal: c.legalDeductionsTotal,
+        noveltiesExtras: c.noveltiesExtras, noveltiesBonus: c.noveltiesBonus, noveltiesAbsence: c.noveltiesAbsence, noveltiesDeductions: c.noveltiesDeductions, subtotal: c.subtotal,
+        attendance: c.attendance.length, novelties: c.novelties.map(novOut), extras: (c.extras && c.extras.lines) || [] };
+    } catch (e) { preview = null; }
+  }
   const loans = db.prepare(`${LOAN_SELECT} WHERE l.employee_id = ? ORDER BY (l.status = 'active') DESC, l.date DESC, l.id DESC LIMIT 200`).all(emp.id).map(mapLoan);
   // Consumos: qué productos fueron (de la venta cobrada por nómina)
   const itemsOf = db.prepare('SELECT name, size, quantity, price FROM order_items WHERE order_id = ? ORDER BY id');
   const orderOf = db.prepare('SELECT subtotal, discount, total, created_at AS createdAt, sale_label AS label FROM orders WHERE id = ?');
   for (const l of loans) if (l.kind === 'consumo' && l.orderId) { l.order = orderOf.get(l.orderId) || null; l.items = itemsOf.all(l.orderId); }
-  const settlements = db.prepare(`${SET_SELECT} WHERE s.employee_id = ? ORDER BY s.period_end DESC, s.id DESC LIMIT 60`).all(emp.id).map(mapSet);
+  const settlements = db.prepare(`${SET_SELECT} WHERE s.employee_id = ? ORDER BY s.period_end DESC, s.id DESC LIMIT 60`).all(emp.id).map(mapSet).map(workerSet);
   const advances = db.prepare(`${ADV_SELECT} WHERE a.employee_id = ? AND a.settled = 0 ORDER BY a.date DESC`).all(emp.id).map(mapAdv);
+  // Novedades (festivos, bonificaciones, adicionales, descuentos...): primero las que faltan por liquidar
+  const novelties = db.prepare(`${PX.NOV_SELECT} WHERE n.employee_id = ? ORDER BY (n.settlement_id IS NULL) DESC, n.date DESC, n.id DESC LIMIT 60`).all(emp.id).map(PX.mapNovelty).map(novOut);
+  // Turnos (asistencia) recientes
+  const attendance = db.prepare('SELECT date, check_in AS checkIn, check_out AS checkOut, hours, source FROM attendance WHERE employee_id = ? ORDER BY date DESC, id DESC LIMIT 45').all(emp.id);
+  // Festivos de este año y el siguiente, con lo que se le pagó de cada uno
+  const year = Number(t.slice(0, 4));
+  const holNov = db.prepare(`SELECT n.date, n.amount, n.settlement_id AS settlementId, s.status AS settlementStatus FROM payroll_novelties n
+    LEFT JOIN payroll_settlements s ON s.id = n.settlement_id WHERE n.employee_id = ? AND n.type = 'holiday_worked' AND n.date BETWEEN ? AND ?`).all(emp.id, `${year}-01-01`, `${year + 1}-12-31`);
+  const attDays = new Set(db.prepare('SELECT date FROM attendance WHERE employee_id = ? AND date BETWEEN ? AND ?').all(emp.id, `${year}-01-01`, `${year + 1}-12-31`).map(r => r.date));
+  // Desde cuándo se lleva su nómina en el sistema (su primera liquidación, o cuando se creó su ficha): lo anterior no sale como "sin recargo"
+  const trackedFrom = db.prepare('SELECT MIN(period_start) AS d FROM payroll_settlements WHERE employee_id = ?').get(emp.id).d || String(emp.createdAt || t).slice(0, 10);
+  const holidays = [year, year + 1].flatMap(y => [...payroll.colombianHolidays(y)]).sort().map(date => {
+    const n = holNov.find(x => x.date === date);
+    return {
+      date, name: payroll.holidayName(date), past: date <= t, beforeStart: Boolean(emp.startDate && date < emp.startDate), beforeSystem: date < trackedFrom,
+      attendance: attDays.has(date), autoPaid: Boolean(emp.overtime && attDays.has(date) && !n),
+      paid: n ? { amount: n.amount, settlementId: n.settlementId || null, status: !n.settlementId ? 'pending' : n.settlementStatus === 'paid' ? 'paid' : 'settled' } : null,
+    };
+  });
+  const yearPaid = db.prepare("SELECT COUNT(*) AS c, COALESCE(SUM(total), 0) AS total FROM payroll_settlements WHERE employee_id = ? AND status = 'paid' AND substr(period_end, 1, 4) = ?").get(emp.id, String(year));
+  const monthAttendance = db.prepare('SELECT COUNT(*) AS c FROM attendance WHERE employee_id = ? AND date BETWEEN ? AND ?').get(emp.id, `${t.slice(0, 7)}-01`, `${t.slice(0, 7)}-31`).c;
   const { bankAccount, notes, ...pub } = mapEmp(emp); void notes;
   // Propinas ocultas al personal: no se muestran ni se suman en la estimación que ve el colaborador
-  if (preview && PX.readTipsConfig(db).hideFromStaff) { preview.subtotal -= preview.tipsTotal || 0; preview.tipsTotal = 0; preview.tipsAccrued = null; preview.tipsHidden = true; }
+  if (preview && tipsHidden) { preview.subtotal -= preview.tipsTotal || 0; preview.tipsTotal = 0; preview.tipsAccrued = null; preview.tipsHidden = true; }
   res.json({
-    linked: true,
+    linked: true, today: t, trackedFrom,
     employee: { ...pub, bankAccountLast4: bankAccount ? String(bankAccount).slice(-4) : '' },
-    preview, loans, settlements, advances,
+    period: { from, to }, currentSettlement, preview, tipsHidden,
+    loans, settlements, advances, novelties, attendance, holidays, monthAttendance,
+    yearSummary: {
+      year, paidTotal: yearPaid.total, paidCount: yearPaid.c,
+      holidaysPaid: holidays.filter(h => h.paid && h.date.startsWith(String(year))).length,
+      holidaysPaidTotal: holidays.filter(h => h.paid && h.date.startsWith(String(year))).reduce((a, h) => a + h.paid.amount, 0),
+    },
     balances: {
       consumos: loans.filter(l => l.kind === 'consumo' && l.status === 'active').reduce((a, l) => a + l.balance, 0),
       loans: loans.filter(l => l.kind !== 'consumo' && l.status === 'active').reduce((a, l) => a + l.balance, 0),
