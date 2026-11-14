@@ -105,21 +105,28 @@ const iso = d => d.toISOString().slice(0, 10);
 function nextMonday(d) { const dow = d.getUTCDay(); return dow === 1 ? d : addDays(d, (8 - dow) % 7); }
 
 const holidayCache = new Map();
+const holidayNameMap = new Map();
 function colombianHolidays(year) {
   if (holidayCache.has(year)) return holidayCache.get(year);
   const set = new Set();
-  const fixed = [[1, 1], [5, 1], [7, 20], [8, 7], [12, 8], [12, 25]];
-  for (const [m, d] of fixed) set.add(iso(new Date(Date.UTC(year, m - 1, d))));
-  const movable = [[1, 6], [3, 19], [6, 29], [8, 15], [10, 12], [11, 1], [11, 11]];
-  for (const [m, d] of movable) set.add(iso(nextMonday(new Date(Date.UTC(year, m - 1, d)))));
+  const add = (d, name) => { set.add(iso(d)); holidayNameMap.set(iso(d), name); };
+  const fixed = [[1, 1, 'Año Nuevo'], [5, 1, 'Día del Trabajo'], [7, 20, 'Día de la Independencia'], [8, 7, 'Batalla de Boyacá'], [12, 8, 'Inmaculada Concepción'], [12, 25, 'Navidad']];
+  for (const [m, d, name] of fixed) add(new Date(Date.UTC(year, m - 1, d)), name);
+  const movable = [[1, 6, 'Reyes Magos'], [3, 19, 'San José'], [6, 29, 'San Pedro y San Pablo'], [8, 15, 'Asunción de la Virgen'], [10, 12, 'Día de la Raza'], [11, 1, 'Todos los Santos'], [11, 11, 'Independencia de Cartagena']];
+  for (const [m, d, name] of movable) add(nextMonday(new Date(Date.UTC(year, m - 1, d))), name);
   const easter = easterSunday(year);
-  set.add(iso(addDays(easter, -3))); // Jueves Santo
-  set.add(iso(addDays(easter, -2))); // Viernes Santo
-  set.add(iso(nextMonday(addDays(easter, 39)))); // Ascensión
-  set.add(iso(nextMonday(addDays(easter, 60)))); // Corpus Christi
-  set.add(iso(nextMonday(addDays(easter, 68)))); // Sagrado Corazón
+  add(addDays(easter, -3), 'Jueves Santo');
+  add(addDays(easter, -2), 'Viernes Santo');
+  add(nextMonday(addDays(easter, 39)), 'Ascensión del Señor');
+  add(nextMonday(addDays(easter, 60)), 'Corpus Christi');
+  add(nextMonday(addDays(easter, 68)), 'Sagrado Corazón');
   holidayCache.set(year, set);
   return set;
+}
+/** Nombre del festivo de esa fecha ('' si no es festivo). */
+function holidayName(dateStr) {
+  colombianHolidays(Number(String(dateStr).slice(0, 4)));
+  return holidayNameMap.get(dateStr) || '';
 }
 function isSundayOrHoliday(dateStr) {
   const d = new Date(dateStr + 'T00:00:00Z');
@@ -250,4 +257,4 @@ function computeLegalDeductions(emp, cfg, salaryBase) {
   return { lines, total: lines.reduce((a, l) => a + l.amount, 0) };
 }
 
-module.exports = { DEFAULT_CONFIG, CONFIG_KEYS, readConfig, saveConfig, sundayPctFor, colombianHolidays, isSundayOrHoliday, classifyAttendance, hourlyValue, computeExtras, computeAllowance, computeLegalDeductions, days30, dayValueOf };
+module.exports = { DEFAULT_CONFIG, CONFIG_KEYS, readConfig, saveConfig, sundayPctFor, colombianHolidays, holidayName, isSundayOrHoliday, classifyAttendance, hourlyValue, computeExtras, computeAllowance, computeLegalDeductions, days30, dayValueOf };

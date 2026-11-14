@@ -475,6 +475,11 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState('');
   const [list, setList] = useState<any[]>([]);
+  // La lista muestra las del período que se está liquidando (y las que falten por pagar); las anteriores, con un botón
+  const [showAll, setShowAll] = useState(false);
+  const shownList = showAll ? list : list.filter(s => (s.periodStart <= to && s.periodEnd >= from) || s.status === 'pending');
+  const hiddenCount = list.length - shownList.length;
+  const [addingHoliday, setAddingHoliday] = useState('');
   const [paying, setPaying] = useState<any>(null);
   const [payMethod, setPayMethod] = useState('cash');
   const [payFromCash, setPayFromCash] = useState(true);
@@ -500,6 +505,14 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
     daysTimer.current = setTimeout(async () => {
       try { setPreview(await api.previewSettlement(employeeId, from, to, { skipLoans, payoffLoans }, v)); } catch (e: any) { setError(e.message); }
     }, 350);
+  };
+  const addHoliday = async (h: any) => {
+    setAddingHoliday(h.date); setError('');
+    try {
+      await api.addNovelty({ employeeId, date: h.date, type: 'holiday_worked', quantity: 1, notes: h.name ? `Festivo: ${h.name}` : 'Festivo trabajado' });
+      setPreview(await api.previewSettlement(employeeId, from, to, { skipLoans, payoffLoans }, days));
+    } catch (e: any) { setError(e.message); }
+    setAddingHoliday('');
   };
   const total = preview ? preview.subtotal + (Number(bonuses) || 0) - (Number(deductions) || 0) : 0;
   const save = async () => {
@@ -558,6 +571,21 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
                     </span>
                   </div>
                 )}
+                {(preview.holidays || []).map((h: any) => (
+                  <div key={h.date} className="py-1.5" data-holiday={h.date}>
+                    <div className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900 space-y-1">
+                      <p className="font-bold">Festivo en el período: {new Date(h.date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long' })} {fmtDate(h.date)}{h.name ? ` · ${h.name}` : ''}</p>
+                      {h.novelty ? <p className="font-semibold text-emerald-800" data-holiday-ok>✓ Recargo de festivo sumado ({formatPrice(h.novelty.amount)}): está en las novedades de abajo.</p>
+                        : h.autoPaid ? <p className="font-semibold text-emerald-800" data-holiday-auto>✓ Marcó asistencia ese día: el recargo festivo sale en las horas de abajo.</p>
+                        : <>
+                          <p>{h.attendance ? 'Marcó asistencia ese día. ' : ''}Si trabajó, se le suma el recargo de ley: {h.pct}% del valor del día{preview.payMode === 'per_day' || preview.payMode === 'per_shift' ? ' (el día en sí se paga con los días trabajados)' : ' (el día en sí ya está en el sueldo)'}.</p>
+                          {h.suggested > 0
+                            ? <button onClick={() => addHoliday(h)} disabled={addingHoliday === h.date} className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-bold disabled:opacity-50" data-holiday-add={h.date}>{addingHoliday === h.date ? 'Sumando...' : `Sí trabajó: sumar ${formatPrice(h.suggested)}`}</button>
+                            : <p>No tiene valor base en su ficha: registra el festivo en Novedades con el valor.</p>}
+                        </>}
+                    </div>
+                  </div>
+                ))}
                 {(preview.extras?.lines || []).map((l: any) => <div key={l.key} className="flex justify-between py-1.5"><span>{l.label} <span className="text-[11px] text-muted-foreground">· {l.hours} h × {formatPrice(preview.extras.hourlyValue)}</span></span><span className="font-semibold text-emerald-700">+ {formatPrice(l.amount)}</span></div>)}
                 {preview.extras && !preview.extras.disabled && preview.extras.lines.length === 0 && preview.extras.hoursSummary.total > 0 && <p className="text-[11px] text-muted-foreground py-1">Sin horas extra ni recargos: las {preview.extras.hoursSummary.total} h del período fueron ordinarias diurnas.</p>}
                 {preview.extras?.disabled && preview.attendance.length > 0 && <p className="text-[11px] text-muted-foreground py-1">Este colaborador no tiene activadas las extras y recargos (edítalo para activarlas).</p>}
@@ -616,11 +644,16 @@ const SettlementsTab = ({ employees, onChanged }: { employees: Employee[]; onCha
 
       <div className="lg:col-span-2 space-y-3">
         <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between gap-2"><p className="text-xs font-bold text-brand-dark">Liquidaciones</p>
+          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between gap-2"><div className="min-w-0"><p className="text-xs font-bold text-brand-dark">Liquidaciones</p><p className="text-[10px] text-muted-foreground" data-settlements-period>{showAll ? 'Todas' : `Del ${fmtDate(from)} al ${fmtDate(to)}${list.some(s => s.status === 'pending' && !(s.periodStart <= to && s.periodEnd >= from)) ? ' y las pendientes' : ''}`}</p></div>
             <button onClick={() => { const acc = Object.fromEntries(employees.map(e => [e.id, e])); const pend = list.filter(s => s.status === 'pending'); downloadXlsx('pagos_nomina', [{ name: 'Pagos pendientes', headers: ['Colaborador', 'Cédula', 'Número de cuenta', 'Período', 'Neto a pagar'], rows: pend.map(s => [s.employeeName, acc[s.employeeId]?.document || '', acc[s.employeeId]?.bankAccount || '', `${s.periodStart} a ${s.periodEnd}`, s.total]), widths: [30, 14, 18, 24, 14] }]); }} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] font-semibold" title="Excel con cuentas bancarias para hacer las transferencias">Excel de pagos</button></div>
-          {list.length === 0 ? <p className="p-6 text-center text-xs text-muted-foreground">Aún no hay liquidaciones.</p> : (
+          {(hiddenCount > 0 || showAll) && (
+            <button onClick={() => setShowAll(v => !v)} className="w-full px-4 py-1.5 text-[11px] font-semibold text-brand-primary bg-muted/30 border-b border-border text-left" data-settlements-toggle>
+              {showAll ? 'Ver solo las de este período' : `Ver anteriores (${hiddenCount}) · no se borran, solo se ocultan`}
+            </button>
+          )}
+          {shownList.length === 0 ? <p className="p-6 text-center text-xs text-muted-foreground">{list.length ? 'Aún no hay liquidaciones de este período.' : 'Aún no hay liquidaciones.'}</p> : (
             <ul className="divide-y divide-border max-h-[560px] overflow-y-auto">
-              {list.map(s => (
+              {shownList.map(s => (
                 <li key={s.id} className="px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-brand-dark truncate">{s.employeeName}</p>

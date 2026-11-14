@@ -353,6 +353,15 @@ function computeSettlement(db, emp, from, to, loanOpts = {}, opts = {}) {
   const allowance = payroll.computeAllowance(emp, cfg, from, to, attendance.length, daysWorked);
   const salaryBase = Math.max(0, baseTotal + extrasTotal + novelties.extras + novelties.bonus - novelties.absence);
   const legalDeductions = payroll.computeLegalDeductions(emp, cfg, salaryBase);
+  // Festivos del período: si trabajó, el recargo de ley se suma con la novedad "Festivo trabajado"
+  // (o lo calcula la asistencia, si tiene activadas las extras y recargos y marcó ese día)
+  const years = [...new Set([from.slice(0, 4), to.slice(0, 4)])].map(Number);
+  const holidays = years.flatMap(y => [...payroll.colombianHolidays(y)]).filter(d => d >= from && d <= to).sort().map(date => {
+    const worked = attendance.some(a => a.date === date);
+    const nov = novelties.rows.find(n => n.type === 'holiday_worked' && n.date === date);
+    const sug = PX.noveltyAmount(mapEmp(emp), 'holiday_worked', 1, date, cfg);
+    return { date, name: payroll.holidayName(date), attendance: worked, autoPaid: Boolean(emp.overtime && worked), novelty: nov ? { id: nov.id, amount: nov.amount } : null, suggested: sug.amount || 0, pct: sug.pct };
+  });
 
   return {
     employee: mapEmp(emp), periodStart: from, periodEnd: to, payMode: emp.payMode, payModeLabel: PAY_MODE_LABEL[emp.payMode], unitLabel,
@@ -360,7 +369,7 @@ function computeSettlement(db, emp, from, to, loanOpts = {}, opts = {}) {
     attendance, tipsDirect, tipsShared, sharedDetail, tipsTotal, tipsSeparate, tipsAccrued: acc.total, advances, advancesTotal,
     extras, extrasTotal, allowance, allowanceTotal: allowance.amount, salaryBase, legalDeductions, legalDeductionsTotal: legalDeductions.total, config: cfg,
     novelties: novelties.rows, noveltiesExtras: novelties.extras, noveltiesBonus: novelties.bonus, noveltiesAbsence: novelties.absence, noveltiesDeductions: novelties.deductions,
-    loans: loans.lines, loansTotal: loans.total, loanPlan: loans,
+    loans: loans.lines, loansTotal: loans.total, loanPlan: loans, holidays,
     subtotal: baseTotal + extrasTotal + allowance.amount + tipsTotal + novelties.extras + novelties.bonus - novelties.absence - novelties.deductions - advancesTotal - loans.total - legalDeductions.total,
   };
 }
