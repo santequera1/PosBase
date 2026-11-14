@@ -14,7 +14,7 @@ function getShiftLiveStats(db, shift) {
 
   // Sales totals strictly for this shift
   const orders = db.prepare(`
-    SELECT payment_method, total, COALESCE(tip, 0) AS tip, payment_split, payment_status, status
+    SELECT id, payment_method, total, COALESCE(tip, 0) AS tip, payment_split, payment_status, status, COALESCE(change_due, 0) AS change_due, change_method
     FROM orders
     WHERE status NOT IN ('cancelled', 'open') AND shift_id = ?
   `).all(shift.id);
@@ -30,11 +30,15 @@ function getShiftLiveStats(db, shift) {
   // Propinas (se cobran junto con la venta y entran al mismo medio de pago, pero se muestran aparte)
   const tips = { cash: 0, transfer: 0, card: 0, platform: 0 };
   const tipKey = m => (m === 'cash' ? 'cash' : m === 'transfer' ? 'transfer' : m === 'platform' ? 'platform' : 'card');
+  // Vueltos de transferencias de más entregados en efectivo: la transferencia completa está en el banco y el vuelto salió de la caja
+  let changeReturned = 0;
+  const changeOrders = [];
 
   for (const o of orders) {
     totalSales += o.total;
     // Sin pagar (a crédito, domicilio por cobrar, cuenta en curso): no entra a ningún medio de pago todavía
     if (o.payment_status !== 'paid') { pendingSales += o.total; continue; }
+    if (o.change_due > 0 && o.change_method !== 'transfer') { changeReturned += o.change_due; changeOrders.push({ id: o.id, amount: o.change_due }); }
     if (o.tip > 0) { let m = o.payment_method; const sp0 = require('../paymentSplit').splitParts(o.payment_split); if (sp0.length) m = sp0[0].method; tips[tipKey(m)] += o.tip; }
     if (o.payment_split) {
       try {
@@ -88,9 +92,9 @@ function getShiftLiveStats(db, shift) {
   const initialCash = shift.initial_cash !== undefined ? shift.initial_cash : (shift.initialCash || 0);
   const totalTips = tips.cash + tips.transfer + tips.card + tips.platform;
   // Efectivo esperado: base + ventas en efectivo + propinas en efectivo + ingresos − retiros
-  const expectedCash = initialCash + cashSales + tips.cash + totalDeposits - totalWithdrawals;
+  const expectedCash = initialCash + cashSales + tips.cash + totalDeposits - totalWithdrawals - changeReturned;
   // Arqueo por medio de pago (lo que el sistema dice que debe haber en cada medio)
-  const expectedByMethod = { cash: expectedCash, transfer: transferSales + tips.transfer, card: debitSales + creditSales + tips.card };
+  const expectedByMethod = { cash: expectedCash, transfer: transferSales + tips.transfer + changeReturned, card: debitSales + creditSales + tips.card };
 
   return {
     ...shift,
@@ -107,6 +111,8 @@ function getShiftLiveStats(db, shift) {
     totalWithdrawals,
     totalDeposits,
     expectedCash,
+    changeReturned,
+    changeOrders,
     tips,
     totalTips,
     expectedByMethod,

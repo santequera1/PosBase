@@ -261,6 +261,7 @@ function preBillTicket(printer, b, order, items, tipPct) {
     t.bold().pair('TOTAL', money(order.total + tipV)).bold(false);
     t.pair(`Abono${order.deposit_note ? ' (' + order.deposit_note + ')' : ' (reserva)'}`, '-' + money(deposit));
     t.bold().size('tall').pair('SALDO A PAGAR', money(Math.max(0, order.total + tipV - deposit))).size(1).bold(false);
+    if (deposit > order.total + tipV && (order.deposit_method || 'transfer') === 'transfer') t.bold().pair('VUELTO A DEVOLVER', money(deposit - order.total - tipV)).bold(false);
   } else {
     t.bold().size('tall').pair('TOTAL', money(order.total + tipV)).size(1).bold(false);
   }
@@ -306,6 +307,8 @@ function receiptTicket(printer, b, order, items) {
   if (order.payment_method === 'mixed' && sps.length) { for (const p of sps) t.pair(PAY[p.method] || p.method, money(p.amount)); }
   else t.pair('Pago', PAY[order.payment_method] || order.payment_method || '');
   if (order.cash_received && order.payment_method === 'cash') t.pair('Recibido', money(order.cash_received)).pair('Cambio', money(order.cash_change || 0));
+  // Transfirió de más: el vuelto que se le devuelve (lo lleva el domiciliario)
+  if (order.change_due > 0) t.bold().pair(order.change_method === 'transfer' ? 'Devolver por transferencia' : 'VUELTO A DEVOLVER', money(order.change_due)).bold(false);
   t.nl().align('center');
   const d = b.design || DESIGN_DEFAULT;
   if (b.footer) for (const l of String(b.footer).split('\n')) t.line(l);
@@ -326,7 +329,9 @@ function shiftReportTicket(printer, b, s, isZ) {
     .pair('Transferencia / QR', money(s.transferSales)).pair('Plataformas', money(s.platformSales)).pair('A crédito', money(s.pendingSales));
   t.bold().pair(`Total ventas (${s.totalOrders})`, money(s.totalSales)).bold(false).sep();
   t.pair('Propinas efectivo', money(s.tips.cash)).pair('Propinas tarjeta', money(s.tips.card)).pair('Propinas transferencia', money(s.tips.transfer));
-  t.pair('Ingresos de caja', money(s.totalDeposits)).pair('Retiros de caja', '-' + money(s.totalWithdrawals)).sep();
+  t.pair('Ingresos de caja', money(s.totalDeposits)).pair('Retiros de caja', '-' + money(s.totalWithdrawals));
+  if (s.changeReturned > 0) t.pair('Vueltos de transferencias', '-' + money(s.changeReturned));
+  t.sep();
   t.bold().pair('EFECTIVO ESPERADO', money(s.expectedCash)).bold(false);
   if (isZ) {
     let counted = null; try { counted = s.counted_detail ? JSON.parse(s.counted_detail) : null; } catch { counted = null; }

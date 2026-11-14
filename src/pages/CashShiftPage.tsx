@@ -342,6 +342,12 @@ export const CashShiftPage: React.FC = () => {
                 <span className="font-semibold">-{formatPrice(currentShift?.totalWithdrawals || 0)}</span>
               </div>
             )}
+            {((currentShift as any)?.changeReturned || 0) > 0 && (
+              <div className="flex justify-between text-xs text-red-600" data-shift-change>
+                <span>- Vueltos de transferencias de más:</span>
+                <span className="font-semibold">-{formatPrice((currentShift as any).changeReturned)}</span>
+              </div>
+            )}
             <div className="pt-2 border-t border-brand-primary/10 flex justify-between font-bold text-sm text-brand-primary">
               <span>Efectivo Esperado en Gaveta:</span>
               <span className="text-base font-serif">{formatPrice(expectedCash)}</span>

@@ -1,4 +1,4 @@
-import { Clock, MapPin, Phone, Bike, User, UserCheck } from 'lucide-react';
+import { Clock, MapPin, Phone, Bike, User, UserCheck, Banknote } from 'lucide-react';
 import { PROFILE_LABEL } from '@/lib/permissions';
 import type { Order } from '@/store/useStore';
 import { formatPrice } from '@/lib/format';
@@ -10,6 +10,15 @@ export interface CardAction { label: string; icon?: any; onClick: () => void; pr
 /** Tarjeta de pedido para los tableros de "Para llevar" y "Domicilios". */
 export const OrderCard = ({ order, actions, children }: { order: Order; actions: CardAction[]; children?: any }) => {
   const late = order.type === 'delivery' && order.estimatedMinutes && order.status !== 'delivered' && minutesSince(order.createdAt) > order.estimatedMinutes;
+  // Abono (p. ej. la transferencia que confirmó el bot): solo falta el saldo
+  const deposit = order.deposit?.amount || 0;
+  const unpaid = order.paymentStatus !== 'paid' && order.paymentMethod !== 'platform';
+  const pending = unpaid ? Math.max(0, (order.amountDue ?? order.total) - deposit) : 0;
+  const coveredByDeposit = unpaid && deposit > 0 && pending === 0;
+  // Efectivo que el domiciliario cobra en la puerta (aunque la caja ya lo haya registrado) y con cuánto paga el cliente
+  const cashAtDoor = order.type !== 'delivery' ? 0 : unpaid ? (order.paymentMethod === 'cash' ? pending : 0) : order.paymentMethod === 'cash' ? order.total + (order.tip || 0) : 0;
+  const payWith = cashAtDoor > 0 && (order.cashReceived || 0) > cashAtDoor ? order.cashReceived! : 0;
+  const changeDue = order.changeDue || 0;
   const itemsText = order.items.slice(0, 3).map(i => `${i.quantity}x ${i.name}`).join(' · ') + (order.items.length > 3 ? ` · +${order.items.length - 3}` : '');
   return (
     <div className={cn('bg-card rounded-xl border shadow-card p-3 space-y-2 min-w-0 max-w-full overflow-hidden', late ? 'border-red-300' : 'border-border')}>
@@ -25,7 +34,7 @@ export const OrderCard = ({ order, actions, children }: { order: Order; actions:
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold text-brand-primary">{formatPrice(order.amountDue ?? order.total)}</p>
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold', order.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}>{order.paymentStatus === 'paid' ? `Pagado · ${PAYMENT_LABEL[order.paymentMethod] || order.paymentMethod}` : order.paymentMethod === 'platform' ? 'Paga la app' : 'Por cobrar'}</span>
+          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold', order.paymentStatus === 'paid' || coveredByDeposit ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}>{order.paymentStatus === 'paid' ? `Pagado · ${PAYMENT_LABEL[order.paymentMethod] || order.paymentMethod}` : order.paymentMethod === 'platform' ? 'Paga la app' : coveredByDeposit ? 'Pagado con abono' : deposit > 0 ? `Falta ${formatPrice(pending)}` : 'Por cobrar'}</span>
         </div>
       </div>
       {order.type === 'delivery' && (
@@ -39,6 +48,18 @@ export const OrderCard = ({ order, actions, children }: { order: Order; actions:
           </p>
           <p className="flex items-center gap-3"><span className="flex items-center gap-1"><User size={11} /> {order.customer.name}</span>{order.customer.phone && <span className="flex items-center gap-1"><Phone size={11} /> {order.customer.phone}</span>}</p>
           {order.driverName && <p className="flex items-center gap-1 font-semibold text-brand-primary"><Bike size={11} /> {order.driverName}</p>}
+        </div>
+      )}
+      {changeDue > 0 && (
+        <div className="rounded-lg bg-emerald-600 text-white px-2 py-1.5 flex items-center justify-between gap-2" data-order-change={order.id}>
+          <span className="text-[11px] font-bold flex items-center gap-1 min-w-0"><Banknote size={13} className="shrink-0" /> <span className="truncate">{order.changeMethod === 'transfer' ? 'Devolver por transferencia' : order.type === 'delivery' ? 'Enviar de vuelto' : 'Dar de vuelto'}</span></span>
+          <span className="text-sm font-bold shrink-0">{formatPrice(changeDue)}</span>
+        </div>
+      )}
+      {changeDue > 0 && <p className="text-[10px] text-muted-foreground -mt-1">Transfirió {formatPrice((order.amountDue ?? order.total) + changeDue)} y el pedido vale {formatPrice(order.amountDue ?? order.total)}</p>}
+      {payWith > 0 && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-2 py-1 flex items-center justify-between gap-2 text-[11px] text-amber-900" data-order-paywith={order.id}>
+          <span>Paga con <b>{formatPrice(payWith)}</b></span><span className="font-bold">Vuelto {formatPrice(payWith - cashAtDoor)}</span>
         </div>
       )}
       {order.type === 'pickup' && order.customer.phone && <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Phone size={11} /> {order.customer.phone}</p>}

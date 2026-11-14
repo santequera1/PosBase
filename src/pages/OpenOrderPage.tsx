@@ -309,7 +309,9 @@ const OpenOrderPage = () => {
             {order.deposit?.amount ? <>
               <div className="flex justify-between text-emerald-700" data-deposit-line><span>Abono{order.deposit.note ? ` (${order.deposit.note})` : ''} · {PAY_SHORT[order.deposit.method] || order.deposit.method}</span><span>− {formatPrice(order.deposit.amount)}</span></div>
               <div className="flex justify-between font-bold text-brand-dark"><span>Saldo a pagar</span><span>{formatPrice(Math.max(0, total - order.deposit.amount))}</span></div>
+              {order.deposit.amount > total && order.deposit.method === 'transfer' && <div className="flex justify-between font-bold text-white bg-emerald-600 rounded-md px-1.5 py-0.5" data-change-line><span>Vuelto a devolver</span><span>{formatPrice(order.deposit.amount - total)}</span></div>}
             </> : null}
+            {!order.deposit?.amount && (order.changeDue || 0) > 0 && <div className="flex justify-between font-bold text-white bg-emerald-600 rounded-md px-1.5 py-0.5" data-change-line><span>{order.changeMethod === 'transfer' ? 'Devolver por transferencia' : 'Vuelto a devolver'}</span><span>{formatPrice(order.changeDue!)}</span></div>}
             {order.type === 'delivery' && order.paymentMethod === 'cash' && order.paymentStatus !== 'paid' && !closed && total > 0 && (
               <PayWithBox order={order} total={total} onSaved={o => setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] })} />
             )}

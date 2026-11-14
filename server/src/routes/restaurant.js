@@ -519,7 +519,7 @@ router.get('/my-deliveries', requirePerm('courier'), (req, res) => {
   const delivered = db.prepare("SELECT id FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND date(datetime(COALESCE(delivered_at, created_at), '-5 hours')) = ? ORDER BY delivered_at DESC").all(emp.id, t).map(r => fmt(db, r.id));
   // Efectivo: si ya se registró en caja, el cliente igual le paga al domiciliario al recibir
   const { cashOf } = require('../paymentSplit');
-  const due = o => (o.paymentMethod === 'platform' ? 0 : o.paymentStatus === 'paid' ? (o.paymentMethod === 'cash' ? (o.total || 0) + (o.tip || 0) : o.paymentMethod === 'mixed' ? cashOf(o.paymentSplit) : 0) : (o.amountDue ?? o.total));
+  const due = o => (o.paymentMethod === 'platform' ? 0 : o.paymentStatus === 'paid' ? (o.paymentMethod === 'cash' ? (o.total || 0) + (o.tip || 0) : o.paymentMethod === 'mixed' ? cashOf(o.paymentSplit) : 0) : Math.max(0, (o.amountDue ?? o.total) - (o.deposit ? o.deposit.amount : 0)));
   const collected = db.prepare("SELECT COALESCE(SUM(total + COALESCE(tip, 0)), 0) AS s FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'cash' AND date(datetime(COALESCE(delivered_at, created_at), '-5 hours')) = ?").get(emp.id, t).s
     + db.prepare("SELECT payment_split FROM orders WHERE type = 'delivery' AND driver_id = ? AND status = 'delivered' AND payment_method = 'mixed' AND date(datetime(COALESCE(delivered_at, created_at), '-5 hours')) = ?").all(emp.id, t).reduce((a, r) => { try { return a + require('../paymentSplit').cashOf(JSON.parse(r.payment_split || 'null')); } catch { return a; } }, 0);
   // El domiciliario gana el valor del envío: lo entregado hoy y lo que tiene en curso
@@ -545,9 +545,25 @@ router.post('/my-deliveries/:id/:action', requirePerm('courier'), (req, res) => 
     if (order.payment_status !== 'paid' && order.payment_method !== 'platform') {
       const method = ['cash', 'transfer', 'card'].includes(req.body.method) ? req.body.method : 'cash';
       const received = Math.max(0, Math.round(Number(req.body.cashReceived) || 0));
-      const due = (order.total || 0) + (order.tip || 0);
-      db.prepare("UPDATE orders SET payment_status = 'paid', payment_method = ?, payment_split = NULL, cash_received = ?, cash_change = ? WHERE id = ?")
-        .run(method, method === 'cash' ? (received || due) : 0, method === 'cash' && received > due ? received - due : 0, order.id);
+      // Con abono (p. ej. la transferencia que confirmó el bot): el domiciliario solo cobra el saldo
+      const dep = settleDeposit(order, (order.total || 0) + (order.tip || 0));
+      if (dep.error) return res.status(400).json({ error: dep.error + ' Pídele a la caja que lo cobre.' });
+      const { rest, depUsed } = dep;
+      let finalMethod = method, split = null;
+      if (depUsed > 0) {
+        const PS = require('../paymentSplit');
+        const dm = order.deposit_method || 'transfer';
+        const parts = [{ method: dm, amount: depUsed }, ...(rest > 0 ? [{ method, amount: rest }] : [])];
+        const merged = []; for (const p of parts) { const m = merged.find(x => x.method === p.method); if (m) m.amount += p.amount; else merged.push({ ...p }); }
+        if (merged.length === 1) finalMethod = merged[0].method; else { finalMethod = 'mixed'; split = JSON.stringify(PS.makeSplit(merged)); }
+      }
+      const cashIn = method === 'cash' && rest > 0 ? (received || rest) : 0;
+      db.prepare("UPDATE orders SET payment_status = 'paid', payment_method = ?, payment_split = ?, cash_received = ?, cash_change = ?, change_due = ?, change_method = ? WHERE id = ?")
+        .run(finalMethod, split, cashIn, cashIn > rest ? cashIn - rest : 0, dep.changeDue, dep.changeDue ? 'cash' : null, order.id);
+      if (depUsed > 0 && order.deposit_method === 'cash') {
+        const w = require('../cashHelpers').registerCashWithdrawal(db, depUsed, `Abono ya recibido antes · cuenta #${order.id}`, req.user?.name);
+        if (w.error) console.warn('Abono en efectivo:', w.error);
+      }
     }
     db.prepare("UPDATE orders SET status = 'delivered', shipped_at = COALESCE(shipped_at, ?), delivered_at = ?, closed_at = ?, closed_by = ? WHERE id = ?").run(ts, ts, ts, req.user?.name || null, order.id);
   } else return res.status(400).json({ error: 'Acción inválida' });
@@ -633,9 +649,10 @@ router.post('/orders/:id/close', (req, res) => {
   const fresh = getOrder(db, order.id);
   const due = fresh.total + tip;
   // Abono de reserva: ya pagado; aquí se cobra solo el saldo
-  const deposit = Math.max(0, fresh.deposit_amount || 0);
-  if (deposit > due) return res.status(400).json({ error: `El abono (${deposit}) es mayor que el total a pagar (${due}). Corrige el abono antes de cobrar.` });
-  const rest = due - deposit;
+  const dep = settleDeposit(fresh, due);
+  if (dep.error) return res.status(400).json({ error: dep.error });
+  const { deposit, depUsed, rest } = dep;
+  let changeDue = dep.changeDue;
 
   const method = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed', 'payroll'].includes(b.paymentMethod) ? b.paymentMethod : (fresh.payment_method || 'cash');
   // Descuento de nómina: no entra a la caja; queda como consumo del empleado y se descuenta en su liquidación
@@ -661,15 +678,18 @@ router.post('/orders/:id/close', (req, res) => {
   if (deposit > 0 && !['credit', 'payroll'].includes(method)) {
     const PS = require('../paymentSplit');
     const dm = fresh.deposit_method || 'transfer';
-    const parts = [{ method: dm, amount: deposit }, ...(method === 'mixed' ? PS.splitParts(split) : rest > 0 ? [{ method, amount: rest }] : [])];
+    const parts = [{ method: dm, amount: depUsed }, ...(method === 'mixed' ? PS.splitParts(split) : rest > 0 ? [{ method, amount: rest }] : [])];
     const merged = []; for (const p of parts) { const m = merged.find(x => x.method === p.method); if (m) m.amount += p.amount; else merged.push({ ...p }); }
     if (merged.length === 1) { finalMethod = merged[0].method; finalSplit = null; } else { finalMethod = 'mixed'; finalSplit = PS.makeSplit(merged); }
     if (dm === 'cash') cashReceived += deposit;
   } else if (deposit > 0) return res.status(400).json({ error: 'Una cuenta con abono no se puede dejar a crédito ni cargar a nómina: quita el abono o cóbrala con otro medio' });
+  // Transfirió de más al cobrar y la diferencia se le devuelve (si no, la caja la manda como propina)
+  if (method === 'transfer' && rest > 0 && b.transferReceived !== undefined) changeDue += Math.max(0, Math.round(Number(b.transferReceived) || 0) - rest);
+  const changeMethod = changeDue > 0 ? (b.changeMethod === 'transfer' ? 'transfer' : 'cash') : null;
   const ts = now(db);
   const closeNow = fresh.type !== 'delivery' || Boolean(b.markDelivered) || fresh.status === 'delivered';
-  const sets = ['payment_method = ?', 'payment_split = ?', 'payment_status = ?', 'cash_received = ?', 'cash_change = ?', 'closed_by = ?', 'payroll_employee_id = ?'];
-  const vals = [finalMethod, finalSplit ? JSON.stringify(finalSplit) : null, paymentStatus, cashReceived, cashChange, req.user?.name || null, payrollEmp ? payrollEmp.id : null];
+  const sets = ['payment_method = ?', 'payment_split = ?', 'payment_status = ?', 'cash_received = ?', 'cash_change = ?', 'closed_by = ?', 'payroll_employee_id = ?', 'change_due = ?', 'change_method = ?'];
+  const vals = [finalMethod, finalSplit ? JSON.stringify(finalSplit) : null, paymentStatus, cashReceived, cashChange, req.user?.name || null, payrollEmp ? payrollEmp.id : null, changeDue, changeMethod];
   if (closeNow) { sets.push('status = ?', 'delivered_at = COALESCE(delivered_at, ?)', 'closed_at = ?'); vals.push('delivered', ts, ts); }
   vals.push(order.id);
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
@@ -925,6 +945,19 @@ router.get('/couriers/:driverId', requireRole('admin', 'cashier'), (req, res) =>
   const orders = rows.map(o => ({ id: o.id, createdAt: o.created_at, status: o.status, customer: o.customer_name, address: o.customer_address, neighborhood: o.customer_neighborhood, total: o.total, deliveryFee: o.delivery_fee || 0, paymentMethod: o.payment_method, paymentStatus: o.payment_status, cash: cashPart(o) }));
   res.json({ period: { from, to }, driver: employee(db, req.params.driverId), orders, totals: { orders: orders.length, total: orders.reduce((a, o) => a + o.total, 0), deliveryFees: orders.reduce((a, o) => a + o.deliveryFee, 0), feesDelivered: orders.filter(o => o.status === 'delivered').reduce((a, o) => a + o.deliveryFee, 0), cash: orders.reduce((a, o) => a + o.cash, 0), pending: orders.filter(o => o.paymentStatus !== 'paid').reduce((a, o) => a + o.total, 0) } });
 });
+
+/**
+ * Abono ya pagado frente a lo que vale la cuenta (total + propina).
+ * Si un abono por transferencia pasa del total (el cliente transfirió de más o se le quitó un producto),
+ * la diferencia es vuelto para el cliente; uno en efectivo o datáfono mayor que la cuenta se corrige a mano.
+ */
+function settleDeposit(order, due) {
+  const deposit = Math.max(0, order.deposit_amount || 0);
+  if (deposit > due && (order.deposit_method || 'transfer') !== 'transfer') return { error: `El abono (${deposit}) es mayor que el total a pagar (${due}). Corrige el abono antes de cobrar.` };
+  const changeDue = Math.max(0, deposit - due);
+  const depUsed = deposit - changeDue;
+  return { deposit, depUsed, changeDue, rest: due - depUsed };
+}
 
 module.exports = router;
 // Para el bot de WhatsApp (routes/botApi.js): crea pedidos con las mismas reglas que la caja

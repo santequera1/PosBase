@@ -43,8 +43,10 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
   const [method, setMethod] = useState<string>(order.paymentMethod && order.paymentMethod !== 'mixed' ? order.paymentMethod : 'cash');
   const [cashReceived, setCashReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
   // Pago con varios medios (efectivo + Nequi + datáfono...)
-  // Transferencia: cuánto llegó de verdad (si el cliente transfirió de más, la diferencia queda como propina)
+  // Transferencia: cuánto llegó de verdad. Si el cliente transfirió de más, la diferencia se le devuelve (vuelto) o queda de propina
   const [transferReceived, setTransferReceived] = useState('');
+  const [overpayAs, setOverpayAs] = useState<'change' | 'tip'>(order.type === 'dine-in' ? 'tip' : 'change');
+  const [changeMethod, setChangeMethod] = useState<'cash' | 'transfer'>('cash');
   const [mixLines, setMixLines] = useState<MixedLine[]>([{ method: 'cash', amount: '' }, { method: 'transfer', amount: '' }]);
   const [mixReceived, setMixReceived] = useState(order.type === 'delivery' && order.paymentStatus !== 'paid' && order.cashReceived ? String(order.cashReceived) : '');
   const [markDelivered, setMarkDelivered] = useState(order.type !== 'delivery' || order.status === 'shipped');
@@ -65,20 +67,27 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
   const deposit = order.deposit?.amount || 0;
   // Con abono de reserva: solo se cobra el saldo
   const due = Math.max(0, total + tip - deposit);
+  // El abono ya cubre la cuenta: no hay nada más que cobrar (si pasa del total por transferencia, la diferencia es vuelto)
+  const covered = deposit > 0 && due === 0;
+  const depChange = covered && (order.deposit?.method || 'transfer') === 'transfer' ? deposit - (total + tip) : 0;
   const received = Math.round(Number(cashReceived) || 0);
   const change = method === 'cash' && received > due ? received - due : 0;
   const transferred = Math.round(Number(transferReceived) || 0);
-  const overpay = method === 'transfer' && transferred > due ? transferred - due : 0;
-  const charged = due + overpay;
+  const overpay = method === 'transfer' && !covered && transferred > due ? transferred - due : 0;
+  const overpayTip = overpayAs === 'tip' ? overpay : 0;
+  const changeDue = depChange + (overpayAs === 'change' ? overpay : 0);
+  const charged = due + overpayTip;
   const mix = mixedState(mixLines, due);
-  const splitOk = method !== 'mixed' || mix.ok;
+  const splitOk = covered || method !== 'mixed' || mix.ok;
   const quick = useMemo(() => [due, Math.ceil(due / 5000) * 5000, Math.ceil(due / 10000) * 10000, Math.ceil(due / 50000) * 50000].filter((v, i, arr) => v >= due && arr.indexOf(v) === i).slice(0, 4), [due]);
 
   const submit = async () => {
     setSaving(true); setError('');
     try {
       const closed = await api.closeRestaurantOrder(order.id, {
-        paymentMethod: method, discount: disc, discountReason, tip: tip + overpay, tipTo, markDelivered,
+        paymentMethod: method, discount: disc, discountReason, tip: tip + overpayTip, tipTo, markDelivered,
+        ...(overpay > 0 && overpayAs === 'change' ? { transferReceived: transferred } : {}),
+        ...(changeDue > 0 ? { changeMethod } : {}),
         ...(cat ? { discountId: cat.discountId, discountValue: cat.value, discountEmployeeId: cat.employeeId } : {}),
         cashReceived: method === 'cash' ? (received || due) : undefined,
         ...(method === 'payroll' ? { payrollEmployeeId: payEmp, payrollInstallments: 1 } : {}),
@@ -100,6 +109,7 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
           <p className="text-2xl font-bold text-brand-dark">{formatPrice(done.amountDue || done.total)}</p>
           <p className="text-xs text-muted-foreground">{PAYMENT_LABEL[done.paymentMethod] || done.paymentMethod}{done.paymentStatus === 'pending' ? ' · queda por cobrar' : ''}{done.cashChange ? ` · vueltas ${formatPrice(done.cashChange)}` : ''}</p>
           {done.tip ? <p className="text-xs text-muted-foreground">Propina {formatPrice(done.tip)} registrada en Personal.</p> : null}
+          {done.changeDue ? <p className="text-sm font-bold text-emerald-700" data-close-done-change>Vuelto a devolver {formatPrice(done.changeDue)} {done.changeMethod === 'transfer' ? 'por transferencia' : done.type === 'delivery' ? 'en efectivo (lo lleva el domiciliario)' : 'en efectivo'}</p> : null}
           {done.paymentMethod === 'payroll' && <p className="text-xs font-semibold text-emerald-700" data-payroll-done>Cargado a la nómina de {staffAll.find(e => e.id === payEmp)?.name || 'el empleado'}: queda en su perfil (Personal → Préstamos y consumos).</p>}
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -122,9 +132,10 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
             {disc > 0 && <div className="flex justify-between text-red-700"><span>{cat ? cat.name : 'Descuento'}</span><span>− {formatPrice(disc)}</span></div>}
             <div className="flex justify-between font-semibold border-t border-border pt-1"><span>Total</span><span>{formatPrice(total)}</span></div>
             {tip > 0 && <div className="flex justify-between"><span>Propina</span><span>+ {formatPrice(tip)}</span></div>}
-            {overpay > 0 && <div className="flex justify-between text-emerald-700" data-close-overpay><span>Transfirió de más (propina)</span><span>+ {formatPrice(overpay)}</span></div>}
+            {overpayTip > 0 && <div className="flex justify-between text-emerald-700" data-close-overpay><span>Transfirió de más (propina)</span><span>+ {formatPrice(overpayTip)}</span></div>}
             {deposit > 0 && <div className="flex justify-between text-emerald-700" data-close-deposit><span>Abono ya pagado{order.deposit?.note ? ` (${order.deposit.note})` : ''}</span><span>− {formatPrice(deposit)}</span></div>}
             <div className="flex justify-between text-base font-bold text-brand-dark border-t border-border pt-1"><span>A pagar</span><span>{formatPrice(due)}</span></div>
+            {changeDue > 0 && <div className="flex justify-between text-sm font-bold text-white bg-emerald-600 rounded-md px-1.5 py-0.5" data-close-change><span>Vuelto a devolver</span><span>{formatPrice(changeDue)}</span></div>}
           </div>
           {canDo(user, 'discounts') && (
             <div className="space-y-1.5">
@@ -164,7 +175,8 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
               ))}
             </div>
           </div>
-          {method === 'cash' && (
+          {covered && <p className="text-xs font-semibold text-emerald-700" data-close-covered>El abono ya cubre la cuenta: no hay nada más que cobrar.</p>}
+          {method === 'cash' && !covered && (
             <div>
               <label className={LABEL}>Recibido</label>
               <div className="flex flex-wrap gap-1.5 mb-1.5">{quick.map(v => <Chip key={v} active={received === v} onClick={() => setCashReceived(String(v))}>{formatPrice(v)}</Chip>)}</div>
@@ -173,16 +185,34 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
               {change > 0 && <p className="text-sm font-bold text-emerald-700 mt-1">Vueltas: {formatPrice(change)}</p>}
             </div>
           )}
-          {method === 'transfer' && (
+          {method === 'transfer' && !covered && (
             <div data-transfer-box>
               <label className={LABEL}>Valor transferido</label>
               <input type="number" min={0} value={transferReceived} onChange={e => setTransferReceived(e.target.value)} placeholder={String(due)} className={cn(INPUT, 'font-mono')} data-transfer-received />
               {transferred > 0 && transferred < due ? <p className="text-[11px] text-red-600 mt-1">Faltan {formatPrice(due - transferred)}</p>
-                : overpay > 0 ? <p className="text-sm font-bold text-emerald-700 mt-1">Transfirió {formatPrice(overpay)} de más: queda como propina</p>
-                : <p className="text-[11px] text-muted-foreground mt-1">Si el cliente transfirió más de la cuenta, escribe lo que llegó: la diferencia queda como propina y el arqueo cuadra con el banco.</p>}
+                : overpay > 0 ? (
+                  <div className="mt-1.5 space-y-1" data-overpay-choice>
+                    <p className="text-sm font-bold text-emerald-700">Transfirió {formatPrice(overpay)} de más</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Chip active={overpayAs === 'change'} onClick={() => setOverpayAs('change')}>Se le devuelve (vuelto)</Chip>
+                      <Chip active={overpayAs === 'tip'} onClick={() => setOverpayAs('tip')}>Lo deja de propina</Chip>
+                    </div>
+                  </div>
+                )
+                : <p className="text-[11px] text-muted-foreground mt-1">Si el cliente transfirió más de la cuenta, escribe lo que llegó: la diferencia se le devuelve de vuelto (o queda de propina si así lo dice) y el arqueo cuadra con el banco.</p>}
             </div>
           )}
-          {method === 'mixed' && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} cashReceived={mixReceived} setCashReceived={setMixReceived} />}
+          {changeDue > 0 && (
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-2.5 space-y-1.5" data-change-box>
+              <p className="text-sm font-bold text-emerald-800">¿Cómo se le devuelven los {formatPrice(changeDue)}?</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Chip active={changeMethod === 'cash'} onClick={() => setChangeMethod('cash')}>{order.type === 'delivery' ? 'En efectivo (lo lleva el domiciliario)' : 'En efectivo'}</Chip>
+                <Chip active={changeMethod === 'transfer'} onClick={() => setChangeMethod('transfer')}>Por transferencia</Chip>
+              </div>
+              <p className="text-[11px] text-emerald-800">{changeMethod === 'cash' ? 'Sale de la caja: el arqueo lo descuenta del efectivo y suma la transferencia completa.' : 'Devuélveselo por Nequi o banco: no toca el efectivo de la caja.'}</p>
+            </div>
+          )}
+          {method === 'mixed' && !covered && <MixedPayment due={due} lines={mixLines} setLines={setMixLines} cashReceived={mixReceived} setCashReceived={setMixReceived} />}
           {method === 'cash' && order.type === 'delivery' && !['shipped', 'delivered'].includes(order.status) && <p className="text-[11px] text-amber-700" data-delivery-cash-note>Si el cliente paga en efectivo al recibir, no hace falta cobrar aquí: el domiciliario lo cobra al entregar (con el vuelto). Si lo cobras ahora, igual le aparecerá para recoger el efectivo.</p>}
           {method === 'platform' && <p className="text-[11px] text-muted-foreground">La app (Rappi, DiDi) paga después; queda registrado como venta por plataforma, no entra a la caja en efectivo.</p>}
           {method === 'payroll' && (
@@ -201,8 +231,8 @@ export const CloseOrderModal = ({ order, onClose, onClosed, onPrebill }: { order
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
           <button type="button" onClick={async () => { try { await printPreBill(order, suggestedTipPct(order)); onPrebill?.(); } catch (e: any) { setError(e.message); } }} className="w-full py-2 rounded-xl border border-border bg-white text-xs font-semibold text-brand-dark flex items-center justify-center gap-1.5" data-close-prebill><Printer size={14} /> Imprimir precuenta de esta cuenta</button>
-          <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !cat && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due) || (method === 'transfer' && transferred > 0 && transferred < due) || (method === 'payroll' && !payEmp)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
-            {saving ? 'Registrando...' : `Cobrar ${formatPrice(charged)}`}
+          <button onClick={submit} disabled={saving || !splitOk || (disc > 0 && !cat && !discountReason.trim()) || (method === 'cash' && received > 0 && received < due) || (method === 'transfer' && !covered && transferred > 0 && transferred < due) || (method === 'payroll' && !payEmp)} className="w-full py-3 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40">
+            {saving ? 'Registrando...' : covered ? 'Cerrar cuenta (pagada con el abono)' : `Cobrar ${formatPrice(charged)}`}
           </button>
         </div>
       </div>

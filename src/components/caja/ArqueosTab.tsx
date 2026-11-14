@@ -131,8 +131,10 @@ const CurrentArqueo = ({ live, reload, onClose, onClosed }: { live: any; reload:
   if (!live) return <DetailPane open onClose={onClose} title="ARQUEO DE CAJA"><p className="p-4 text-sm text-muted-foreground">Cargando...</p></DetailPane>;
   const exp = live.expectedByMethod || { cash: 0, transfer: 0, card: 0 };
   const tips = live.tips || { cash: 0, transfer: 0, card: 0, platform: 0 };
-  const ingreso = live.cashSales + live.transferSales + live.debitSales + live.creditSales + (live.totalTips || 0) - (tips.platform || 0) + (live.totalDeposits || 0);
-  const egreso = live.totalWithdrawals || 0;
+  // Vuelto de transferencias de más: la transferencia completa entra al banco y el vuelto sale del efectivo
+  const vueltos = live.changeReturned || 0;
+  const ingreso = live.cashSales + live.transferSales + live.debitSales + live.creditSales + (live.totalTips || 0) - (tips.platform || 0) + (live.totalDeposits || 0) + vueltos;
+  const egreso = (live.totalWithdrawals || 0) + vueltos;
   const sysTotal = exp.cash + exp.transfer + exp.card;
   const userTotal = ARQUEO.reduce((a, m) => a + (Math.round(Number(counted[m.key]) || 0)), 0);
   // Si el sistema no espera nada en un medio (p. ej. no hubo transferencias), dejarlo vacío cuenta como 0
@@ -178,12 +180,13 @@ const CurrentArqueo = ({ live, reload, onClose, onClosed }: { live: any; reload:
               <div className="flex justify-between"><span>Ventas por datáfono</span><span>{formatPrice(live.debitSales + live.creditSales)}</span></div>
               <div className="flex justify-between text-amber-800 font-semibold"><span>Propinas</span><span>{formatPrice(tips.cash + tips.transfer + tips.card)}</span></div>
               {live.totalDeposits > 0 && <div className="flex justify-between"><span>Ingresos de efectivo</span><span>{formatPrice(live.totalDeposits)}</span></div>}
+              {vueltos > 0 && <div className="flex justify-between" data-ingreso-vueltos><span>Transferido de más (vuelto)</span><span>{formatPrice(vueltos)}</span></div>}
               {live.platformSales > 0 && <div className="flex justify-between text-muted-foreground"><span>Plataformas (no entra a caja)</span><span>{formatPrice(live.platformSales)}</span></div>}
               {live.pendingSales > 0 && <div className="flex justify-between text-muted-foreground"><span>Por cobrar (no entra a caja)</span><span>{formatPrice(live.pendingSales)}</span></div>}
             </div>
           )}
           <button onClick={() => setOpenOut(v => !v)} className="w-full px-4 py-2.5 flex justify-between border-t border-border font-bold"><span className="flex items-center gap-1">{openOut ? <ChevronUp size={14} /> : <ChevronDown size={14} />} EGRESOS</span><span>{formatPrice(egreso)}</span></button>
-          {openOut && <div className="px-6 pb-2 text-xs space-y-0.5 bg-muted/20">{(live.movements || []).filter((m: any) => m.type === 'withdrawal').map((m: any) => <div key={m.id} className="flex justify-between"><span>{m.reason}</span><span>{formatPrice(m.amount)}</span></div>)}{egreso === 0 && <p className="text-muted-foreground">Sin egresos.</p>}</div>}
+          {openOut && <div className="px-6 pb-2 text-xs space-y-0.5 bg-muted/20">{(live.movements || []).filter((m: any) => m.type === 'withdrawal').map((m: any) => <div key={m.id} className="flex justify-between"><span>{m.reason}</span><span>{formatPrice(m.amount)}</span></div>)}{(live.changeOrders || []).map((c: any) => <div key={'v' + c.id} className="flex justify-between" data-egreso-vuelto={c.id}><span>Vuelto en efectivo · pedido #{c.id}</span><span>{formatPrice(c.amount)}</span></div>)}{egreso === 0 && <p className="text-muted-foreground">Sin egresos.</p>}</div>}
           <div className="px-4 py-3 flex justify-between border-t border-border bg-muted/40"><span>Total</span><span className="text-lg font-bold">{formatPrice(live.initialCash + ingreso - egreso)}</span></div>
         </div>
         <div className="px-4 py-2.5 bg-brand-surface text-brand-on-dark text-sm font-bold">SEGÚN USUARIO</div>
@@ -221,7 +224,8 @@ const ShiftDetail = ({ id, onClose }: { id: number; onClose: () => void }) => {
   const exp = r?.expectedByMethod || { cash: 0, transfer: 0, card: 0 };
   const cnt = r?.countedDetail;
   const tips = r?.tips || { cash: 0, transfer: 0, card: 0, platform: 0 };
-  const ingreso = r ? r.cashSales + r.transferSales + r.debitSales + r.creditSales + (r.totalTips || 0) - (tips.platform || 0) + (r.totalDeposits || 0) : 0;
+  const vueltos = r?.changeReturned || 0;
+  const ingreso = r ? r.cashSales + r.transferSales + r.debitSales + r.creditSales + (r.totalTips || 0) - (tips.platform || 0) + (r.totalDeposits || 0) + vueltos : 0;
   const sys = exp.cash + exp.transfer + exp.card;
   const usr = cnt ? ['cash', 'transfer', 'card'].reduce((a, k) => a + (Number(cnt[k]) || 0), 0) : null;
   const print = () => r && printShiftReport(r.id, r.status === 'closed' ? 'Z' : 'X', () => printThermal(generateZReportHtml(r, { paperSize: '80mm', isReportX: r.status !== 'closed' }), `Reporte-${r.id}`));
@@ -233,8 +237,8 @@ const ShiftDetail = ({ id, onClose }: { id: number; onClose: () => void }) => {
           <SectionTitle>{dt(r.openedAt)} — {r.closedAt ? dt(r.closedAt) : 'ahora'}</SectionTitle>
           <Row k="Monto inicial" v={formatPrice(r.initialCash)} />
           <button onClick={() => setOpenIn(v => !v)} className="w-full flex justify-between px-4 py-1.5 text-sm border-b border-border/60"><span className="text-muted-foreground flex items-center gap-1">{openIn ? <ChevronUp size={12} /> : <ChevronDown size={12} />} Ingresos</span><span>{formatPrice(ingreso)}</span></button>
-          {openIn && <div className="px-6 py-1 text-xs space-y-0.5 bg-muted/20"><div className="flex justify-between"><span>Efectivo</span><span>{formatPrice(r.cashSales)}</span></div><div className="flex justify-between"><span>Transferencia</span><span>{formatPrice(r.transferSales)}</span></div><div className="flex justify-between"><span>Datáfono</span><span>{formatPrice(r.debitSales + r.creditSales)}</span></div><div className="flex justify-between"><span>Propinas</span><span>{formatPrice(tips.cash + tips.transfer + tips.card)}</span></div><div className="flex justify-between"><span>Ingresos de efectivo</span><span>{formatPrice(r.totalDeposits || 0)}</span></div></div>}
-          <Row k="Egreso" v={formatPrice(r.totalWithdrawals || 0)} />
+          {openIn && <div className="px-6 py-1 text-xs space-y-0.5 bg-muted/20"><div className="flex justify-between"><span>Efectivo</span><span>{formatPrice(r.cashSales)}</span></div><div className="flex justify-between"><span>Transferencia</span><span>{formatPrice(r.transferSales)}</span></div><div className="flex justify-between"><span>Datáfono</span><span>{formatPrice(r.debitSales + r.creditSales)}</span></div><div className="flex justify-between"><span>Propinas</span><span>{formatPrice(tips.cash + tips.transfer + tips.card)}</span></div><div className="flex justify-between"><span>Ingresos de efectivo</span><span>{formatPrice(r.totalDeposits || 0)}</span></div>{vueltos > 0 && <div className="flex justify-between"><span>Transferido de más (vuelto)</span><span>{formatPrice(vueltos)}</span></div>}</div>}
+          <Row k="Egreso" v={formatPrice((r.totalWithdrawals || 0) + vueltos)} />
           <Row k="Total (sistema)" v={formatPrice(sys)} strong />
           <SectionTitle>Según usuario</SectionTitle>
           {ARQUEO.map(m => <Row key={m.key} k={`${m.label} · sistema ${formatPrice(exp[m.key])}`} v={cnt ? formatPrice(Number(cnt[m.key]) || 0) : '—'} />)}

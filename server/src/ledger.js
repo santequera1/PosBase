@@ -48,7 +48,7 @@ function postedEntry(db, source, sourceId) {
 }
 
 /** Huella del documento: si cambia (monto, medio de pago, cliente…), el asiento se anula y se vuelve a generar. */
-const saleHash = o => JSON.stringify([o.status === 'cancelled' ? 'x' : 'ok', o.total, o.tip, o.delivery_fee, o.payment_method, o.payment_split, o.payment_status, o.customer_doc, o.customer_name, o.channel, String(o.created_at).slice(0, 10)]);
+const saleHash = o => JSON.stringify([o.status === 'cancelled' ? 'x' : 'ok', o.total, o.tip, o.delivery_fee, o.payment_method, o.payment_split, o.payment_status, o.customer_doc, o.customer_name, o.channel, String(o.created_at).slice(0, 10), ...(o.change_due ? [o.change_due, o.change_method] : [])]);
 const expenseHash = e => JSON.stringify([e.date, e.category_id, e.supplier_id, e.amount, e.tax_amount, e.retention, e.description, e.invoice_number, e.source]);
 
 const thirdOrder = o => (o.payment_method === 'platform'
@@ -107,6 +107,12 @@ function postSale(db, o, ctx) {
     } else lines.push({ account: map.cash, debit: due, third, description: 'Pago', docRef });
   } else {
     lines.push({ account: methodAccount(map, o.payment_method), debit: due, third, description: `Pago ${o.payment_method}`, docRef });
+  }
+  // Transfirió de más y el vuelto se le entregó en efectivo: entra al banco y sale de la caja (no es venta)
+  const change = o.payment_status === 'paid' && !['credit', 'payroll', 'platform'].includes(o.payment_method) && o.change_method !== 'transfer' ? (o.change_due || 0) : 0;
+  if (change > 0) {
+    lines.push({ account: map.transfer, debit: change, third, description: 'Transferencia de más (vuelto)', docRef });
+    lines.push({ account: map.cash, credit: change, third, description: 'Vuelto entregado en efectivo', docRef });
   }
   // Inventario permanente: costo de ventas con el costo unitario del producto
   if (opts.inventoryMethod === 'perpetual') {

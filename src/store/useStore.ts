@@ -166,6 +166,10 @@ export interface Order {
   /** Abono de reserva ya pagado (se descuenta al cobrar) */
   deposit?: { amount: number; method: string; note?: string; at?: string | null; by?: string | null };
   cashChange?: number;
+  /** Vuelto a devolver: el cliente transfirió de más (abono mayor que la cuenta o transferencia de más al cobrar) */
+  changeDue?: number;
+  /** Cómo se devuelve: en efectivo (lo lleva el domiciliario) o por transferencia */
+  changeMethod?: 'cash' | 'transfer';
   createdAt: string;
   driverId?: number;
   receiptImage?: string;

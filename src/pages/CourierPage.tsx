@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils';
 import { elapsedLabel, PAYMENT_LABEL } from '@/lib/restaurant';
 import { splitParts, PAY_NAMES } from '@/lib/paymentSplit';
 
-const toDue = (o: Order) => (o.paymentStatus === 'paid' || o.paymentMethod === 'platform' ? 0 : (o.amountDue ?? o.total));
+// Sin cobrar: lo que falta después del abono (p. ej. la transferencia que confirmó el bot)
+const toDue = (o: Order) => (o.paymentStatus === 'paid' || o.paymentMethod === 'platform' ? 0 : Math.max(0, (o.amountDue ?? o.total) - (o.deposit?.amount || 0)));
 // Domicilio en efectivo que la caja ya registró como cobrado: el cliente igual paga al recibir
 // Pago mixto registrado en caja (efectivo + transferencia...): el domiciliario cobra solo la parte en efectivo
 const cashPart = (o: Order) => splitParts(o.paymentSplit).filter(p => p.method === 'cash').reduce((a, p) => a + p.amount, 0);
@@ -110,6 +111,12 @@ const CourierPage = () => {
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
                   <p className="text-sm font-bold text-emerald-800 flex items-center gap-1.5"><CheckCircle2 size={15} /> {o.paymentMethod === 'platform' ? 'Lo paga la plataforma: no cobrar' : `Ya pagado (${PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod}): no cobrar`}</p>
                   <p className="text-xs text-emerald-800">Total del pedido {formatPrice(o.total)}</p>
+                </div>
+              )}
+              {(o.changeDue || 0) > 0 && o.changeMethod !== 'transfer' && (
+                <div className="rounded-xl bg-emerald-600 text-white px-3 py-2.5 flex items-center justify-between gap-2" data-courier-transfer-change={o.id}>
+                  <div><p className="text-[11px] font-bold uppercase">Lleva de vuelto</p><p className="text-[11px] opacity-90">Transfirió de más: entrégale este efectivo</p></div>
+                  <p className="font-display font-bold text-2xl">{formatPrice(o.changeDue!)}</p>
                 </div>
               )}
 

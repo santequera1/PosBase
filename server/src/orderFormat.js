@@ -72,6 +72,9 @@ function formatOrder(db, order) {
     paymentStatus: order.payment_status,
     cashReceived: order.cash_received || 0,
     cashChange: order.cash_change || 0,
+    // Vuelto a devolver: ya cobrado, el que quedó registrado; antes de cobrar, lo que el abono por transferencia pasa del total
+    changeDue: order.payment_status === 'paid' ? (order.change_due || 0) : ((order.deposit_method || 'transfer') === 'transfer' ? Math.max(0, (order.deposit_amount || 0) - (order.total || 0) - tip) : 0),
+    changeMethod: order.change_method || undefined,
     deposit: order.deposit_amount ? { amount: order.deposit_amount, method: order.deposit_method || 'transfer', note: order.deposit_note || '', at: order.deposit_at || null, by: order.deposit_by || null } : undefined,
     paymentSplit: order.payment_split ? (() => { const ps = require('./paymentSplit'); const parts = ps.splitParts(order.payment_split); return parts.length ? { ...ps.makeSplit(parts), parts } : undefined; })() : undefined,
     createdAt: order.created_at,

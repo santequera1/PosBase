@@ -175,6 +175,8 @@ function orderSummary(db, id) {
     items: items.map(i => ({ name: i.name, size: i.size || '', quantity: i.quantity, price: i.price, priceText: cop(i.price), notes: i.notes || '', sentToKitchen: i.batch != null })),
     subtotal: o.subtotal, deliveryFee: o.delivery_fee || 0, total: o.total, totalText: cop(o.total),
     paymentMethod: o.payment_method, payWith: o.cash_received || 0, prepaid: o.deposit_amount || 0,
+    // Transfirió de más: lo que hay que devolverle (lo lleva el domiciliario)
+    changeDue: o.payment_status === 'paid' ? (o.change_due || 0) : Math.max(0, (o.deposit_amount || 0) - o.total - (o.tip || 0)),
     paid: o.payment_status === 'paid', notes: o.notes || '', externalId: o.external_ref || '', createdAt: o.created_at,
   };
 }
@@ -203,6 +205,7 @@ router.post('/orders', (req, res) => {
   const pay = PAY[norm(b.paymentMethod)];
   if (!pay) return bad('paymentMethod debe ser "cash", "transfer" o "card"');
   if (b.prepaid && pay !== 'transfer') return bad('prepaid solo aplica a pagos por transferencia');
+  if (b.prepaidAmount !== undefined && !(Number(b.prepaidAmount) >= 0)) return bad('prepaidAmount debe ser el valor del comprobante, en pesos');
   const channel = BOT_CHANNELS.includes(b.channel) ? b.channel : 'whatsapp';
 
   // Productos: el precio lo pone el sistema (el del tamaño elegido), no el bot
@@ -247,7 +250,9 @@ router.post('/orders', (req, res) => {
       // Transferencia ya recibida (la confirmó una persona en el grupo): queda como abono y la caja no la vuelve a cobrar
       if (b.prepaid) {
         const total = db.prepare('SELECT total FROM orders WHERE id = ?').get(r.id).total;
-        const amount = b.prepaidAmount !== undefined ? Math.max(0, Math.min(total, Math.round(Number(b.prepaidAmount) || 0))) : total;
+        // prepaidAmount = lo que dice el comprobante. Si es más que el total, la diferencia queda como vuelto para el cliente
+        const amount = b.prepaidAmount !== undefined ? Math.round(Number(b.prepaidAmount) || 0) : total;
+        if (amount > total * 2 + 50000) { const e = new Error(`El comprobante (${cop(amount)}) es mucho mayor que el pedido (${cop(total)}): revisa el valor`); e.status = 400; throw e; }
         db.prepare("UPDATE orders SET deposit_amount = ?, deposit_method = 'transfer', deposit_note = ?, deposit_at = datetime('now', '-5 hours'), deposit_by = ? WHERE id = ?")
           .run(amount, String(b.prepaidNote || 'Transferencia confirmada por WhatsApp').slice(0, 120), user.name, r.id);
       }

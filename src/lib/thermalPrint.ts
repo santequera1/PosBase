@@ -261,6 +261,7 @@ export function generateZReportHtml(shiftData: any, options: PrintOptions & { is
         ${shiftData.tips && shiftData.tips.cash > 0 ? `<div class="row"><span>+ Propinas en efectivo:</span><span style="white-space: nowrap;">${formatPrice(shiftData.tips.cash)}</span></div>` : ''}
         ${shiftData.totalDeposits > 0 ? `<div class="row"><span>+ Ingresos de efectivo:</span><span style="white-space: nowrap;">${formatPrice(shiftData.totalDeposits)}</span></div>` : ''}
         ${withdrawals > 0 ? `<div class="row font-bold" style="color: #000;"><span>- Retiros / Gastos:</span><span style="white-space: nowrap;">-${formatPrice(withdrawals)}</span></div>` : ''}
+        ${shiftData.changeReturned > 0 ? `<div class="row font-bold" style="color: #000;"><span>- Vueltos de transferencias:</span><span style="white-space: nowrap;">-${formatPrice(shiftData.changeReturned)}</span></div>` : ''}
         <div class="row font-bold" style="font-size: 8.5px; border-top: 1px dashed #666; padding-top: 2px;">
           <span>= Efectivo Esperado:</span>
           <span style="white-space: nowrap;">${formatPrice(expected)}</span>

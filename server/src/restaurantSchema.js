@@ -111,6 +111,9 @@ function initRestaurantSchema(db) {
   addCol(db, 'orders', 'cancel_reason', 'TEXT');
   addCol(db, 'orders', 'created_by', 'TEXT');
   addCol(db, 'orders', 'external_ref', 'TEXT'); // pedido creado por el bot de WhatsApp: su referencia, para no duplicarlo si reintenta
+  // Vuelto que se le devuelve al cliente porque transfirió de más (abono mayor que la cuenta o transferencia de más al cobrar)
+  addCol(db, 'orders', 'change_due', 'INTEGER DEFAULT 0');
+  addCol(db, 'orders', 'change_method', 'TEXT'); // cash: lo lleva el domiciliario / se entrega de la caja · transfer: se le devuelve por Nequi
   // Conciliación de arqueos (la hace un supervisor)
   addCol(db, 'cash_shifts', 'reconciled_at', 'TEXT');
   addCol(db, 'cash_shifts', 'reconciled_by', 'TEXT');

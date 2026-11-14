@@ -118,7 +118,8 @@ y si es por transferencia, cuando ya llegó). Por defecto sale a cocina de una v
 | `deliveryFee` | en domicilio | valor del domicilio según la lista de barrios (puede ser 0) |
 | `paymentMethod` | sí | `cash` (efectivo), `transfer` (transferencia) o `card` (tarjeta o link de pago) |
 | `payWith` | no | en efectivo: con cuánto paga, para que el domiciliario lleve el vuelto |
-| `prepaid` | no | `true` si la transferencia **ya llegó**: queda registrada como abono y la caja no la vuelve a cobrar. Solo con `transfer`. `prepaidAmount` si fue un pago parcial, `prepaidNote` para una nota |
+| `prepaid` | no | `true` si la transferencia **ya llegó**: queda registrada como abono y la caja no la vuelve a cobrar. Solo con `transfer`. `prepaidNote` para una nota |
+| `prepaidAmount` | recomendado con `prepaid` | el valor que dice el comprobante. Menor que el total: abono parcial (el resto se cobra al entregar). **Mayor que el total: la diferencia queda como vuelto** (`changeDue`), que la caja ve en el tablero y el domiciliario lleva en efectivo. Se rechaza si pasa del doble del pedido + $50.000 (comprobante mal leído). Sin él, el abono es igual al total |
 | `channel` | no | de dónde vino: `whatsapp` (por defecto), `web` (página web) o `meta_ads`. Se ve en el tablero, en cocina, en la comanda y en los reportes |
 | `notes` | no | nota general del pedido (sale en la comanda como "NOTA:") |
 | `externalId` | recomendado | referencia única del bot (ej. el id del mensaje de confirmación). Si se reenvía el mismo pedido con la misma referencia, **no se duplica**: devuelve el que ya existe con `"duplicate": true` |
@@ -129,6 +130,8 @@ y si es por transferencia, cuando ya llegó). Por defecto sale a cocina de una v
 - El **precio lo pone el sistema** (el del producto o el del tamaño). Si el bot manda un precio, se ignora. El total que devuelve la
   respuesta es el que vale: usarlo para confirmarle el valor al cliente.
 - El pedido queda firmado con `BOT_NAME` ("Tomó el pedido: Merly") y el cobro lo hace la caja como cualquier otro pedido.
+- `changeDue` en la respuesta: el vuelto que hay que devolverle al cliente porque transfirió de más (también aparece si la caja le
+  quita un producto a un pedido ya pagado). Merly puede decirle al cliente "el domiciliario te lleva $X de vuelto".
 
 Respuesta `201`:
 ```json
@@ -136,7 +139,7 @@ Respuesta `201`:
   "order": { "id": 1004, "type": "delivery", "channel": "meta_ads", "status": "pending", "statusText": "en cocina",
     "items": [{ "name": "Wonka Clásica - Doble", "size": "Doble", "quantity": 2, "price": 24000, "priceText": "$24.000", "notes": "sin cebolla", "sentToKitchen": true }],
     "subtotal": 76000, "deliveryFee": 7000, "total": 83000, "totalText": "$83.000", "paymentMethod": "cash", "payWith": 100000,
-    "prepaid": 0, "paid": false, "notes": "Timbre dañado, llamar al llegar", "externalId": "wa-3EB0A1B2C3", "createdAt": "2026-11-12 19:41:02" } }
+    "prepaid": 0, "changeDue": 0, "paid": false, "notes": "Timbre dañado, llamar al llegar", "externalId": "wa-3EB0A1B2C3", "createdAt": "2026-11-12 19:41:02" } }
 ```
 
 Errores:
