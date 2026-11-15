@@ -29,6 +29,8 @@ const io = new Server(server, {
 
 // Make io accessible in routes
 app.io = io;
+// Avisos al bot de WhatsApp cuando un pedido queda listo para recoger o sale en camino (solo con BOT_WEBHOOK_URL)
+require('./botEvents').attach(io, getDb);
 
 // Middleware
 app.use(cors());

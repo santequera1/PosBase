@@ -159,6 +159,41 @@ con el mismo formato de arriba. `statusText`: "recibido, sin enviar a cocina", "
 
 `GET /api/bot/orders/:id` devuelve un pedido por su número, solo si lo creó el bot.
 
+## Avisos del POS al bot: "tu pedido está listo" y "va en camino"
+
+El POS le avisa al bot cuando un pedido de WhatsApp cambia de estado, para que el bot le escriba al cliente:
+
+| Evento | Cuándo | Mensaje sugerido al cliente |
+|---|---|---|
+| `order.ready_for_pickup` | un pedido **para llevar** queda listo (cocina lo marca listo, o la caja lo pasa a "Listo") | "¡Tu pedido #… ya está listo para recoger! 🍔" (+ "recuerda traer $…" si `toPay > 0`) |
+| `order.on_the_way` | un **domicilio** sale con el domiciliario (estado "En camino") | "Tu pedido va en camino con {courier} 🛵" (+ "ten listos $…" si `toPay > 0`) |
+
+**Activarlo:** `BOT_WEBHOOK_URL=http://127.0.0.1:<puerto del bot>/<ruta>` en `server/.env` y reiniciar el proceso. Sin esa variable no se
+manda nada. Si el bot vive en el mismo servidor, usar `127.0.0.1` (no sale a internet).
+
+**Cómo llega:** `POST` a `BOT_WEBHOOK_URL` con `Content-Type: application/json` y el encabezado `x-api-key: <BOT_API_KEY>`; el bot debe
+comprobar que la clave es la suya y responder `200` rápido (escribir el mensaje después, sin hacer esperar al POS).
+
+```json
+{
+  "event": "order.on_the_way",
+  "orderId": 3495, "externalId": "wa-…", "channel": "whatsapp", "type": "delivery",
+  "status": "shipped", "statusLabel": "En camino",
+  "customer": { "name": "Gabriela Segura", "phone": "573226593245" },
+  "address": "Edificio 54 Park, apto 806", "neighborhood": "54 Park", "courier": "Juan Camilo",
+  "total": 66000, "paid": true, "toPay": 0, "paymentMethod": "transfer", "changeDue": 0,
+  "at": "2026-11-15 16:40:12"
+}
+```
+
+- `toPay`: lo que falta por pagar al recoger o al recibir (0 si ya pagó, p. ej. con la transferencia). `changeDue`: vuelto que se le devuelve.
+- `externalId` es `null` si el pedido lo anotó la caja (canal WhatsApp) y no el bot.
+- **A quién:** solo pedidos de WhatsApp (canal WhatsApp o creados por el bot), con celular y de las últimas 12 horas. No avisa pedidos de
+  mesa, en persona, por llamada ni de plataformas.
+- **Una sola vez:** cada evento sale una vez por pedido, aunque el estado vaya y vuelva. Si el bot responde con error 5xx o no responde,
+  el POS reintenta 2 veces (a los 30 s y 60 s); con 4xx no reintenta. El bot igual debe ignorar un `orderId` + `event` que ya atendió.
+- Registro en la base del POS: tabla `bot_notifications` (pedido, evento, `sent` / `http 404` / error, intentos).
+
 ## Uso recomendado en el bot
 
 - Al recibir un mensaje, buscar al cliente por **su propio número** (`?phone=`) para saludarlo por el nombre, ofrecerle su dirección
