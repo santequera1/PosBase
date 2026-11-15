@@ -34,7 +34,7 @@ export const OrderCard = ({ order, actions, children }: { order: Order; actions:
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold text-brand-primary">{formatPrice(order.amountDue ?? order.total)}</p>
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold', order.paymentStatus === 'paid' || coveredByDeposit ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}>{order.paymentStatus === 'paid' ? `Pagado · ${PAYMENT_LABEL[order.paymentMethod] || order.paymentMethod}` : order.paymentMethod === 'platform' ? 'Paga la app' : coveredByDeposit ? 'Pagado con abono' : deposit > 0 ? `Falta ${formatPrice(pending)}` : 'Por cobrar'}</span>
+          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold', order.paymentStatus === 'paid' || coveredByDeposit ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800')}>{order.paymentStatus === 'paid' ? `Pagado · ${PAYMENT_LABEL[order.paymentMethod] || order.paymentMethod}` : order.paymentMethod === 'platform' ? 'Paga la app' : coveredByDeposit ? `Pagado · ${PAYMENT_LABEL[order.deposit?.method || 'transfer'] || order.deposit?.method}` : deposit > 0 ? `Falta ${formatPrice(pending)}` : 'Por cobrar'}</span>
         </div>
       </div>
       {order.type === 'delivery' && (

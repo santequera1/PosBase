@@ -12,6 +12,17 @@ import { CloseOrderModal } from '@/components/restaurant/CloseOrderModal';
 import { OrderCard, type CardAction } from '@/components/restaurant/OrderCard';
 import { isActive, orderTitle, PAYMENT_LABEL } from '@/lib/restaurant';
 import { printReceipt, printPreBill, suggestedTipPct } from '@/lib/netPrint';
+
+/** Pago de un pedido sin cobrar que ya tiene abono (p. ej. la transferencia que confirmó el bot): pagado o lo que falta. */
+const depositCell = (o: Order) => {
+  const dep = o.deposit?.amount || 0;
+  if (!dep || o.paymentMethod === 'platform') return null;
+  const pend = Math.max(0, (o.amountDue ?? o.total) - dep);
+  const label = PAYMENT_LABEL[o.deposit?.method || 'transfer'] || o.deposit?.method;
+  return pend === 0
+    ? <span className="text-emerald-700 font-semibold" data-list-deposit={o.id}>Pagado · {label}</span>
+    : <span className="text-amber-700 font-semibold" data-list-deposit={o.id}>Falta {formatPrice(pend)}<span className="block text-[10px] font-normal">abonó {formatPrice(dep)} · {label}</span></span>;
+};
 import { NiceSelect } from '@/components/ui/nice-select';
 
 const COLUMNS: Array<{ key: string; title: string; match: (s: string) => boolean; cls: string }> = [
@@ -118,7 +129,7 @@ Se quita el envío${o.deliveryFee ? ` (${formatPrice(o.deliveryFee)})` : ''} y e
                           <td className="px-3 py-1.5">{o.createdAt.slice(11, 16)}</td>
                           <td className="px-3 py-1.5 truncate max-w-[220px]">{o.customer.neighborhood && <b className="text-brand-dark">{o.customer.neighborhood} · </b>}{o.customer.address}</td>
                           <td className="px-2 py-1"><NiceSelect value={o.driverId || 0} onChange={e => assign(o, Number(e.target.value))} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] min-w-[8rem]" title="Repartidor"><option value={0}>Sin repartidor</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></td>
-                          <td className="px-3 py-1.5 whitespace-nowrap">{(o.changeDue || 0) > 0 && <span className="block text-[10px] font-bold text-emerald-700" data-list-change={o.id}>vuelto {formatPrice(o.changeDue!)}</span>}{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar{o.paymentMethod === 'cash' && o.cashReceived && o.cashReceived > o.total ? <span className="block text-[10px] font-normal">paga con {formatPrice(o.cashReceived)} · vuelto {formatPrice(o.cashReceived - o.total)}</span> : null}</span>}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap">{(o.changeDue || 0) > 0 && <span className="block text-[10px] font-bold text-emerald-700" data-list-change={o.id}>vuelto {formatPrice(o.changeDue!)}</span>}{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : depositCell(o) || <span className="text-amber-700 font-semibold">Por cobrar{o.paymentMethod === 'cash' && o.cashReceived && o.cashReceived > o.total ? <span className="block text-[10px] font-normal">paga con {formatPrice(o.cashReceived)} · vuelto {formatPrice(o.cashReceived - o.total)}</span> : null}</span>}</td>
                           <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
                           <td className="px-2 py-1"><div className="flex gap-1 justify-end">
                             {main && <button onClick={main.onClick} disabled={main.disabled} className="px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button text-[11px] font-bold whitespace-nowrap disabled:opacity-40" data-delivery-next={o.id}>{main.label}</button>}
@@ -165,7 +176,7 @@ Se quita el envío${o.deliveryFee ? ` (${formatPrice(o.deliveryFee)})` : ''} y e
                       <td className="px-3 py-1.5">{(o.deliveredAt || o.createdAt).slice(11, 16)}</td>
                       <td className="px-3 py-1.5 truncate max-w-[240px]">{o.customer.neighborhood && <b className="text-brand-dark">{o.customer.neighborhood} · </b>}{o.customer.address}</td>
                       <td className="px-2 py-1"><NiceSelect value={o.driverId || 0} onChange={e => assignDone(o, Number(e.target.value))} className="px-2 py-1 rounded-lg border border-border bg-white text-[11px] min-w-[8rem]" title="Domiciliario" data-done-driver={o.id}><option value={0}>— Sin asignar</option>{couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</NiceSelect></td>
-                      <td className="px-3 py-1.5">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
+                      <td className="px-3 py-1.5">{o.paymentStatus === 'paid' ? PAYMENT_LABEL[o.paymentMethod] || o.paymentMethod : depositCell(o) || <span className="text-amber-700 font-semibold">Por cobrar</span>}</td>
                       <td className="px-3 py-1.5 text-right">{formatPrice(o.deliveryFee || 0)}</td>
                       <td className="px-3 py-1.5 text-right font-semibold">{formatPrice(o.total)}</td>
                       <td className="px-3 py-1.5 text-right"><div className="flex items-center justify-end gap-2">{o.paymentStatus !== 'paid' ? <button onClick={() => setClosing(o)} className="text-brand-primary font-semibold hover:underline">Cobrar</button> : <button onClick={() => printReceipt(o)} className="text-brand-primary hover:underline flex items-center gap-1"><Printer size={12} /> Ticket</button>}<button onClick={() => undeliver(o)} className="text-amber-700 hover:underline whitespace-nowrap" title="Se marcó como entregado pero aún no se ha entregado" data-undeliver={o.id}>No entregado</button></div></td>
