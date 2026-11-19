@@ -17,6 +17,18 @@ const unitLabel = (u: string) => (UNITS.find(x => x[0] === u) || [u, u])[1];
 /** Cantidad legible: hasta 3 decimales, con coma. */
 export const fmtQty = (q: number) => (Math.round((q || 0) * 1000) / 1000).toLocaleString('es-CO', { maximumFractionDigits: 3 });
 const pct = (n: number) => `${(Math.round((n || 0) * 10) / 10).toLocaleString('es-CO')} %`;
+/* Unidades de receta: la cantidad se escribe en la unidad cómoda (20 g, 30 ml) y se guarda en la unidad del ingrediente (kg, litro). */
+const UNIT_FAMILY: Record<string, { fam: string; f: number }> = { g: { fam: 'masa', f: 1 }, kg: { fam: 'masa', f: 1000 }, lb: { fam: 'masa', f: 453.592 }, oz: { fam: 'masa', f: 28.3495 }, ml: { fam: 'vol', f: 1 }, l: { fam: 'vol', f: 1000 }, unid: { fam: 'unid', f: 1 } };
+/** Unidades en que se puede escribir la receta de un ingrediente comprado en `base` */
+export const recipeUnits = (base: string) => { const b = UNIT_FAMILY[base]; return b ? Object.keys(UNIT_FAMILY).filter(u => UNIT_FAMILY[u].fam === b.fam && (['g', 'kg', 'ml', 'l', 'unid'].includes(u) || u === base)) : [base]; };
+/** Unidad por defecto en la receta: gramos si se compra por kilo, mililitros si se compra por litro */
+export const defaultRecipeUnit = (base: string) => (base === 'kg' ? 'g' : base === 'l' ? 'ml' : base);
+const unitFactor = (unit: string, base: string) => (UNIT_FAMILY[unit] && UNIT_FAMILY[base] && UNIT_FAMILY[unit].fam === UNIT_FAMILY[base].fam ? UNIT_FAMILY[unit].f / UNIT_FAMILY[base].f : 1);
+export const toBaseQty = (qty: number, unit: string, base: string) => qty * unitFactor(unit, base);
+const cleanNum = (n: number) => String(Math.round(n * 10000) / 10000);
+/** "90 g" en vez de "0,09 kg" (cantidades de receta) */
+export const prettyQty = (q: number, base: string) => { const u = Math.abs(q) < 1 ? defaultRecipeUnit(base) : base; return `${fmtQty(q / unitFactor(u, base))} ${unitLabel(u)}`; };
+const fmtUnitCost = (v: number) => `$ ${(Math.round(v * 100) / 100).toLocaleString('es-CO', { maximumFractionDigits: v < 10 ? 2 : 0 })}`;
 const marginClass = (m: number, hasCost = true) => !hasCost ? 'text-muted-foreground' : m < 30 ? 'text-red-700' : m < 55 ? 'text-amber-700' : 'text-emerald-700';
 const KIND_LABEL: Record<string, string> = { compra: 'Compra', venta: 'Venta', devolucion: 'Devolución', ajuste: 'Ajuste', merma: 'Merma', conteo: 'Conteo', inicial: 'Stock inicial' };
 
@@ -139,17 +151,17 @@ const IngredientDetail = ({ id, categories, onClose }: { id: number; categories:
         <div className="border border-border rounded-xl overflow-hidden" data-ing-components>
           <p className="px-3 py-2 bg-brand-card text-xs font-bold uppercase">Receta del ingrediente (elaboración)</p>
           {d.components.items.map((c: any) => (
-            <div key={c.id} className="flex justify-between px-3 py-1.5 text-xs border-t border-border"><span className="uppercase">{c.name}</span><span>{fmtQty(c.quantity)} {unitLabel(c.unit)} · <b>{formatPrice(c.lineCost)}</b></span></div>
+            <div key={c.id} className="flex justify-between px-3 py-1.5 text-xs border-t border-border"><span className="uppercase">{c.name}</span><span>{prettyQty(c.quantity, c.unit)} · <b>{formatPrice(c.lineCost)}</b></span></div>
           ))}
           <p className="px-3 py-2 text-xs border-t border-border">Costo según la receta: <b>{formatPrice(d.components.cost)}</b> por {unitLabel(i.unit)} · costo registrado <b>{formatPrice(i.cost)}</b>{Math.abs(d.components.cost - i.cost) > 1 && canEdit ? <button onClick={async () => { try { await api.updateIngredient(i.id, { cost: d.components.cost }); toast.success('Costo actualizado'); load(); } catch (e: any) { toast.error(e.message); } }} className="ml-2 text-brand-primary font-semibold underline">usar el de la receta</button> : null}</p>
         </div>
       )}
-      {d.usedInIngredients?.length > 0 && <p className="text-[11px] text-muted-foreground">También se usa para elaborar: {d.usedInIngredients.map((u: any) => `${u.name} (${fmtQty(u.quantity)} ${unitLabel(i.unit)})`).join(' · ')}</p>}
+      {d.usedInIngredients?.length > 0 && <p className="text-[11px] text-muted-foreground">También se usa para elaborar: {d.usedInIngredients.map((u: any) => `${u.name} (${prettyQty(u.quantity, i.unit)})`).join(' · ')}</p>}
       <div className="grid md:grid-cols-2 gap-3">
         <div className="border border-border rounded-xl overflow-hidden">
           <p className="px-3 py-2 bg-brand-card text-xs font-bold uppercase">Productos asociados ({d.products.length})</p>
           {d.products.length === 0 ? <p className="p-3 text-xs text-muted-foreground">Ningún producto lo usa todavía. Agrégalo en la receta de un producto (pestaña Recetas y costos).</p> : d.products.map((p: any) => (
-            <div key={p.id} className="flex justify-between px-3 py-1.5 text-xs border-t border-border"><span className="uppercase">{p.name}</span><span className="font-semibold">{fmtQty(p.quantity)} {unitLabel(i.unit)}</span></div>
+            <div key={p.id} className="flex justify-between px-3 py-1.5 text-xs border-t border-border"><span className="uppercase">{p.name}</span><span className="font-semibold">{prettyQty(p.quantity, i.unit)}</span></div>
           ))}
         </div>
         <div className="border border-border rounded-xl overflow-hidden">
@@ -468,16 +480,27 @@ export const RecipePanel = ({ product, others: othersProp, onSaved }: { product:
   const user = useStore(s => s.user);
   const canEdit = canDo(user, 'edit_menu');
   const [ings, setIngs] = useState<any[]>([]);
-  const [items, setItems] = useState<Array<{ ingredientId: number; quantity: string }>>([]);
+  // Cada línea guarda la cantidad tal como la escribe la persona (20) y su unidad (g); al guardar se pasa a la unidad del ingrediente (0,02 kg)
+  const [items, setItems] = useState<Array<{ ingredientId: number; quantity: string; unit: string }>>([]);
   const [target, setTarget] = useState('65');
   const [newIng, setNewIng] = useState(false);
   const [busy, setBusy] = useState(false);
   const loadIngs = () => api.getIngredients().then(setIngs).catch(() => {});
+  // Cantidad guardada (en la unidad del ingrediente) a como se muestra: 0,09 kg se ve como 90 g
+  const toLine = (i: any) => { const u = defaultRecipeUnit(i.unit || 'unid'); return { ingredientId: i.ingredientId, quantity: cleanNum(Number(i.quantity) / unitFactor(u, i.unit || u)), unit: u }; };
   useEffect(() => {
     loadIngs();
-    api.getRecipe(product.id).then(r => setItems(r.items.map((i: any) => ({ ingredientId: i.ingredientId, quantity: String(i.quantity) })))).catch(() => {});
-  }, [product.id]);
-  const lineCost = (l: { ingredientId: number; quantity: string }) => { const i = ings.find(x => x.id === l.ingredientId); return i ? Number(l.quantity || 0) * i.cost * (1 + (i.wastePct || 0) / 100) : 0; };
+    api.getRecipe(product.id).then(r => setItems(r.items.map(toLine))).catch(() => {});
+  }, [product.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const baseQty = (l: { ingredientId: number; quantity: string; unit: string }) => { const i = ings.find(x => x.id === l.ingredientId); return i ? toBaseQty(Number(l.quantity || 0), l.unit || i.unit, i.unit) : 0; };
+  const lineCost = (l: { ingredientId: number; quantity: string; unit: string }) => { const i = ings.find(x => x.id === l.ingredientId); return i ? baseQty(l) * i.cost * (1 + (i.wastePct || 0) / 100) : 0; };
+  // Selector ordenado: por categoría y por nombre
+  const ingGroups = useMemo(() => {
+    const byCat = new Map<string, any[]>();
+    [...ings].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })).forEach(i => { const c = i.category || 'Sin categoría'; byCat.set(c, [...(byCat.get(c) || []), i]); });
+    return [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0], 'es', { sensitivity: 'base' }));
+  }, [ings]);
+  const pickIngredient = (k: number, id: number) => { const i = ings.find(x => x.id === id); setItem(k, { ingredientId: id, unit: defaultRecipeUnit(i?.unit || 'unid'), quantity: i && defaultRecipeUnit(i.unit) === 'unid' ? '1' : '' }); };
   const cost = Math.round(items.reduce((a, l) => a + lineCost(l), 0));
   const profit = product.price - cost;
   const margin = product.price ? (profit / product.price) * 100 : 0;
@@ -487,12 +510,12 @@ export const RecipePanel = ({ product, others: othersProp, onSaved }: { product:
   const copyFrom = async (pid: number) => {
     if (!pid) return;
     if (items.length && !window.confirm('Esto reemplaza los ingredientes que tienes aquí por los del otro producto. ¿Continuar?')) return;
-    try { const r = await api.getRecipe(pid); setItems(r.items.map((i: any) => ({ ingredientId: i.ingredientId, quantity: String(i.quantity) }))); toast.success(`Copiada la receta de ${r.product.name}: cambia lo que sea distinto y guarda`); }
+    try { const r = await api.getRecipe(pid); setItems(r.items.map(toLine)); toast.success(`Copiada la receta de ${r.product.name}: cambia lo que sea distinto y guarda`); }
     catch (e: any) { toast.error(e.message); }
   };
   const save = async () => {
     setBusy(true);
-    try { const r = await api.saveRecipe(product.id, items.filter(i => i.ingredientId && Number(i.quantity) > 0).map(i => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity) }))); toast.success(`Receta guardada · costo ${formatPrice(r.recipeCost)}`); onSaved?.(r); }
+    try { const r = await api.saveRecipe(product.id, items.filter(i => i.ingredientId && Number(i.quantity) > 0).map(i => ({ ingredientId: i.ingredientId, quantity: Math.round(baseQty(i) * 1e6) / 1e6 }))); toast.success(`Receta guardada · costo ${formatPrice(r.recipeCost)}`); onSaved?.(r); }
     catch (e: any) { toast.error(e.message); }
     setBusy(false);
   };
@@ -505,22 +528,33 @@ export const RecipePanel = ({ product, others: othersProp, onSaved }: { product:
         <KpiCard label="Margen" value={pct(margin)} sub={`Costo de comida ${pct(product.price ? (cost / product.price) * 100 : 0)}`} className={cn(margin < 30 ? 'bg-red-50 border-red-200' : margin < 55 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200')} />
       </div>
       <div className="border border-border rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_110px_90px_28px] gap-2 px-3 py-2 bg-brand-card text-[11px] font-bold text-muted-foreground uppercase"><span>Ingrediente</span><span>Cantidad</span><span className="text-right">Costo</span><span /></div>
-        {items.length === 0 && <p className="px-3 py-3 text-xs text-muted-foreground">Agrega los ingredientes que lleva una unidad de este producto (por ejemplo: 1 pan brioche, 0,15 kg de carne, 2 lonjas de queso).</p>}
+        <div className="grid grid-cols-[1fr_150px_80px_28px] gap-2 px-3 py-2 bg-brand-card text-[11px] font-bold text-muted-foreground uppercase"><span>Ingrediente</span><span>Cantidad por unidad</span><span className="text-right">Costo</span><span /></div>
+        {items.length === 0 && <p className="px-3 py-3 text-xs text-muted-foreground">Agrega lo que lleva una unidad de este producto: por ejemplo 1 pan brioche, 150 g de carne, 2 lonjas de queso. Escribe los gramos o mililitros y el costo sale solo del precio por kilo o por litro del ingrediente.</p>}
         {items.map((l, k) => {
           const ing = ings.find(x => x.id === l.ingredientId);
+          const units = ing ? recipeUnits(ing.unit) : [];
+          const small = ing ? defaultRecipeUnit(ing.unit) : '';
           return (
-            <div key={k} className="grid grid-cols-[1fr_110px_90px_28px] gap-2 px-3 py-1.5 items-center border-t border-border">
-              <NiceSelect value={String(l.ingredientId || 0)} onChange={e => setItem(k, { ingredientId: Number(e.target.value) })} className="text-xs py-1.5" data-recipe-ing={k} disabled={!canEdit}>
-                <option value="0">Elige ingrediente…</option>{ings.map(i => <option key={i.id} value={String(i.id)}>{i.name} · {formatPrice(i.cost)}/{unitLabel(i.unit)}</option>)}
-              </NiceSelect>
-              <div className="flex items-center gap-1"><input type="number" min={0} step="any" value={l.quantity} onChange={e => setItem(k, { quantity: e.target.value })} className="w-full px-2 py-1.5 rounded border border-border text-xs font-mono" data-recipe-qty={k} disabled={!canEdit} /><span className="text-[10px] text-muted-foreground w-8">{ing ? unitLabel(ing.unit) : ''}</span></div>
-              <span className="text-right text-xs font-semibold">{formatPrice(Math.round(lineCost(l)))}</span>
+            <div key={k} className="grid grid-cols-[1fr_150px_80px_28px] gap-2 px-3 py-1.5 items-center border-t border-border" data-recipe-line={k}>
+              <div className="min-w-0">
+                <NiceSelect value={String(l.ingredientId || 0)} onChange={e => pickIngredient(k, Number(e.target.value))} className="text-xs py-1.5 w-full" data-recipe-ing={k} disabled={!canEdit}>
+                  <option value="0">Elige ingrediente…</option>
+                  {ingGroups.map(([c, list]) => <optgroup key={c} label={c}>{list.map(i => <option key={i.id} value={String(i.id)}>{i.name}</option>)}</optgroup>)}
+                </NiceSelect>
+                {ing && <p className="text-[10px] text-muted-foreground mt-0.5 truncate" data-recipe-price={k}>{ing.cost > 0 ? <>{formatPrice(ing.cost)} por {unitLabel(ing.unit)}{small !== ing.unit ? ` · ${fmtUnitCost(ing.cost / unitFactor(ing.unit, small))} por ${unitLabel(small)}` : ''}{ing.wastePct ? ` · merma ${ing.wastePct}%` : ''}</> : <span className="text-amber-700 font-semibold">Sin precio: ponle el costo en Ingredientes</span>}</p>}
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="number" min={0} step="any" value={l.quantity} placeholder={small === 'g' ? 'gramos' : small === 'ml' ? 'ml' : 'cantidad'} onChange={e => setItem(k, { quantity: e.target.value })} className="w-full min-w-0 px-2 py-1.5 rounded border border-border text-xs font-mono" data-recipe-qty={k} disabled={!canEdit} />
+                {units.length > 1
+                  ? <select value={l.unit} onChange={e => { const u = e.target.value; const q = Number(l.quantity); setItem(k, { unit: u, quantity: l.quantity === '' || !ing ? l.quantity : cleanNum(q * unitFactor(l.unit, ing.unit) / unitFactor(u, ing.unit)) }); }} className="px-1 py-1.5 rounded border border-border text-[11px] bg-white" disabled={!canEdit} data-recipe-unit={k}>{units.map(u => <option key={u} value={u}>{unitLabel(u)}</option>)}</select>
+                  : <span className="text-[10px] text-muted-foreground w-8">{ing ? unitLabel(ing.unit) : ''}</span>}
+              </div>
+              <span className="text-right text-xs font-semibold" data-recipe-cost={k}>{formatPrice(Math.round(lineCost(l)))}</span>
               {canEdit ? <button onClick={() => setItems(xs => xs.filter((_, i) => i !== k))} className="text-muted-foreground hover:text-red-600" title="Quitar"><X size={14} /></button> : <span />}
             </div>
           );
         })}
-        {canEdit && <div className="px-3 py-2 border-t border-border flex flex-wrap items-center gap-3"><button onClick={() => setItems(xs => [...xs, { ingredientId: 0, quantity: '1' }])} className="text-xs font-semibold text-brand-primary flex items-center gap-1" data-recipe-add><Plus size={12} /> Agregar ingrediente</button><button onClick={() => setNewIng(true)} className="text-xs font-semibold text-muted-foreground">Crear ingrediente nuevo</button>
+        {canEdit && <div className="px-3 py-2 border-t border-border flex flex-wrap items-center gap-3"><button onClick={() => setItems(xs => [...xs, { ingredientId: 0, quantity: '', unit: '' }])} className="text-xs font-semibold text-brand-primary flex items-center gap-1" data-recipe-add><Plus size={12} /> Agregar ingrediente</button><button onClick={() => setNewIng(true)} className="text-xs font-semibold text-muted-foreground">Crear ingrediente nuevo</button>
           {others.length > 0 && <div className="ml-auto flex items-center gap-1.5 text-xs"><span className="text-muted-foreground">Copiar receta de</span><NiceSelect value="0" onChange={e => copyFrom(Number(e.target.value))} className="text-xs py-1" data-recipe-copy><option value="0">otro producto…</option>{others.map(o => <option key={o.id} value={String(o.id)}>{o.name}</option>)}</NiceSelect></div>}</div>}
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs bg-brand-card rounded-lg px-3 py-2">
@@ -528,7 +562,7 @@ export const RecipePanel = ({ product, others: othersProp, onSaved }: { product:
       </div>
       <p className="text-[11px] text-muted-foreground">La merma de cada ingrediente ya está incluida en el costo. Al vender, el inventario descuenta estas cantidades por cada unidad.</p>
       {canEdit && <button onClick={save} disabled={busy} className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-bold disabled:opacity-40" data-recipe-save><ChefHat size={14} className="inline mr-1" /> Guardar receta</button>}
-      {newIng && <IngredientForm ingredient={null} categories={[...new Set(ings.map(i => i.category))]} onClose={() => setNewIng(false)} onSaved={i => { setNewIng(false); loadIngs().then(() => setItems(xs => [...xs, { ingredientId: i.id, quantity: '1' }])); }} />}
+      {newIng && <IngredientForm ingredient={null} categories={[...new Set(ings.map(i => i.category))]} onClose={() => setNewIng(false)} onSaved={i => { setNewIng(false); loadIngs().then(() => setItems(xs => [...xs, { ingredientId: i.id, quantity: '', unit: defaultRecipeUnit(i.unit || 'unid') }])); }} />}
     </div>
   );
 };
