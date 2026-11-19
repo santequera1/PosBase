@@ -149,16 +149,21 @@ function buildBill(db, order, items, cfg) {
       is_excluded: taxed ? 0 : 1, tribute_id: taxed ? (biz.taxType === 'inc' ? codes.tributeINC : codes.tributeIVA) : codes.tributeIVA, withholding_taxes: [],
     };
   });
+  // Envío: si el domicilio es para el domiciliario (Configuración → Impuestos), va excluido del impuesto y sin descuento
+  const { deliveryFeeTaxed, taxConfig } = require('./accounting');
+  const feeTaxed = taxed && deliveryFeeTaxed(order, taxConfig(db));
   if ((order.delivery_fee || 0) > 0) {
     const fee = order.delivery_fee;
-    lineItems.push({ code_reference: 'ENVIO', name: 'Costo de envío', quantity: 1, discount_rate: 0, price: taxed ? round2(fee / (1 + rate / 100)) : fee, tax_rate: taxed ? rate.toFixed(2) : '0.00', unit_measure_id: codes.unitMeasureId, standard_code_id: codes.standardCodeId, is_excluded: taxed ? 0 : 1, tribute_id: taxed ? (biz.taxType === 'inc' ? codes.tributeINC : codes.tributeIVA) : codes.tributeIVA, withholding_taxes: [] });
+    lineItems.push({ code_reference: 'ENVIO', name: feeTaxed || !taxed ? 'Costo de envío' : 'Costo de envío (para el domiciliario)', quantity: 1, discount_rate: 0, price: feeTaxed ? round2(fee / (1 + rate / 100)) : fee, tax_rate: feeTaxed ? rate.toFixed(2) : '0.00', unit_measure_id: codes.unitMeasureId, standard_code_id: codes.standardCodeId, is_excluded: feeTaxed ? 0 : 1, tribute_id: feeTaxed ? (biz.taxType === 'inc' ? codes.tributeINC : codes.tributeIVA) : codes.tributeIVA, withholding_taxes: [], untaxedFee: taxed && !feeTaxed });
   }
-  if ((order.discount || 0) > 0 && lineItems.length) {
-    // El descuento del pedido se reparte como porcentaje sobre todos los ítems
-    const gross = lineItems.reduce((a, l) => a + l.price * l.quantity, 0);
+  const discountable = lineItems.filter(l => !l.untaxedFee);
+  if ((order.discount || 0) > 0 && discountable.length) {
+    // El descuento del pedido se reparte como porcentaje sobre los ítems (sin el envío que es para el domiciliario)
+    const gross = discountable.reduce((a, l) => a + l.price * l.quantity, 0);
     const pct = gross > 0 ? round2(Math.min(100, ((taxed ? order.discount / (1 + rate / 100) : order.discount) / gross) * 100)) : 0;
-    for (const l of lineItems) l.discount_rate = pct;
+    for (const l of discountable) l.discount_rate = pct;
   }
+  for (const l of lineItems) delete l.untaxedFee;
   const credit = order.payment_status !== 'paid' || order.payment_method === 'credit';
   const bill = {
     numbering_range_id: cfg.numberingRangeId,
@@ -203,7 +208,7 @@ function buildBillV2(db, order, items, cfg) {
   const lines = v1.items.map(l => ({
     code_reference: l.code_reference, name: l.name, quantity: Number(l.quantity).toFixed(2), discount_rate: Number(l.discount_rate || 0).toFixed(2),
     price: Number(l.price).toFixed(2), unit_measure_code: '94', standard_code: '999',
-    taxes: [taxed ? { code: taxCode, rate: rate.toFixed(2) } : { code: '01', rate: '0.00', is_excluded: true }],
+    taxes: [taxed && !l.is_excluded ? { code: taxCode, rate: rate.toFixed(2) } : { code: '01', rate: '0.00', is_excluded: true }],
   }));
   // Total como lo calcula Factus (por línea, a 2 decimales)
   const computed = lines.reduce((a, l) => { const base = round2(Number(l.price) * Number(l.quantity) * (1 - Number(l.discount_rate) / 100)); return a + base + round2(base * Number(l.taxes[0].rate) / 100); }, 0);

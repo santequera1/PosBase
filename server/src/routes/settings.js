@@ -26,7 +26,18 @@ router.put('/', requireRole('admin'), (req, res) => {
   const db = getDb();
   const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
 
-  for (const [key, value] of Object.entries(req.body)) {
+  const body = { ...(req.body || {}) };
+  // El valor del domicilio es para el domiciliario (no es ingreso del negocio): desde ese momento el envío no lleva impuesto.
+  // Se guarda la fecha y hora del cambio para que lo ya facturado antes (con el impuesto) no cambie.
+  if (body.deliveryFeeUntaxed !== undefined) {
+    const on = body.deliveryFeeUntaxed === true || body.deliveryFeeUntaxed === 1 || body.deliveryFeeUntaxed === '1' || body.deliveryFeeUntaxed === 'true';
+    const cur = db.prepare("SELECT value FROM settings WHERE key = 'deliveryFeeUntaxedFrom'").get();
+    if (on && !(cur && cur.value)) upsert.run('deliveryFeeUntaxedFrom', db.prepare("SELECT datetime('now', '-5 hours') AS d").get().d);
+    if (!on) upsert.run('deliveryFeeUntaxedFrom', '');
+    delete body.deliveryFeeUntaxed;
+    delete body.deliveryFeeUntaxedFrom;
+  }
+  for (const [key, value] of Object.entries(body)) {
     upsert.run(key, String(value));
   }
 

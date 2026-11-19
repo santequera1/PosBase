@@ -102,7 +102,7 @@ function bizFor(db, branchId) {
 function biz(db) {
   const g = k => readSetting(db, k) || '';
   return { name: g('businessName') || 'Mi Negocio', slogan: g('businessSlogan'), address: g('businessAddress'), phone: g('businessPhone'), nit: g('businessNit'), hours: g('businessHours'),
-    prefix: g('invoicePrefix') || 'POS', taxType: g('taxType') || 'none', taxRate: Number(g('taxRate')) || 0, footer: g('receiptFooter'), logo: receiptLogo(db), design: receiptDesign(db) };
+    prefix: g('invoicePrefix') || 'POS', taxType: g('taxType') || 'none', taxRate: Number(g('taxRate')) || 0, deliveryUntaxedFrom: g('deliveryFeeUntaxedFrom'), footer: g('receiptFooter'), logo: receiptLogo(db), design: receiptDesign(db) };
 }
 /** Configuración → Recibos: qué datos salen y textos (mismo formato que src/lib/receiptDesign.ts). */
 const DESIGN_DEFAULT = { showLogo: true, showSlogan: true, showNit: true, showAddress: true, showPhone: true, showHours: true, headerText: '', thanks: '¡Gracias por su visita a {negocio}!' };
@@ -293,8 +293,10 @@ function receiptTicket(printer, b, order, items) {
   if (order.delivery_fee) t.pair('Envío', money(order.delivery_fee));
   if (order.discount) t.pair(`Descuento${order.discount_reason ? ' (' + order.discount_reason + ')' : ''}`, '-' + money(order.discount));
   if (b.taxType !== 'none' && b.taxRate > 0) {
-    const base = Math.round(order.total / (1 + b.taxRate / 100));
-    t.pair('Base', money(base)).pair(`${b.taxType === 'iva' ? 'IVA' : 'INC'} ${b.taxRate}% incluido`, money(order.total - base));
+    // Envío para el domiciliario: el impuesto sale solo de los productos
+    const ot = require('./accounting').orderTax(order, { rate: b.taxRate, deliveryUntaxedFrom: b.deliveryUntaxedFrom || '' });
+    t.pair(ot.feeUntaxed ? 'Base gravable' : 'Base', money(ot.taxableBase)).pair(`${b.taxType === 'iva' ? 'IVA' : 'INC'} ${b.taxRate}% incluido`, money(ot.tax));
+    if (ot.feeUntaxed) t.pair('Envío (sin impuesto)', money(ot.feeUntaxed));
   }
   if (order.tip) {
     t.bold().pair('Total consumo', money(order.total)).bold(false).pair('Propina (voluntaria)', money(order.tip));

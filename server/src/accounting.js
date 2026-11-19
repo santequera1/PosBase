@@ -15,10 +15,27 @@ function readSettings(db, keys) {
 }
 
 function taxConfig(db) {
-  const s = readSettings(db, ['taxType', 'taxRate']);
+  const s = readSettings(db, ['taxType', 'taxRate', 'deliveryFeeUntaxedFrom']);
   const type = ['none', 'iva', 'inc'].includes(s.taxType) ? s.taxType : 'none';
   const rate = type === 'none' ? 0 : Math.max(0, Number(s.taxRate) || 0);
-  return { type, rate, label: TAX_LABEL[type], shortLabel: type === 'none' ? '' : type.toUpperCase() };
+  return { type, rate, label: TAX_LABEL[type], shortLabel: type === 'none' ? '' : type.toUpperCase(), deliveryUntaxedFrom: String(s.deliveryFeeUntaxedFrom || '') };
+}
+
+/** ¿El envío de este pedido lleva impuesto? No, si el domicilio es para el domiciliario y el pedido es de después de ese cambio. */
+function deliveryFeeTaxed(o, tax) {
+  return !(tax.deliveryUntaxedFrom && String(o.created_at || '') >= tax.deliveryUntaxedFrom);
+}
+
+/**
+ * Impuesto de un pedido (los precios lo incluyen). Si el envío no lleva impuesto, el impuesto sale solo de los productos.
+ * Devuelve base (total sin impuesto, envío incluido), tax, y aparte la base gravable de los productos y el envío sin impuesto.
+ */
+function orderTax(o, tax) {
+  const total = o.total || 0, fee = o.delivery_fee || 0;
+  if (!tax.rate) return { base: total, tax: 0, taxableBase: total, feeUntaxed: 0 };
+  if (!fee || deliveryFeeTaxed(o, tax)) { const t = splitTax(total, tax.rate); return { ...t, taxableBase: t.base, feeUntaxed: 0 }; }
+  const t = splitTax(Math.max(0, total - fee), tax.rate);
+  return { base: total - t.tax, tax: t.tax, taxableBase: t.base, feeUntaxed: fee };
 }
 
 /** Los precios del POS incluyen el impuesto: base = total / (1 + tarifa). */
@@ -77,7 +94,7 @@ function buildAccounting(db, range) {
     const { date, time } = splitDateTime(o.created_at);
     const cancelled = o.status === 'cancelled';
     const parts = paymentParts(o);
-    const t = cancelled ? { base: 0, tax: 0 } : splitTax(o.total, tax.rate);
+    const t = cancelled ? { base: 0, tax: 0 } : orderTax(o, tax);
     if (cancelled) { cancelledCount++; cancelledTotal += o.total; }
     else {
       count++; gross += o.total; base += t.base; taxTotal += t.tax; discounts += o.discount || 0;
@@ -224,4 +241,4 @@ function buildAccounting(db, range) {
   };
 }
 
-module.exports = { buildAccounting, taxConfig, splitTax };
+module.exports = { buildAccounting, taxConfig, splitTax, orderTax, deliveryFeeTaxed };

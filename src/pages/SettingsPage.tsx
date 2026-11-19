@@ -64,6 +64,9 @@ const SettingsPage = () => {
   const [editTableCount, setEditTableCount] = useState('');
   const [taxType, setTaxType] = useState('none');
   const [taxRate, setTaxRate] = useState('');
+  // El valor del domicilio es para el domiciliario: el envío no lleva impuesto (se guarda desde cuándo)
+  const [feeUntaxed, setFeeUntaxed] = useState(false);
+  const [feeUntaxedFrom, setFeeUntaxedFrom] = useState('');
   const [dianResolution, setDianResolution] = useState('');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -106,6 +109,7 @@ const SettingsPage = () => {
       setEditTableCount(String(s.tableCount || tableCount));
       setTaxType(s.taxType ? String(s.taxType) : 'none');
       setTaxRate(s.taxRate !== undefined && s.taxRate !== '' && s.taxRate !== null ? String(s.taxRate) : '');
+      setFeeUntaxed(Boolean(s.deliveryFeeUntaxedFrom)); setFeeUntaxedFrom(s.deliveryFeeUntaxedFrom ? String(s.deliveryFeeUntaxedFrom) : '');
       setDianResolution(s.dianResolution ? String(s.dianResolution) : '');
       setAiCaps(parseCaps(s.aiCapabilities));
     }).catch(() => {
@@ -132,8 +136,10 @@ const SettingsPage = () => {
         taxRate: taxType === 'none' ? 0 : Number(taxRate) || 0,
         dianResolution: dianResolution.trim(),
       };
-      await api.updateSettings(payload);
-      useStore.setState(payload);
+      const saved: any = await api.updateSettings({ ...payload, deliveryFeeUntaxed: taxType !== 'none' && feeUntaxed });
+      const from = saved && saved.deliveryFeeUntaxedFrom ? String(saved.deliveryFeeUntaxedFrom) : '';
+      setFeeUntaxedFrom(from);
+      useStore.setState({ ...payload, deliveryFeeUntaxedFrom: from });
       if (typeof document !== 'undefined') document.title = `${businessName} — Punto de Venta`;
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -279,6 +285,14 @@ const SettingsPage = () => {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">Los precios del POS ya incluyen el impuesto. El sistema desglosa base e impuesto en los recibos térmicos y en Finanzas → Contabilidad.</p>
+            {taxType !== 'none' && (
+              <label className={cn('flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-xs', feeUntaxed ? 'border-brand-primary/40 bg-brand-button/5' : 'border-border')} data-fee-untaxed>
+                <input type="checkbox" checked={feeUntaxed} onChange={e => setFeeUntaxed(e.target.checked)} className="mt-0.5" />
+                <span><span className="block font-semibold text-brand-dark">El valor del domicilio es para el domiciliario: no lleva {taxType === 'iva' ? 'IVA' : 'INC'}</span>
+                  <span className="text-muted-foreground">Márcalo si el envío no es ingreso del negocio (el domiciliario no tiene sueldo y se queda con el envío). El impuesto se calcula solo sobre los productos en el recibo, la factura electrónica y la contabilidad. Lo ya facturado antes no cambia.</span>
+                  {feeUntaxedFrom && <span className="block text-[10px] text-emerald-800 font-semibold mt-0.5" data-fee-untaxed-from>Activo desde el {feeUntaxedFrom.slice(8, 10)}/{feeUntaxedFrom.slice(5, 7)}/{feeUntaxedFrom.slice(0, 4)} a las {feeUntaxedFrom.slice(11, 16)}.</span>}</span>
+              </label>
+            )}
             <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">Facturación electrónica: el proveedor (pruebas o Factus) y sus credenciales se configuran en la pestaña <b>Factura electrónica</b>. En modo pruebas las ventas marcadas como F.E. generan un documento simulado (prefijo FEP, sin validez fiscal).</p>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Resolución DIAN / leyenda del comprobante (opcional)</label>

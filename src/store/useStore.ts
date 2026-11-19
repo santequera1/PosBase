@@ -333,6 +333,8 @@ interface AppState {
   invoicePrefix: string;
   taxType: string;
   taxRate: number;
+  /** Desde cuándo el envío es para el domiciliario y no lleva impuesto ('' = sí lleva) */
+  deliveryFeeUntaxedFrom: string;
   dianResolution: string;
   branding: Branding;
   modeOverride: ThemeMode | null;
@@ -437,6 +439,7 @@ export const useStore = create<AppState>((set, get) => ({
   businessNit: '',
   invoicePrefix: 'POS',
   taxType: 'none',
+  deliveryFeeUntaxedFrom: '',
   taxRate: 0,
   dianResolution: '',
   branding: brandCache.branding || DEFAULT_BRANDING,
@@ -552,6 +555,7 @@ export const useStore = create<AppState>((set, get) => ({
         invoicePrefix: settings.invoicePrefix ? String(settings.invoicePrefix) : 'POS',
         taxType: settings.taxType ? String(settings.taxType) : 'none',
         taxRate: Number(settings.taxRate) || 0,
+        deliveryFeeUntaxedFrom: settings.deliveryFeeUntaxedFrom ? String(settings.deliveryFeeUntaxedFrom) : '',
         dianResolution: settings.dianResolution ? String(settings.dianResolution) : '',
         branding: brandingFromSettings(settings),
         hiddenViews: (() => { try { const h = JSON.parse(String(settings.hiddenViews || '[]')); return Array.isArray(h) ? h.filter((x: any) => typeof x === 'string' && x !== 'settings') : []; } catch { return []; } })(),

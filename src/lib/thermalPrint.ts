@@ -77,8 +77,10 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
   const discount = order.discount || 0;
   const total = order.total !== undefined ? order.total : Math.max(0, subtotal - discount);
   const docNumber = orderNumber(order.id || 1001);
-  const taxBase = biz.taxRate > 0 ? Math.round(total / (1 + biz.taxRate / 100)) : total;
-  const taxAmount = total - taxBase;
+  // Envío para el domiciliario (Configuración → Impuestos): el impuesto sale solo de los productos
+  const feeUntaxed = biz.taxRate > 0 && (order.deliveryFee || 0) > 0 && biz.deliveryUntaxedFrom && String(order.createdAt || '').replace('T', ' ') >= biz.deliveryUntaxedFrom ? order.deliveryFee : 0;
+  const taxBase = biz.taxRate > 0 ? Math.round((total - feeUntaxed) / (1 + biz.taxRate / 100)) : total;
+  const taxAmount = biz.taxRate > 0 ? total - feeUntaxed - taxBase : 0;
 
   const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
   const formattedDate = orderDate.toLocaleDateString('es-CO', {
@@ -161,7 +163,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
         <div class="row"><span>Subtotal:</span><span style="white-space: nowrap;">${formatPrice(subtotal)}</span></div>
         ${order.deliveryFee > 0 ? `<div class="row"><span>Envío:</span><span style="white-space: nowrap;">${formatPrice(order.deliveryFee)}</span></div>` : ''}
         ${discount > 0 ? `<div class="row font-bold" style="color: #000;"><span>Descuento${order.discountReason ? ` (${escHtml(order.discountReason)})` : ''}:</span><span style="white-space: nowrap;">-${formatPrice(discount)}</span></div>` : ''}
-        ${biz.taxRate > 0 ? `<div class="row" style="font-size: 7.5px;"><span>Base gravable:</span><span style="white-space: nowrap;">${formatPrice(taxBase)}</span></div><div class="row" style="font-size: 7.5px;"><span>${biz.taxLabel} ${biz.taxRate}% (incluido):</span><span style="white-space: nowrap;">${formatPrice(taxAmount)}</span></div>` : ''}
+        ${biz.taxRate > 0 ? `<div class="row" style="font-size: 7.5px;"><span>Base gravable:</span><span style="white-space: nowrap;">${formatPrice(taxBase)}</span></div><div class="row" style="font-size: 7.5px;"><span>${biz.taxLabel} ${biz.taxRate}% (incluido):</span><span style="white-space: nowrap;">${formatPrice(taxAmount)}</span></div>${feeUntaxed ? `<div class="row" style="font-size: 7.5px;"><span>Envío (sin impuesto):</span><span style="white-space: nowrap;">${formatPrice(feeUntaxed)}</span></div>` : ''}` : ''}
         <div class="row font-bold" style="font-size: 10px; margin-top: 3px; border-top: 1px solid #000; padding-top: 2px;">
           <span>${tip > 0 ? 'TOTAL:' : 'TOTAL A PAGAR:'}</span>
           <span style="white-space: nowrap;">${formatPrice(total)}</span>

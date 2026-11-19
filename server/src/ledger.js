@@ -7,7 +7,7 @@
  *    estado de resultados contable, cartera por cobrar y por pagar con vencimientos, terceros (exógena).
  */
 const { readAcctMap, readAcctOptions } = require('./accountingSchema');
-const { taxConfig, splitTax } = require('./accounting');
+const { taxConfig, splitTax, orderTax } = require('./accounting');
 const { now, today } = require('./cashHelpers');
 
 const PREFIX = { sale: 'V', payment_in: 'RC', expense: 'G', payment_out: 'CE', payroll: 'N', advance: 'A', shift: 'C', cash: 'C', manual: 'M', tip_payout: 'P', tip_in: 'PR', loan: 'L' };
@@ -80,9 +80,11 @@ function postSale(db, o, ctx) {
   const date = String(o.created_at).slice(0, 10);
   const third = thirdOrder(o);
   const docRef = `Pedido #${o.id}`;
-  const { base, tax: taxAmt } = splitTax(total, tax.rate);
   const fee = o.delivery_fee || 0;
-  const feeBase = fee > 0 ? Math.round(fee / (1 + (tax.rate || 0) / 100)) : 0;
+  const ot = orderTax(o, tax);
+  // Envío para el domiciliario: va completo, sin impuesto; si no, se le separa el impuesto como al resto
+  const { base, tax: taxAmt } = ot.feeUntaxed ? { base: ot.base, tax: ot.tax } : splitTax(total, tax.rate);
+  const feeBase = ot.feeUntaxed ? fee : fee > 0 ? Math.round(fee / (1 + (tax.rate || 0) / 100)) : 0;
   const lines = [];
   // Ingreso y propina (crédito)
   lines.push({ account: map.salesIncome, credit: base - feeBase, third, description: 'Venta', docRef });

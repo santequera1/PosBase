@@ -22,6 +22,7 @@ export function getBusinessInfo(branchId?: number) {
     taxType: s.taxType || 'none',
     taxRate: s.taxType && s.taxType !== 'none' ? Number(s.taxRate) || 0 : 0,
     taxLabel: s.taxType === 'iva' ? 'IVA' : s.taxType === 'inc' ? 'INC' : '',
+    deliveryUntaxedFrom: s.deliveryFeeUntaxedFrom || '',
     dianResolution: s.dianResolution || '',
   };
 }
