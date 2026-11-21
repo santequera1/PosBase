@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split, BadgePercent, PiggyBank, Bike } from 'lucide-react';
+import { ArrowLeft, ChefHat, Receipt, Wallet, MoreHorizontal, Minus, Plus, Trash2, StickyNote, ArrowLeftRight, Merge, Ban, Printer, Pencil, ShoppingBag, Utensils, Split, BadgePercent, PiggyBank, Bike, Tag } from 'lucide-react';
 import { DiscountPicker, type DiscountSel } from '@/components/DiscountPicker';
 import { toast } from 'sonner';
 import { useStore, type Order, type OrderItem } from '@/store/useStore';
@@ -17,7 +17,51 @@ import { canDo } from '@/lib/permissions';
 import { NiceSelect } from '@/components/ui/nice-select';
 
 const backPath = (o: Order) => (o.type === 'dine-in' ? '/tables' : o.type === 'pickup' ? '/counter' : '/delivery');
-const sameLine = (a: OrderItem, b: OrderItem) => a.productId === b.productId && (a.size || '') === (b.size || '') && (a.notes || '') === (b.notes || '') && (a.seat || 0) === (b.seat || 0);
+const sameLine = (a: OrderItem, b: OrderItem) => a.productId === b.productId && (a.size || '') === (b.size || '') && (a.notes || '') === (b.notes || '') && (a.seat || 0) === (b.seat || 0) && a.price === b.price && (a.originalPrice ?? null) === (b.originalPrice ?? null);
+/** Precio de la línea: si se cambió en esta venta, el del menú tachado y la insignia (cortesía o precio especial) */
+const LinePrice = ({ i }: { i: OrderItem }) => {
+  if (i.originalPrice === undefined || i.originalPrice === null || i.originalPrice === i.price) return <span className="font-semibold">{formatPrice(i.price * i.quantity)}</span>;
+  return (
+    <span className="text-right leading-tight" title={[i.priceNote, i.priceBy ? `por ${i.priceBy}` : ''].filter(Boolean).join(' · ') || undefined} data-line-override={i.price === 0 ? 'cortesia' : 'especial'}>
+      <span className="block text-[10px] text-brand-muted line-through">{formatPrice(i.originalPrice * i.quantity)}</span>
+      <span className="font-semibold">{i.price === 0 ? 'Cortesía' : formatPrice(i.price * i.quantity)}</span>
+    </span>
+  );
+};
+/** Cambiar el precio de un producto solo en esta venta (el del menú no cambia; el inventario se descuenta igual) */
+const PriceEditor = ({ item, onApply, onClose }: { item: OrderItem; onApply: (price: number, units: number, reason: string) => Promise<void> | void; onClose: () => void }) => {
+  const orig = item.originalPrice ?? item.price;
+  const [val, setVal] = useState(String(item.price));
+  const [units, setUnits] = useState(item.quantity);
+  const [reason, setReason] = useState(item.priceNote || '');
+  const [busy, setBusy] = useState(false);
+  const n = Math.round(Number(val));
+  const valid = val !== '' && Number.isFinite(n) && n >= 0;
+  const apply = async () => { if (!valid) return; setBusy(true); try { await onApply(n, units, reason.trim()); } finally { setBusy(false); } };
+  return (
+    <div className="mt-1.5 rounded-lg border border-brand-primary/30 bg-white p-2 space-y-1.5 text-[11px]" data-price-editor>
+      <p className="font-semibold text-brand-dark">Precio solo en esta venta <span className="font-normal text-brand-muted">(el del menú sigue en {formatPrice(orig)}; el inventario se descuenta igual)</span></p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button type="button" onClick={() => setVal('0')} className={cn('px-2 py-1 rounded-lg border font-semibold', n === 0 && val !== '' ? 'bg-brand-button text-brand-on-button border-brand-primary' : 'border-border')} data-price-courtesy>Cortesía ($0)</button>
+        {orig !== item.price && <button type="button" onClick={() => setVal(String(orig))} className="px-2 py-1 rounded-lg border border-border font-semibold" data-price-normal>Precio normal {formatPrice(orig)}</button>}
+        <span className="text-brand-muted">o</span>
+        <input type="number" min={0} step={100} value={val} onChange={e => setVal(e.target.value)} className="w-24 px-2 py-1 rounded-lg border border-border font-mono" data-price-input />
+        <span className="text-brand-muted">c/u</span>
+      </div>
+      {item.quantity > 1 && (
+        <div className="flex items-center gap-1.5"><span className="text-brand-muted">Aplicar a:</span>
+          <button type="button" onClick={() => setUnits(item.quantity)} className={cn('px-2 py-1 rounded-lg border font-semibold', units === item.quantity ? 'bg-brand-card border-brand-primary/40' : 'border-border')}>las {item.quantity}</button>
+          <button type="button" onClick={() => setUnits(1)} className={cn('px-2 py-1 rounded-lg border font-semibold', units === 1 ? 'bg-brand-card border-brand-primary/40' : 'border-border')} data-price-one>solo 1</button>
+        </div>
+      )}
+      <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo (opcional): ej. gaseosa de cortesía por el combo" className="w-full px-2 py-1 rounded-lg border border-border" data-price-reason />
+      <div className="flex gap-2">
+        <button type="button" onClick={apply} disabled={!valid || busy} className="flex-1 py-1.5 rounded-lg bg-brand-button text-brand-on-button font-bold disabled:opacity-40" data-price-apply>{busy ? 'Guardando...' : n === 0 && valid ? 'Dejar en cortesía' : 'Aplicar precio'}</button>
+        <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border font-semibold">Cancelar</button>
+      </div>
+    </div>
+  );
+};
 /** Insignia de la persona en cuentas separadas */
 const SeatBadge = ({ seat, onClick, title }: { seat?: number | null; onClick?: () => void; title?: string }) => (
   <button type="button" onClick={onClick} disabled={!onClick} title={title} className={cn('shrink-0 min-w-[26px] h-6 px-1.5 rounded-md text-[10px] font-bold border', seat ? 'bg-sky-100 text-sky-800 border-sky-200' : 'bg-white text-brand-muted border-dashed border-border', !onClick && 'cursor-default')} data-seat-badge={seat || 0}>{seat ? `P${seat}` : '—'}</button>
@@ -44,6 +88,8 @@ const OpenOrderPage = () => {
   const [showMove, setShowMove] = useState<'move' | 'merge' | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [noteEdit, setNoteEdit] = useState<number | null>(null);
+  // Editor de precio abierto: 'd3' = línea 3 por enviar, 's15' = producto 15 ya enviado
+  const [priceEdit, setPriceEdit] = useState<string | null>(null);
   // Escribiendo una nota en el celular: se ocultan totales y botones para que el teclado no tape el campo
   const [typing, setTyping] = useState(false);
   // Cuentas separadas: elegir productos → cobrar esa parte aparte
@@ -112,6 +158,22 @@ const OpenOrderPage = () => {
     const reason = window.prompt(`Quitar ${what} de la cuenta (ya se envió a cocina).\nMotivo (opcional): ej. el cliente cambió de opinión`, '');
     if (reason === null) return;
     try { const o = await api.removeSentItem(orderId, item.id, quantity, reason || undefined); setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); toast.success('Producto corregido'); } catch (e: any) { toast.error(e.message); }
+  };
+  // Precio solo en esta venta: en lo que falta por enviar se cambia aquí; en lo ya enviado, en el servidor
+  const canPrice = canDo(user, 'discounts');
+  const setDraftPrice = (idx: number, price: number, units: number, reason: string) => {
+    const cur = draftRef.current; const it = cur[idx]; if (!it) return;
+    const orig = it.originalPrice ?? it.price;
+    const changed = price === orig ? { price, originalPrice: undefined, priceNote: undefined } : { price, originalPrice: orig, priceNote: reason || undefined };
+    const next = units >= it.quantity ? cur.map((x, k) => (k === idx ? { ...x, ...changed } : x))
+      : [...cur.slice(0, idx), { ...it, quantity: it.quantity - units }, { ...it, ...changed, quantity: units }, ...cur.slice(idx + 1)];
+    persist(next); setPriceEdit(null);
+    toast.success(price === 0 ? 'Producto en cortesía: no se cobra y sale del inventario igual' : price === orig ? 'Volvió al precio normal' : `Precio de esta venta: ${formatPrice(price)}`);
+  };
+  const setSentPrice = async (item: OrderItem, price: number, units: number, reason: string) => {
+    if (!item.id) return;
+    try { const o = await api.setItemPrice(orderId, item.id, { price, units, reason }); setOrder({ ...o, items: [...o.items.filter((i: OrderItem) => i.batch), ...draftRef.current] }); setPriceEdit(null); toast.success(price === 0 ? 'Producto en cortesía' : 'Precio cambiado en esta venta'); }
+    catch (e: any) { toast.error(e.message); }
   };
   const cycleSeat = (idx: number) => persist(draftRef.current.map((i, k) => (k === idx ? { ...i, seat: ((i.seat || 0) + 1) > seatCount ? null : (i.seat || 0) + 1 } : i)));
 
@@ -253,8 +315,10 @@ const OpenOrderPage = () => {
                 <div key={i.id} className="px-3 py-1.5 flex items-start gap-2 text-xs border-t border-border/60">
                   <span className="font-bold w-6">{i.quantity}x</span>
                   {anySeat && <SeatBadge seat={i.seat} />}
-                  <span className="flex-1 min-w-0"><span className="font-semibold text-brand-dark">{i.name}</span>{i.notes && <span className="block text-[11px] text-brand-muted">➜ {i.notes}</span>}</span>
-                  <span className="font-semibold">{formatPrice(i.price * i.quantity)}</span>
+                  <span className="flex-1 min-w-0"><span className="font-semibold text-brand-dark">{i.name}</span>{i.notes && <span className="block text-[11px] text-brand-muted">➜ {i.notes}</span>}{i.priceNote && <span className="block text-[10px] text-emerald-700">{i.priceNote}</span>}
+                    {priceEdit === `s${i.id}` && <PriceEditor item={i} onApply={(p, u, r) => setSentPrice(i, p, u, r)} onClose={() => setPriceEdit(null)} />}</span>
+                  <LinePrice i={i} />
+                  {canPrice && !closed && order.paymentStatus !== 'paid' && <button onClick={() => setPriceEdit(priceEdit === `s${i.id}` ? null : `s${i.id}`)} className={cn('w-6 h-6 rounded-md flex items-center justify-center', i.originalPrice !== undefined ? 'text-emerald-700 bg-emerald-50' : 'text-brand-muted hover:text-brand-primary')} title="Cambiar el precio solo en esta venta (cortesía)" data-sent-price={i.id}><Tag size={12} /></button>}
                   {canCancel && !closed && i.quantity > 1 && <button onClick={() => removeSent(i, 1)} className="w-6 h-6 rounded-md border border-border text-brand-muted hover:text-red-600 flex items-center justify-center" title="Quitar una unidad" data-sent-minus><Minus size={12} /></button>}
                   {canCancel && !closed && <button onClick={() => removeSent(i)} className="w-6 h-6 rounded-md text-brand-muted hover:text-red-600 flex items-center justify-center" title="Quitar de la cuenta" data-sent-remove><Trash2 size={13} /></button>}
                 </div>
@@ -286,11 +350,14 @@ const OpenOrderPage = () => {
                     </div>
                     {(anySeat || seat > 0) && <SeatBadge seat={i.seat} onClick={() => cycleSeat(idx)} title="Tocar para cambiar de persona" />}
                     <span className="flex-1 min-w-0 font-semibold text-brand-dark truncate">{i.name}</span>
-                    <span className="font-semibold">{formatPrice(i.price * i.quantity)}</span>
+                    <LinePrice i={i} />
+                    {canPrice && <button onClick={() => setPriceEdit(priceEdit === `d${idx}` ? null : `d${idx}`)} className={cn('w-7 h-7 rounded-lg flex items-center justify-center', i.originalPrice !== undefined ? 'text-emerald-700 bg-emerald-50' : 'text-brand-muted hover:bg-brand-card')} title="Cambiar el precio solo en esta venta (cortesía)" data-draft-price={idx}><Tag size={13} /></button>}
                     <button onClick={() => setNoteEdit(noteEdit === idx ? null : idx)} className={cn('w-7 h-7 rounded-lg flex items-center justify-center', i.notes ? 'text-brand-primary bg-brand-card' : 'text-brand-muted hover:bg-brand-card')} title="Nota para cocina"><StickyNote size={13} /></button>
                     <button onClick={() => changeQty(idx, -i.quantity)} className="w-7 h-7 rounded-lg flex items-center justify-center text-brand-muted hover:text-red-600" title="Eliminar"><Trash2 size={13} /></button>
                   </div>
                   {(noteEdit === idx || i.notes) && <input value={i.notes} onChange={e => setNote(idx, e.target.value)} placeholder="Ej. sin cebolla, término medio..." className="mt-1.5 w-full px-2 py-1 rounded-lg border border-amber-200 bg-white text-[11px] outline-none" autoFocus={noteEdit === idx} />}
+                  {i.priceNote && priceEdit !== `d${idx}` && <p className="mt-0.5 text-[10px] text-emerald-700">{i.priceNote}</p>}
+                  {priceEdit === `d${idx}` && <PriceEditor item={i} onApply={(p, u, r) => setDraftPrice(idx, p, u, r)} onClose={() => setPriceEdit(null)} />}
                 </div>
               ))}
             </div>

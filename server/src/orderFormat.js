@@ -18,12 +18,13 @@ function creatorProfile(db, order) {
 /** Pedido tal como lo consume el frontend (usado por /orders y /restaurant). */
 function formatOrder(db, order) {
   const items = db.prepare(`
-    SELECT oi.id, oi.product_id AS productId, oi.name, oi.size, oi.flavors, oi.quantity, oi.price, oi.notes, oi.seat,
+    SELECT oi.id, oi.product_id AS productId, oi.name, oi.size, oi.flavors, oi.quantity, oi.price, oi.notes, oi.seat, oi.original_price AS originalPrice, oi.price_note AS priceNote, oi.price_by AS priceBy,
            oi.batch, oi.sent_at AS sentAt, COALESCE(oi.kitchen_status, 'pending') AS kitchenStatus, oi.kitchen_ready_at AS kitchenReadyAt,
            COALESCE(p.station, 'cocina') AS station
     FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
     WHERE oi.order_id = ? ORDER BY oi.id
-  `).all(order.id).map(i => ({ ...i, batch: i.batch || undefined, sentAt: i.sentAt || undefined, kitchenReadyAt: i.kitchenReadyAt || undefined }));
+  `).all(order.id).map(i => ({ ...i, batch: i.batch || undefined, sentAt: i.sentAt || undefined, kitchenReadyAt: i.kitchenReadyAt || undefined,
+    originalPrice: i.originalPrice === null || i.originalPrice === undefined ? undefined : i.originalPrice, priceNote: i.priceNote || undefined, priceBy: i.priceBy || undefined }));
   const tip = order.tip || 0;
 
   return {

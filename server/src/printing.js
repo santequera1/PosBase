@@ -221,7 +221,8 @@ const packBanner = o => o.type === 'pickup' ? 'PARA LLEVAR' : o.type === 'delive
 
 function itemsBlock(t, items) {
   for (const it of items) {
-    t.pair(`${it.quantity} x ${it.name}${it.size ? ' (' + it.size + ')' : ''}`, money(it.price * it.quantity));
+    const courtesy = it.price === 0 && it.original_price > 0;
+    t.pair(`${it.quantity} x ${it.name}${it.size ? ' (' + it.size + ')' : ''}${courtesy ? ' (cortesía)' : ''}`, money(it.price * it.quantity));
     if (it.flavors) t.line(`   ${it.flavors}`);
   }
 }

@@ -140,7 +140,8 @@ function buildBill(db, order, items, cfg) {
     municipality_id: cfg.municipalityId || undefined,
   };
   Object.keys(customer).forEach(k => customer[k] === undefined && delete customer[k]);
-  const lineItems = items.map(i => {
+  // Productos regalados (cortesía en $0): no son venta, no van en la factura
+  const lineItems = items.filter(i => (Number(i.price) || 0) > 0).map(i => {
     const unitWithTax = Number(i.price) || 0;
     const unit = taxed ? round2(unitWithTax / (1 + rate / 100)) : unitWithTax;
     return {

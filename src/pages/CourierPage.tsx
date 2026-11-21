@@ -63,6 +63,12 @@ const CourierPage = () => {
         <div><p className="text-[10px] font-semibold uppercase text-violet-800">Mis envíos hoy</p><p className="font-display font-bold text-2xl text-violet-900">{formatPrice(data?.feesToday || 0)}</p></div>
         <div className="text-right text-xs text-violet-900"><p><b>{delivered.length}</b> entregado(s)</p>{(data?.feesPending || 0) > 0 && <p>+ {formatPrice(data.feesPending)} en curso</p>}</div>
       </div>
+      {data?.float?.amount > 0 && (
+        <div className={cn('rounded-xl border-2 px-3 py-2.5 text-xs', data.float.returned ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-sky-200 bg-sky-50 text-sky-900')} data-courier-float>
+          <div className="flex items-center justify-between gap-2"><span className="font-semibold uppercase text-[10px]">Base para vueltos</span><b className="font-display text-lg">{formatPrice(data.float.amount)}</b></div>
+          <p>{data.float.returned ? '✓ Ya la devolviste a la caja.' : <>Al final entregas a la caja: efectivo cobrado {formatPrice(data.cashCollected || 0)} + base {formatPrice(data.float.amount)} = <b data-courier-deliver>{formatPrice((data.cashCollected || 0) + data.float.amount)}</b></>}</p>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-card rounded-xl border border-border p-2.5 text-center"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Por entregar</p><p className="font-display font-bold text-xl text-brand-dark">{active.length}</p></div>
         <div className="bg-amber-50 rounded-xl border border-amber-200 p-2.5 text-center"><p className="text-[10px] font-semibold uppercase text-amber-800">Por cobrar</p><p className="font-display font-bold text-lg text-amber-800">{formatPrice(data?.cashToCollect || 0)}</p></div>

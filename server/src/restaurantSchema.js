@@ -114,6 +114,14 @@ function initRestaurantSchema(db) {
   // Vuelto que se le devuelve al cliente porque transfirió de más (abono mayor que la cuenta o transferencia de más al cobrar)
   addCol(db, 'orders', 'change_due', 'INTEGER DEFAULT 0');
   addCol(db, 'orders', 'change_method', 'TEXT'); // cash: lo lleva el domiciliario / se entrega de la caja · transfer: se le devuelve por Nequi
+  // Precio cambiado solo en esta venta (cortesía o precio especial): el precio del menú, quién lo cambió y por qué
+  addCol(db, 'order_items', 'original_price', 'INTEGER');
+  addCol(db, 'order_items', 'price_note', 'TEXT');
+  addCol(db, 'order_items', 'price_by', 'TEXT');
+  // Base para vueltos que se le entrega a cada domiciliario por jornada (no es venta: la devuelve al final)
+  db.exec(`CREATE TABLE IF NOT EXISTS courier_floats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, driver_id INTEGER NOT NULL, date TEXT NOT NULL, amount INTEGER NOT NULL DEFAULT 0,
+    given_by TEXT, given_at TEXT, returned INTEGER NOT NULL DEFAULT 0, returned_at TEXT, returned_by TEXT, UNIQUE(driver_id, date))`);
   // Conciliación de arqueos (la hace un supervisor)
   addCol(db, 'cash_shifts', 'reconciled_at', 'TEXT');
   addCol(db, 'cash_shifts', 'reconciled_by', 'TEXT');

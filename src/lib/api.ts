@@ -281,6 +281,12 @@ export const api = {
   getActiveOrders: (type?: string) => request<any[]>(`/restaurant/orders/active${type ? '?type=' + type : ''}`),
   setOrderItems: (id: number, items: any[]) => request<any>(`/restaurant/orders/${id}/items`, { method: 'PUT', body: JSON.stringify({ items }) }),
   removeSentItem: (id: number, itemId: number, quantity?: number, reason?: string) => request<any>(`/restaurant/orders/${id}/items/${itemId}${qstr({ quantity, reason })}`, { method: 'DELETE' }),
+  // Precio de un producto solo en esta venta (cortesía $0 o precio especial)
+  setItemPrice: (id: number, itemId: number, data: { price: number; units?: number; reason?: string }) => request<any>(`/restaurant/orders/${id}/items/${itemId}/price`, { method: 'POST', body: JSON.stringify(data) }),
+  // Base para vueltos de los domiciliarios
+  getCourierFloats: (date?: string) => request<any>(`/restaurant/courier-floats${date ? '?date=' + date : ''}`),
+  setCourierFloat: (driverId: number, amount: number, date?: string) => request<any>(`/restaurant/courier-floats/${driverId}`, { method: 'PUT', body: JSON.stringify({ amount, date }) }),
+  setCourierFloatReturned: (driverId: number, returned: boolean, date?: string) => request<any>(`/restaurant/courier-floats/${driverId}/returned`, { method: 'POST', body: JSON.stringify({ returned, date }) }),
   sendToKitchen: (id: number) => request<any>(`/restaurant/orders/${id}/send`, { method: 'POST' }),
   undeliverOrder: (id: number) => request<any>(`/restaurant/orders/${id}/undeliver`, { method: 'POST' }),
   keepSeparate: (id: number) => request<any>(`/restaurant/orders/${id}/keep-separate`, { method: 'POST' }),

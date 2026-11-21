@@ -23,6 +23,8 @@ const ACTIVE_SQL = ACTIVE.map(s => `'${s}'`).join(',');
 const CHANNEL_IDS = CHANNELS.map(c => c.id);
 
 const emit = (req, event, payload) => { if (req.app.io) req.app.io.emit(event, payload); };
+// Cambiar el precio de un producto en una venta (cortesía o precio especial): administración y quien puede dar descuentos
+const canChangePrice = u => Boolean(u && (u.role === 'admin' || hasAction(u, 'discounts')));
 const getOrder = (db, id) => db.prepare('SELECT * FROM orders WHERE id = ?').get(Number(id));
 const fmt = (db, id) => formatOrder(db, getOrder(db, id));
 // La cuenta principal de la mesa (las cuentas separadas que se están cobrando no cuentan)
@@ -311,17 +313,62 @@ router.put('/orders/:id/items', (req, res) => {
   if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
   if (!ACTIVE.includes(order.status)) return res.status(400).json({ error: 'El pedido ya está cerrado' });
   const items = Array.isArray(req.body.items) ? req.body.items : [];
+  const canPrice = canChangePrice(req.user);
+  // Precios cambiados que ya estaban en la cuenta (los conserva aunque quien edite ahora no pueda cambiar precios)
+  const prevOverrides = db.prepare('SELECT product_id, price, original_price, price_note, price_by FROM order_items WHERE order_id = ? AND batch IS NULL AND original_price IS NOT NULL').all(order.id);
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM order_items WHERE order_id = ? AND batch IS NULL').run(order.id);
-    const ins = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, seat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const ins = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, seat, original_price, price_note, price_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const it of items) {
       const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
       const seat = Math.round(Number(it.seat) || 0);
-      ins.run(order.id, Number(it.productId) || 0, String(it.name || 'Producto').slice(0, 120), it.size || null, it.flavors || null, qty, Math.max(0, Math.round(Number(it.price) || 0)), String(it.notes || '').slice(0, 200), seat > 0 && seat <= 50 ? seat : null);
+      let price = Math.max(0, Math.round(Number(it.price) || 0));
+      let orig = it.originalPrice === undefined || it.originalPrice === null || it.originalPrice === '' ? null : Math.max(0, Math.round(Number(it.originalPrice) || 0));
+      let note = null, by = null;
+      if (orig !== null && orig !== price) {
+        const prev = prevOverrides.find(p => p.product_id === (Number(it.productId) || 0) && p.price === price && p.original_price === orig);
+        if (prev) { note = prev.price_note; by = prev.price_by; }
+        else if (canPrice) { note = String(it.priceNote || '').trim().slice(0, 120) || null; by = req.user?.name || ''; }
+        else { price = orig; orig = null; }
+      } else orig = null;
+      ins.run(order.id, Number(it.productId) || 0, String(it.name || 'Producto').slice(0, 120), it.size || null, it.flavors || null, qty, price, String(it.notes || '').slice(0, 200), seat > 0 && seat <= 50 ? seat : null, orig, orig !== null ? note : null, orig !== null ? by : null);
     }
     recomputeTotals(db, order.id);
   });
   tx();
+  const formatted = fmt(db, order.id);
+  emit(req, 'order:updated', formatted);
+  res.json(formatted);
+});
+
+/**
+ * Cambia el precio de un producto solo en esta venta (cortesía en $0 o precio especial); el precio del menú no cambia
+ * y el inventario se descuenta igual. `units`: a cuántas unidades de la línea (si son menos, la línea se divide).
+ */
+router.post('/orders/:id/items/:itemId/price', (req, res) => {
+  const db = getDb();
+  if (!canChangePrice(req.user)) return res.status(403).json({ error: 'No tienes permiso para cambiar precios en la venta. Pídele a la caja o a un administrador.' });
+  const order = getOrder(db, req.params.id);
+  const item = db.prepare('SELECT * FROM order_items WHERE id = ? AND order_id = ?').get(Number(req.params.itemId), Number(req.params.id));
+  if (!order || !item) return res.status(404).json({ error: 'Producto no encontrado en la cuenta' });
+  if (!ACTIVE.includes(order.status) || order.payment_status === 'paid') return res.status(400).json({ error: 'La cuenta ya está cobrada' });
+  const price = Math.round(Number(req.body?.price));
+  if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'Escribe un precio válido (0 para cortesía)' });
+  const units = Math.min(item.quantity, Math.max(1, Math.round(Number(req.body?.units) || item.quantity)));
+  const orig = item.original_price !== null && item.original_price !== undefined ? item.original_price : item.price;
+  const back = price === orig; // volver al precio del menú
+  const note = back ? null : String(req.body?.reason || '').trim().slice(0, 120) || null;
+  const by = back ? null : req.user?.name || '';
+  db.transaction(() => {
+    if (units < item.quantity) {
+      db.prepare('UPDATE order_items SET quantity = quantity - ? WHERE id = ?').run(units, item.id);
+      db.prepare(`INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, seat, batch, sent_at, kitchen_status, kitchen_ready_at, unit_cost, original_price, price_note, price_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(item.order_id, item.product_id, item.name, item.size, item.flavors, units, price, item.notes, item.seat, item.batch, item.sent_at, item.kitchen_status, item.kitchen_ready_at, item.unit_cost, back ? null : orig, note, by);
+    } else {
+      db.prepare('UPDATE order_items SET price = ?, original_price = ?, price_note = ?, price_by = ? WHERE id = ?').run(price, back ? null : orig, note, by, item.id);
+    }
+    recomputeTotals(db, order.id);
+  })();
   const formatted = fmt(db, order.id);
   emit(req, 'order:updated', formatted);
   res.json(formatted);
@@ -525,7 +572,9 @@ router.get('/my-deliveries', requirePerm('courier'), (req, res) => {
   // El domiciliario gana el valor del envío: lo entregado hoy y lo que tiene en curso
   const feesToday = delivered.reduce((a, o) => a + (o.deliveryFee || 0), 0);
   const feesPending = active.reduce((a, o) => a + (o.deliveryFee || 0), 0);
-  res.json({ linked: true, courier: emp, active, delivered, cashToCollect: active.reduce((a, o) => a + due(o), 0), cashCollected: collected, feesToday, feesPending });
+  // Base para vueltos que le dio la caja en esta jornada
+  const fl = db.prepare('SELECT amount, returned FROM courier_floats WHERE driver_id = ? AND date = ?').get(emp.id, t);
+  res.json({ linked: true, courier: emp, active, delivered, cashToCollect: active.reduce((a, o) => a + due(o), 0), cashCollected: collected, feesToday, feesPending, float: fl ? { amount: fl.amount, returned: Boolean(fl.returned) } : null });
 });
 // El repartidor marca "voy en camino" o "entregado"; al entregar un pedido que se paga contra entrega, queda cobrado con el medio que indique
 router.post('/my-deliveries/:id/:action', requirePerm('courier'), (req, res) => {
@@ -790,13 +839,13 @@ router.post('/orders/:id/split', (req, res) => {
       .run(parent.type, parent.status === 'billing' ? 'open' : parent.status, parent.table_id, parent.table_label, parent.table_number, Math.max(0, Math.round(Number(req.body.people) || 1)),
         parent.waiter_id, parent.waiter_name, parent.channel || 'local', `Cuenta separada de #${parent.id}`, parent.shift_id, parent.cashier_name, req.user?.id || null, req.user?.name || null, parent.branch_id || 1, parent.id);
     childId = Number(info.lastInsertRowid);
-    const copy = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, batch, sent_at, kitchen_status, kitchen_ready_at, seat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const copy = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, flavors, quantity, price, notes, batch, sent_at, kitchen_status, kitchen_ready_at, seat, original_price, price_note, price_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const w of wanted) {
       const r = rows.find(x => x.id === w.itemId);
       if (w.quantity === r.quantity) db.prepare('UPDATE order_items SET order_id = ? WHERE id = ?').run(childId, r.id);
       else {
         db.prepare('UPDATE order_items SET quantity = quantity - ? WHERE id = ?').run(w.quantity, r.id);
-        copy.run(childId, r.product_id, r.name, r.size, r.flavors, w.quantity, r.price, r.notes, r.batch, r.sent_at, r.kitchen_status, r.kitchen_ready_at, r.seat ?? null);
+        copy.run(childId, r.product_id, r.name, r.size, r.flavors, w.quantity, r.price, r.notes, r.batch, r.sent_at, r.kitchen_status, r.kitchen_ready_at, r.seat ?? null, r.original_price ?? null, r.price_note ?? null, r.price_by ?? null);
       }
     }
     recomputeTotals(db, parent.id);
@@ -927,6 +976,12 @@ router.get('/stats', requireRole('admin', 'cashier'), (req, res) => {
     d.orders++; if (o.status === 'delivered') { d.delivered++; d.feesDelivered += o.delivery_fee || 0; } d.total += o.total; d.deliveryFees += o.delivery_fee || 0; d.cashCollected += cashPart(o);
     if (o.payment_method === 'platform') d.platform += o.total; if (o.payment_status !== 'paid') d.pending += o.total;
   }
+  // Base para vueltos de cada domiciliario en el período (aparece aunque todavía no tenga pedidos)
+  for (const f of db.prepare('SELECT f.driver_id AS driverId, e.name, SUM(f.amount) AS amount, SUM(CASE WHEN f.returned = 1 THEN f.amount ELSE 0 END) AS returned FROM courier_floats f JOIN employees e ON e.id = f.driver_id WHERE f.date BETWEEN ? AND ? AND f.amount > 0 GROUP BY f.driver_id').all(from, to)) {
+    const d = Object.values(byCourier).find(x => x.driverId === f.driverId) || (byCourier[f.name] = { courier: f.name, driverId: f.driverId, orders: 0, delivered: 0, total: 0, deliveryFees: 0, feesDelivered: 0, cashCollected: 0, platform: 0, pending: 0 });
+    d.float = f.amount; d.floatReturned = f.returned;
+  }
+  for (const d of Object.values(byCourier)) { d.float = d.float || 0; d.floatReturned = d.floatReturned || 0; d.toDeliver = d.cashCollected + d.float; }
   const sales = orders.reduce((a, o) => a + o.total, 0);
   res.json({
     period: { from, to },
@@ -943,7 +998,48 @@ router.get('/couriers/:driverId', requireRole('admin', 'cashier'), (req, res) =>
   const { from, to } = range(req);
   const rows = db.prepare("SELECT * FROM orders WHERE type = 'delivery' AND status != 'cancelled' AND driver_id = ? AND date(datetime(created_at, '-5 hours')) BETWEEN ? AND ? ORDER BY created_at").all(Number(req.params.driverId), from, to);
   const orders = rows.map(o => ({ id: o.id, createdAt: o.created_at, status: o.status, customer: o.customer_name, address: o.customer_address, neighborhood: o.customer_neighborhood, total: o.total, deliveryFee: o.delivery_fee || 0, paymentMethod: o.payment_method, paymentStatus: o.payment_status, cash: cashPart(o) }));
-  res.json({ period: { from, to }, driver: employee(db, req.params.driverId), orders, totals: { orders: orders.length, total: orders.reduce((a, o) => a + o.total, 0), deliveryFees: orders.reduce((a, o) => a + o.deliveryFee, 0), feesDelivered: orders.filter(o => o.status === 'delivered').reduce((a, o) => a + o.deliveryFee, 0), cash: orders.reduce((a, o) => a + o.cash, 0), pending: orders.filter(o => o.paymentStatus !== 'paid').reduce((a, o) => a + o.total, 0) } });
+  const float = db.prepare('SELECT COALESCE(SUM(amount), 0) AS s FROM courier_floats WHERE driver_id = ? AND date BETWEEN ? AND ?').get(Number(req.params.driverId), from, to).s;
+  const cash = orders.reduce((a, o) => a + o.cash, 0);
+  res.json({ period: { from, to }, driver: employee(db, req.params.driverId), orders, totals: { orders: orders.length, total: orders.reduce((a, o) => a + o.total, 0), deliveryFees: orders.reduce((a, o) => a + o.deliveryFee, 0), feesDelivered: orders.filter(o => o.status === 'delivered').reduce((a, o) => a + o.deliveryFee, 0), cash, float, toDeliver: cash + float, pending: orders.filter(o => o.paymentStatus !== 'paid').reduce((a, o) => a + o.total, 0) } });
+});
+
+/* ---------- Base para vueltos de los domiciliarios (por jornada; corte a las 5 a. m.) ---------- */
+const jornadaHoy = db => db.prepare("SELECT date(datetime('now', '-10 hours')) AS d").get().d;
+const canFloats = u => u && (u.role === 'admin' || hasView(u, 'delivery') || hasView(u, 'shift'));
+const floatRows = (db, date) => db.prepare(`SELECT f.driver_id AS driverId, e.name, f.date, f.amount, f.returned, f.given_by AS givenBy, f.given_at AS givenAt, f.returned_at AS returnedAt, f.returned_by AS returnedBy
+  FROM courier_floats f JOIN employees e ON e.id = f.driver_id WHERE f.date = ? ORDER BY e.name`).all(date).map(r => ({ ...r, returned: Boolean(r.returned) }));
+router.get('/courier-floats', (req, res) => {
+  if (!canFloats(req.user)) return res.status(403).json({ error: 'Sin permiso' });
+  const db = getDb();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || '')) ? req.query.date : jornadaHoy(db);
+  res.json({ date, today: jornadaHoy(db), floats: floatRows(db, date) });
+});
+// Le da (o corrige) la base a un domiciliario en la jornada; 0 la quita
+router.put('/courier-floats/:driverId', (req, res) => {
+  if (!canFloats(req.user)) return res.status(403).json({ error: 'No tienes permiso para dar la base a los domiciliarios' });
+  const db = getDb();
+  const emp = db.prepare('SELECT id, name FROM employees WHERE id = ?').get(Number(req.params.driverId));
+  if (!emp) return res.status(404).json({ error: 'Domiciliario no encontrado' });
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.date || '')) ? req.body.date : jornadaHoy(db);
+  const amount = Math.round(Number(req.body?.amount));
+  if (!Number.isFinite(amount) || amount < 0 || amount > 5000000) return res.status(400).json({ error: 'Escribe el valor de la base' });
+  if (amount === 0) db.prepare('DELETE FROM courier_floats WHERE driver_id = ? AND date = ?').run(emp.id, date);
+  else db.prepare(`INSERT INTO courier_floats (driver_id, date, amount, given_by, given_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(driver_id, date) DO UPDATE SET returned = CASE WHEN courier_floats.amount = excluded.amount THEN courier_floats.returned ELSE 0 END,
+      returned_at = CASE WHEN courier_floats.amount = excluded.amount THEN courier_floats.returned_at ELSE NULL END, amount = excluded.amount, given_by = excluded.given_by, given_at = excluded.given_at`).run(emp.id, date, amount, req.user?.name || '', now(db));
+  if (req.app.io) req.app.io.emit('courier:float', { driverId: emp.id, date });
+  res.json({ date, floats: floatRows(db, date) });
+});
+// Marca que el domiciliario ya devolvió la base (o lo deshace)
+router.post('/courier-floats/:driverId/returned', (req, res) => {
+  if (!canFloats(req.user)) return res.status(403).json({ error: 'Sin permiso' });
+  const db = getDb();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.date || '')) ? req.body.date : jornadaHoy(db);
+  const on = req.body?.returned !== false;
+  const r = db.prepare('UPDATE courier_floats SET returned = ?, returned_at = ?, returned_by = ? WHERE driver_id = ? AND date = ?').run(on ? 1 : 0, on ? now(db) : null, on ? req.user?.name || '' : null, Number(req.params.driverId), date);
+  if (!r.changes) return res.status(404).json({ error: 'Ese domiciliario no tiene base en la jornada' });
+  if (req.app.io) req.app.io.emit('courier:float', { driverId: Number(req.params.driverId), date });
+  res.json({ date, floats: floatRows(db, date) });
 });
 
 /**

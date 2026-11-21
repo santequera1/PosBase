@@ -149,7 +149,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
           <div style="margin: 2px 0;">
             <div class="row" style="font-size: ${fontSize};">
               <span style="width: 18px; font-weight: bold;">${item.quantity || 1}x</span>
-              <span style="flex: 1; text-align: left; padding-left: 2px;" class="item-desc">${escHtml(item.name)}</span>
+              <span style="flex: 1; text-align: left; padding-left: 2px;" class="item-desc">${escHtml(item.name)}${!item.price && item.originalPrice > 0 ? ' (cortesía)' : ''}</span>
               <span style="width: 50px; text-align: right; font-weight: bold; white-space: nowrap;">${formatPrice((item.price || 0) * (item.quantity || 1))}</span>
             </div>
             ${item.flavors ? `<div class="item-flavors">• ${escHtml(item.flavors)}</div>` : ''}

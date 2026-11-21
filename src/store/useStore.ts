@@ -107,6 +107,10 @@ export interface OrderItem {
   station?: string;
   /** Cuentas separadas: persona (1, 2, 3...) a la que va el producto */
   seat?: number | null;
+  /** Precio cambiado solo en esta venta (cortesía o precio especial): el del menú, por qué y quién */
+  originalPrice?: number;
+  priceNote?: string;
+  priceBy?: string;
 }
 
 export interface Order {

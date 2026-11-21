@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat, Undo2, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Eye, CheckCircle2, Wallet, Bike, PackageCheck, Printer, Users, Banknote, ChefHat, Undo2, ShoppingBag, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore, type Order } from '@/store/useStore';
 import { api } from '@/lib/api';
@@ -196,6 +196,66 @@ Se quita el envío${o.deliveryFee ? ` (${formatPrice(o.deliveryFee)})` : ''} y e
   );
 };
 
+/* ---------- Base para vueltos de los domiciliarios (jornada de hoy) ---------- */
+const CourierFloats = ({ onChange, tick }: { onChange: () => void; tick: number }) => {
+  const couriers = useStore(s => s.restaurant?.staff.couriers || []);
+  const [data, setData] = useState<any>(null);
+  const [vals, setVals] = useState<Record<number, string>>({});
+  const [all, setAll] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = () => api.getCourierFloats().then(d => { setData(d); setVals(v => { const n = { ...v }; for (const f of d.floats) if (n[f.driverId] === undefined) n[f.driverId] = String(f.amount); return n; }); }).catch(() => {});
+  useEffect(() => { load(); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const floats: any[] = data?.floats || [];
+  const of = (id: number) => floats.find(f => f.driverId === id);
+  const save = async (id: number, amount: number) => {
+    setBusy(true);
+    try { const d = await api.setCourierFloat(id, amount); setData((x: any) => ({ ...x, ...d })); setVals(v => ({ ...v, [id]: amount ? String(amount) : '' })); onChange(); toast.success(amount ? `Base de ${formatPrice(amount)} registrada` : 'Base quitada'); }
+    catch (e: any) { toast.error(e.message); }
+    setBusy(false);
+  };
+  const toggleReturned = async (id: number, returned: boolean) => { try { const d = await api.setCourierFloatReturned(id, returned); setData((x: any) => ({ ...x, ...d })); onChange(); } catch (e: any) { toast.error(e.message); } };
+  const giveAll = async () => { const n = Math.round(Number(all)); if (!(n > 0)) return; for (const c of couriers) if (!of(c.id)) await save(c.id, n); setAll(''); };
+  const total = floats.reduce((a, f) => a + f.amount, 0);
+  const pending = floats.filter(f => !f.returned).reduce((a, f) => a + f.amount, 0);
+  if (!couriers.length) return null;
+  return (
+    <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden" data-courier-floats>
+      <div className="px-4 py-2.5 border-b border-border bg-brand-card flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Coins size={13} /> Base para vueltos · jornada del {data ? fmtDate(data.today) : '…'}</p>
+          <p className="text-[10px] text-muted-foreground">La plata que se le da a cada domiciliario para dar vueltos. No es venta: al final la devuelve junto con el efectivo que cobró.</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="text-muted-foreground">Misma base a todos:</span>
+          <input type="number" min={0} step={1000} value={all} onChange={e => setAll(e.target.value)} placeholder="50000" className="w-24 px-2 py-1 rounded-lg border border-border font-mono" data-float-all />
+          <button onClick={giveAll} disabled={busy || !(Number(all) > 0)} className="px-2.5 py-1 rounded-lg bg-brand-button text-brand-on-button font-semibold disabled:opacity-40" data-float-all-apply>Dar</button>
+        </div>
+      </div>
+      <div className="divide-y divide-border">
+        {couriers.map(c => {
+          const f = of(c.id);
+          return (
+            <div key={c.id} className="px-4 py-2 flex flex-wrap items-center gap-2 text-xs" data-float-row={c.id}>
+              <span className="font-semibold text-brand-dark min-w-[140px] flex-1">{c.name}</span>
+              <input type="number" min={0} step={1000} value={vals[c.id] ?? ''} onChange={e => setVals(v => ({ ...v, [c.id]: e.target.value }))} placeholder="Base" className="w-28 px-2 py-1 rounded-lg border border-border font-mono" data-float-input={c.id} />
+              <button onClick={() => save(c.id, Math.max(0, Math.round(Number(vals[c.id]) || 0)))} disabled={busy || String(f?.amount ?? '') === (vals[c.id] ?? '') || (!f && !(Number(vals[c.id]) > 0))} className="px-2.5 py-1 rounded-lg border border-brand-primary/40 font-semibold disabled:opacity-40" data-float-save={c.id}>{f ? 'Cambiar' : 'Dar base'}</button>
+              {f ? (
+                <>
+                  <span className="text-[11px] text-muted-foreground">{formatPrice(f.amount)}{f.givenBy ? ` · dada por ${f.givenBy}` : ''}{f.givenAt ? ` a las ${String(f.givenAt).slice(11, 16)}` : ''}</span>
+                  <label className={cn('flex items-center gap-1 px-2 py-1 rounded-lg border cursor-pointer font-semibold', f.returned ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800')} data-float-returned={c.id}>
+                    <input type="checkbox" checked={f.returned} onChange={e => toggleReturned(c.id, e.target.checked)} /> {f.returned ? 'Ya la devolvió' : 'Por devolver'}
+                  </label>
+                </>
+              ) : <span className="text-[11px] text-muted-foreground">Sin base</span>}
+            </div>
+          );
+        })}
+      </div>
+      {total > 0 && <p className="px-4 py-2 border-t border-border text-[11px] text-muted-foreground" data-float-total>Bases entregadas: <b className="text-brand-dark">{formatPrice(total)}</b>{pending > 0 ? <> · por devolver <b className="text-amber-700">{formatPrice(pending)}</b></> : ' · todas devueltas'}</p>}
+    </div>
+  );
+};
+
 /* ---------- Cuadre por repartidor ---------- */
 /** Jornada actual (corte a las 5 a. m.): a la 1 a. m. sigue siendo "la noche de ayer". */
 const jornadaHoy = () => new Date(Date.now() - 10 * 3600e3).toISOString().slice(0, 10);
@@ -217,6 +277,7 @@ const CouriersReport = (_: { today: string }) => {
   // Se refresca cada minuto mientras está abierto (los domiciliarios siguen entregando)
   useEffect(() => { if (tick) api.getRestaurantStats(from, to).then(setStats).catch(() => {}); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const openDetail = async (driverId: number | null) => { if (!driverId) return; try { setDetail(await api.getCourierReport(driverId, from, to)); } catch (e: any) { toast.error(e.message); } };
+  const reloadStats = () => { api.getRestaurantStats(from, to).then(setStats).catch(() => {}); if (detail?.driver?.id) api.getCourierReport(detail.driver.id, from, to).then(setDetail).catch(() => {}); };
   const presets = [['Hoy', today, today], ['Ayer', shiftDate(today, -1), shiftDate(today, -1)], ['7 días', shiftDate(today, -6), today], ['Este mes', today.slice(0, 7) + '-01', today]];
   const dl = stats?.byType?.find((t: any) => t.type === 'delivery');
   return (
@@ -225,6 +286,7 @@ const CouriersReport = (_: { today: string }) => {
         {presets.map(([l]) => <Chip key={l} active={preset === l} onClick={() => setPreset(l)}>{l}</Chip>)}
         <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} /><span className="text-xs text-muted-foreground">a</span><input type="date" value={to} onChange={e => setTo(e.target.value)} className={cn(INPUT, 'w-auto py-1.5 text-xs')} />
       </div>
+      <CourierFloats onChange={reloadStats} tick={tick} />
       {dl && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard label="Domicilios" value={String(dl.count)} sub={`${fmtDate(from)} – ${fmtDate(to)}`} />
@@ -237,11 +299,11 @@ const CouriersReport = (_: { today: string }) => {
         <div className="px-4 py-2.5 border-b border-border bg-brand-card"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5" data-courier-period><Users size={13} /> Por repartidor · {from === to ? `jornada del ${fmtDate(from)}` : `${fmtDate(from)} – ${fmtDate(to)}`} · toca uno para ver el detalle y cuadrarle la caja</p><p className="text-[10px] text-muted-foreground">La jornada va hasta las 5 a. m.: lo entregado después de medianoche cuenta en la misma noche, igual que en el celular del domiciliario.</p></div>
         {loading ? <p className="p-4 text-xs text-muted-foreground">Cargando...</p> : !stats?.byCourier?.length ? <p className="p-4 text-xs text-muted-foreground">Sin domicilios en el período.</p> : (
           <table className="w-full text-xs">
-            <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Repartidor</th><th className="text-right px-3 py-1.5">Pedidos</th><th className="text-right px-3 py-1.5">Entregados</th><th className="text-right px-3 py-1.5">Ventas</th><th className="text-right px-3 py-1.5">Envíos ganados</th><th className="text-right px-3 py-1.5">Efectivo que entrega</th><th className="text-right px-3 py-1.5">Plataforma</th><th className="text-right px-3 py-1.5">Por cobrar</th></tr></thead>
+            <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Repartidor</th><th className="text-right px-3 py-1.5">Pedidos</th><th className="text-right px-3 py-1.5">Entregados</th><th className="text-right px-3 py-1.5">Ventas</th><th className="text-right px-3 py-1.5">Envíos ganados</th><th className="text-right px-3 py-1.5">Efectivo cobrado</th><th className="text-right px-3 py-1.5">Base</th><th className="text-right px-3 py-1.5">Total a entregar</th><th className="text-right px-3 py-1.5">Plataforma</th><th className="text-right px-3 py-1.5">Por cobrar</th></tr></thead>
             <tbody>
               {stats.byCourier.map((c: any) => (
                 <tr key={c.courier} onClick={() => openDetail(c.driverId)} className={cn('border-t border-border', c.driverId && 'cursor-pointer hover:bg-brand-button/5')}>
-                  <td className="px-3 py-1.5 font-semibold text-brand-dark">{c.courier}</td><td className="px-3 py-1.5 text-right">{c.orders}</td><td className="px-3 py-1.5 text-right">{c.delivered}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.total)}</td><td className="px-3 py-1.5 text-right" data-courier-fees={c.courier}><b>{formatPrice(c.feesDelivered ?? c.deliveryFees)}</b>{(c.deliveryFees - (c.feesDelivered ?? c.deliveryFees)) > 0 && <span className="block text-[10px] text-muted-foreground">+ {formatPrice(c.deliveryFees - c.feesDelivered)} en curso</span>}</td><td className="px-3 py-1.5 text-right font-bold text-emerald-700">{formatPrice(c.cashCollected)}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.platform)}</td><td className="px-3 py-1.5 text-right text-amber-700">{formatPrice(c.pending)}</td>
+                  <td className="px-3 py-1.5 font-semibold text-brand-dark">{c.courier}</td><td className="px-3 py-1.5 text-right">{c.orders}</td><td className="px-3 py-1.5 text-right">{c.delivered}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.total)}</td><td className="px-3 py-1.5 text-right" data-courier-fees={c.courier}><b>{formatPrice(c.feesDelivered ?? c.deliveryFees)}</b>{(c.deliveryFees - (c.feesDelivered ?? c.deliveryFees)) > 0 && <span className="block text-[10px] text-muted-foreground">+ {formatPrice(c.deliveryFees - c.feesDelivered)} en curso</span>}</td><td className="px-3 py-1.5 text-right font-semibold text-emerald-700">{formatPrice(c.cashCollected)}</td><td className="px-3 py-1.5 text-right" data-courier-float={c.courier}>{c.float ? <>{formatPrice(c.float)}{c.floatReturned >= c.float ? <span className="block text-[10px] text-emerald-700">devuelta</span> : null}</> : <span className="text-muted-foreground">—</span>}</td><td className="px-3 py-1.5 text-right font-bold text-brand-dark" data-courier-deliver={c.courier}>{formatPrice(c.toDeliver ?? c.cashCollected)}</td><td className="px-3 py-1.5 text-right">{formatPrice(c.platform)}</td><td className="px-3 py-1.5 text-right text-amber-700">{formatPrice(c.pending)}</td>
                 </tr>
               ))}
             </tbody>
@@ -250,7 +312,7 @@ const CouriersReport = (_: { today: string }) => {
       </div>
       {detail && (
         <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Banknote size={13} /> {detail.driver?.name}: {detail.totals.orders} pedidos · entrega en efectivo {formatPrice(detail.totals.cash)} · envíos ganados {formatPrice(detail.totals.feesDelivered ?? detail.totals.deliveryFees)}</p><button onClick={() => setDetail(null)} className="text-[11px] text-brand-primary">Cerrar</button></div>
+          <div className="px-4 py-2.5 border-b border-border bg-brand-card flex items-center justify-between"><p className="text-xs font-bold text-brand-dark flex items-center gap-1.5"><Banknote size={13} /> {detail.driver?.name}: {detail.totals.orders} pedidos · efectivo cobrado {formatPrice(detail.totals.cash)}{detail.totals.float ? ` + base ${formatPrice(detail.totals.float)} = entrega ${formatPrice(detail.totals.toDeliver)}` : ''} · envíos ganados {formatPrice(detail.totals.feesDelivered ?? detail.totals.deliveryFees)}</p><button onClick={() => setDetail(null)} className="text-[11px] text-brand-primary">Cerrar</button></div>
           <table className="w-full text-xs">
             <thead><tr className="text-muted-foreground bg-muted/30"><th className="text-left px-3 py-1.5">Pedido</th><th className="text-left px-3 py-1.5">Fecha</th><th className="text-left px-3 py-1.5">Cliente / dirección</th><th className="text-left px-3 py-1.5">Pago</th><th className="text-right px-3 py-1.5">Envío</th><th className="text-right px-3 py-1.5">Total</th><th className="text-right px-3 py-1.5">Efectivo</th></tr></thead>
             <tbody>{detail.orders.map((o: any) => (
