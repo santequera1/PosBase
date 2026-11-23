@@ -40,8 +40,14 @@ export const NewOrderModal = ({ type, tableId, tableLabel, onClose, onCreated, a
   const waiters = restaurant?.staff.waiters || [];
   const couriers = restaurant?.staff.couriers || [];
   const [people, setPeople] = useState('2');
-  // Si quien abre la mesa es un mesero con cuenta propia, queda asignado de una vez
-  const [waiterId, setWaiterId] = useState<number>(() => (waiters as Array<{ id: number; userId?: number | null }>).find(w => user?.id && w.userId === user.id)?.id || 0);
+  // Si quien abre la mesa es un mesero con cuenta propia, queda asignado de una vez. Si su usuario no está unido a su
+  // ficha de Personal, se toma la ficha libre con su mismo nombre (así una mesera nueva no queda "sin asignar")
+  const [waiterId, setWaiterId] = useState<number>(() => {
+    const ws = waiters as Array<{ id: number; name: string; userId?: number | null }>;
+    const norm = (s?: string) => String(s || '').trim().toLowerCase();
+    const mine = ws.find(w => user?.id && w.userId === user.id) || (user?.name ? ws.find(w => !w.userId && norm(w.name) === norm(user.name)) : undefined);
+    return mine?.id || 0;
+  });
   const [label, setLabel] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
