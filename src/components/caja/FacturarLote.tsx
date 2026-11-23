@@ -26,7 +26,10 @@ export const FacturarLote = ({ onDone }: { onDone: () => void }) => {
   const stop = useRef(false);
 
   const load = (d?: string) => api.getPendingInvoices(d || date || undefined).then(r => { setData(r); if (!date) setDate(r.date); }).catch(e => toast.error(e.message));
-  useEffect(() => { load(); }, []);
+  // Números de factura que quedan en la resolución de la DIAN
+  const [range, setRange] = useState<any>(null);
+  const loadRange = (force = false) => api.getInvoiceRange(force).then(setRange).catch(() => setRange(null));
+  useEffect(() => { load(); loadRange(); }, []);
 
   const start = async () => {
     if (!data) return;
@@ -38,17 +41,27 @@ export const FacturarLote = ({ onDone }: { onDone: () => void }) => {
     for (const o of list) {
       if (stop.current) break;
       try { await api.issueTestInvoice(o.id); state.ok++; }
-      catch (e: any) { state.failed.push({ id: o.id, error: e.message || 'Error' }); }
+      catch (e: any) {
+        state.failed.push({ id: o.id, error: e.message || 'Error' });
+        // Sin números de factura (resolución de la DIAN agotada): no tiene sentido seguir intentando las demás
+        if (/Se acabaron los números de factura/i.test(e.message || '')) stop.current = true;
+      }
       state.done++;
       setRun({ ...state, failed: [...state.failed] });
     }
     state.active = false;
     setRun({ ...state, failed: [...state.failed] });
     toast[state.failed.length ? 'warning' : 'success'](`${state.ok} factura(s) emitida(s)${state.failed.length ? ` · ${state.failed.length} con error` : ''}`);
-    load(); onDone();
+    load(); loadRange(true); onDone();
   };
 
   const real = data?.provider === 'factus';
+  // Numeración de la DIAN: agotada (sin una nueva lista) o por acabarse
+  const rc = range?.current, rn = range?.next;
+  const fmtN = (r: any, n: number) => `${r.prefix || ''}${n}`;
+  const exhausted = Boolean(rc && !rc.usable && !rn);
+  const low = Boolean(rc && rc.usable && (rc.remaining <= 150 || rc.remaining <= (rc.to - rc.from + 1) * 0.1));
+  const daysToEnd = rc?.end ? Math.round((Date.parse(rc.end) - Date.now()) / 86400000) : null;
   const notToday = data && data.date !== data.today;
   const ex = data?.excluded;
   const exText = ex ? [ex.withCustomer && `${ex.withCustomer} con datos de cliente (se facturan desde la venta)`, ex.payroll && `${ex.payroll} por nómina`, ex.unpaid && `${ex.unpaid} sin pagar`, ex.zero && `${ex.zero} en $0`].filter(Boolean).join(' · ') : '';
@@ -66,6 +79,23 @@ export const FacturarLote = ({ onDone }: { onDone: () => void }) => {
         </div>
       </div>
 
+      {exhausted && rc && (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-xs text-red-900 space-y-1" data-rango-agotado>
+          <p className="font-bold flex items-center gap-1.5"><AlertTriangle size={14} /> Se acabaron los números de factura que autorizó la DIAN</p>
+          <p>La resolución {rc.resolution} va de <b>{fmtN(rc, rc.from)}</b> a <b>{fmtN(rc, rc.to)}</b> y ya se usaron todos. Las ventas quedan pendientes y se facturan cuando esté la nueva numeración.</p>
+          <p><b>Qué hacer:</b> el representante legal o el contador le pide a la DIAN una nueva numeración de facturación electrónica (puede seguir con el prefijo {rc.prefix || 'actual'} desde el {rc.to + 1}) y la asocia en Factus (app.factus.com.co → Rangos de numeración). Apenas aparezca en Factus, el sistema la usa sola.</p>
+          <button onClick={() => loadRange(true)} className="px-2.5 py-1 rounded-lg border border-red-300 bg-white font-semibold" data-rango-revisar>Revisar de nuevo en Factus</button>
+        </div>
+      )}
+      {rc && !rc.usable && rn && (
+        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-900" data-rango-nuevo>Ya hay una numeración nueva en Factus ({fmtN(rn, rn.current)} a {fmtN(rn, rn.to)}): la próxima factura la usa sola.</p>
+      )}
+      {low && rc && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 flex gap-1.5" data-rango-poco><AlertTriangle size={13} className="shrink-0 mt-0.5" /> Quedan <b>{rc.remaining}</b> números de factura ({fmtN(rc, rc.current)} a {fmtN(rc, rc.to)}). Pide ya a la DIAN una nueva numeración para no quedar sin facturar{rn ? ' (ya hay una nueva lista en Factus)' : ''}.</p>
+      )}
+      {rc && rc.usable && daysToEnd !== null && daysToEnd <= 30 && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">La resolución de facturación vence el {rc.end} ({daysToEnd} días): pide la nueva a tiempo.</p>
+      )}
       {!data ? <p className="text-xs text-muted-foreground">Buscando ventas…</p> : (
         <>
           <div className="flex flex-wrap items-center gap-3">
@@ -96,7 +126,7 @@ export const FacturarLote = ({ onDone }: { onDone: () => void }) => {
             </div>
           )}
 
-          {data.orders.length > 0 && !run?.active && (
+          {data.orders.length > 0 && !run?.active && !exhausted && (
             confirming ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2" data-lote-confirmar>
                 <p className="text-xs text-amber-900">

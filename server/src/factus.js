@@ -110,6 +110,38 @@ async function apiVersion(db, cfg, force = false) {
   return v;
 }
 
+/* ---------- rangos de numeración (resolución de la DIAN) ---------- */
+// Rango de facturas que todavía tiene números: activo, sin vencer y con el siguiente número dentro del límite
+const usableRange = x => /factura/i.test(x.document || '') && x.is_active !== false && x.is_active !== 0 && !x.is_expired && Number(x.current) <= Number(x.to);
+const saveRangeId = (db, id) => db.prepare("INSERT INTO settings (key, value) VALUES ('factusNumberingRangeId', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(id));
+let rangeCache = { at: 0, list: null };
+/** Rangos de facturas de la cuenta en Factus (se guardan 10 minutos para no consultar en cada factura). */
+async function invoiceRanges(db, cfg, force = false) {
+  if (!force && rangeCache.list && Date.now() - rangeCache.at < 10 * 60 * 1000) return rangeCache.list;
+  const version = await apiVersion(db, cfg);
+  const r = await call(db, cfg, 'GET', '/' + version + '/numbering-ranges');
+  const list = (Array.isArray(r.data) ? r.data : (r.data && r.data.data) || []).filter(x => /factura/i.test(x.document || ''));
+  rangeCache = { at: Date.now(), list };
+  return list;
+}
+const rangeExhaustedError = e => e && e.status === 409 && /l[ií]mite del rango|rango de numeraci[oó]n/i.test(String(e.message));
+function exhaustedError(e, r) {
+  const what = r ? `${r.prefix || ''}${r.from} a ${r.prefix || ''}${r.to}` : 'el rango actual';
+  const err = new Error(`Se acabaron los números de factura que autorizó la DIAN (${what}). Hay que pedirle a la DIAN una nueva numeración y asociarla en Factus; apenas aparezca, el sistema la usa sola. Mientras tanto la venta queda pendiente de factura.`);
+  err.status = e.status; err.payload = e.payload; err.code = 'RANGE_EXHAUSTED';
+  return err;
+}
+/** Estado del rango en uso: cuántos números quedan, para avisar antes de que se acaben. */
+async function rangeStatus(db, force = false) {
+  const cfg = readFeConfig(db, { masked: false });
+  if (cfg.provider !== 'factus' || !cfg.configured) return null;
+  const list = await invoiceRanges(db, cfg, force);
+  const cur = list.find(x => String(x.id) === String(cfg.numberingRangeId)) || list.find(usableRange) || null;
+  const map = x => x && { id: x.id, prefix: x.prefix || '', from: Number(x.from), to: Number(x.to), current: Number(x.current), remaining: Math.max(0, Number(x.to) - Number(x.current) + 1), resolution: x.resolution_number || '', start: x.start_date || '', end: x.end_date || '', usable: usableRange(x) };
+  const next = list.find(x => usableRange(x) && (!cur || String(x.id) !== String(cur.id)));
+  return { env: cfg.env, current: map(cur), next: map(next) || null };
+}
+
 /* ---------- armado de la factura ---------- */
 const round2 = n => Math.round(n * 100) / 100;
 function readBiz(db) {
@@ -243,16 +275,13 @@ async function issueInvoice(db, orderId, userName) {
   const cfg = readFeConfig(db, { masked: false });
   if (cfg.provider !== 'factus') throw new Error('El proveedor de facturación electrónica no es Factus');
   if (!cfg.configured) throw new Error('Faltan las credenciales de Factus (Ajustes → Facturación electrónica)');
-  // Sin rango elegido: se toma solo el rango de facturas activo (por ejemplo, apenas lo asocian en Factus)
+  // Sin rango elegido: se toma solo el rango de facturas activo que tenga números (por ejemplo, apenas lo asocian en Factus)
   if (!cfg.numberingRangeId) {
-    const version = await apiVersion(db, cfg);
-    const r = await call(db, cfg, 'GET', '/' + version + '/numbering-ranges');
-    const list = Array.isArray(r.data) ? r.data : (r.data && r.data.data) || [];
-    const inv = list.find(x => /factura/i.test(x.document || '') && x.is_active !== false && !x.is_expired);
+    const inv = (await invoiceRanges(db, cfg)).find(usableRange);
     if (!inv) throw new Error(cfg.env === 'production'
       ? 'Factus todavía no tiene el rango de numeración de facturas: hay que asociarlo en app.factus.com.co (Rangos de numeración). Mientras tanto no se puede emitir la factura electrónica.'
       : 'Factus no tiene un rango de numeración de facturas activo.');
-    db.prepare("INSERT INTO settings (key, value) VALUES ('factusNumberingRangeId', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(inv.id));
+    saveRangeId(db, inv.id);
     cfg.numberingRangeId = inv.id;
   }
   const order = db.prepare('SELECT o.*, c.dv AS customer_dv, c.iva_responsible AS customer_iva_responsible, c.is_company FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.id = ?').get(orderId);
@@ -264,7 +293,18 @@ async function issueInvoice(db, orderId, userName) {
   const bill = version === 'v2' ? buildBillV2(db, order, items, cfg) : buildBill(db, order, items, cfg);
   let resp;
   try {
-    resp = await call(db, cfg, 'POST', `/${version}/bills/validate`, bill);
+    try {
+      resp = await call(db, cfg, 'POST', `/${version}/bills/validate`, bill);
+    } catch (e) {
+      if (!rangeExhaustedError(e)) throw e;
+      // Se acabó la numeración del rango en uso: si ya hay otro rango de facturas con números (la nueva resolución de la DIAN), se usa ese
+      const next = (await invoiceRanges(db, cfg, true)).find(x => usableRange(x) && String(x.id) !== String(cfg.numberingRangeId));
+      if (!next) throw exhaustedError(e, (await invoiceRanges(db, cfg)).find(x => String(x.id) === String(cfg.numberingRangeId)));
+      saveRangeId(db, next.id);
+      cfg.numberingRangeId = next.id;
+      bill.numbering_range_id = next.id;
+      resp = await call(db, cfg, 'POST', `/${version}/bills/validate`, bill);
+    }
   } catch (e) {
     db.prepare("UPDATE orders SET fe_error = ?, fe_status = CASE WHEN fe_status = 'accepted' THEN fe_status ELSE 'error' END WHERE id = ?").run(String(e.message).slice(0, 500), orderId);
     throw e;
@@ -324,4 +364,4 @@ async function archiveInvoice(db, number) {
   for (const fn of [downloadPdf, downloadXml]) { try { await fn(db, number); } catch (e) { console.warn(`Archivo de la factura ${number}:`, e.message); } }
 }
 
-module.exports = { readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, downloadXml, archiveInvoice, readArchived, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };
+module.exports = { rangeStatus, readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, downloadXml, archiveInvoice, readArchived, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };

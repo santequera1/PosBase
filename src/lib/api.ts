@@ -261,6 +261,7 @@ export const api = {
   testFeConnection: () => request<any>('/einvoicing/test', { method: 'POST' }),
   getInvoices: (params: Record<string, any> = {}) => request<{ invoices: any[]; total: number }>('/einvoicing/invoices' + qstr(params)),
   getPendingInvoices: (date?: string) => request<any>('/einvoicing/pending' + qstr({ date })),
+  getInvoiceRange: (force?: boolean) => request<any>('/einvoicing/range-status' + (force ? '?force=1' : '')),
   getFeMunicipalities: (q: string) => request<any[]>(`/einvoicing/municipalities${qstr({ q })}`),
   getFePreview: (orderId: number) => request<any>(`/einvoicing/preview/${orderId}`),
 

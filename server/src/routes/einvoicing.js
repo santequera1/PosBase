@@ -70,6 +70,12 @@ router.get('/invoices', (req, res) => {
  * No entran: anuladas, sin pagar, consumos por nómina, cortesías en $0 ni ventas con datos de cliente (esas se facturan
  * a nombre del cliente desde la venta).
  */
+// Números de factura que quedan en la resolución de la DIAN (para avisar antes de que se acaben)
+router.get('/range-status', ADMIN, async (req, res) => {
+  try { res.json(await factus.rangeStatus(getDb(), req.query.force === '1')); }
+  catch (e) { res.status(502).json({ error: e.message }); }
+});
+
 router.get('/pending', ADMIN, (req, res) => {
   const db = getDb();
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || '')) ? String(req.query.date)
