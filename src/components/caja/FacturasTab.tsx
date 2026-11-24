@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search, Download, FileCode2, MessageCircle, Mail, Share2, ExternalLink, FileCheck2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -9,12 +9,16 @@ import { Chip, KpiCard, INPUT, fmtDate } from '@/components/common/Primitives';
 import { FacturarLote } from './FacturarLote';
 import { downloadInvoiceFile, openInvoicePdf, shareInvoicePdf, canShareFiles, invoiceMessage, whatsappLink, mailtoLink } from '@/lib/einvoiceShare';
 
+const PAGE = 100;
+
 /** Caja → Facturas electrónicas: todas las facturas emitidas, guardadas para descargarlas o enviarlas cuando se necesite. */
 export const FacturasTab = () => {
   const businessName = useStore(s => s.businessName) || 'nuestro negocio';
   const [range, setRange] = useState<'month' | 'prev' | 'all'>('month');
   const [q, setQ] = useState('');
-  const [data, setData] = useState<{ invoices: any[]; total: number } | null>(null);
+  const [data, setData] = useState<{ invoices: any[]; count: number; total: number; real: number; pdfSaved: number } | null>(null);
+  const [more, setMore] = useState(false);
+  const seq = useRef(0);
   const [busy, setBusy] = useState<string>('');
   const today = getColombiaTodayStr();
   const params = () => {
@@ -25,9 +29,22 @@ export const FacturasTab = () => {
     const ym = d.toISOString().slice(0, 7);
     return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, '0')}` };
   };
-  const load = () => { setData(null); api.getInvoices({ ...params(), q: q.trim() || undefined }).then(setData).catch(e => toast.error(e.message)); };
-  useEffect(() => { load(); }, [range]);
-  useEffect(() => { const t = setTimeout(load, 350); return () => clearTimeout(t); }, [q]);
+  // La lista llega por páginas; la cantidad y el total de arriba son de todas las facturas del filtro
+  const load = () => {
+    const n = ++seq.current;
+    setData(null); setMore(false);
+    api.getInvoices({ ...params(), q: q.trim() || undefined, limit: PAGE }).then(r => { if (n === seq.current) setData(r); }).catch(e => { if (n === seq.current) toast.error(e.message); });
+  };
+  const loadMore = () => {
+    if (!data || more) return;
+    const n = seq.current;
+    setMore(true);
+    api.getInvoices({ ...params(), q: q.trim() || undefined, limit: PAGE, offset: data.invoices.length })
+      .then(r => { if (n === seq.current) setData(d => (d ? { ...r, invoices: [...d.invoices, ...r.invoices.filter(x => !d.invoices.some(y => y.id === x.id))] } : r)); })
+      .catch(e => toast.error(e.message)).finally(() => { if (n === seq.current) setMore(false); });
+  };
+  const first = useRef(true);
+  useEffect(() => { const t = setTimeout(load, first.current ? 0 : 350); first.current = false; return () => clearTimeout(t); }, [range, q]);
   const run = async (key: string, fn: () => Promise<any>) => { setBusy(key); try { await fn(); } catch (e: any) { if (e?.name !== 'AbortError') toast.error(e.message || 'No se pudo completar'); } setBusy(''); };
   const share = typeof window !== 'undefined' && canShareFiles();
   const list = data?.invoices || [];
@@ -40,9 +57,9 @@ export const FacturasTab = () => {
         <div className="relative flex-1 min-w-[200px] max-w-md"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Número de factura, cliente, documento o venta #" className={cn(INPUT, 'pl-8')} data-facturas-search /></div>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-        <KpiCard label="Facturas emitidas" value={data ? String(list.length) : '…'} />
+        <KpiCard label="Facturas emitidas" value={data ? data.count.toLocaleString('es-CO') : '…'} />
         <KpiCard label="Total facturado" value={data ? formatPrice(data.total) : '…'} />
-        <KpiCard label="Guardadas (PDF)" value={data ? `${list.filter(i => i.pdfSaved).length} de ${list.filter(i => i.real).length}` : '…'} sub="Copia en el sistema, lista para enviar" />
+        <KpiCard label="Guardadas (PDF)" value={data ? `${data.pdfSaved.toLocaleString('es-CO')} de ${data.real.toLocaleString('es-CO')}` : '…'} sub="Copia en el sistema, lista para enviar" />
       </div>
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         {!data ? <p className="p-6 text-sm text-muted-foreground">Cargando…</p> : list.length === 0 ? (
@@ -79,6 +96,12 @@ export const FacturasTab = () => {
               );
             })}
           </ul>
+        )}
+        {data && list.length > 0 && (
+          <div className="p-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" data-facturas-conteo>
+            <span>Mostrando {list.length.toLocaleString('es-CO')} de {data.count.toLocaleString('es-CO')}</span>
+            {list.length < data.count && <button onClick={loadMore} disabled={more} className="px-3 py-1.5 rounded-lg border border-border font-semibold text-foreground disabled:opacity-40" data-facturas-mas>{more ? 'Cargando…' : `Ver ${Math.min(PAGE, data.count - list.length)} más`}</button>}
+          </div>
         )}
       </div>
       <p className="text-[11px] text-muted-foreground">Cada factura queda guardada en el sistema (PDF y XML) apenas se emite. WhatsApp y Correo envían el enlace oficial para ver y descargar la factura; en el celular, <b>Compartir PDF</b> adjunta el archivo directamente al chat.</p>

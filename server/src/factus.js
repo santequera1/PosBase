@@ -68,6 +68,8 @@ function archiveDir() {
 }
 const safeName = n => String(n || '').replace(/[^A-Za-z0-9_-]/g, '');
 const archivePath = (number, ext) => pathx.join(archiveDir(), `${safeName(number)}.${ext}`);
+/** Números de factura con archivo guardado (sin abrir cada archivo: son miles de PDF). */
+function archivedNumbers(ext) { try { const end = '.' + ext; return new Set(fsx.readdirSync(archiveDir()).filter(f => f.endsWith(end)).map(f => f.slice(0, -end.length))); } catch { return new Set(); } }
 function readArchived(number, ext) { const p = archivePath(number, ext); return fsx.existsSync(p) ? fsx.readFileSync(p) : null; }
 
 /* ---------- autenticación ---------- */
@@ -377,4 +379,4 @@ async function archiveInvoice(db, number) {
   for (const fn of [downloadPdf, downloadXml]) { try { await fn(db, number); } catch (e) { console.warn(`Archivo de la factura ${number}:`, e.message); } }
 }
 
-module.exports = { rangeStatus, readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, downloadXml, archiveInvoice, readArchived, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };
+module.exports = { rangeStatus, readFeConfig, saveFeConfig, issueInvoice, testConnection, searchMunicipalities, downloadPdf, downloadXml, archiveInvoice, readArchived, archivedNumbers, safeName, buildBill, buildBillV2, apiVersion, DEFAULT_CODES };

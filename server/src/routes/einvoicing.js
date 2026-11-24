@@ -43,25 +43,35 @@ router.get('/invoices/:number/xml', async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-/** Facturas electrónicas emitidas, con datos del cliente para enviarlas por WhatsApp o correo. */
+/**
+ * Facturas electrónicas emitidas, con datos del cliente para enviarlas por WhatsApp o correo. La lista va por páginas
+ * (limit/offset), pero la cantidad, el total y las guardadas son de TODAS las del filtro, no solo las de la página.
+ */
 router.get('/invoices', (req, res) => {
   const db = getDb();
   const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
-  let sql = `SELECT o.id, o.fe_number AS number, o.fe_cufe AS cufe, o.fe_status AS status, o.fe_provider AS provider, o.fe_issued_at AS issuedAt, o.fe_public_url AS publicUrl, o.fe_qr AS qr,
+  const select = `SELECT o.id, o.fe_number AS number, o.fe_cufe AS cufe, o.fe_status AS status, o.fe_provider AS provider, o.fe_issued_at AS issuedAt, o.fe_public_url AS publicUrl, o.fe_qr AS qr,
       o.customer_name AS customerName, o.customer_doc AS customerDoc, o.customer_email AS customerEmail, o.customer_phone AS customerPhone, o.total, o.type, o.created_at AS createdAt,
       COALESCE(c.phone, '') AS customerPhone2, COALESCE(c.email, '') AS customerEmail2
-    FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.fe_number IS NOT NULL AND o.fe_number != ''`;
+    FROM orders o LEFT JOIN customers c ON c.id = o.customer_id`;
+  let sql = " WHERE o.fe_number IS NOT NULL AND o.fe_number != ''";
   const params = [];
   if (isDate(req.query.from)) { sql += ' AND date(COALESCE(o.fe_issued_at, o.created_at)) >= ?'; params.push(req.query.from); }
   if (isDate(req.query.to)) { sql += ' AND date(COALESCE(o.fe_issued_at, o.created_at)) <= ?'; params.push(req.query.to); }
   if (req.query.q) { sql += ' AND (o.fe_number LIKE ? OR o.customer_name LIKE ? OR o.customer_doc LIKE ? OR CAST(o.id AS TEXT) = ?)'; const q = `%${String(req.query.q).trim()}%`; params.push(q, q, q, String(req.query.q).trim()); }
-  sql += ' ORDER BY COALESCE(o.fe_issued_at, o.created_at) DESC, o.id DESC LIMIT 300';
-  const rows = db.prepare(sql).all(...params).map(r => ({
+  const limit = Math.min(500, Math.max(1, Math.round(Number(req.query.limit) || 100)));
+  const offset = Math.max(0, Math.round(Number(req.query.offset) || 0));
+  const pdfs = factus.archivedNumbers('pdf'), xmls = factus.archivedNumbers('xml');
+  const isReal = r => r.provider === 'factus' && r.status === 'accepted';
+  const all = db.prepare('SELECT o.fe_number AS number, o.fe_status AS status, o.fe_provider AS provider, o.total FROM orders o' + sql).all(...params);
+  const rows = db.prepare(select + sql + ' ORDER BY COALESCE(o.fe_issued_at, o.created_at) DESC, o.id DESC LIMIT ? OFFSET ?').all(...params, limit, offset).map(r => ({
     ...r, phone: r.customerPhone || r.customerPhone2 || '', email: r.customerEmail || r.customerEmail2 || '',
-    real: r.provider === 'factus' && r.status === 'accepted',
-    pdfSaved: Boolean(factus.readArchived(r.number, 'pdf')), xmlSaved: Boolean(factus.readArchived(r.number, 'xml')),
+    real: isReal(r), pdfSaved: pdfs.has(factus.safeName(r.number)), xmlSaved: xmls.has(factus.safeName(r.number)),
   }));
-  res.json({ invoices: rows, total: rows.reduce((a, r) => a + (r.total || 0), 0) });
+  res.json({
+    invoices: rows, count: all.length, total: all.reduce((a, r) => a + (r.total || 0), 0),
+    real: all.filter(isReal).length, pdfSaved: all.filter(r => isReal(r) && pdfs.has(factus.safeName(r.number))).length,
+  });
 });
 
 /**

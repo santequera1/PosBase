@@ -259,7 +259,7 @@ export const api = {
   getFeConfig: () => request<any>('/einvoicing/config'),
   updateFeConfig: (data: any) => request<any>('/einvoicing/config', { method: 'PUT', body: JSON.stringify(data) }),
   testFeConnection: () => request<any>('/einvoicing/test', { method: 'POST' }),
-  getInvoices: (params: Record<string, any> = {}) => request<{ invoices: any[]; total: number }>('/einvoicing/invoices' + qstr(params)),
+  getInvoices: (params: Record<string, any> = {}) => request<{ invoices: any[]; count: number; total: number; real: number; pdfSaved: number }>('/einvoicing/invoices' + qstr(params)),
   getPendingInvoices: (date?: string) => request<any>('/einvoicing/pending' + qstr({ date })),
   getInvoiceRange: (force?: boolean) => request<any>('/einvoicing/range-status' + (force ? '?force=1' : '')),
   getFeMunicipalities: (q: string) => request<any[]>(`/einvoicing/municipalities${qstr({ q })}`),
