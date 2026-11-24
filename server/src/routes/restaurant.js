@@ -7,7 +7,7 @@ const { getDb } = require('../db');
 const { requireRole, requirePerm, hasAction, hasView } = require('../auth');
 const { formatOrder } = require('../orderFormat');
 const { applySaleStock, restoreOrderStock, recordMovement, syncAvailability, getProduct, emitProduct } = require('../stock');
-const { getOpenShift, now, today, isDate } = require('../cashHelpers');
+const { getOpenShift, attachToOpenShift, now, today, isDate } = require('../cashHelpers');
 const { branchWhere, currentBranch } = require('../branches');
 const { readRestaurantConfig, saveRestaurantConfig, staffLists, CHANNELS, STATIONS } = require('../restaurantSchema');
 const D = require('../discounts');
@@ -609,6 +609,7 @@ router.post('/my-deliveries/:id/:action', requirePerm('courier'), (req, res) => 
       const cashIn = method === 'cash' && rest > 0 ? (received || rest) : 0;
       db.prepare("UPDATE orders SET payment_status = 'paid', payment_method = ?, payment_split = ?, cash_received = ?, cash_change = ?, change_due = ?, change_method = ? WHERE id = ?")
         .run(finalMethod, split, cashIn, cashIn > rest ? cashIn - rest : 0, dep.changeDue, dep.changeDue ? 'cash' : null, order.id);
+      attachToOpenShift(db, order.id);
       if (depUsed > 0 && order.deposit_method === 'cash') {
         const w = require('../cashHelpers').registerCashWithdrawal(db, depUsed, `Abono ya recibido antes · cuenta #${order.id}`, req.user?.name);
         if (w.error) console.warn('Abono en efectivo:', w.error);
@@ -742,6 +743,8 @@ router.post('/orders/:id/close', (req, res) => {
   if (closeNow) { sets.push('status = ?', 'delivered_at = COALESCE(delivered_at, ?)', 'closed_at = ?'); vals.push('delivered', ts, ts); }
   vals.push(order.id);
   db.prepare(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+  // (un domicilio ya cobrado en otro turno y vuelto a cobrar se queda en el suyo: allá ya se contó)
+  if (order.payment_status !== 'paid' || !order.shift_id) attachToOpenShift(db, order.id);
   syncPayrollConsumo(db, order.id, payrollEmp, payrollInstallments, req.user?.name);
   // El abono en efectivo ya entró a la caja cuando se recibió: se compensa para no contarlo dos veces
   if (deposit > 0 && fresh.deposit_method === 'cash') {

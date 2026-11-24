@@ -6,7 +6,7 @@ const L = require('../ledger');
 const { formatOrder } = require('../orderFormat');
 const { readRestaurantConfig, CHANNELS } = require('../restaurantSchema');
 const D = require('../discounts');
-const { getOpenShift, now } = require('../cashHelpers');
+const { getOpenShift, attachToOpenShift, now } = require('../cashHelpers');
 const { branchWhere, currentBranch } = require('../branches');
 const CHANNEL_IDS = CHANNELS.map(c => c.id);
 const METHODS = ['cash', 'card_debit', 'card_credit', 'card', 'transfer', 'platform', 'credit', 'mixed'];
@@ -126,8 +126,10 @@ router.post('/', async (req, res) => {
   }
 
   // Auto-link to active open shift if shiftId is not provided or zero
+  // (si la pantalla quedó con un turno que ya se cerró, la venta va al que está abierto)
   let effectiveShiftId = Number(shiftId);
-  if (!effectiveShiftId || effectiveShiftId <= 0) {
+  const sentShift = effectiveShiftId > 0 ? db.prepare('SELECT status FROM cash_shifts WHERE id = ?').get(effectiveShiftId) : null;
+  if (!sentShift || sentShift.status !== 'open') {
     const openShift = getOpenShift(db);
     effectiveShiftId = openShift ? openShift.id : null;
   }
@@ -325,6 +327,8 @@ router.patch('/:id/payment', (req, res) => {
   } else {
     db.prepare('UPDATE orders SET payment_status = ? WHERE id = ?').run(paymentStatus, req.params.id);
   }
+  // Solo si no tenía caja: quitar y volver a poner "pagado" a una venta de un turno cerrado no la pasa de turno
+  if (paymentStatus === 'paid' && !order.shift_id) attachToOpenShift(db, order.id);
 
   const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   const formatted = formatOrder(db, updated);

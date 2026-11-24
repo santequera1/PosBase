@@ -6,6 +6,21 @@ function getOpenShift(db, branchId) {
   return db.prepare("SELECT * FROM cash_shifts WHERE status = 'open' AND COALESCE(branch_id, 1) = ? ORDER BY opened_at DESC LIMIT 1").get(b);
 }
 
+/**
+ * Al cobrar, la venta queda en la caja que está abierta en ese momento. Los pedidos que entran antes de abrir la caja (los del bot)
+ * o en un turno que ya cerró se cobraban sin quedar en la caja de ese día, y el arqueo no los contaba.
+ * No toca las ventas de un turno que sigue abierto, ni pasa de turno lo que no entra a la caja (a crédito o por nómina).
+ */
+function attachToOpenShift(db, orderId) {
+  const o = db.prepare('SELECT o.id, o.shift_id, o.branch_id, o.payment_method, s.status AS shift_status FROM orders o LEFT JOIN cash_shifts s ON s.id = o.shift_id WHERE o.id = ?').get(orderId);
+  if (!o || o.shift_status === 'open') return null;
+  if (o.shift_id && ['credit', 'payroll'].includes(o.payment_method)) return null;
+  const shift = getOpenShift(db, o.branch_id);
+  if (!shift) return null;
+  db.prepare('UPDATE orders SET shift_id = ? WHERE id = ?').run(shift.id, o.id);
+  return shift.id;
+}
+
 /** Registra un retiro de efectivo en el turno abierto. Devuelve { id, shiftId } o { error }. */
 function registerCashWithdrawal(db, amount, reason, cashierName) {
   const shift = getOpenShift(db);
@@ -66,4 +81,4 @@ function closeAttendanceForShift(db, shiftId) {
   }
 }
 
-module.exports = { getOpenShift, registerCashWithdrawal, removeCashMovementIfOpen, today, now, isDate, registerAttendanceForShift, closeAttendanceForShift };
+module.exports = { getOpenShift, attachToOpenShift, registerCashWithdrawal, removeCashMovementIfOpen, today, now, isDate, registerAttendanceForShift, closeAttendanceForShift };
