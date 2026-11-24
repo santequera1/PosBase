@@ -81,7 +81,7 @@ function buildAccounting(db, range) {
   /* ---------- Ventas ---------- */
   const orderRows = db.prepare(`
     SELECT id, created_at, customer_name, customer_doc, payment_method, payment_split, payment_status, subtotal, discount, delivery_fee, total, status, is_electronic_invoice, cashier_name, shift_id,
-           type, channel, tip, table_label, waiter_name, driver_name
+           type, channel, tip, table_label, waiter_name, driver_name, fe_number, fe_status, fe_issued_at
     FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status != 'open' ORDER BY created_at, id
   `).all(from, to);
 
@@ -108,7 +108,9 @@ function buildAccounting(db, range) {
       id: o.id, number: `${prefix}-${o.id}`, date, time, customer: o.customer_name || 'Consumidor Final', doc: o.customer_doc || '',
       method: PAYMENT_LABEL[o.payment_method] || o.payment_method, methodKey: o.payment_method, status: cancelled ? 'Anulado' : 'Válido',
       subtotal: o.subtotal, discount: o.discount || 0, deliveryFee: o.delivery_fee || 0, total: o.total, base: t.base, tax: t.tax,
-      electronic: Boolean(o.is_electronic_invoice), seller: o.cashier_name || '', shift: o.shift_id ? `#${o.shift_id}` : '', parts,
+      electronic: Boolean(o.is_electronic_invoice),
+      // Número de la factura electrónica aceptada por la DIAN (distinto del número interno de la venta)
+      invoice: o.fe_status === 'accepted' ? o.fe_number || '' : '', invoiceDate: o.fe_status === 'accepted' && o.fe_issued_at ? String(o.fe_issued_at).slice(0, 10) : '', seller: o.cashier_name || '', shift: o.shift_id ? `#${o.shift_id}` : '', parts,
       type: o.type, channel: o.channel || 'local', tip: o.tip || 0, table: o.table_label || '', waiter: o.waiter_name || '', courier: o.driver_name || '', paid: o.payment_status === 'paid',
     };
   });

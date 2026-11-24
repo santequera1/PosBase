@@ -111,8 +111,18 @@ async function apiVersion(db, cfg, force = false) {
 }
 
 /* ---------- rangos de numeración (resolución de la DIAN) ---------- */
-// Rango de facturas que todavía tiene números: activo, sin vencer y con el siguiente número dentro del límite
-const usableRange = x => /factura/i.test(x.document || '') && x.is_active !== false && x.is_active !== 0 && !x.is_expired && Number(x.current) <= Number(x.to);
+// Solo numeración de factura electrónica de VENTA. Factus también tiene "Factura de talonario y de papel" (contingencia): esa nunca se usa aquí
+const isSaleRange = x => /^factura( electr[oó]nica)? de venta$/i.test(String(x.document || '').trim());
+// Rango que todavía tiene números: activo, sin vencer y con el siguiente número dentro del límite
+const usableRange = x => isSaleRange(x) && x.is_active !== false && x.is_active !== 0 && !x.is_expired && Number(x.current) <= Number(x.to);
+/** Rango que reemplaza al que se agotó: el del mismo prefijo; si no hay, el único disponible. Con varios distintos no se adivina. */
+function replacementRange(list, currentId) {
+  const cur = list.find(x => String(x.id) === String(currentId));
+  const options = list.filter(x => usableRange(x) && String(x.id) !== String(currentId));
+  const same = cur ? options.filter(x => String(x.prefix || '') === String(cur.prefix || '')) : [];
+  if (same.length) return same[0];
+  return options.length === 1 ? options[0] : null;
+}
 const saveRangeId = (db, id) => db.prepare("INSERT INTO settings (key, value) VALUES ('factusNumberingRangeId', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(id));
 let rangeCache = { at: 0, list: null };
 /** Rangos de facturas de la cuenta en Factus (se guardan 10 minutos para no consultar en cada factura). */
@@ -120,11 +130,11 @@ async function invoiceRanges(db, cfg, force = false) {
   if (!force && rangeCache.list && Date.now() - rangeCache.at < 10 * 60 * 1000) return rangeCache.list;
   const version = await apiVersion(db, cfg);
   const r = await call(db, cfg, 'GET', '/' + version + '/numbering-ranges');
-  const list = (Array.isArray(r.data) ? r.data : (r.data && r.data.data) || []).filter(x => /factura/i.test(x.document || ''));
+  const list = (Array.isArray(r.data) ? r.data : (r.data && r.data.data) || []).filter(isSaleRange);
   rangeCache = { at: Date.now(), list };
   return list;
 }
-const rangeExhaustedError = e => e && e.status === 409 && /l[ií]mite del rango|rango de numeraci[oó]n/i.test(String(e.message));
+const rangeExhaustedError = e => e && e.status === 409 && /l[ií]mite del rango/i.test(String(e.message));
 function exhaustedError(e, r) {
   const what = r ? `${r.prefix || ''}${r.from} a ${r.prefix || ''}${r.to}` : 'el rango actual';
   const err = new Error(`Se acabaron los números de factura que autorizó la DIAN (${what}). Hay que pedirle a la DIAN una nueva numeración y asociarla en Factus; apenas aparezca, el sistema la usa sola. Mientras tanto la venta queda pendiente de factura.`);
@@ -138,8 +148,10 @@ async function rangeStatus(db, force = false) {
   const list = await invoiceRanges(db, cfg, force);
   const cur = list.find(x => String(x.id) === String(cfg.numberingRangeId)) || list.find(usableRange) || null;
   const map = x => x && { id: x.id, prefix: x.prefix || '', from: Number(x.from), to: Number(x.to), current: Number(x.current), remaining: Math.max(0, Number(x.to) - Number(x.current) + 1), resolution: x.resolution_number || '', start: x.start_date || '', end: x.end_date || '', usable: usableRange(x) };
-  const next = list.find(x => usableRange(x) && (!cur || String(x.id) !== String(cur.id)));
-  return { env: cfg.env, current: map(cur), next: map(next) || null };
+  const next = cur ? replacementRange(list, cur.id) : null;
+  // Varias numeraciones nuevas con prefijos distintos: hay que elegir a mano en la configuración
+  const choose = cur && !usableRange(cur) && !next ? list.filter(x => usableRange(x) && String(x.id) !== String(cur.id)).map(map) : [];
+  return { env: cfg.env, current: map(cur), next: map(next) || null, choose };
 }
 
 /* ---------- armado de la factura ---------- */
@@ -298,8 +310,9 @@ async function issueInvoice(db, orderId, userName) {
     } catch (e) {
       if (!rangeExhaustedError(e)) throw e;
       // Se acabó la numeración del rango en uso: si ya hay otro rango de facturas con números (la nueva resolución de la DIAN), se usa ese
-      const next = (await invoiceRanges(db, cfg, true)).find(x => usableRange(x) && String(x.id) !== String(cfg.numberingRangeId));
-      if (!next) throw exhaustedError(e, (await invoiceRanges(db, cfg)).find(x => String(x.id) === String(cfg.numberingRangeId)));
+      const ranges = await invoiceRanges(db, cfg, true);
+      const next = replacementRange(ranges, cfg.numberingRangeId);
+      if (!next) throw exhaustedError(e, ranges.find(x => String(x.id) === String(cfg.numberingRangeId)));
       saveRangeId(db, next.id);
       cfg.numberingRangeId = next.id;
       bill.numbering_range_id = next.id;

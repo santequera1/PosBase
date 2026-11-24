@@ -120,7 +120,7 @@ export function generateSalesTicketHtml(order: any, options: PrintOptions = {}):
       <div class="divider"></div>
 
       <div class="text-center" style="font-size: 8px;">
-        <p class="font-bold">DOC. INGRESO No. ${docNumber}</p>
+        <p class="font-bold">RECIBO DE VENTA No. ${docNumber}</p>
         <p style="font-size: 7.5px;">${formattedDate} • ${formattedTime}</p>
       </div>
 

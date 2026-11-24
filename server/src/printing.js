@@ -277,6 +277,8 @@ function receiptTicket(printer, b, order, items) {
   if (printer.drawer && (order.payment_method === 'cash' || /"cash"/.test(order.payment_split || ''))) t.drawer();
   headerBlock(t, b);
   t.nl().bold().line(`RECIBO DE VENTA ${b.prefix}-${order.id}`).bold(false).line(fmtDateTime(order.closed_at || order.created_at));
+  // El número del recibo es interno; si la venta ya tiene factura electrónica aceptada, va su número (el de la resolución de la DIAN)
+  if (order.fe_status === 'accepted' && order.fe_number) t.bold().line(`Factura electrónica ${order.fe_number}`).bold(false);
   if (packBanner(order)) t.size(2).bold().invert().line(` ${packBanner(order)} `).invert(false).size(1).bold(false);
   t.align('left');
   t.line(`Cliente: ${order.customer_name || 'Consumidor Final'}`);

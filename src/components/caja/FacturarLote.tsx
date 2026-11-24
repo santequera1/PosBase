@@ -84,6 +84,7 @@ export const FacturarLote = ({ onDone }: { onDone: () => void }) => {
           <p className="font-bold flex items-center gap-1.5"><AlertTriangle size={14} /> Se acabaron los números de factura que autorizó la DIAN</p>
           <p>La resolución {rc.resolution} va de <b>{fmtN(rc, rc.from)}</b> a <b>{fmtN(rc, rc.to)}</b> y ya se usaron todos. Las ventas quedan pendientes y se facturan cuando esté la nueva numeración.</p>
           <p><b>Qué hacer:</b> el representante legal o el contador le pide a la DIAN una nueva numeración de facturación electrónica (puede seguir con el prefijo {rc.prefix || 'actual'} desde el {rc.to + 1}) y la asocia en Factus (app.factus.com.co → Rangos de numeración). Apenas aparezca en Factus, el sistema la usa sola.</p>
+          {range?.choose?.length > 0 && <p className="font-semibold" data-rango-elegir>En Factus hay varias numeraciones nuevas ({range.choose.map((x: any) => `${x.prefix}${x.from} a ${x.prefix}${x.to}`).join(', ')}): elige cuál usar en Configuración → Factura electrónica.</p>}
           <button onClick={() => loadRange(true)} className="px-2.5 py-1 rounded-lg border border-red-300 bg-white font-semibold" data-rango-revisar>Revisar de nuevo en Factus</button>
         </div>
       )}

@@ -251,8 +251,9 @@ const SettingsPage = () => {
                 <input value={businessNit} onChange={e => setBusinessNit(e.target.value)} className={INPUT} />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Prefijo de comprobante</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Prefijo de los recibos (interno)</label>
                 <input value={invoicePrefix} onChange={e => setInvoicePrefix(e.target.value.toUpperCase())} placeholder="POS" className={INPUT} />
+                <p className="text-[10px] text-muted-foreground mt-1" data-prefix-hint>Numera los recibos y las ventas del sistema. No es el prefijo de la factura electrónica: ese lo da la DIAN y lo pone Factus. No uses el mismo.</p>
                 <p className="text-[10px] text-muted-foreground mt-1 font-sans">Ej: POS → POS-1001</p>
               </div>
             </div>
